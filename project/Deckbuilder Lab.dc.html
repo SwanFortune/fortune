@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#14120f;}
+  a{color:oklch(0.72 0.14 45);text-decoration:none;border-bottom:1px solid oklch(0.72 0.14 45 / .35);}
+  a:hover{color:oklch(0.82 0.14 45);border-bottom-color:oklch(0.82 0.14 45 / .8);}
+  @keyframes labpulse{0%,100%{opacity:.35}50%{opacity:1}}
+</style>
+</helmet>
+
+<div style="background:#14120f;color:#e6dfd2;font-family:'JetBrains Mono',ui-monospace,monospace;min-height:100vh;padding:0 0 120px;">
+
+  <div style="max-width:1280px;margin:0 auto;padding:0 40px;">
+
+    <header style="padding:80px 0 56px;border-bottom:1px solid rgba(230,223,210,.12);">
+      <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.22em;color:oklch(0.68 0.16 45);text-transform:uppercase;margin-bottom:28px;">Learning artifact · Roguelike deckbuilder</div>
+      <h1 style="font:400 76px/0.95 'Instrument Serif',Georgia,serif;margin:0 0 24px;letter-spacing:-.01em;max-width:20ch;">The Deckbuilder Lab</h1>
+      <p style="font:400 19px/1.6 'Instrument Serif',Georgia,serif;color:rgba(230,223,210,.72);max-width:62ch;margin:0 0 36px;text-wrap:pretty;">A playable, fully annotated minimal deckbuilder — built as a teaching instrument, not as your game. Play it, break it with the tweak controls, then read why every number is the number it is.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.1em;padding:9px 13px;border:1px solid rgba(230,223,210,.18);border-radius:3px;color:rgba(230,223,210,.6);">20 H / WEEK</div>
+        <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.1em;padding:9px 13px;border:1px solid rgba(230,223,210,.18);border-radius:3px;color:rgba(230,223,210,.6);">TARGET: STEAM, 12–24 MO</div>
+        <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.1em;padding:9px 13px;border:1px solid rgba(230,223,210,.18);border-radius:3px;color:rgba(230,223,210,.6);">SOLO CODE + 1 ARTIST</div>
+      </div>
+    </header>
+
+    <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:32px;padding:56px 0;border-bottom:1px solid rgba(230,223,210,.12);">
+      <div>
+        <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:16px;">01 · MY ASSUMPTIONS</div>
+        <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.7);margin:0;text-wrap:pretty;">You can read code and reason about systems, but you have never written a design doc. You have taste from thousands of hours of play — that is real, unusual capital. The gap is <em style="font-family:'Instrument Serif',serif;font-size:16px;font-style:italic;color:#e6dfd2;">vocabulary and measurement</em>, not instinct.</p>
+      </div>
+      <div>
+        <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:16px;">02 · STACK RECOMMENDATION</div>
+        <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.7);margin:0 0 12px;text-wrap:pretty;"><strong style="color:#e6dfd2;font-weight:500;">Godot 4, C#.</strong> Balatro shipped on LÖVE; Slay the Spire on libGDX. A card game is 90% UI, state machines and data — no engine wins on rendering. Godot wins on iteration speed, free licensing, and a scene tree that maps cleanly onto card/board/overlay.</p>
+        <p style="font:400 13px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.45);margin:0;text-wrap:pretty;">Avoid web/React for a commercial run: Steam wrapping, save files and controller support all become chores. Avoid Unity unless you already know it.</p>
+      </div>
+      <div>
+        <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:16px;">03 · HOW TO USE THIS</div>
+        <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.7);margin:0;text-wrap:pretty;">Play three full runs before reading anything. Notice what you <em style="font-family:'Instrument Serif',serif;font-size:16px;font-style:italic;color:#e6dfd2;">feel</em> — boredom, greed, panic. Then use the tweak controls to change energy, hand size and HP, and watch which feelings die. That loop — change one number, replay, name the feeling — is the entire job.</p>
+      </div>
+    </section>
+
+    <section style="padding:64px 0 0;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:8px;">
+        <h2 style="font:400 44px/1 'Instrument Serif',Georgia,serif;margin:0;">ECHO <span style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);vertical-align:middle;">— A 3-FIGHT PROTOTYPE</span></h2>
+        <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(230,223,210,.25);color:rgba(230,223,210,.75);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:oklch(0.68 0.16 45);color:oklch(0.78 0.16 45);">RESTART RUN</button>
+      </div>
+      <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);max-width:76ch;margin:0 0 28px;text-wrap:pretty;">One twist on top of the Slay&nbsp;the&nbsp;Spire skeleton: every card has a <strong style="color:#e6dfd2;font-weight:500;">tone</strong>. Play a card whose tone matches the card you played immediately before it, and its <strong style="color:#e6dfd2;font-weight:500;">Echo</strong> clause fires. Order of play suddenly matters as much as card choice.</p>
+
+      <!-- ══ BOARD ══ -->
+      <div style="background:#1c1915;border:1px solid rgba(230,223,210,.14);border-radius:6px;overflow-x:auto;overflow-y:hidden;">
+       <div style="min-width:1180px;">
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 22px;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(230,223,210,.1);flex-wrap:wrap;">
+          <div style="display:flex;gap:22px;align-items:center;">
+            <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);">NODE {{ nodeLabel }}</div>
+            <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);">TURN {{ turn }}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <sc-for list="{{ mapNodes }}" as="n" hint-placeholder-count="3">
+              <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.12em;padding:7px 11px;border-radius:2px;border:1px solid {{ n.bc }};color:{{ n.fc }};background:{{ n.bg }};">{{ n.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 300px;">
+
+          <!-- LEFT: play area -->
+          <div style="padding:26px 26px 22px;border-right:1px solid rgba(230,223,210,.1);min-height:620px;display:flex;flex-direction:column;">
+
+            <!-- enemy -->
+            <sc-if value="{{ inCombat }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;justify-content:center;padding:8px 0 26px;">
+                <div style="width:340px;text-align:center;">
+                  <div style="display:inline-flex;align-items:center;gap:9px;font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;padding:8px 13px;border-radius:3px;background:{{ intentBg }};color:{{ intentFg }};border:1px solid {{ intentBd }};margin-bottom:16px;">{{ intentText }}</div>
+                  <div style="width:150px;height:150px;margin:0 auto 14px;border-radius:50%;background:radial-gradient(circle at 38% 32%, rgba(230,223,210,.12), rgba(0,0,0,.5));border:1px solid rgba(230,223,210,.16);display:flex;align-items:center;justify-content:center;font:400 46px/1 'Instrument Serif',serif;color:rgba(230,223,210,.5);">{{ enemyGlyph }}</div>
+                  <div style="font:400 24px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:10px;">{{ enemyName }}</div>
+                  <div style="height:9px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;margin-bottom:7px;">
+                    <div style="height:100%;width:{{ enemyHpPct }};background:oklch(0.58 0.16 25);"></div>
+                  </div>
+                  <div style="display:flex;justify-content:center;gap:14px;font:400 11px/1 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);">
+                    <span>{{ enemyHp }} / {{ enemyMaxHp }} HP</span>
+                    <span style="color:{{ enemyBlockColor }};">BLOCK {{ enemyBlock }}</span>
+                    <span style="color:{{ enemyStrColor }};">STR +{{ enemyStr }}</span>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- reward -->
+            <sc-if value="{{ inReward }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:20px 0;">
+                <div style="text-align:center;">
+                  <div style="font:400 34px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:8px;">{{ rewardTitle }}</div>
+                  <div style="font:400 12px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.5);">Add one card to your deck. Deck size {{ deckSize }} → {{ deckSizeNext }}.</div>
+                </div>
+                <div style="display:flex;gap:16px;">
+                  <sc-for list="{{ rewards }}" as="c" hint-placeholder-count="3">
+                    <button onClick="{{ c.pick }}" style="width:168px;text-align:left;cursor:pointer;background:#26221c;border:1px solid {{ c.toneColor }};border-radius:5px;padding:14px;display:flex;flex-direction:column;gap:9px;" style-hover="background:#2f2a22;transform:translateY(-4px);">
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="width:22px;height:22px;border-radius:50%;background:{{ c.toneColor }};color:#14120f;font:700 11px/22px 'JetBrains Mono',monospace;text-align:center;">{{ c.cost }}</div>
+                        <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:{{ c.toneColor }};">{{ c.toneLabel }}</div>
+                      </div>
+                      <div style="font:400 19px/1.1 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ c.name }}</div>
+                      <div style="font:400 11px/1.55 'JetBrains Mono',monospace;color:rgba(230,223,210,.68);">{{ c.text }}</div>
+                      <div style="font:400 10px/1.5 'JetBrains Mono',monospace;color:{{ c.toneColor }};">{{ c.echoText }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+                <button onClick="{{ skipReward }}" style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:none;color:rgba(230,223,210,.38);cursor:pointer;text-decoration:underline;">SKIP — A SMALL DECK IS A GOOD DECK</button>
+              </div>
+            </sc-if>
+
+            <!-- end states -->
+            <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+                <div style="font:400 54px/1 'Instrument Serif',Georgia,serif;color:{{ overColor }};">{{ overTitle }}</div>
+                <div style="font:400 13px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);max-width:44ch;text-align:center;text-wrap:pretty;">{{ overText }}</div>
+                <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.68 0.16 45);border:none;color:#14120f;padding:13px 22px;border-radius:3px;cursor:pointer;">RUN IT AGAIN</button>
+              </div>
+            </sc-if>
+
+            <div style="flex:1;"></div>
+
+            <!-- hand -->
+            <sc-if value="{{ inCombat }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                  <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);">ENERGY</div>
+                    <div style="font:400 22px/1 'Instrument Serif',serif;color:oklch(0.78 0.16 45);">{{ energy }}<span style="color:rgba(230,223,210,.3);font-size:15px;"> / {{ maxEnergy }}</span></div>
+                    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ chainColor }};padding-left:10px;">{{ chainText }}</div>
+                  </div>
+                  <button onClick="{{ endTurn }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.68 0.16 45);border:none;color:#14120f;padding:11px 20px;border-radius:3px;cursor:pointer;" style-hover="background:oklch(0.78 0.16 45);">END TURN</button>
+                </div>
+                <div style="display:flex;gap:11px;align-items:flex-end;min-height:214px;">
+                  <sc-for list="{{ hand }}" as="c" hint-placeholder-count="5">
+                    <button onClick="{{ c.play }}" style="width:150px;text-align:left;cursor:{{ c.cursor }};opacity:{{ c.opacity }};background:#26221c;border:1px solid {{ c.borderColor }};box-shadow:{{ c.glow }};border-radius:5px;padding:13px;display:flex;flex-direction:column;gap:8px;transition:transform .12s ease;" style-hover="transform:translateY(-10px);">
+                      <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="width:21px;height:21px;border-radius:50%;background:{{ c.toneColor }};color:#14120f;font:700 11px/21px 'JetBrains Mono',monospace;text-align:center;">{{ c.cost }}</div>
+                        <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:{{ c.toneColor }};">{{ c.toneLabel }}</div>
+                      </div>
+                      <div style="font:400 18px/1.1 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ c.name }}</div>
+                      <div style="width:100%;height:34px;border-radius:2px;background:repeating-linear-gradient(135deg, rgba(230,223,210,.05) 0 5px, transparent 5px 10px);border:1px dashed rgba(230,223,210,.14);"></div>
+                      <div style="font:400 10.5px/1.5 'JetBrains Mono',monospace;color:rgba(230,223,210,.68);min-height:32px;">{{ c.text }}</div>
+                      <div style="font:400 9.5px/1.45 'JetBrains Mono',monospace;color:{{ c.echoColor }};">{{ c.echoText }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- RIGHT: player + log -->
+          <div style="padding:26px 22px;display:flex;flex-direction:column;gap:24px;background:rgba(0,0,0,.15);">
+            <div>
+              <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);margin-bottom:12px;">YOU</div>
+              <div style="height:9px;background:rgba(0,0,0,.45);border-radius:2px;overflow:hidden;margin-bottom:7px;">
+                <div style="height:100%;width:{{ hpPct }};background:oklch(0.68 0.16 135);"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font:400 11px/1 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);">
+                <span>{{ hp }} / {{ maxHp }} HP</span>
+                <span style="color:{{ blockColor }};">BLOCK {{ block }}</span>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;">
+              <div style="border:1px solid rgba(230,223,210,.14);border-radius:3px;padding:10px 8px;text-align:center;">
+                <div style="font:400 21px/1 'Instrument Serif',serif;">{{ drawCount }}</div>
+                <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(230,223,210,.4);margin-top:5px;">DRAW</div>
+              </div>
+              <div style="border:1px solid rgba(230,223,210,.14);border-radius:3px;padding:10px 8px;text-align:center;">
+                <div style="font:400 21px/1 'Instrument Serif',serif;">{{ discardCount }}</div>
+                <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(230,223,210,.4);margin-top:5px;">DISCARD</div>
+              </div>
+              <div style="border:1px solid rgba(230,223,210,.14);border-radius:3px;padding:10px 8px;text-align:center;">
+                <div style="font:400 21px/1 'Instrument Serif',serif;">{{ deckSize }}</div>
+                <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(230,223,210,.4);margin-top:5px;">DECK</div>
+              </div>
+            </div>
+
+            <div>
+              <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);margin-bottom:12px;">TONE CHAIN</div>
+              <div style="display:flex;flex-direction:column;gap:7px;">
+                <sc-for list="{{ toneLegend }}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex;align-items:center;gap:9px;font:400 10.5px/1.4 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);">
+                    <span style="width:8px;height:8px;border-radius:50%;background:{{ t.color }};flex:none;"></span>
+                    <span style="color:{{ t.color }};letter-spacing:.1em;width:52px;flex:none;">{{ t.label }}</span>
+                    <span>{{ t.role }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+              <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);margin-bottom:12px;">COMBAT LOG</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <sc-for list="{{ log }}" as="l" hint-placeholder-count="4">
+                  <div style="font:400 10.5px/1.5 'JetBrains Mono',monospace;color:{{ l.color }};">{{ l.text }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+       </div>
+      </div>
+
+      <!-- annotations -->
+      <sc-if value="{{ notesOn }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(230,223,210,.12);border:1px solid rgba(230,223,210,.12);border-top:none;">
+          <sc-for list="{{ notes }}" as="n" hint-placeholder-count="6">
+            <div style="background:#1c1915;padding:22px 20px;">
+              <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:10px;">
+                <span style="font:700 10px/1 'JetBrains Mono',monospace;color:oklch(0.68 0.16 45);">{{ n.num }}</span>
+                <span style="font:500 11px/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;color:#e6dfd2;">{{ n.title }}</span>
+              </div>
+              <p style="font:400 12px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;">{{ n.body }}</p>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </section>
+
+    <!-- ══ TEARDOWN ══ -->
+    <section style="padding:88px 0 0;">
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">04 · WHY THESE NUMBERS</div>
+      <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:24ch;">Every constant above is an argument</h2>
+      <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:70ch;margin:0 0 44px;text-wrap:pretty;">Beginners tune numbers by feel and then cannot explain a single one. Pros can defend all of them. Here is the defence for this prototype — copy the <em style="font-family:'Instrument Serif',serif;font-size:17px;font-style:italic;color:#e6dfd2;">form</em> of the argument, not the values.</p>
+
+      <div style="display:flex;flex-direction:column;">
+        <sc-for list="{{ teardown }}" as="t" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:210px 1fr 1fr;gap:36px;padding:26px 0;border-top:1px solid rgba(230,223,210,.12);align-items:start;">
+            <div>
+              <div style="font:400 26px/1.1 'Instrument Serif',Georgia,serif;color:#e6dfd2;margin-bottom:6px;">{{ t.value }}</div>
+              <div style="font:500 9.5px/1.4 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(230,223,210,.4);">{{ t.knob }}</div>
+            </div>
+            <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.68);margin:0;text-wrap:pretty;">{{ t.why }}</p>
+            <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.42);margin:0;text-wrap:pretty;"><span style="color:oklch(0.68 0.16 45);">If you move it → </span>{{ t.ifChanged }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ══ CURRICULUM ══ -->
+    <section style="padding:88px 0 0;">
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">05 · THE PATH</div>
+      <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:24ch;">Twelve weeks to a vertical slice</h2>
+      <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:70ch;margin:0 0 44px;text-wrap:pretty;">At 20 h/week. Nothing here is reading-only — every week ends in an artifact you can show your artist or a playtester. You do not learn game design by studying it; you learn it by shipping a bad version and measuring the badness.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(230,223,210,.12);border:1px solid rgba(230,223,210,.12);">
+        <sc-for list="{{ weeks }}" as="w" hint-placeholder-count="6">
+          <div style="background:#1c1915;padding:26px 24px;display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;align-items:baseline;gap:12px;">
+              <span style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.68 0.16 45);">{{ w.span }}</span>
+              <span style="font:400 21px/1.15 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ w.title }}</span>
+            </div>
+            <p style="font:400 12.5px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;">{{ w.body }}</p>
+            <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.4);padding-top:10px;border-top:1px dashed rgba(230,223,210,.14);"><span style="color:rgba(230,223,210,.7);">Artifact — </span>{{ w.artifact }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ══ COLLAB ══ -->
+    <section style="padding:88px 0 0;">
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">06 · WORKING WITH YOUR ARTIST</div>
+      <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:26ch;">She is not decorating your systems</h2>
+      <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:72ch;margin:0 0 44px;text-wrap:pretty;">The three games you named all fuse art and mechanic so tightly that you cannot describe one without the other — Inscryption's cards are literally the story, Balatro's CRT grime <em style="font-family:'Instrument Serif',serif;font-size:17px;font-style:italic;color:#e6dfd2;">is</em> the gambling anxiety. If your artist joins after the systems are locked, you get a reskin. Bring her in now.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:28px;">
+        <sc-for list="{{ collab }}" as="c" hint-placeholder-count="4">
+          <div style="border:1px solid rgba(230,223,210,.14);border-radius:5px;padding:26px 24px;display:flex;flex-direction:column;gap:12px;">
+            <div style="font:400 22px/1.15 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ c.title }}</div>
+            <p style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0;text-wrap:pretty;">{{ c.body }}</p>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- ══ DIFFERENTIATION ══ -->
+    <section style="padding:88px 0 0;">
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">07 · FINDING YOUR TWIST</div>
+      <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:26ch;">You asked where to differentiate. Here is the method.</h2>
+      <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:72ch;margin:0 0 40px;text-wrap:pretty;">Take the deckbuilder skeleton and delete or invert exactly one load-bearing assumption. The Echo mechanic in the prototype came from inverting <em style="font-family:'Instrument Serif',serif;font-size:17px;font-style:italic;color:#e6dfd2;">"cards are order-independent within a turn."</em> That is the whole trick. Run the table below and generate ten; kill nine.</p>
+
+      <div style="border:1px solid rgba(230,223,210,.12);">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:32px;padding:16px 24px;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(230,223,210,.12);font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(230,223,210,.4);">
+          <div>GENRE ASSUMPTION</div><div>INVERT IT</div><div>WHAT THE GAME BECOMES</div>
+        </div>
+        <sc-for list="{{ inversions }}" as="i" hint-placeholder-count="6">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:32px;padding:18px 24px;border-bottom:1px solid rgba(230,223,210,.08);font:400 12.5px/1.65 'JetBrains Mono',monospace;">
+            <div style="color:rgba(230,223,210,.5);">{{ i.a }}</div>
+            <div style="color:#e6dfd2;">{{ i.b }}</div>
+            <div style="color:oklch(0.72 0.14 45);">{{ i.c }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <section style="padding:80px 0 0;border-top:1px solid rgba(230,223,210,.12);margin-top:88px;">
+      <h2 style="font:400 32px/1.15 'Instrument Serif',Georgia,serif;margin:0 0 24px;">Next steps I'd suggest</h2>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">
+        <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">A · </span>Tell me your rough concept and I'll build a second prototype around <em style="font-family:'Instrument Serif',serif;font-size:15px;font-style:italic;color:#e6dfd2;">your</em> twist instead of Echo, so you can feel it before writing engine code.</p>
+        <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">B · </span>I can produce a fill-in-the-blanks Game Design Doc and a card-spec sheet your artist can work from directly.</p>
+        <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">C · </span>I can mock the same combat in three different art directions so you and her can argue about tone with pictures rather than adjectives.</p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showNotes&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Teaching layer&quot;},&quot;energyPerTurn&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:1,&quot;max&quot;:6,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;handSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;min&quot;:3,&quot;max&quot;:8,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;playerHp&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:60,&quot;min&quot;:20,&quot;max&quot;:140,&quot;step&quot;:10,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;}}">
+const TONE = {
+  ember: { label: 'EMBER', color: 'oklch(0.70 0.15 45)', role: 'Damage. Snowballs when chained.' },
+  tide:  { label: 'TIDE',  color: 'oklch(0.70 0.15 225)', role: 'Draw and tempo. Sets up chains.' },
+  stone: { label: 'STONE', color: 'oklch(0.70 0.15 145)', role: 'Block. Survives the spike turns.' }
+};
+
+// Single source of truth: card text is GENERATED from effects, never hand-written.
+// If you remember one engineering habit from this file, make it this one.
+const CARDS = {
+  cinder:     { name: 'Cinder',     cost: 1, tone: 'ember', e: { dmg: 6 },            echo: { dmg: 4 } },
+  bulwark:    { name: 'Bulwark',    cost: 1, tone: 'stone', e: { block: 5 },          echo: { block: 4 } },
+  ripple:     { name: 'Ripple',     cost: 1, tone: 'tide',  e: { dmg: 3, draw: 1 },   echo: { draw: 1 } },
+  kindling:   { name: 'Kindling',   cost: 0, tone: 'ember', e: { dmg: 2 },            echo: { energy: 1 } },
+  flare:      { name: 'Flare',      cost: 2, tone: 'ember', e: { dmg: 11 },           echo: { dmg: 6 } },
+  anchor:     { name: 'Anchor',     cost: 2, tone: 'stone', e: { block: 8, dmg: 4 },  echo: { block: 5 } },
+  undertow:   { name: 'Undertow',   cost: 1, tone: 'tide',  e: { dmg: 5 },            echo: { draw: 2 } },
+  sediment:   { name: 'Sediment',   cost: 0, tone: 'stone', e: { block: 3 },          echo: { energy: 1 } },
+  wake:       { name: 'Wake',       cost: 0, tone: 'tide',  e: { draw: 1 },           echo: { energy: 1 } },
+  pyre:       { name: 'Pyre',       cost: 3, tone: 'ember', e: { dmg: 9 },            echo: { dmg: 12 } },
+  seawall:    { name: 'Seawall',    cost: 2, tone: 'stone', e: { block: 12 },         echo: { dmg: 8 } },
+  confluence: { name: 'Confluence', cost: 1, tone: 'tide',  e: { draw: 2 },           echo: { energy: 1 } }
+};
+
+const STARTER = ['cinder','cinder','cinder','cinder','bulwark','bulwark','bulwark','bulwark','ripple','kindling'];
+const REWARD_POOL = ['flare','anchor','undertow','sediment','wake','pyre','seawall','confluence','cinder','bulwark','ripple','kindling'];
+
+const ENCOUNTERS = [
+  { name: 'Husk of the Ninth', glyph: 'IX', hp: 34, label: 'I',
+    moves: [ {t:'atk',v:8}, {t:'def',v:6}, {t:'atk',v:11}, {t:'rage',v:2} ] },
+  { name: 'Tide-Eaten Choir', glyph: '\u2248', hp: 50, label: 'II',
+    moves: [ {t:'atk',v:6,x:2}, {t:'rage',v:2}, {t:'def',v:9}, {t:'atk',v:13} ] },
+  { name: 'The Ashwarden', glyph: '\u25C6', hp: 84, label: 'BOSS',
+    moves: [ {t:'atk',v:10}, {t:'def',v:12}, {t:'rage',v:3}, {t:'atk',v:8,x:2}, {t:'atk',v:18} ] }
+];
+
+const NOTES = [
+  { num:'01', title:'THE INTENT BADGE', body:'The enemy tells you exactly what it will do. This is the single most important UX decision in Slay the Spire: it converts the fight from gambling into arithmetic. Hidden intents feel unfair; visible intents make a loss your fault, which is what makes players restart.' },
+  { num:'02', title:'BLOCK EXPIRES', body:'Your block resets to zero at the start of every one of your turns. That one rule is what forces a decision each turn instead of letting you bank defence forever. Remove it and the game solves itself: block first, kill later.' },
+  { num:'03', title:'3 ENERGY, 5 CARDS', body:'You are shown more options than you can afford. The gap between hand size and energy IS the game — it manufactures a small tragedy every turn. Set energy to 5 in the tweaks and watch the tension evaporate instantly.' },
+  { num:'04', title:'THE ECHO CHAIN', body:'Matching the previous card\u2019s tone fires its Echo clause. This adds a second axis — sequence — on top of selection, at the cost of exactly one integer of state. Cheap mechanics that multiply decisions are what you are hunting for.' },
+  { num:'05', title:'ZERO-COST ENABLERS', body:'Kindling, Sediment and Wake cost nothing and refund energy when echoed. They are deliberately weak alone and absurd in a chain. Every good deckbuilder needs cards that are bad until the player builds the context that makes them good.' },
+  { num:'06', title:'SKIPPING IS A REWARD', body:'The skip button is not politeness. A 10-card deck draws its best card constantly; a 24-card deck draws mush. Making deck thinning a real choice is how you turn "collect cards" into "curate a machine".' }
+];
+
+const TEARDOWN = [
+  { value:'3', knob:'ENERGY PER TURN', why:'Chosen so a 5-card hand always contains at least one card you cannot play. Scarcity is the source of every interesting turn; abundance is the source of every boring one.', ifChanged:'4 makes combos routine and trivialises 0-cost enablers. 2 makes the game punishing and reduces most turns to a single obvious play.' },
+  { value:'5', knob:'HAND SIZE', why:'Large enough that a tone chain of 2\u20133 is often available, small enough to read in under two seconds. Card games die of unreadability long before they die of imbalance.', ifChanged:'7 cards turns each turn into a solitaire optimisation puzzle and adds ~20s per turn. 4 makes draw-based archetypes the only viable ones.' },
+  { value:'10', knob:'STARTING DECK SIZE', why:'You cycle the whole deck every two turns, so every card you add is felt immediately. New players need to observe cause and effect within one fight.', ifChanged:'A 20-card starter hides the impact of rewards, and the player stops believing their choices matter.' },
+  { value:'60', knob:'PLAYER HP', why:'Roughly 5 unblocked boss hits. HP is the run\u2019s real currency \u2014 it is what you spend to save time and what you buy with good play. It must be countable at a glance.', ifChanged:'Very high HP makes early fights consequence-free, which removes the reason to build a deck at all.' },
+  { value:'34 / 50 / 84', knob:'ENEMY HP CURVE', why:'Roughly \u00d71.5 per node while your deck grows by only one card. The curve outruns you on purpose so that synergy \u2014 not card count \u2014 must close the gap.', ifChanged:'A flat curve means the deck you started with beats the boss, and every reward screen becomes noise.' },
+  { value:'4\u20135', knob:'ENEMY MOVE CYCLE', why:'A short, fixed, looping pattern. Players learn it in one fight and feel clever. Randomised intents add variance without adding decisions \u2014 the worst trade in design.', ifChanged:'Pure randomness makes planning impossible; a 12-move script is unlearnable and reads as random anyway.' },
+  { value:'3', knob:'REWARD CHOICES', why:'Three is the smallest number that feels like a real choice and the largest that can be read without fatigue. It also makes "skip" a visible fourth option.', ifChanged:'Five options triples reward-screen time across a 40-minute run and dilutes the memory of any single pick.' },
+  { value:'2 of 3', knob:'TONES PER GOOD HAND', why:'Three tones over a 5-card hand means chains happen naturally but never automatically. Two tones would make Echo constant; four would make it a lottery.', ifChanged:'Adding a fourth tone requires hand size 7+ to keep chain frequency, which then breaks readability. Systems are coupled \u2014 you cannot tune one knob alone.' }
+];
+
+const WEEKS = [
+  { span:'WEEK 1\u20132', title:'Steal the skeleton', body:'Rebuild exactly this prototype in Godot: energy, draw/discard/shuffle, block, telegraphed intent, one reward screen. No art, no juice, ugly Labels only. Your goal is to feel how little code a deckbuilder is \u2014 it is a state machine plus a list of dictionaries.', artifact:'A runnable .exe you can hand someone.' },
+  { span:'WEEK 3\u20134', title:'Learn to talk about it', body:'Write a one-page design doc for the prototype: core loop diagram, list of verbs, what the player is optimising, what tension exists each turn. Then play 5 hours of Slay the Spire and write the same page for it. Compare. The differences are your curriculum.', artifact:'Two one-pagers, side by side.' },
+  { span:'WEEK 5\u20136', title:'Find your inversion', body:'Use the inversion table below. Generate 10 twists, prototype 3 on paper (index cards, a friend, one hour each), build 1 in Godot. Paper kills bad ideas in 20 minutes that code would defend for 3 weeks.', artifact:'One digital prototype of YOUR mechanic.' },
+  { span:'WEEK 7\u20138', title:'Bring in the art', body:'Your artist joins here, not earlier. Give her the verbs, not a moodboard: "the player is hoarding something they are afraid to spend." Ask for 3 visual answers. Choose the one that makes the mechanic more legible, not the prettiest one.', artifact:'3 art directions on the same combat mock.' },
+  { span:'WEEK 9\u201310', title:'Numbers and spreadsheets', body:'Build a damage/HP curve in a spreadsheet before you tune in-engine. Model an average turn: expected damage per energy, expected block per energy. Anything above ~1.6\u00d7 the baseline needs a cost. This is 80% of balance and it is just arithmetic.', artifact:'A balance sheet with a baseline row.' },
+  { span:'WEEK 11\u201312', title:'Playtest properly', body:'Six people, silently watched, no explanation from you. Write down every moment they hesitate, misread a card, or say "wait, what?". Do not fix anything during the session. Confusion is data; your defensiveness is not.', artifact:'A ranked list of 20 observed friction points.' },
+  { span:'MONTH 4\u20136', title:'Vertical slice', body:'One act, one full character, 40 cards, 12 enemies, 3 bosses, real art, real sound, a save system. This is what you show publishers, streamers and your Steam page. Nothing before this is showable.', artifact:'20 minutes of finished game.' },
+  { span:'MONTH 7+', title:'Content and iteration', body:'The slice took 6 months; the remaining content will take twice as long as you estimate. Wishlist campaign starts the day the slice exists, not the day the game is done. Demo at a Steam Next Fest is the single highest-leverage marketing act available to you.', artifact:'Steam page live, demo scheduled.' }
+];
+
+const COLLAB = [
+  { title:'Give her verbs, not references', body:'"Moodboard of dark fantasy" produces generic work. "The player is a hoarder who is punished for spending" produces an artist who invents the visual metaphor with you \u2014 and that metaphor is usually better than the one you had.' },
+  { title:'Lock card anatomy in week 1', body:'Agree the card template \u2014 art window aspect ratio, where cost/name/text sit, minimum readable text size at 100% zoom \u2014 before a single illustration exists. Retrofitting 120 illustrations into a new frame is the most common indie art disaster.' },
+  { title:'Readability beats beauty, always', body:'A player identifies a card by silhouette and colour in ~200 ms, at thumbnail size, mid-panic. Test every illustration greyscaled and at 40% size. If she cannot tell two cards apart, neither can your player, and no amount of rendering fixes it.' },
+  { title:'Decide ownership and money now', body:'While you are friends and nothing is at stake. Write down: revenue split or day rate, who owns the IP, what happens if one of you leaves, who has final say on art and on design. One page, both signed. This conversation is awkward for an hour and saves the project.' }
+];
+
+const INVERSIONS = [
+  { a:'Cards within a turn are order-independent', b:'Sequence changes the effect', c:'Echo \u2014 the prototype above. Turns selection into choreography.' },
+  { a:'Your deck persists between fights', b:'The deck resets, the map is the build', c:'Every fight is a fresh puzzle; progression lives in the route.' },
+  { a:'You choose which cards to add', b:'Enemies add cards to your deck', c:'A deck that rots. Play becomes damage control and thinning.' },
+  { a:'Damage is the win condition', b:'You are the deck being played', c:'Inscryption territory. The frame becomes the mechanic.' },
+  { a:'Cards are drawn from a shuffled pile', b:'Cards are placed on a board and persist', c:'Positional deckbuilder. Spatial synergy instead of draw luck.' },
+  { a:'A run is 40 minutes', b:'A run is 4 minutes', c:'Balatro-ish. Failure costs nothing, so risk-taking explodes.' },
+  { a:'The player builds one deck', b:'The player builds a machine that plays itself', c:'Automation deckbuilder. Watching the engine fire is the reward.' },
+  { a:'Rewards make you stronger', b:'Rewards are debts that come due', c:'Every power spike is a mortgage. Tension lives outside combat.' }
+];
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = this.freshRun();
+  }
+
+  cfg() {
+    return {
+      energy: this.props.energyPerTurn ?? 3,
+      hand: this.props.handSize ?? 5,
+      hp: this.props.playerHp ?? 60
+    };
+  }
+
+  freshRun() {
+    const c = this.cfg();
+    const s = {
+      phase: 'combat', node: 0, turn: 1,
+      hp: c.hp, maxHp: c.hp, block: 0, energy: c.energy,
+      deck: [], hand: [], discard: [], master: STARTER.slice(),
+      lastTone: null, log: [], rewards: [],
+      enemy: null
+    };
+    this.beginCombat(s, 0);
+    return s;
+  }
+
+  componentDidUpdate(prev) {
+    // Tweaks restart the run so balance changes are felt from turn 1.
+    if (prev.energyPerTurn !== this.props.energyPerTurn ||
+        prev.handSize !== this.props.handSize ||
+        prev.playerHp !== this.props.playerHp) {
+      this.setState(this.freshRun());
+    }
+  }
+
+  // ── deck plumbing ────────────────────────────────────────────
+  shuffle(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
+
+  drawInto(s, n) {
+    for (let i = 0; i < n; i++) {
+      if (s.hand.length >= 9) break;
+      if (!s.deck.length) { s.deck = this.shuffle(s.discard); s.discard = []; }
+      if (!s.deck.length) break;
+      s.hand.push(s.deck.pop());
+    }
+  }
+
+  beginCombat(s, idx) {
+    const enc = ENCOUNTERS[idx];
+    s.node = idx; s.turn = 1; s.phase = 'combat'; s.block = 0; s.lastTone = null;
+    s.energy = this.cfg().energy;
+    s.deck = this.shuffle(s.master); s.hand = []; s.discard = [];
+    s.enemy = { name: enc.name, glyph: enc.glyph, hp: enc.hp, maxHp: enc.hp, block: 0, str: 0, mi: 0, moves: enc.moves };
+    s.log = [{ text: '\u2500 ' + enc.name + ' rises.', color: 'oklch(0.72 0.14 45)' }];
+    this.drawInto(s, this.cfg().hand);
+  }
+
+  say(s, text, color) { s.log = [{ text, color: color || 'rgba(230,223,210,.55)' }].concat(s.log).slice(0, 9); }
+
+  // ── the one interesting rule ─────────────────────────────────
+  playCard(i) {
+    this.setState(prev => {
+      const s = { ...prev, hand: prev.hand.slice(), discard: prev.discard.slice(), deck: prev.deck.slice(), enemy: { ...prev.enemy }, log: prev.log.slice() };
+      if (s.phase !== 'combat') return prev;
+      const id = s.hand[i]; const card = CARDS[id];
+      if (!card || card.cost > s.energy) return prev;
+
+      const echo = s.lastTone === card.tone;
+      const eff = { dmg: 0, block: 0, draw: 0, energy: 0 };
+      for (const k in card.e) eff[k] += card.e[k];
+      if (echo) for (const k in card.echo) eff[k] += card.echo[k];
+
+      s.energy -= card.cost;
+      s.hand.splice(i, 1);
+      s.discard.push(id);
+
+      if (eff.dmg > 0) {
+        const absorbed = Math.min(s.enemy.block, eff.dmg);
+        s.enemy.block -= absorbed;
+        s.enemy.hp = Math.max(0, s.enemy.hp - (eff.dmg - absorbed));
+      }
+      if (eff.block) s.block += eff.block;
+      if (eff.energy) s.energy += eff.energy;
+      if (eff.draw) this.drawInto(s, eff.draw);
+
+      this.say(s, (echo ? '\u21BB ECHO \u00b7 ' : '') + card.name + (eff.dmg ? ' \u2014 ' + eff.dmg + ' dmg' : '') + (eff.block ? ' \u2014 ' + eff.block + ' block' : ''), echo ? TONE[card.tone].color : 'rgba(230,223,210,.6)');
+      s.lastTone = card.tone;
+
+      if (s.enemy.hp <= 0) return this.toReward(s);
+      return s;
+    });
+  }
+
+  toReward(s) {
+    s.phase = 'reward';
+    s.hp = Math.min(s.maxHp, s.hp + 8);
+    const pool = this.shuffle(REWARD_POOL);
+    s.rewards = pool.slice(0, 3);
+    return s;
+  }
+
+  endTurn() {
+    this.setState(prev => {
+      if (prev.phase !== 'combat') return prev;
+      const s = { ...prev, hand: [], discard: prev.discard.concat(prev.hand), deck: prev.deck.slice(), enemy: { ...prev.enemy }, log: prev.log.slice() };
+      s.lastTone = null;
+      const e = s.enemy;
+      e.block = 0;
+      const mv = e.moves[e.mi % e.moves.length];
+      if (mv.t === 'atk') {
+        const hits = mv.x || 1;
+        for (let h = 0; h < hits; h++) {
+          const raw = mv.v + e.str;
+          const absorbed = Math.min(s.block, raw);
+          s.block -= absorbed;
+          s.hp = Math.max(0, s.hp - (raw - absorbed));
+        }
+        this.say(s, e.name + ' strikes for ' + ((mv.v + e.str) * (mv.x || 1)) + '.', 'oklch(0.65 0.16 25)');
+      } else if (mv.t === 'def') {
+        e.block += mv.v;
+        this.say(s, e.name + ' hardens (+' + mv.v + ' block).', 'rgba(230,223,210,.45)');
+      } else {
+        e.str += mv.v;
+        this.say(s, e.name + ' swells with rage (+' + mv.v + ' str).', 'oklch(0.70 0.15 45)');
+      }
+      e.mi++;
+
+      if (s.hp <= 0) { s.phase = 'dead'; return s; }
+
+      s.block = 0;                       // block expires — note 02
+      s.energy = this.cfg().energy;
+      s.turn = prev.turn + 1;
+      this.drawInto(s, this.cfg().hand);
+      return s;
+    });
+  }
+
+  takeReward(id) {
+    this.setState(prev => {
+      const s = { ...prev, master: prev.master.slice() };
+      if (id) s.master.push(id);
+      if (s.node + 1 >= ENCOUNTERS.length) { s.phase = 'won'; return s; }
+      this.beginCombat(s, s.node + 1);
+      return s;
+    });
+  }
+
+  cardView(id, i, playable) {
+    const c = CARDS[id];
+    const t = TONE[c.tone];
+    const s = this.state;
+    const echo = s.lastTone === c.tone && s.phase === 'combat';
+    const parts = [];
+    if (c.e.dmg) parts.push('Deal ' + c.e.dmg + '.');
+    if (c.e.block) parts.push('Gain ' + c.e.block + ' Block.');
+    if (c.e.draw) parts.push('Draw ' + c.e.draw + '.');
+    if (c.e.energy) parts.push('Gain ' + c.e.energy + ' Energy.');
+    const ep = [];
+    if (c.echo.dmg) ep.push('+' + c.echo.dmg + ' damage');
+    if (c.echo.block) ep.push('+' + c.echo.block + ' Block');
+    if (c.echo.draw) ep.push('draw ' + c.echo.draw);
+    if (c.echo.energy) ep.push('+' + c.echo.energy + ' Energy');
+    const affordable = c.cost <= s.energy;
+    return {
+      name: c.name, cost: c.cost, toneLabel: t.label, toneColor: t.color,
+      text: parts.join(' '),
+      echoText: 'Echo: ' + ep.join(', ') + '.',
+      echoColor: echo ? t.color : 'rgba(230,223,210,.3)',
+      borderColor: echo ? t.color : 'rgba(230,223,210,.16)',
+      glow: echo ? '0 0 0 1px ' + t.color + ', 0 6px 24px rgba(0,0,0,.5)' : 'none',
+      opacity: (playable && !affordable) ? '.42' : '1',
+      cursor: (playable && !affordable) ? 'not-allowed' : 'pointer',
+      play: () => this.playCard(i)
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const e = s.enemy || { hp: 0, maxHp: 1, block: 0, str: 0, name: '', glyph: '', moves: [], mi: 0 };
+    const mv = e.moves.length ? e.moves[e.mi % e.moves.length] : null;
+    let intentText = '\u2014', intentBg = 'rgba(230,223,210,.06)', intentFg = 'rgba(230,223,210,.6)', intentBd = 'rgba(230,223,210,.15)';
+    if (mv) {
+      if (mv.t === 'atk') {
+        intentText = 'ATTACK  ' + (mv.v + e.str) + (mv.x ? '  \u00d7' + mv.x : '');
+        intentBg = 'oklch(0.42 0.10 25 / .3)'; intentFg = 'oklch(0.78 0.14 25)'; intentBd = 'oklch(0.60 0.14 25 / .5)';
+      } else if (mv.t === 'def') {
+        intentText = 'DEFEND  ' + mv.v;
+        intentBg = 'oklch(0.42 0.08 145 / .3)'; intentFg = 'oklch(0.78 0.13 145)'; intentBd = 'oklch(0.60 0.13 145 / .5)';
+      } else {
+        intentText = 'ENRAGE  +' + mv.v + ' STR';
+        intentBg = 'oklch(0.45 0.10 45 / .3)'; intentFg = 'oklch(0.80 0.15 45)'; intentBd = 'oklch(0.62 0.15 45 / .5)';
+      }
+    }
+
+    const chainTone = s.lastTone ? TONE[s.lastTone] : null;
+
+    return {
+      inCombat: s.phase === 'combat',
+      inReward: s.phase === 'reward',
+      isOver: s.phase === 'won' || s.phase === 'dead',
+      overTitle: s.phase === 'won' ? 'Run complete' : 'You fall',
+      overColor: s.phase === 'won' ? 'oklch(0.75 0.14 145)' : 'oklch(0.65 0.16 25)',
+      overText: s.phase === 'won'
+        ? 'Now the real question: was that satisfying, or merely finishable? Write down the single turn you enjoyed most, and ask why the other turns were not that.'
+        : 'Good. Losing is the feature. Note which turn you lost the run on \u2014 it is almost never the turn you died on.',
+      notesOn: this.props.showNotes ?? true,
+
+      nodeLabel: (ENCOUNTERS[s.node] || {}).label || '\u2014',
+      turn: s.turn,
+      mapNodes: ENCOUNTERS.map((en, i) => ({
+        label: en.label,
+        bc: i === s.node ? 'oklch(0.68 0.16 45)' : 'rgba(230,223,210,.15)',
+        fc: i === s.node ? 'oklch(0.80 0.16 45)' : (i < s.node ? 'rgba(230,223,210,.3)' : 'rgba(230,223,210,.45)'),
+        bg: i === s.node ? 'oklch(0.45 0.12 45 / .2)' : 'transparent'
+      })),
+
+      enemyName: e.name, enemyGlyph: e.glyph,
+      enemyHp: e.hp, enemyMaxHp: e.maxHp,
+      enemyHpPct: Math.round((e.hp / e.maxHp) * 100) + '%',
+      enemyBlock: e.block, enemyStr: e.str,
+      enemyBlockColor: e.block ? 'oklch(0.75 0.13 145)' : 'rgba(230,223,210,.28)',
+      enemyStrColor: e.str ? 'oklch(0.78 0.15 45)' : 'rgba(230,223,210,.28)',
+      intentText, intentBg, intentFg, intentBd,
+
+      hp: s.hp, maxHp: s.maxHp, hpPct: Math.round((s.hp / s.maxHp) * 100) + '%',
+      block: s.block,
+      blockColor: s.block ? 'oklch(0.75 0.13 145)' : 'rgba(230,223,210,.28)',
+      energy: s.energy, maxEnergy: this.cfg().energy,
+      chainText: chainTone ? 'CHAIN \u00b7 ' + chainTone.label : 'CHAIN \u00b7 OPEN',
+      chainColor: chainTone ? chainTone.color : 'rgba(230,223,210,.3)',
+
+      drawCount: s.deck.length, discardCount: s.discard.length, deckSize: s.master.length,
+      deckSizeNext: s.master.length + 1,
+      hand: s.hand.map((id, i) => this.cardView(id, i, true)),
+      rewards: s.rewards.map(id => {
+        const v = this.cardView(id, -1, false);
+        v.pick = () => this.takeReward(id);
+        return v;
+      }),
+      rewardTitle: s.node + 1 >= ENCOUNTERS.length ? 'The Ashwarden is dead' : 'Spoils',
+      skipReward: () => this.takeReward(null),
+      endTurn: () => this.endTurn(),
+      restart: () => this.setState(this.freshRun()),
+
+      toneLegend: Object.keys(TONE).map(k => ({ label: TONE[k].label, color: TONE[k].color, role: TONE[k].role })),
+      log: s.log,
+      notes: NOTES, teardown: TEARDOWN, weeks: WEEKS, collab: COLLAB, inversions: INVERSIONS
+    };
+  }
+}
+
+</script>
+</body>
+</html>

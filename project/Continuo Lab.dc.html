@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#14120f;}
+  a{color:oklch(0.72 0.14 45);text-decoration:none;border-bottom:1px solid oklch(0.72 0.14 45 / .35);}
+  a:hover{color:oklch(0.82 0.14 45);border-bottom-color:oklch(0.82 0.14 45 / .8);}
+  @keyframes cpop{0%{transform:scale(.7);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+</style>
+</helmet>
+
+<div style="background:#14120f;color:#e6dfd2;font-family:'JetBrains Mono',ui-monospace,monospace;min-height:100vh;padding:0 0 120px;">
+ <div style="max-width:1280px;margin:0 auto;padding:0 40px;">
+
+  <header style="padding:80px 0 52px;border-bottom:1px solid rgba(230,223,210,.12);">
+    <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.22em;color:oklch(0.68 0.16 45);text-transform:uppercase;margin-bottom:26px;">Round 02 · Answering your notes</div>
+    <h1 style="font:400 76px/0.95 'Instrument Serif',Georgia,serif;margin:0 0 24px;letter-spacing:-.01em;max-width:18ch;">Continuo</h1>
+    <p style="font:400 19px/1.6 'Instrument Serif',Georgia,serif;color:rgba(230,223,210,.72);max-width:64ch;margin:0;text-wrap:pretty;">The chain now persists — across plays, across rounds, across the whole run. There is no enemy, no intent, no bestiary. Just a number you have to beat and a multiplier you are terrified of losing.</p>
+  </header>
+
+  <!-- ══ THESIS ══ -->
+  <section style="padding:56px 0;border-bottom:1px solid rgba(230,223,210,.12);">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:28px;">WHY YOUR INSTINCT IS RIGHT</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:44px;">
+      <div>
+        <h3 style="font:400 27px/1.2 'Instrument Serif',Georgia,serif;margin:0 0 12px;">Balatro's antagonist is a number, not a bestiary</h3>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0;text-wrap:pretty;">This is the fact that matters for a two-person team, and almost nobody says it out loud. Slay the Spire needs ~80 monsters, each with behaviour, tuning, animation and art. Balatro needs a rising integer. All of that budget moved into <strong style="color:#e6dfd2;font-weight:500;">Jokers</strong> — three lines of code and one small illustration each. Your artist stops being a bottleneck and becomes the content engine. That single structural choice is what makes a game like this shippable by two people in eighteen months.</p>
+      </div>
+      <div>
+        <h3 style="font:400 27px/1.2 'Instrument Serif',Georgia,serif;margin:0 0 12px;">Separate the layer you play from the layer you build</h3>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0;text-wrap:pretty;">In Slay the Spire both layers are the same object: cards. That is why it is deep and why it is heavy. Balatro splits them — you play cards, you build Jokers. The play layer stays dumb and fast; the build layer holds all the depth. It also hands your artist the personality budget: Jokers are characters, cards are furniture. Simple to play, deep to build, cheap to make. Pick this split.</p>
+      </div>
+      <div>
+        <h3 style="font:400 27px/1.2 'Instrument Serif',Georgia,serif;margin:0 0 12px;">Multiplicative, or it will never feel good</h3>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0;text-wrap:pretty;">Additive growth is a slope; multiplicative growth is a cliff, and the cliff is the entire emotional payload. Your numbers must be able to <em style="font-family:'Instrument Serif',serif;font-size:15.5px;font-style:italic;color:#e6dfd2;">break</em>. Pair exponential player growth with an exponential quota and the tension curve builds itself — no encounter design, no difficulty pass, no per-fight tuning. It is the highest leverage arithmetic in the genre.</p>
+      </div>
+      <div>
+        <h3 style="font:400 27px/1.2 'Instrument Serif',Georgia,serif;margin:0 0 12px;">"For autistic people with ADHD" is a spec, so write it as one</h3>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0 0 14px;text-wrap:pretty;">What you are describing has concrete, testable constraints. Put them on the wall and reject any feature that violates one:</p>
+        <div style="display:flex;flex-direction:column;gap:7px;">
+          <sc-for list="{{ spec }}" as="s" hint-placeholder-count="5">
+            <div style="display:flex;gap:11px;font:400 12px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);">
+              <span style="color:oklch(0.68 0.16 45);flex:none;">→</span><span>{{ s }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PROTOTYPE ══ -->
+  <section style="padding:64px 0 0;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:10px;">
+      <h2 style="font:400 44px/1 'Instrument Serif',Georgia,serif;margin:0;">The prototype <span style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.4);vertical-align:middle;">— 5 ANTES, NO ENEMIES</span></h2>
+      <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(230,223,210,.25);color:rgba(230,223,210,.75);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:oklch(0.68 0.16 45);color:oklch(0.78 0.16 45);">RESTART RUN</button>
+    </div>
+    <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);max-width:80ch;margin:0 0 28px;text-wrap:pretty;">Click cards in the order you want them played — the order is the mechanic. Each card that matches the previous card's tone raises the <strong style="color:#e6dfd2;font-weight:500;">Chain</strong>. Break the tone and the Chain halves. The Chain never resets between plays or between rounds, so by ante 4 you are protecting a number you spent twenty minutes building.</p>
+
+    <div style="background:#1c1915;border:1px solid rgba(230,223,210,.14);border-radius:6px;overflow-x:auto;overflow-y:hidden;">
+     <div style="min-width:1140px;">
+
+      <!-- status bar -->
+      <div style="display:flex;align-items:center;gap:32px;padding:16px 24px;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(230,223,210,.1);">
+        <div>
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:7px;">ANTE</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;">{{ anteLabel }}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:8px;">
+            <span>SCORE</span><span>QUOTA {{ quota }}</span>
+          </div>
+          <div style="height:10px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:{{ scorePct }};background:oklch(0.70 0.15 45);transition:width .4s ease;"></div>
+          </div>
+          <div style="font:400 20px/1 'Instrument Serif',serif;margin-top:8px;color:oklch(0.82 0.14 45);">{{ score }}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:7px;">PLAYS</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;color:{{ playsColor }};">{{ playsLeft }}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:7px;">DISCARDS</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;color:rgba(230,223,210,.7);">{{ discardsLeft }}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:7px;">DECK</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;color:rgba(230,223,210,.7);">{{ deckCount }}</div>
+        </div>
+      </div>
+
+      <!-- signets -->
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid rgba(230,223,210,.1);min-height:58px;">
+        <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);flex:none;width:60px;">SIGNETS</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+          <sc-for list="{{ signets }}" as="g" hint-placeholder-count="2">
+            <div title="{{ g.text }}" style="display:flex;align-items:center;gap:9px;padding:7px 12px;border:1px solid {{ g.color }};border-radius:3px;background:rgba(0,0,0,.25);">
+              <span style="width:22px;height:22px;border-radius:2px;background:repeating-linear-gradient(135deg, rgba(230,223,210,.14) 0 4px, transparent 4px 8px);border:1px dashed {{ g.color }};flex:none;"></span>
+              <span style="font:400 12px/1.2 'Instrument Serif',serif;font-size:15px;color:#e6dfd2;">{{ g.name }}</span>
+              <span style="font:400 9.5px/1.3 'JetBrains Mono',monospace;color:rgba(230,223,210,.5);max-width:180px;">{{ g.text }}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noSignets }}" hint-placeholder-val="{{ true }}">
+            <div style="font:400 11px/1.4 'JetBrains Mono',monospace;color:rgba(230,223,210,.28);padding:8px 0;">none yet — clear the ante to earn one</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 320px;">
+
+        <!-- table -->
+        <div style="padding:28px;border-right:1px solid rgba(230,223,210,.1);min-height:520px;display:flex;flex-direction:column;">
+
+          <sc-if value="{{ inPlay }}" hint-placeholder-val="{{ true }}">
+            <div style="flex:1;display:flex;flex-direction:column;">
+              <!-- readout -->
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:12px 0 24px;">
+                <div style="display:flex;gap:8px;min-height:96px;align-items:center;">
+                  <sc-for list="{{ lastSteps }}" as="s" hint-placeholder-count="0">
+                    <div style="width:62px;padding:10px 6px;border-radius:3px;text-align:center;border:1px solid {{ s.color }};background:rgba(0,0,0,.3);animation:cpop .28s ease both;">
+                      <div style="font:400 22px/1 'Instrument Serif',serif;color:#e6dfd2;">{{ s.val }}</div>
+                      <div style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ s.color }};margin-top:6px;">{{ s.tone }}</div>
+                      <div style="font:400 9px/1 'JetBrains Mono',monospace;color:{{ s.chainColor }};margin-top:6px;">{{ s.mark }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;align-items:center;gap:20px;font-family:'Instrument Serif',serif;">
+                  <span style="font-size:40px;color:rgba(230,223,210,.85);">{{ lastSum }}</span>
+                  <span style="font-size:24px;color:rgba(230,223,210,.3);">×</span>
+                  <span style="font-size:40px;color:oklch(0.78 0.15 225);">{{ lastMult }}</span>
+                  <span style="font-size:24px;color:rgba(230,223,210,.3);">=</span>
+                  <span style="font-size:58px;color:oklch(0.84 0.14 45);">{{ lastTotal }}</span>
+                </div>
+                <div style="font:400 11.5px/1.5 'JetBrains Mono',monospace;color:rgba(230,223,210,.4);text-align:center;max-width:52ch;text-wrap:pretty;">{{ hint }}</div>
+              </div>
+
+              <!-- hand -->
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+                  <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);">HAND — CLICK IN PLAY ORDER ({{ selCount }}/3)</div>
+                  <div style="display:flex;gap:10px;">
+                    <button onClick="{{ doDiscard }}" style="font:500 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(230,223,210,.22);color:rgba(230,223,210,.6);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:rgba(230,223,210,.5);color:#e6dfd2;">DISCARD</button>
+                    <button onClick="{{ doPlay }}" style="font:500 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.68 0.16 45);border:none;color:#14120f;padding:11px 22px;border-radius:3px;cursor:pointer;" style-hover="background:oklch(0.78 0.16 45);">PLAY</button>
+                  </div>
+                </div>
+                <div style="display:flex;gap:10px;min-height:132px;align-items:flex-end;">
+                  <sc-for list="{{ hand }}" as="c" hint-placeholder-count="7">
+                    <button onClick="{{ c.click }}" style="width:82px;height:{{ c.h }};cursor:pointer;background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:4px;padding:11px 8px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;transition:height .12s ease;position:relative;">
+                      <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ c.color }};">{{ c.tone }}</div>
+                      <div style="font:400 38px/1 'Instrument Serif',serif;color:#e6dfd2;">{{ c.val }}</div>
+                      <div style="font:400 9px/1 'JetBrains Mono',monospace;color:{{ c.orderColor }};">{{ c.order }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <!-- shop -->
+          <sc-if value="{{ inShop }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;">
+              <div style="text-align:center;">
+                <div style="font:400 34px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:8px;">Ante {{ clearedLabel }} cleared</div>
+                <div style="font:400 12px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.5);">Take one Signet. Your Chain of {{ chain }} carries into the next ante.</div>
+              </div>
+              <div style="display:flex;gap:16px;">
+                <sc-for list="{{ offers }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" style="width:200px;text-align:left;cursor:pointer;background:#26221c;border:1px solid {{ o.color }};border-radius:5px;padding:16px;display:flex;flex-direction:column;gap:11px;" style-hover="background:#2f2a22;transform:translateY(-4px);">
+                    <div style="width:100%;height:64px;border-radius:3px;background:repeating-linear-gradient(135deg, rgba(230,223,210,.07) 0 6px, transparent 6px 12px);border:1px dashed {{ o.color }};display:flex;align-items:center;justify-content:center;font:400 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(230,223,210,.35);">SIGNET ART</div>
+                    <div style="font:400 21px/1.1 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ o.name }}</div>
+                    <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.65);">{{ o.text }}</div>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+              <div style="font:400 54px/1 'Instrument Serif',Georgia,serif;color:{{ overColor }};">{{ overTitle }}</div>
+              <div style="font:400 13px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.55);max-width:46ch;text-align:center;text-wrap:pretty;">{{ overText }}</div>
+              <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.68 0.16 45);border:none;color:#14120f;padding:13px 22px;border-radius:3px;cursor:pointer;">RUN IT AGAIN</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- chain rail -->
+        <div style="padding:28px 24px;display:flex;flex-direction:column;gap:26px;background:rgba(0,0,0,.18);">
+          <div style="text-align:center;padding:22px 0 24px;border:1px solid {{ chainBorder }};border-radius:5px;background:{{ chainBg }};">
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(230,223,210,.4);margin-bottom:14px;">CHAIN</div>
+            <div style="font:400 68px/1 'Instrument Serif',serif;color:{{ chainColor }};">×{{ chain }}</div>
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ chainColor }};margin-top:14px;">{{ chainToneLabel }}</div>
+          </div>
+
+          <div>
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:12px;">RULES</div>
+            <div style="display:flex;flex-direction:column;gap:9px;">
+              <sc-for list="{{ rules }}" as="r" hint-placeholder-count="4">
+                <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.5);text-wrap:pretty;">{{ r }}</div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1;">
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(230,223,210,.38);margin-bottom:12px;">LOG</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <sc-for list="{{ log }}" as="l" hint-placeholder-count="3">
+                <div style="font:400 10.5px/1.5 'JetBrains Mono',monospace;color:{{ l.color }};">{{ l.text }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+    </div>
+
+    <!-- design notes -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(230,223,210,.12);border:1px solid rgba(230,223,210,.12);border-top:none;">
+      <sc-for list="{{ notes }}" as="n" hint-placeholder-count="6">
+        <div style="background:#1c1915;padding:22px 20px;">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:10px;">
+            <span style="font:700 10px/1 'JetBrains Mono',monospace;color:oklch(0.68 0.16 45);">{{ n.num }}</span>
+            <span style="font:500 11px/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;color:#e6dfd2;">{{ n.title }}</span>
+          </div>
+          <p style="font:400 12px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;">{{ n.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ══ CONTENT MATH ══ -->
+  <section style="padding:88px 0 0;">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">THE SCOPE ARGUMENT</div>
+    <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:26ch;">Count the content before you fall in love with the idea</h2>
+    <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:72ch;margin:0 0 40px;text-wrap:pretty;">Same 18-month budget, two people. This is the actual reason not to make Slay the Spire — not that it is done better, but that you cannot afford it.</p>
+    <div style="border:1px solid rgba(230,223,210,.12);">
+      <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr 1.1fr;gap:28px;padding:16px 24px;background:rgba(0,0,0,.25);border-bottom:1px solid rgba(230,223,210,.12);font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(230,223,210,.4);">
+        <div>CONTENT UNIT</div><div>CODE COST</div><div>ART COST</div><div>WHAT IT BUYS</div>
+      </div>
+      <sc-for list="{{ costs }}" as="c" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:1.1fr 1fr 1fr 1.1fr;gap:28px;padding:18px 24px;border-bottom:1px solid rgba(230,223,210,.08);font:400 12.5px/1.65 'JetBrains Mono',monospace;">
+          <div style="color:#e6dfd2;">{{ c.unit }}</div>
+          <div style="color:rgba(230,223,210,.5);">{{ c.code }}</div>
+          <div style="color:rgba(230,223,210,.5);">{{ c.art }}</div>
+          <div style="color:oklch(0.72 0.14 45);">{{ c.buys }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ══ THREE DIRECTIONS ══ -->
+  <section style="padding:88px 0 0;">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.68 0.16 45);margin-bottom:18px;">THREE DIRECTIONS TO ARGUE ABOUT</div>
+    <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:26ch;">All Balatro-shaped. All buildable by two people.</h2>
+    <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);max-width:72ch;margin:0 0 44px;text-wrap:pretty;">Each keeps the structure you liked — number as antagonist, split play/build layers, multiplicative growth, short loop — and varies where the personality lives. Take these to your artist and let her fight for one; the one she can draw a hundred of is the one you make.</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(230,223,210,.12);border:1px solid rgba(230,223,210,.12);">
+      <sc-for list="{{ dirs }}" as="d" hint-placeholder-count="3">
+        <div style="background:#1c1915;padding:30px 26px;display:flex;flex-direction:column;gap:14px;">
+          <div style="font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:{{ d.color }};">{{ d.tag }}</div>
+          <div style="font:400 30px/1.1 'Instrument Serif',Georgia,serif;color:#e6dfd2;">{{ d.name }}</div>
+          <p style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.62);margin:0;text-wrap:pretty;">{{ d.body }}</p>
+          <div style="padding-top:14px;border-top:1px dashed rgba(230,223,210,.14);display:flex;flex-direction:column;gap:9px;">
+            <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.45);"><span style="color:rgba(230,223,210,.75);">Artist's role — </span>{{ d.artist }}</div>
+            <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(230,223,210,.45);"><span style="color:rgba(230,223,210,.75);">Biggest risk — </span>{{ d.risk }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:80px 0 0;border-top:1px solid rgba(230,223,210,.12);margin-top:88px;">
+    <h2 style="font:400 32px/1.15 'Instrument Serif',Georgia,serif;margin:0 0 24px;">Where I'd go next</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">A · </span>Play Continuo three times and tell me the exact moment it stopped being interesting. That moment is the design problem — everything before it is already working.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">B · </span>Pick a direction and I'll build a 40-Signet content sheet — name, effect, one line of art brief each — so your artist can start drawing next week without waiting on the engine.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(230,223,210,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.72 0.14 45);">C · </span>I can mock the same table in three art directions so the two of you argue about tone with pictures instead of adjectives.</p>
+    </div>
+  </section>
+
+ </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;handSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:7,&quot;min&quot;:4,&quot;max&quot;:10,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;playsPerAnte&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:2,&quot;max&quot;:8,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;quotaGrowth&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:2.6,&quot;min&quot;:1.4,&quot;max&quot;:4,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;chainBreak&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;halve&quot;,&quot;minus2&quot;,&quot;reset&quot;],&quot;default&quot;:&quot;halve&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;}}">
+const TONE = {
+  ember: { label: 'EMBER', color: 'oklch(0.70 0.15 45)' },
+  tide:  { label: 'TIDE',  color: 'oklch(0.70 0.15 225)' },
+  stone: { label: 'STONE', color: 'oklch(0.70 0.15 145)' }
+};
+const TKEYS = ['ember', 'tide', 'stone'];
+
+// Every signet is a flag read in one place. That is the whole content engine:
+// one line of data + one illustration = one unit of game.
+const SIGNETS = {
+  cinderwright: { name: 'Cinderwright', tone: 'ember', text: 'Ember cards score +3 value.' },
+  thirdTongue:  { name: 'Third Tongue', tone: 'tide',  text: 'Every 3rd card in a play doubles its value.' },
+  ashfall:      { name: 'Ashfall',      tone: 'ember', text: 'The first card of each play scores twice.' },
+  halfmask:     { name: 'Halfmask',     tone: 'stone', text: 'Breaking the chain costs 2 instead of halving it.' },
+  longNote:     { name: 'The Long Note',tone: 'tide',  text: 'Chain can never fall below 4.' },
+  ledger:       { name: 'The Ledger',   tone: 'stone', text: '+1 Chain at the start of every play.' },
+  sedimentRing: { name: 'Sediment Ring',tone: 'stone', text: '+1 Play each ante.' },
+  glassblower:  { name: 'Glassblower',  tone: 'ember', text: '+6 Chain now. Hand size -1, permanently.' },
+  tallyStone:   { name: 'Tally Stone',  tone: 'tide',  text: 'Each unused discard adds +1 value to every card played.' },
+  bellOfTides:  { name: 'Bell of Tides',tone: 'tide',  text: 'Discarding a card also sets the chain tone.' },
+  quarryMark:   { name: 'Quarry Mark',  tone: 'stone', text: 'Stone cards score +2 value and never break the chain.' },
+  emberCount:   { name: "Ember's Count",tone: 'ember', text: '+1 Chain for every Ember card in the play.' }
+};
+
+const SPEC = [
+  'A whole run fits in 25 minutes. Failure costs nothing but the click to restart.',
+  'Every action resolves in under two seconds and produces a visible number.',
+  'No card needs more than eight words. If it needs a paragraph, cut it.',
+  'No hidden information. Ever. Surprise is not the same as depth.',
+  'The loop must be replayable while distracted, and still rewarding while hyperfocused.'
+];
+
+const RULES = [
+  'Click up to 3 cards in the order you want them played.',
+  'A card matching the previous card\u2019s tone raises Chain by 1.',
+  'A mismatch halves the Chain, rounded up.',
+  'Chain carries across plays AND across antes. It is your run.',
+  'Score = (sum of values) \u00d7 Chain.'
+];
+
+const NOTES = [
+  { num:'01', title:'THE CHAIN IS THE RUN', body:'You asked for persistence and it changes everything. A chain that dies at end of turn is a tactic; one that survives the run is a possession. By ante 4 you are not optimising a hand, you are protecting an investment \u2014 and that is a fundamentally different, better emotion.' },
+  { num:'02', title:'HALVING, NOT RESETTING', body:'Breaking the chain rounds up from half. Full reset would make the game a tightrope where one mistake ends the run \u2014 correct for a hardcore roguelike, wrong for a game meant to be played six times an evening. Punishment should bend the curve, not snap it.' },
+  { num:'03', title:'NO ENEMY, NO ART BILL', body:'The antagonist is the quota bar. That deletes enemy behaviour, enemy tuning, enemy animation and enemy illustration from your project. Every hour saved there goes into Signets \u2014 the only content whose art your player will actually stare at.' },
+  { num:'04', title:'ORDER IS THE INTERACTION', body:'Selecting cards in sequence, with visible 1/2/3 badges, turns a passive multi-select into a decision you can feel. It costs one array of indices. Interaction design is usually this cheap; people just do not look for it.' },
+  { num:'05', title:'THE QUOTA CURVE IS \u00d72.6', body:'Player growth is multiplicative, so the quota must be too, or the difficulty curve inverts and ante 5 becomes easier than ante 1. Set the curve slightly above your expected growth rate \u2014 the gap is where build quality gets tested.' },
+  { num:'06', title:'THE 3-CARD LIMIT', body:'Balatro plays 5, this plays 3. Fewer cards means every play is legible at a glance and resolves fast \u2014 straight from your spec. It also makes the chain harder to sustain, which is what gives Signets like The Ledger something to solve.' }
+];
+
+const COSTS = [
+  { unit:'Enemy (Slay the Spire)', code:'Behaviour script, intents, 3\u20134 balance passes', art:'Idle + attack + hurt animation, 1\u20132 weeks', buys:'One fight the player sees maybe 4 times a run.' },
+  { unit:'Signet / Joker', code:'One data entry, one branch. Under an hour.', art:'One small illustration, half a day.', buys:'A build archetype, a laugh, a screenshot, a meme.' },
+  { unit:'Playing card', code:'Zero \u2014 it is a tone and a number.', art:'Shared template, drawn once.', buys:'The furniture the Signets act on.' },
+  { unit:'Boss / Ante quota', code:'One integer in a curve.', art:'None.', buys:'The entire difficulty curve.' },
+  { unit:'Scoring feedback', code:'2\u20133 weeks of animation and sound polish.', art:'Particles, shake, one great sound.', buys:'Whether anyone plays past run two. Do not skimp here.' }
+];
+
+const DIRS = [
+  { tag:'CLOSEST TO WHAT YOU LIKED', color:'oklch(0.70 0.15 45)', name:'Continuo',
+    body:'The prototype above, grown up. Sequence is the multiplier, Signets are the build, the chain is a run-long possession you can lose in one careless play. Deepest tactical layer of the three, and the easiest to balance because everything routes through one number.',
+    artist:'~100 Signet illustrations as a cast of characters. Card faces are near-free.',
+    risk:'The chain is abstract. Without a strong world it reads as a spreadsheet with a nice font.' },
+  { tag:'HIGHEST ART LEVERAGE', color:'oklch(0.70 0.15 225)', name:'Fresco',
+    body:'Every card is a fragment of one large illustration. You place fragments on a small grid; edges that continue the picture score, and completed motifs are the multiplier. The mechanic literally IS your artist\u2019s work \u2014 nobody else can make your game, because nobody else has her.',
+    artist:'Co-author, not contributor. She designs the motifs, which means she designs the scoring.',
+    risk:'Art and mechanic are welded together. A late art change is a late design change.' },
+  { tag:'MOST DISTINCT FEEL', color:'oklch(0.70 0.15 145)', name:'Metronome',
+    body:'The quota is the same, but the table runs on a beat. Cards played on the beat score at full value; hesitation decays them. Not a rhythm game \u2014 a deckbuilder with a pulse, which converts a thinking game into a felt one and makes the audio designer your third team member.',
+    artist:'Motion and UI over illustration. Fewer assets, but every one has to move.',
+    risk:'Time pressure fights your own accessibility spec. Needs a real no-timer mode from day one.' }
+];
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = this.fresh(); }
+
+  cfg() {
+    return {
+      hand: this.props.handSize ?? 7,
+      plays: this.props.playsPerAnte ?? 4,
+      growth: this.props.quotaGrowth ?? 2.6,
+      breakMode: this.props.chainBreak ?? 'halve'
+    };
+  }
+
+  buildDeck() {
+    const d = [];
+    let n = 0;
+    for (const t of TKEYS) for (let v = 1; v <= 5; v++) { d.push({ id: ++n, tone: t, val: v }); if (v <= 3) d.push({ id: ++n, tone: t, val: v }); }
+    return d;
+  }
+
+  quotaFor(a) { return Math.round(40 * Math.pow(this.cfg().growth, a) / 5) * 5; }
+
+  fresh() {
+    const s = {
+      ante: 0, score: 0, chain: 1, chainTone: null,
+      phase: 'play', sel: [], signets: [], offers: [],
+      hand: [], deck: [], log: [{ text: '\u2500 Ante I. Quota ' + this.quotaFor(0) + '.', color: 'oklch(0.72 0.14 45)' }],
+      last: null, handMod: 0
+    };
+    this.startAnte(s, 0);
+    return s;
+  }
+
+  componentDidUpdate(p) {
+    const k = ['handSize','playsPerAnte','quotaGrowth','chainBreak'];
+    if (k.some(x => p[x] !== this.props[x])) this.setState(this.fresh());
+  }
+
+  shuffle(a) { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [b[i], b[j]] = [b[j], b[i]]; } return b; }
+
+  has(s, k) { return s.signets.indexOf(k) >= 0 ? 1 : 0; }
+
+  handSize(s) { return Math.max(3, this.cfg().hand + s.handMod); }
+
+  draw(s) { while (s.hand.length < this.handSize(s) && s.deck.length) s.hand.push(s.deck.pop()); }
+
+  startAnte(s, a) {
+    s.ante = a; s.score = 0; s.phase = 'play'; s.sel = []; s.last = null;
+    s.plays = this.cfg().plays + this.has(s, 'sedimentRing');
+    s.discards = 3;
+    s.deck = this.shuffle(this.buildDeck()); s.hand = [];
+    this.draw(s);
+  }
+
+  say(s, text, color) { s.log = [{ text, color: color || 'rgba(230,223,210,.5)' }].concat(s.log).slice(0, 8); }
+
+  toggle(i) {
+    this.setState(p => {
+      if (p.phase !== 'play') return p;
+      const sel = p.sel.slice();
+      const at = sel.indexOf(i);
+      if (at >= 0) sel.splice(at, 1);
+      else if (sel.length < 3) sel.push(i);
+      return { ...p, sel };
+    });
+  }
+
+  applyChain(s, tone) {
+    if (s.chainTone === null || s.chainTone === tone) { s.chain += 1; }
+    else if (tone === 'stone' && this.has(s, 'quarryMark')) { s.chain += 1; }
+    else if (this.has(s, 'halfmask')) { s.chain = Math.max(1, s.chain - 2); }
+    else {
+      const m = this.cfg().breakMode;
+      s.chain = m === 'reset' ? 1 : m === 'minus2' ? Math.max(1, s.chain - 2) : Math.max(1, Math.ceil(s.chain / 2));
+    }
+    if (this.has(s, 'longNote')) s.chain = Math.max(4, s.chain);
+    s.chainTone = tone;
+  }
+
+  play() {
+    this.setState(p => {
+      if (p.phase !== 'play' || !p.sel.length) return p;
+      const s = { ...p, hand: p.hand.slice(), sel: [], log: p.log.slice(), signets: p.signets.slice() };
+      const picked = p.sel.map(i => p.hand[i]);
+
+      if (this.has(s, 'ledger')) s.chain += 1;
+
+      let sum = 0;
+      const steps = [];
+      picked.forEach((c, k) => {
+        const before = s.chainTone;
+        this.applyChain(s, c.tone);
+        let v = c.val;
+        if (c.tone === 'ember' && this.has(s, 'cinderwright')) v += 3;
+        if (c.tone === 'stone' && this.has(s, 'quarryMark')) v += 2;
+        if (this.has(s, 'tallyStone')) v += s.discards;
+        if (this.has(s, 'thirdTongue') && (k + 1) % 3 === 0) v *= 2;
+        if (this.has(s, 'ashfall') && k === 0) v *= 2;
+        sum += v;
+        const matched = before === null || before === c.tone;
+        steps.push({
+          val: v, tone: TONE[c.tone].label, color: TONE[c.tone].color,
+          mark: matched ? '\u2191 ' + s.chain : '\u2717 ' + s.chain,
+          chainColor: matched ? 'oklch(0.78 0.14 145)' : 'oklch(0.70 0.16 25)'
+        });
+      });
+
+      if (this.has(s, 'emberCount')) s.chain += picked.filter(c => c.tone === 'ember').length;
+
+      const total = sum * s.chain;
+      s.score += total;
+      s.last = { steps, sum, mult: s.chain, total };
+      s.hand = p.hand.filter((_, i) => p.sel.indexOf(i) < 0);
+      s.plays = p.plays - 1;
+      this.draw(s);
+      this.say(s, sum + ' \u00d7 ' + s.chain + ' = ' + total, 'oklch(0.80 0.14 45)');
+
+      if (s.score >= this.quotaFor(s.ante)) {
+        if (s.ante + 1 >= 5) { s.phase = 'won'; return s; }
+        s.phase = 'shop';
+        const pool = this.shuffle(Object.keys(SIGNETS).filter(k => s.signets.indexOf(k) < 0));
+        s.offers = pool.slice(0, 3);
+        this.say(s, '\u2500 Ante cleared.', 'oklch(0.78 0.14 145)');
+      } else if (s.plays <= 0) {
+        s.phase = 'lost';
+      }
+      return s;
+    });
+  }
+
+  discard() {
+    this.setState(p => {
+      if (p.phase !== 'play' || !p.sel.length || p.discards <= 0) return p;
+      const s = { ...p, log: p.log.slice() };
+      const picked = p.sel.map(i => p.hand[i]);
+      if (this.has(s, 'bellOfTides')) this.applyChain(s, picked[picked.length - 1].tone);
+      s.hand = p.hand.filter((_, i) => p.sel.indexOf(i) < 0);
+      s.sel = []; s.discards = p.discards - 1;
+      this.draw(s);
+      this.say(s, 'Discarded ' + picked.length + '.', 'rgba(230,223,210,.4)');
+      return s;
+    });
+  }
+
+  take(k) {
+    this.setState(p => {
+      const s = { ...p, signets: p.signets.concat([k]), log: p.log.slice() };
+      if (k === 'glassblower') { s.chain += 6; s.handMod = p.handMod - 1; }
+      this.say(s, '\u2500 Ante ' + (s.ante + 2) + '. Quota ' + this.quotaFor(s.ante + 1) + '.', 'oklch(0.72 0.14 45)');
+      this.startAnte(s, s.ante + 1);
+      return s;
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const cfg = this.cfg();
+    const R = ['I', 'II', 'III', 'IV', 'V'];
+    const quota = this.quotaFor(s.ante);
+    const ct = s.chainTone ? TONE[s.chainTone] : null;
+    const last = s.last;
+
+    let hint = 'Chain the same tone twice in a row and the multiplier climbs. It never resets on its own.';
+    if (!s.chainTone) hint = 'Your first card sets the tone. Everything after it either feeds the chain or halves it.';
+    else if (s.chain >= 12) hint = 'A chain this size is worth protecting. Consider discarding to find a matching tone.';
+    else if (s.plays === 1) hint = 'Last play of the ante. Sum \u00d7 Chain has to cover the gap on its own.';
+
+    return {
+      spec: SPEC, rules: RULES, notes: NOTES, costs: COSTS, dirs: DIRS,
+      inPlay: s.phase === 'play', inShop: s.phase === 'shop',
+      isOver: s.phase === 'won' || s.phase === 'lost',
+      overTitle: s.phase === 'won' ? 'Run complete' : 'Quota missed',
+      overColor: s.phase === 'won' ? 'oklch(0.75 0.14 145)' : 'oklch(0.65 0.16 25)',
+      overText: s.phase === 'won'
+        ? 'Five antes on one unbroken chain. Now ask the real question: did you win because of the Signets you picked, or in spite of them? If the answer is "it did not matter", the build layer is not carrying its weight yet.'
+        : 'Note whether you lost because of a bad play or a bad pick three minutes earlier. In a game like this it is almost always the pick \u2014 which is exactly where you want the difficulty to live.',
+
+      anteLabel: R[s.ante] || 'V',
+      clearedLabel: R[s.ante] || 'V',
+      quota, score: s.score,
+      scorePct: Math.min(100, Math.round((s.score / quota) * 100)) + '%',
+      playsLeft: s.plays, discardsLeft: s.discards, deckCount: s.deck.length,
+      playsColor: s.plays <= 1 ? 'oklch(0.70 0.16 25)' : '#e6dfd2',
+
+      chain: s.chain,
+      chainColor: ct ? ct.color : 'rgba(230,223,210,.55)',
+      chainBorder: ct ? ct.color : 'rgba(230,223,210,.16)',
+      chainBg: ct ? 'rgba(0,0,0,.3)' : 'rgba(0,0,0,.2)',
+      chainToneLabel: ct ? ct.label : 'OPEN',
+
+      selCount: s.sel.length,
+      hand: s.hand.map((c, i) => {
+        const at = s.sel.indexOf(i);
+        const on = at >= 0;
+        return {
+          val: c.val, tone: TONE[c.tone].label, color: TONE[c.tone].color,
+          h: on ? '124px' : '108px',
+          bg: on ? '#332c22' : '#26221c',
+          border: on ? TONE[c.tone].color : 'rgba(230,223,210,.16)',
+          order: on ? String(at + 1) : '\u00b7',
+          orderColor: on ? TONE[c.tone].color : 'rgba(230,223,210,.2)',
+          click: () => this.toggle(i)
+        };
+      }),
+
+      lastSteps: last ? last.steps : [],
+      lastSum: last ? last.sum : 0,
+      lastMult: last ? last.mult : s.chain,
+      lastTotal: last ? last.total : 0,
+      hint,
+
+      signets: s.signets.map(k => ({ name: SIGNETS[k].name, text: SIGNETS[k].text, color: TONE[SIGNETS[k].tone].color })),
+      noSignets: s.signets.length === 0,
+      offers: s.offers.map(k => ({ name: SIGNETS[k].name, text: SIGNETS[k].text, color: TONE[SIGNETS[k].tone].color, pick: () => this.take(k) })),
+
+      log: s.log,
+      doPlay: () => this.play(),
+      doDiscard: () => this.discard(),
+      restart: () => this.setState(this.fresh())
+    };
+  }
+}
+
+</script>
+</body>
+</html>

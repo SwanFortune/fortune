@@ -1,0 +1,1504 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:oklch(0.16 0.012 60);color:oklch(0.92 0.014 85);}
+  *{box-sizing:border-box;}
+  a{color:oklch(0.84 0.12 85);text-decoration:none;border-bottom:1px solid rgba(212,175,90,.35);}
+  a:hover{color:oklch(0.90 0.13 85);border-bottom-color:oklch(0.90 0.13 85);}
+  button{font-family:'JetBrains Mono',monospace;cursor:pointer;}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% 0%, oklch(0.21 0.02 55) 0%, oklch(0.145 0.012 60) 62%);font-family:'JetBrains Mono',monospace;padding:0 0 90px;">
+  <div style="max-width:1240px;margin:0 auto;padding:0 32px;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:26px 0 18px;border-bottom:1px solid rgba(234,228,215,.1);">
+      <div style="display:flex;align-items:baseline;gap:18px;">
+        <span style="font:400 26px/1 'Instrument Serif',Georgia,serif;letter-spacing:-.01em;">Bad Fortune</span>
+        <span style="font:400 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(234,228,215,.34);">V22 · MEND THEM · ONE STORY, TOLD IN ORDER</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px;">
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">YOUR SIGN</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;color:{{ readerColor }};">{{ readerSign }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">NIGHT</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;color:oklch(0.84 0.12 85);">{{ nightLabel }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">FAITH</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;color:oklch(0.84 0.12 85);">{{ faith }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">CENTIMES</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;">{{ coin }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">NERVE</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;color:oklch(0.72 0.15 25);">{{ nerveTop }}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:3px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">DECK</span>
+          <span style="font:400 15px/1 'Instrument Serif',serif;">{{ deckCount }}</span>
+        </div>
+        <button onClick="{{ restart }}" style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(234,228,215,.22);color:rgba(234,228,215,.7);padding:8px 12px;border-radius:2px;">BEGIN AGAIN</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap;padding:12px 0 0;min-height:18px;">
+      <sc-for list="{{ markTags }}" as="m" hint-placeholder-count="0">
+        <span title="{{ m.sub }}" style="font:400 9px/1.4 'JetBrains Mono',monospace;letter-spacing:.08em;padding:4px 8px;border-radius:2px;border:1px solid {{ m.color }};color:{{ m.color }};">{{ m.label }}</span>
+      </sc-for>
+      <sc-for list="{{ scarTags }}" as="s" hint-placeholder-count="0">
+        <span style="font:400 9px/1.4 'JetBrains Mono',monospace;letter-spacing:.08em;padding:4px 8px;border-radius:2px;border:1px dashed oklch(0.66 0.16 25);color:oklch(0.72 0.15 25);">{{ s.label }}</span>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isSign }}" hint-placeholder-val="{{ true }}">
+      <section style="padding:40px 0 0;animation:fadein .3s ease both;">
+        <div style="max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:24px;">
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <span style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(234,228,215,.34);">BEFORE THE FIRST KNOCK</span>
+            <span style="font:400 32px/1.1 'Instrument Serif',Georgia,serif;">What do you read under</span>
+            <span style="font:400 11px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);max-width:70ch;text-wrap:pretty;">Your sign is two cards and one habit, on top of seven whites and one borrowed card. It mends more in its own element, and it never gives you the element it cannot stand — you have to pick that up during the run, off somebody who got better.</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(228px,1fr));gap:14px;">
+            <sc-for list="{{ signs }}" as="r" hint-placeholder-count="4">
+              <button onClick="{{ r.take }}" disabled="{{ r.locked }}" style="text-align:left;background:rgba(0,0,0,.3);border:1px solid rgba(234,228,215,.14);border-top:2px solid {{ r.color }};border-radius:3px;padding:16px;display:flex;flex-direction:column;gap:9px;opacity:{{ r.opacity }};cursor:{{ r.cursor }};">
+                <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ r.color }};">{{ r.el }}</span>
+                <span style="font:400 25px/1.05 'Instrument Serif',Georgia,serif;color:oklch(0.94 0.014 85);">{{ r.sign }}</span>
+                <span style="font:400 italic 13px/1.45 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.72);text-wrap:pretty;">“{{ r.line }}”</span>
+                <span style="font:400 9px/1.6 'JetBrains Mono',monospace;color:{{ r.color }};text-wrap:pretty;">{{ r.rule }}</span>
+                <span style="font:400 8.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.4);">{{ r.opp }}</span>
+                <span style="margin-top:auto;padding-top:6px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.5);">{{ r.foot }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isMap }}" hint-placeholder-val="{{ false }}">
+      <section style="padding:34px 0 0;animation:fadein .3s ease both;">
+        <div style="display:flex;gap:36px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:2 1 0;min-width:540px;display:flex;flex-direction:column;gap:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;">
+              <span style="font:400 24px/1 'Instrument Serif',Georgia,serif;">{{ mapTitle }}</span>
+              <span style="font:400 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.4);">{{ mapStep }}</span>
+            </div>
+            <sc-for list="{{ options }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.go }}" style="text-align:left;background:{{ o.bg }};border:1px solid {{ o.border }};border-left:3px solid {{ o.accent }};border-radius:3px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;cursor:pointer;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+                  <span style="font:500 8px/1.4 'JetBrains Mono',monospace;letter-spacing:.18em;color:{{ o.accent }};">{{ o.kindLabel }}</span>
+                  <span style="font:400 8.5px/1.4 'JetBrains Mono',monospace;letter-spacing:.1em;color:rgba(234,228,215,.42);">{{ o.right }}</span>
+                </div>
+                <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;">
+                  <span style="font:400 22px/1.1 'Instrument Serif',Georgia,serif;color:oklch(0.94 0.014 85);">{{ o.title }}</span>
+                  <span style="font:400 9.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.45);">{{ o.sub }}</span>
+                </div>
+                <sc-if value="{{ o.isSitter }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;width:100%;">
+                    <div style="flex:1 1 240px;display:flex;flex-direction:column;gap:5px;">
+                      <div style="display:flex;justify-content:space-between;">
+                        <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.36);">COMPOSURE</span>
+                        <span style="font:400 8.5px/1 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);">{{ o.hpLabel }}</span>
+                      </div>
+                      <div style="height:9px;border:1px solid rgba(234,228,215,.2);border-radius:2px;background:rgba(0,0,0,.35);overflow:hidden;">
+                        <div style="height:100%;width:{{ o.hpPct }};background:oklch(0.66 0.11 150);"></div>
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;">
+                      <div style="display:flex;flex-direction:column;gap:3px;">
+                        <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.34);">DENIAL</span>
+                        <span style="font:400 12px/1 'Instrument Serif',serif;color:oklch(0.78 0.09 300);">{{ o.denial }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:3px;">
+                        <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.34);">SPIRAL</span>
+                        <span style="font:400 12px/1 'Instrument Serif',serif;color:oklch(0.72 0.15 25);">{{ o.drainLabel }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:3px;">
+                        <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.34);">READINGS</span>
+                        <span style="font:400 12px/1 'Instrument Serif',serif;">{{ o.turns }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:3px;">
+                        <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.34);">THEIR SIGN</span>
+                        <span style="display:flex;align-items:center;gap:6px;font:400 13px/1 'Instrument Serif',serif;color:{{ o.elColor }};">{{ o.elGlyph }} {{ o.signName }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span style="font:400 9px/1.55 'JetBrains Mono',monospace;color:oklch(0.84 0.12 85);text-wrap:pretty;">{{ o.quirk }}</span>
+                </sc-if>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="flex:1 1 0;min-width:300px;display:flex;flex-direction:column;gap:18px;">
+            <div style="border:1px solid rgba(234,228,215,.12);border-left:3px solid {{ readerColor }};border-radius:3px;padding:15px 17px;background:rgba(0,0,0,.24);">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px;">
+                <span style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">YOU READ UNDER</span>
+                <span style="font:400 14px/1 'Instrument Serif',serif;color:{{ readerColor }};">{{ readerSign }} · {{ readerEl }}</span>
+              </div>
+              <div style="font:400 italic 14px/1.5 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.82);text-wrap:pretty;">“{{ readerLine }}”</div>
+              <div style="font:400 9.5px/1.65 'JetBrains Mono',monospace;color:{{ readerColor }};margin-top:8px;text-wrap:pretty;">{{ readerRule }}</div>
+            </div>
+
+            <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:16px 18px;background:rgba(0,0,0,.24);">
+              <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);margin-bottom:12px;">WHAT YOU ARE ACTUALLY DOING</div>
+              <div style="font:400 11px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.62);text-wrap:pretty;">They sit down with their <em style="font-style:italic;color:oklch(0.74 0.11 150);">composure</em> nearly gone. You lay cards in a line and read them aloud as one sentence — as long a sentence as your energy pays for. Everything you say puts some of it back. Fill the bar before they run out of readings and they go home mended.</div>
+              <div style="font:400 10px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);margin-top:11px;text-wrap:pretty;">You lay them left to right and they stay where you put them, so plan the whole sentence before you speak any of it. Every card mends what it is worth. Order matters only where a card asks for it — some pay more for opening the sentence, some for closing it, and some only pay when the card before them carried a particular sign.</div>
+              <div style="font:400 10px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);margin-top:11px;text-wrap:pretty;">Against you: their <em style="font-style:italic;color:oklch(0.78 0.09 300);">denial</em> is a shield: it holds off the first points of every reading, and it thickens every time they sit through one, so a reading that worked once will not work forever. Their <em style="font-style:italic;color:oklch(0.72 0.15 25);">spiral</em> comes out of <em style="font-style:italic;color:oklch(0.72 0.15 25);">your</em> nerve instead of theirs: every reading you give them costs you, deeper each time, and when your nerve runs out they let themselves out in whatever state you left them in. It carries from one sitter to the next — a mended sitter gives a little of it back, the back room gives more, and a new night gives all of it. Anything past full becomes <em style="font-style:italic;color:oklch(0.84 0.12 85);">faith</em> — your score, and what the village says about you.</div>
+            </div>
+
+            <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:16px 18px;background:rgba(0,0,0,.24);">
+              <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);margin-bottom:12px;">WHAT A CARD IS FOR</div>
+              <sc-for list="{{ archTable }}" as="a" hint-placeholder-count="7">
+                <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed rgba(234,228,215,.08);">
+                  <span style="flex:0 0 68px;font:400 8.5px/1.5 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ a.color }};">{{ a.k }}</span>
+                  <span style="flex:1;font:400 9.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);text-wrap:pretty;">{{ a.d }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:16px 18px;background:rgba(0,0,0,.24);">
+              <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);margin-bottom:12px;">THE FOUR WAYS TO TALK TO SOMEBODY</div>
+              <sc-for list="{{ elTable }}" as="e" hint-placeholder-count="4">
+                <div style="padding:7px 0;border-bottom:1px dashed rgba(234,228,215,.08);">
+                  <span style="font:400 11px/1.3 'JetBrains Mono',monospace;letter-spacing:.12em;color:{{ e.color }};">{{ e.label }}</span>
+                  <div style="font:400 9.5px/1.55 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);text-wrap:pretty;">{{ e.body }}</div>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:11px;">
+                <sc-for list="{{ ring }}" as="w" hint-placeholder-count="4">
+                  <span style="font:400 9px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ w.color }};">{{ w.label }}</span>
+                  <span style="font:400 9px/1 'JetBrains Mono',monospace;color:rgba(234,228,215,.3);">{{ w.arrow }}</span>
+                </sc-for>
+              </div>
+              <div style="font:400 9.5px/1.65 'JetBrains Mono',monospace;color:rgba(234,228,215,.44);margin-top:8px;text-wrap:pretty;">The ring runs one way. Cards that ask to follow a sign look back at the sign before them: the same one again, or the next one along.</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isRead }}" hint-placeholder-val="{{ false }}">
+      <section style="padding:18px 0 0;animation:fadein .3s ease both;display:flex;gap:26px;align-items:stretch;">
+
+        <div style="flex:0 1 236px;min-width:176px;display:flex;flex-direction:column;gap:11px;padding-top:2px;">
+          <div style="position:relative;height:252px;border:1px solid rgba(234,228,215,.12);border-radius:3px;background:radial-gradient(72% 58% at 50% 30%, rgba(212,175,90,.10) 0%, rgba(0,0,0,.34) 72%);overflow:hidden;">
+            <div style="position:absolute;left:50%;top:100px;width:196px;height:160px;margin-left:-98px;border-radius:46% 46% 0 0;background:linear-gradient(170deg, oklch(0.30 0.02 48) 0%, oklch(0.19 0.015 44) 100%);"></div>
+            <div style="position:absolute;left:50%;top:28px;width:126px;height:158px;margin-left:-63px;border-radius:50% 50% 44% 44%;background:linear-gradient(165deg, oklch(0.70 0.045 62) 0%, oklch(0.46 0.04 48) 100%);box-shadow:{{ face.glow }};transition:box-shadow .45s ease;"></div>
+            <div style="position:absolute;left:50%;top:20px;width:142px;height:74px;margin-left:-71px;border-radius:54% 54% 26% 26%;background:linear-gradient(165deg, oklch(0.28 0.02 50) 0%, oklch(0.16 0.015 44) 100%);"></div>
+            <div style="position:absolute;left:50%;top:122px;width:28px;height:14px;margin-left:-56px;border-radius:50%;background:oklch(0.62 0.10 28);filter:blur(6px);opacity:{{ face.flush }};transition:opacity .45s ease;"></div>
+            <div style="position:absolute;left:50%;top:122px;width:28px;height:14px;margin-left:28px;border-radius:50%;background:oklch(0.62 0.10 28);filter:blur(6px);opacity:{{ face.flush }};transition:opacity .45s ease;"></div>
+            <div style="position:absolute;left:50%;top:{{ face.browTop }};width:28px;height:3px;margin-left:-44px;border-radius:2px;background:oklch(0.24 0.02 46);transform:rotate({{ face.browL }});transition:top .35s ease, transform .35s ease;"></div>
+            <div style="position:absolute;left:50%;top:{{ face.browTop }};width:28px;height:3px;margin-left:16px;border-radius:2px;background:oklch(0.24 0.02 46);transform:rotate({{ face.browR }});transition:top .35s ease, transform .35s ease;"></div>
+            <div style="position:absolute;left:50%;top:102px;width:22px;height:{{ face.eyeH }};margin-left:-47px;border-radius:60%;background:oklch(0.18 0.02 48);transition:height .35s ease;"></div>
+            <div style="position:absolute;left:50%;top:102px;width:22px;height:{{ face.eyeH }};margin-left:25px;border-radius:60%;background:oklch(0.18 0.02 48);transition:height .35s ease;"></div>
+            <div style="position:absolute;left:50%;top:{{ face.mouthTop }};width:{{ face.mouthW }};height:{{ face.mouthH }};transform:translateX(-50%);border-radius:{{ face.mouthRad }};background:oklch(0.30 0.055 28);transition:top .3s ease, width .3s ease, height .3s ease, border-radius .3s ease;"></div>
+            <sc-if value="{{ face.hasScore }}" hint-placeholder-val="{{ false }}">
+              <span style="position:absolute;right:13px;top:11px;font:400 26px/1 'Instrument Serif',serif;color:{{ face.scoreColor }};animation:fadein .25s ease both;">{{ face.score }}</span>
+            </sc-if>
+            <span style="position:absolute;left:13px;bottom:10px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.4);">{{ face.mood }}</span>
+          </div>
+          <sc-if value="{{ hasSay }}" hint-placeholder-val="{{ true }}">
+            <span style="font:400 italic 13.5px/1.5 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.66);text-wrap:pretty;">“{{ portraitSay }}”</span>
+          </sc-if>
+
+          <div style="margin-top:auto;display:flex;flex-direction:column;gap:9px;border:1px solid rgba(234,228,215,.12);border-radius:3px;background:rgba(0,0,0,.24);padding:13px 14px;">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+              <span style="font:400 15px/1 'Instrument Serif',serif;color:{{ readerColor }};">{{ readerSign }}</span>
+              <span style="font:400 9px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:{{ readerColor }};opacity:.7;">{{ readerEl }}</span>
+            </div>
+            <sc-for list="{{ runStats }}" as="r" hint-placeholder-count="6">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                <span style="font:500 7.5px/1.5 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.32);">{{ r.k }}</span>
+                <span style="font:400 10px/1.5 'JetBrains Mono',monospace;color:{{ r.color }};">{{ r.v }}</span>
+              </div>
+            </sc-for>
+            <button onClick="{{ toggleMenu }}" style="margin-top:2px;background:none;border:1px solid rgba(234,228,215,.2);color:rgba(234,228,215,.62);border-radius:2px;padding:8px 10px;font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;">{{ menuLabel }}</button>
+            <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;gap:7px;padding-top:3px;">
+                <sc-for list="{{ marksList }}" as="m" hint-placeholder-count="0">
+                  <span title="{{ m.tip }}" style="font:400 9px/1.45 'JetBrains Mono',monospace;color:{{ m.color }};cursor:help;text-wrap:pretty;">{{ m.label }}</span>
+                </sc-for>
+                <span style="font:400 9px/1.45 'JetBrains Mono',monospace;color:rgba(234,228,215,.34);text-wrap:pretty;">{{ marksEmpty }}</span>
+                <button onClick="{{ restart }}" style="background:none;border:1px solid rgba(212,175,90,.4);color:oklch(0.84 0.12 85);border-radius:2px;padding:8px 10px;font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;">BEGIN AGAIN</button>
+              </div>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="flex:1 1 0;min-width:0;display:flex;flex-direction:column;gap:13px;">
+
+        <div style="display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1 1 400px;min-width:320px;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:baseline;gap:13px;flex-wrap:wrap;">
+              <span style="font:400 27px/1 'Instrument Serif',Georgia,serif;">{{ vName }}</span>
+              <span title="{{ broughtLabel }}" style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);cursor:help;">{{ vRole }}</span>
+              <span style="flex:1;"></span>
+              <span title="{{ quirkRule }}" style="display:flex;align-items:baseline;gap:7px;cursor:help;border-bottom:1px dotted rgba(234,228,215,.22);">
+                <span style="font:400 16px/1 'Instrument Serif',serif;color:{{ elColor }};">{{ elGlyph }}</span>
+                <span style="font:400 15px/1 'Instrument Serif',serif;color:{{ elColor }};">{{ quirkName }}</span>
+              </span>
+            </div>
+            <div title="{{ hpTip }}" style="height:24px;border:1px solid rgba(234,228,215,.22);border-radius:2px;background:rgba(0,0,0,.5);display:flex;overflow:hidden;cursor:help;">
+              <div style="width:{{ hpPct }};background:linear-gradient(180deg, oklch(0.72 0.12 150) 0%, oklch(0.56 0.11 150) 100%);"></div>
+              <div style="width:{{ projPct }};background:oklch(0.84 0.12 85);"></div>
+              <div style="width:{{ absorbPct }};background:oklch(0.62 0.13 300);border-left:1px solid rgba(0,0,0,.5);"></div>
+            </div>
+            <div title="{{ nerveHint }}" style="height:8px;border:1px solid rgba(234,228,215,.18);border-radius:2px;background:rgba(0,0,0,.5);display:flex;overflow:hidden;cursor:help;">
+              <div style="width:{{ nervePct }};background:linear-gradient(180deg, oklch(0.68 0.15 25) 0%, oklch(0.52 0.14 25) 100%);"></div>
+              <div style="width:{{ nerveCostPct }};background:oklch(0.62 0.16 25);opacity:.4;"></div>
+            </div>
+          </div>
+
+          <div style="flex:0 0 auto;display:flex;align-items:flex-end;gap:20px;padding-bottom:2px;">
+            <sc-for list="{{ stats }}" as="s" hint-placeholder-count="2">
+              <span title="{{ s.tip }}" style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:help;">
+                <span style="font:400 23px/1 'Instrument Serif',serif;color:{{ s.color }};">{{ s.n }}</span>
+                <span style="font:400 11px/1 'Instrument Serif',serif;color:{{ s.color }};opacity:.6;">{{ s.glyph }}</span>
+              </span>
+            </sc-for>
+            <span title="{{ turnTip }}" style="display:flex;align-items:flex-end;gap:3px;cursor:help;padding-bottom:4px;">
+              <sc-for list="{{ turnPips }}" as="p" hint-placeholder-count="5">
+                <span style="width:6px;height:17px;border-radius:1px;background:{{ p.color }};"></span>
+              </sc-for>
+            </span>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:11px;align-items:flex-end;justify-content:center;padding:4px 0 0;flex-wrap:wrap;">
+          <sc-for list="{{ slots }}" as="s" hint-placeholder-count="4">
+            <div onMouseEnter="{{ s.over }}" onMouseLeave="{{ s.out }}" style="flex:1 1 116px;max-width:146px;min-width:0;height:190px;border:1px {{ s.style }} {{ s.border }};border-radius:5px;background:{{ s.bg }};box-shadow:{{ s.shadow }};display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:11px 9px;">
+              <span style="font:400 11px/1 'Instrument Serif',serif;color:rgba(234,228,215,.3);">{{ s.roman }}</span>
+              <span style="font:400 19px/1 'Instrument Serif',serif;color:{{ s.elColor }};">{{ s.glyph }}</span>
+              <span style="width:100%;font:400 14.5px/1.15 'Instrument Serif',Georgia,serif;color:{{ s.nameColor }};text-align:center;text-wrap:pretty;">{{ s.name }}</span>
+              <span style="display:flex;align-items:baseline;gap:7px;">
+                <span style="font:400 18px/1 'Instrument Serif',serif;color:{{ s.mendColor }};">{{ s.mend }}</span>
+                <span style="font:400 8px/1 'JetBrains Mono',monospace;letter-spacing:.08em;color:{{ s.noteColor }};">{{ s.note }}</span>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:22px;flex-wrap:wrap;padding-top:2px;">
+          <span style="flex:1 1 300px;font:400 15px/1.5 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.7);text-wrap:pretty;">{{ sentence }}</span>
+          <span style="display:flex;align-items:flex-end;gap:18px;">
+            <sc-for list="{{ tally }}" as="t" hint-placeholder-count="3">
+              <span title="{{ t.tip }}" style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:help;">
+                <span style="font:400 21px/1 'Instrument Serif',serif;color:{{ t.color }};">{{ t.n }}</span>
+                <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ t.color }};opacity:.55;">{{ t.label }}</span>
+              </span>
+            </sc-for>
+          </span>
+          <button onClick="{{ readIt }}" disabled="{{ cannotRead }}" style="background:{{ readBg }};border:1px solid {{ readBorder }};color:{{ readFg }};border-radius:2px;padding:11px 22px;font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;opacity:{{ readOpacity }};">READ IT</button>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:5px;margin-top:2px;">
+          <div style="display:flex;align-items:baseline;gap:20px;flex-wrap:wrap;justify-content:center;">
+            <span title="{{ energyTip }}" style="display:flex;align-items:baseline;gap:7px;cursor:help;">
+              <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.34);">ENERGY</span>
+              <span style="font:400 18px/1 'Instrument Serif',serif;color:{{ energyColor }};">{{ energyNum }}</span>
+              <span style="font:400 11px/1 'Instrument Serif',serif;color:rgba(234,228,215,.38);">/ {{ energyMaxNum }}</span>
+            </span>
+            <span title="{{ gone.tip }}" style="display:flex;align-items:baseline;gap:7px;cursor:help;">
+              <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">{{ gone.k }}</span>
+              <span style="font:400 14px/1 'Instrument Serif',serif;color:{{ gone.color }};">{{ gone.n }}</span>
+            </span>
+          </div>
+
+          <div style="height:52px;display:flex;align-items:center;justify-content:center;padding:0 14px;">
+            <sc-if value="{{ hasDetail }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;max-width:76ch;text-align:center;">
+                <span style="display:flex;align-items:baseline;gap:11px;justify-content:center;flex-wrap:wrap;">
+                  <span style="font:400 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ detailElColor }};">{{ detailEl }}</span>
+                  <span style="font:400 17px/1 'Instrument Serif',Georgia,serif;">{{ detailName }}</span>
+                  <span style="font:400 8px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.4);">{{ detailCost }}</span>
+                </span>
+                <span style="font:400 9.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.52);text-wrap:pretty;">{{ detailText }}</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{ noDetail }}" hint-placeholder-val="{{ true }}">
+              <span style="font:400 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.2);">{{ handHint }}</span>
+            </sc-if>
+          </div>
+
+          <div ref="{{ fanRef }}" style="position:relative;width:100%;max-width:960px;height:252px;">
+            <div title="{{ drawPile.tip }}" style="position:absolute;left:0;top:0;z-index:70;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:help;">
+              <span style="width:38px;height:54px;border:1px solid rgba(234,228,215,.2);border-radius:3px;background:repeating-linear-gradient(135deg, rgba(234,228,215,.06) 0 4px, transparent 4px 8px), rgba(23,19,16,.9);"></span>
+              <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.34);">DRAW</span>
+              <span style="font:400 13px/1 'Instrument Serif',serif;color:rgba(234,228,215,.76);">{{ drawPile.n }}</span>
+            </div>
+            <div title="{{ discPile.tip }}" style="position:absolute;right:0;top:0;z-index:70;display:flex;flex-direction:column;align-items:center;gap:5px;cursor:help;">
+              <span style="width:38px;height:54px;border:1px solid rgba(234,228,215,.14);border-radius:3px;background:rgba(0,0,0,.34);"></span>
+              <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.34);">DISCARD</span>
+              <span style="font:400 13px/1 'Instrument Serif',serif;color:rgba(234,228,215,.76);">{{ discPile.n }}</span>
+            </div>
+            <div style="position:absolute;left:0;right:0;bottom:60px;display:flex;align-items:flex-end;justify-content:center;z-index:2;transform:scale({{ fanScale }});transform-origin:bottom center;">
+
+              <div style="position:relative;flex:none;width:150px;height:170px;margin:0 -58px -34px 0;z-index:3;transform-origin:bottom center;transform:rotate(-31deg);">
+                <div style="position:absolute;left:92px;bottom:44px;width:23px;height:52px;border-radius:13px;background:linear-gradient(150deg, oklch(0.48 0.038 52) 0%, oklch(0.30 0.03 42) 100%);border:1px solid rgba(0,0,0,.4);box-shadow:0 3px 10px rgba(0,0,0,.45);transform:rotate(52deg);transform-origin:bottom left;z-index:4;"></div>
+                <div style="position:absolute;left:9px;bottom:0;width:106px;height:74px;border-radius:32px 34px 15px 17px;background:linear-gradient(155deg, oklch(0.46 0.038 52) 0%, oklch(0.27 0.028 42) 100%);border:1px solid rgba(0,0,0,.4);box-shadow:0 7px 18px rgba(0,0,0,.5);display:flex;align-items:flex-end;gap:6px;padding:0 11px 9px;">
+                  <sc-for list="{{ leftTats }}" as="t" hint-placeholder-count="0">
+                    <span title="{{ t.tip }}" style="font:400 12px/1 'Instrument Serif',serif;color:{{ t.color }};opacity:.9;cursor:help;">{{ t.glyph }}</span>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ leftFingers }}" as="g" hint-placeholder-count="4">
+                  <div style="position:absolute;left:{{ g.x }};bottom:{{ g.y }};width:17px;height:{{ g.h }};border-radius:11px;background:linear-gradient(150deg, oklch(0.48 0.038 52) 0%, oklch(0.30 0.03 42) 100%);border:1px solid rgba(0,0,0,.38);box-shadow:0 3px 9px rgba(0,0,0,.4);transform:rotate({{ g.rot }});">
+                    <div title="{{ g.ringTip }}" style="position:absolute;left:-3px;right:-3px;top:{{ g.ringTop }};height:7px;border-radius:3px;background:{{ g.ringBg }};border:1px solid {{ g.ringBorder }};box-shadow:{{ g.ringGlow }};opacity:{{ g.ringOpacity }};cursor:help;"></div>
+                  </div>
+                </sc-for>
+              </div>
+
+              <sc-for list="{{ hand }}" as="c" hint-placeholder-count="6">
+                <button onClick="{{ c.pick }}" onMouseEnter="{{ c.over }}" onMouseLeave="{{ c.out }}" style="position:relative;z-index:{{ c.z }};flex:none;width:122px;height:170px;margin:0 -7px;transform:{{ c.tf }};transform-origin:bottom center;transition:transform .16s ease;background:{{ c.bg }};border:1px solid {{ c.border }};border-top:2px solid {{ c.accent }};border-radius:5px;box-shadow:0 7px 20px rgba(0,0,0,.5);padding:8px 9px 10px;display:flex;flex-direction:column;align-items:stretch;gap:6px;opacity:{{ c.opacity }};cursor:{{ c.cursor }};">
+                  <span style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                    <span title="{{ c.costTip }}" style="font:400 {{ c.costSize }} 'Instrument Serif',serif;color:{{ c.costColor }};">{{ c.costMark }}</span>
+                    <span title="{{ c.mendTip }}" style="font:400 {{ c.mendSize }} 'Instrument Serif',serif;color:{{ c.mendColor }};">{{ c.mend }}</span>
+                  </span>
+                  <span style="text-align:left;font:400 {{ c.nameSize }} 'Instrument Serif',Georgia,serif;color:{{ c.fg }};text-wrap:pretty;">{{ c.name }}</span>
+                  <span style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+                    <span style="font:500 {{ c.tagSize }} 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ c.accent }};">{{ c.elWord }}</span>
+                    <sc-if value="{{ c.hasArch }}" hint-placeholder-val="{{ false }}">
+                      <span title="{{ c.archTip }}" style="font:500 {{ c.tagSize }} 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ c.archColor }};cursor:help;">{{ c.archWord }}</span>
+                    </sc-if>
+                    <sc-if value="{{ c.exhaust }}" hint-placeholder-val="{{ false }}">
+                      <span title="{{ c.exhaustTip }}" style="font:500 {{ c.tagSize }} 'JetBrains Mono',monospace;letter-spacing:.14em;color:oklch(0.74 0.13 250);cursor:help;">ONCE</span>
+                    </sc-if>
+                  </span>
+                  <sc-if value="{{ c.showText }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:7px;width:{{ c.textW }};z-index:80;background:oklch(0.185 0.018 60);border:1px solid {{ c.border }};border-radius:3px;padding:9px 10px;box-shadow:0 12px 30px rgba(0,0,0,.6);display:flex;flex-wrap:wrap;gap:2px 3.5px;text-align:left;font:400 {{ c.textSize }} 'JetBrains Mono',monospace;">
+                      <sc-for list="{{ c.tokens }}" as="t" hint-placeholder-count="0">
+                        <span onMouseEnter="{{ t.over }}" onMouseLeave="{{ t.out }}" style="font-weight:{{ t.weight }};color:{{ t.color }};cursor:{{ t.cursor }};">{{ t.t }}</span>
+                      </sc-for>
+                    </span>
+                  </sc-if>
+                  <sc-if value="{{ c.kwOpen }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;top:-4px;left:{{ c.kwL }};right:{{ c.kwR }};width:{{ c.kwW }};z-index:95;background:oklch(0.205 0.02 62);border:1px solid rgba(234,228,215,.22);border-radius:3px;padding:9px 11px;text-align:left;box-shadow:0 14px 34px rgba(0,0,0,.6);">
+                      <span style="display:block;font:500 {{ c.kwHeadSize }} 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.84 0.12 85);margin-bottom:6px;">{{ c.kwWord }}</span>
+                      <span style="display:block;font:400 {{ c.kwBodySize }} 'JetBrains Mono',monospace;color:rgba(234,228,215,.62);text-wrap:pretty;">{{ c.kwDesc }}</span>
+                    </span>
+                  </sc-if>
+                </button>
+              </sc-for>
+
+              <div style="position:relative;flex:none;width:150px;height:170px;margin:0 0 -34px -58px;z-index:3;transform-origin:bottom center;transform:rotate(31deg) scaleX(-1);">
+                <div style="position:absolute;left:92px;bottom:44px;width:23px;height:52px;border-radius:13px;background:linear-gradient(150deg, oklch(0.48 0.038 52) 0%, oklch(0.30 0.03 42) 100%);border:1px solid rgba(0,0,0,.4);box-shadow:0 3px 10px rgba(0,0,0,.45);transform:rotate(52deg);transform-origin:bottom left;z-index:4;"></div>
+                <div style="position:absolute;left:9px;bottom:0;width:106px;height:74px;border-radius:32px 34px 15px 17px;background:linear-gradient(155deg, oklch(0.46 0.038 52) 0%, oklch(0.27 0.028 42) 100%);border:1px solid rgba(0,0,0,.4);box-shadow:0 7px 18px rgba(0,0,0,.5);"></div>
+                <sc-for list="{{ rightFingers }}" as="g" hint-placeholder-count="4">
+                  <div style="position:absolute;left:{{ g.x }};bottom:{{ g.y }};width:17px;height:{{ g.h }};border-radius:11px;background:linear-gradient(150deg, oklch(0.48 0.038 52) 0%, oklch(0.30 0.03 42) 100%);border:1px solid rgba(0,0,0,.38);box-shadow:0 3px 9px rgba(0,0,0,.4);transform:rotate({{ g.rot }});">
+                    <div title="{{ g.ringTip }}" style="position:absolute;left:-3px;right:-3px;top:{{ g.ringTop }};height:7px;border-radius:3px;background:{{ g.ringBg }};border:1px solid {{ g.ringBorder }};box-shadow:{{ g.ringGlow }};opacity:{{ g.ringOpacity }};cursor:help;"></div>
+                  </div>
+                </sc-for>
+              </div>
+
+            </div>
+          </div>
+        </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ res }}" hint-placeholder-val="{{ false }}">
+      <div style="position:fixed;inset:0;background:rgba(10,8,6,.84);display:flex;align-items:center;justify-content:center;padding:32px;z-index:40;">
+        <div style="max-width:640px;width:100%;background:oklch(0.215 0.02 68);border:1px solid rgba(234,228,215,.16);border-radius:3px;padding:26px 28px;box-shadow:0 30px 80px rgba(0,0,0,.6);max-height:86vh;overflow:auto;">
+          <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:{{ res.headColor }};margin-bottom:10px;">{{ res.head }}</div>
+          <div style="font:400 21px/1.3 'Instrument Serif',Georgia,serif;margin-bottom:8px;text-wrap:pretty;">{{ res.title }}</div>
+          <div style="font:400 italic 13px/1.6 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.5);margin-bottom:16px;text-wrap:pretty;">{{ res.said }}</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:18px;">
+            <sc-for list="{{ resLines }}" as="l" hint-placeholder-count="3">
+              <div style="display:flex;justify-content:space-between;gap:12px;padding-bottom:5px;border-bottom:1px dashed rgba(234,228,215,.1);">
+                <span style="font:400 10px/1.4 'JetBrains Mono',monospace;color:{{ l.color }};">{{ l.left }}</span>
+                <span style="font:400 10px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.55);text-align:right;">{{ l.right }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ res.go }}" style="background:oklch(0.84 0.12 85);border:none;color:oklch(0.18 0.02 60);border-radius:2px;padding:11px 22px;font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;">{{ res.cta }}</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isPick }}" hint-placeholder-val="{{ false }}">
+      <section style="padding:44px 0 0;animation:fadein .3s ease both;">
+        <div style="max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:26px;align-items:center;">
+          <div style="text-align:center;">
+            <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(234,228,215,.34);margin-bottom:10px;">{{ pick.head }}</div>
+            <div style="font:400 32px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:10px;">{{ pick.title }}</div>
+            <div style="font:400 11.5px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.52);max-width:64ch;text-wrap:pretty;">{{ pick.body }}</div>
+          </div>
+          <div style="display:flex;gap:14px;align-items:stretch;justify-content:center;flex-wrap:wrap;">
+            <sc-for list="{{ pickOpts }}" as="o" hint-placeholder-count="3">
+              <button onClick="{{ o.take }}" disabled="{{ o.locked }}" style="width:212px;text-align:left;background:{{ o.bg }};border:1px solid {{ o.border }};border-top:2px solid {{ o.accent }};border-radius:5px;padding:13px 14px 15px;display:flex;flex-direction:column;gap:9px;opacity:{{ o.opacity }};cursor:{{ o.cursor }};">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font:400 15px/1 'Instrument Serif',serif;color:{{ o.costColor }};">{{ o.costMark }}</span>
+                  <span style="font:400 20px/1 'Instrument Serif',serif;color:{{ o.mendColor }};">{{ o.mend }}</span>
+                </div>
+                <span style="font:400 19px/1.12 'Instrument Serif',Georgia,serif;color:{{ o.fg }};text-wrap:pretty;">{{ o.name }}</span>
+                <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                  <span style="font:500 8px/1.4 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ o.accent }};">{{ o.elWord }}</span>
+                  <sc-if value="{{ o.hasArch }}" hint-placeholder-val="{{ false }}">
+                    <span title="{{ o.archDesc }}" style="font:500 8px/1.4 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ o.archColor }};cursor:help;">{{ o.arch }}</span>
+                  </sc-if>
+                  <sc-if value="{{ o.exhaust }}" hint-placeholder-val="{{ false }}">
+                    <span style="font:500 8px/1.4 'JetBrains Mono',monospace;letter-spacing:.14em;color:oklch(0.74 0.13 250);">ONCE</span>
+                  </sc-if>
+                </span>
+                <span style="display:flex;flex-wrap:wrap;gap:2px 3.5px;font:400 9.5px/1.6 'JetBrains Mono',monospace;min-height:46px;">
+                  <sc-for list="{{ o.tokens }}" as="t" hint-placeholder-count="0">
+                    <span title="{{ t.tip }}" style="font-weight:{{ t.weight }};color:{{ t.color }};cursor:{{ t.cursor }};">{{ t.t }}</span>
+                  </sc-for>
+                </span>
+                <span style="font:500 8px/1.3 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ o.kindColor }};">{{ o.kind }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ pick.skippable }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ pick.skip }}" style="background:none;border:1px solid rgba(234,228,215,.2);color:rgba(234,228,215,.6);border-radius:2px;padding:10px 20px;font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;">{{ pick.skipLabel }}</button>
+          </sc-if>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+      <section style="padding:60px 0 0;animation:fadein .3s ease both;">
+        <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:22px;">
+          <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.22em;color:{{ over.color }};">{{ over.head }}</div>
+          <div style="font:400 40px/1.08 'Instrument Serif',Georgia,serif;text-wrap:pretty;">{{ over.title }}</div>
+          <div style="font:400 italic 16px/1.6 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.6);text-wrap:pretty;">{{ over.body }}</div>
+          <div style="display:flex;flex-direction:column;gap:7px;padding:18px 20px;border:1px solid rgba(234,228,215,.14);border-radius:3px;background:rgba(0,0,0,.26);">
+            <sc-for list="{{ overLines }}" as="l" hint-placeholder-count="4">
+              <div style="display:flex;justify-content:space-between;gap:14px;padding-bottom:6px;border-bottom:1px dashed rgba(234,228,215,.09);">
+                <span style="font:400 10px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);">{{ l.left }}</span>
+                <span style="font:400 10px/1.4 'JetBrains Mono',monospace;text-align:right;color:{{ l.color }};">{{ l.right }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ restart }}" style="align-self:flex-start;background:oklch(0.84 0.12 85);border:none;color:oklch(0.18 0.02 60);border-radius:2px;padding:12px 24px;font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;">ANOTHER NIGHT</button>
+        </div>
+      </section>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;energy&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:2,&quot;max&quot;:8,&quot;section&quot;:&quot;Balance&quot;},&quot;handSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:5,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:4,&quot;max&quot;:10,&quot;section&quot;:&quot;Balance&quot;},&quot;nerve&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:30,&quot;tsType&quot;:&quot;number&quot;,&quot;min&quot;:12,&quot;max&quot;:80,&quot;section&quot;:&quot;Balance&quot;},&quot;mercy&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Balance&quot;},&quot;allSigns&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Balance&quot;}}">
+const GOLD='oklch(0.84 0.12 85)', RED='oklch(0.72 0.15 25)', GREEN='oklch(0.74 0.11 150)', VIOLET='oklch(0.78 0.09 300)', DIM='rgba(234,228,215,.42)';
+
+const EL = {
+  water:{ label:'WATER', glyph:'▽', color:'oklch(0.72 0.14 245)', body:'Tea, silence, hands, sitting close, crying a little with them.' },
+  air:  { label:'AIR',   glyph:'◇', color:'oklch(0.85 0.10 95)',  body:'Naming, mirroring, the family, the pattern, what the village thinks.' },
+  fire: { label:'FIRE',  glyph:'△', color:'oklch(0.76 0.16 45)',  body:'Go and do it tonight. Burn it. Say it to their face. Refuse.' },
+  earth:{ label:'EARTH', glyph:'□', color:'oklch(0.74 0.13 130)', body:'Objects, coins, calluses, the calendar, the thing they brought in.' }
+};
+const RING = ['fire','earth','air','water'];
+const feeds  = el => RING[(RING.indexOf(el) + 3) % 4];   // the sign that feeds yours
+const fedBy  = el => RING[(RING.indexOf(el) + 1) % 4];   // the one yours feeds
+const RAR = { basic:'rgba(234,228,215,.34)', common:'rgba(234,228,215,.5)', uncommon:'oklch(0.72 0.14 245)', rare:'oklch(0.84 0.12 85)' };
+const RARW = { basic:0, common:6, uncommon:3, rare:1 };
+// The ring runs in calendar order: action → material → intellect → feeling → action.
+const NEIGH = { fire:['water','earth'], earth:['fire','air'], air:['earth','water'], water:['air','fire'] };
+const NEXT = { fire:'earth', earth:'air', air:'water', water:'fire' };
+const OPP = { fire:'air', air:'fire', earth:'water', water:'earth' };
+
+// Words on a card that mean something exact.
+const KEYS = {
+  once:'ONCE — you can only ever say it once. The card leaves your deck for good afterwards.',
+  energy:'ENERGY — what a single reading can pay for. It comes back in full every reading.',
+  draw:'DRAW — take that many more cards into your hand, straight away.',
+  nerve:'NERVE — what you have left to sit with people at all. At nothing, the night is over.',
+  spiral:'SPIRAL — what listening takes out of your nerve, and it deepens every reading.',
+  denial:'DENIAL — their shield. It holds off the first points of every reading and thickens as they sit.',
+  composure:'COMPOSURE — what you are filling. Fill it before they leave and they go home mended.',
+  faith:'FAITH — your score, and what the village says about you afterwards.',
+  centimes:'CENTIMES — money. It buys cards and ink from the apothecary.',
+  follows:'FOLLOWS — it only pays if the card said before it carried that sign.',
+  first:'FIRST — it only pays if it opens the sentence.',
+  last:'LAST — it only pays if it closes the sentence.',
+  shallower:'SHALLOWER — the spiral takes less out of you for the rest of this sitter.'
+};
+
+// The sitter's face, and what each score does to it.
+const MOODS = {
+  waiting:  { eyeH:'11px', browTop:'84px', browL:'-3deg', browR:'3deg',   mouthTop:'152px', mouthW:'34px', mouthH:'3px',  mouthRad:'2px',        flush:0,   mood:'WAITING',   glow:'0 12px 30px rgba(0,0,0,.5)' },
+  shut:     { eyeH:'5px',  browTop:'90px', browL:'8deg',  browR:'-8deg',  mouthTop:'153px', mouthW:'26px', mouthH:'3px',  mouthRad:'2px',        flush:0,   mood:'CLOSED',    glow:'0 12px 30px rgba(0,0,0,.6)' },
+  listening:{ eyeH:'12px', browTop:'84px', browL:'-2deg', browR:'2deg',   mouthTop:'150px', mouthW:'32px', mouthH:'7px',  mouthRad:'3px 3px 9px 9px', flush:.16, mood:'LISTENING', glow:'0 12px 30px rgba(0,0,0,.5)' },
+  reached:  { eyeH:'16px', browTop:'78px', browL:'-9deg', browR:'9deg',   mouthTop:'147px', mouthW:'30px', mouthH:'14px', mouthRad:'50%',        flush:.3,  mood:'REACHED',   glow:'0 12px 34px rgba(0,0,0,.5), 0 0 26px rgba(212,175,90,.18)' },
+  struck:   { eyeH:'21px', browTop:'72px', browL:'-14deg',browR:'14deg',  mouthTop:'145px', mouthW:'34px', mouthH:'23px', mouthRad:'46%',        flush:.42, mood:'STRUCK',    glow:'0 12px 34px rgba(0,0,0,.5), 0 0 38px rgba(212,175,90,.3)' }
+};
+
+// Sitters carry their own pronouns; every line about them is templated.
+const PRON = {
+  she:  { S:'She',  s:'she',  O:'Her',  o:'her',  P:'Her',   p:'her',   R:'Herself',  r:'herself',  es:'s', is:'is',  has:'has',  do:'does', goes:'goes' },
+  he:   { S:'He',   s:'he',   O:'Him',  o:'him',  P:'His',   p:'his',   R:'Himself',  r:'himself',  es:'s', is:'is',  has:'has',  do:'does', goes:'goes' },
+  they: { S:'They', s:'they', O:'Them', o:'them', P:'Their', p:'their', R:'Themself', r:'themself', es:'',  is:'are', has:'have', do:'do', goes:'go' }
+};
+const ARCH = {
+  digging:  { c:'oklch(0.80 0.10 60)',  d:'stays in one element — pays off when you refuse to change the subject' },
+  switch:   { c:'oklch(0.74 0.11 150)', d:'pays off going forward round the ring, one sign into the next' },
+  pinpoint: { c:'oklch(0.78 0.09 300)', d:'goes past the shield entirely; none of it is held off' },
+  channel:  { c:'oklch(0.84 0.12 85)',  d:'gives you back cards, energy, coin or faith instead of composure' },
+  salve:    { c:'oklch(0.78 0.10 190)', d:'quiets the spiral, so every later reading costs you less nerve' },
+  timing:   { c:'oklch(0.78 0.13 350)', d:'cares where in the sentence it falls, or buys you another reading' }
+};
+const TOKEN = new RegExp('\\{(\\w+)\\}', 'g');
+function fill(str, key){ const g = PRON[key] || PRON.they; return String(str).replace(TOKEN, (m,k) => g[k] != null ? g[k] : m); }
+
+// The cross is only the order you speak in.
+const ROM = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+const SLOTS = [
+  { label:'BEHIND {o}',   roman:'I',   order:'SPOKEN FIRST',  area:'3 / 1 / 4 / 2', hint:'what it grew out of' },
+  { label:'OVER {o}',     roman:'II',  order:'SPOKEN SECOND', area:'1 / 3 / 2 / 4', hint:'what {s} tell{es} {r}' },
+  { label:'BENEATH {o}',  roman:'III', order:'SPOKEN THIRD',  area:'5 / 3 / 6 / 4', hint:'what {s} will not say' },
+  { label:'AHEAD OF {o}', roman:'IV',  order:'SPOKEN LAST',   area:'3 / 5 / 4 / 6', hint:'what {s} {do} about it' }
+];
+
+const SIGNS = [
+  { k:'aries',      n:'ARIES',       el:'fire',  rule:'{S} {is} already ahead of you. {P} spiral deepens twice as fast.', drainUp:1 },
+  { k:'leo',        n:'LEO',         el:'fire',  rule:'{S} need{es} it to end somewhere. Whatever you speak last mends double.', bigFinish:true },
+  { k:'sagittarius',n:'SAGITTARIUS', el:'fire',  rule:'{S} interrupt{es} with a story of {p} own. Whatever you speak last mends half.', lastHalf:true },
+  { k:'taurus',     n:'TAURUS',      el:'earth', rule:'Nothing reaches {o} cold. Your first reading counts half.', firstHalf:true },
+  { k:'virgo',      n:'VIRGO',       el:'earth', rule:'{S} correct{es} it back into shape. {P} denial grows 2 after every reading.', denialUp:2 },
+  { k:'capricorn',  n:'CAPRICORN',   el:'earth', rule:'{S} {do} not believe anything happens tonight. Fire mends half.', halfEl:'fire' },
+  { k:'gemini',     n:'GEMINI',      el:'air',   rule:'{S} will not sit still. Saying the same sign twice in a row mends 3 less.', samePenalty:3 },
+  { k:'libra',      n:'LIBRA',       el:'air',   rule:'{S} weigh{es} both sides of everything. Cards of {p} own sign get no bonus.', noAffinity:true },
+  { k:'aquarius',   n:'AQUARIUS',    el:'air',   rule:'{S} {is} already somewhere else. {P} spiral deepens twice as fast.', drainUp:1 },
+  { k:'cancer',     n:'CANCER',      el:'water', rule:'{S} take{es} it back inside. {P} denial grows 2 after every reading.', denialUp:2 },
+  { k:'scorpio',    n:'SCORPIO',     el:'water', rule:'{S} know{es} what you are. Air mends half tonight.', halfEl:'air' },
+  { k:'pisces',     n:'PISCES',      el:'water', rule:'{S} cannot hold it. {S} lose{es} 3 composure of {p} own after every reading.', leak:3 }
+];
+const signFor = el => SIGNS.filter(s => s.el === el);
+
+// f = base mend · cost 1/2/3 — free only where the card hands something back
+const BASICS = [
+  { n:'Take Their Coat',    r:'basic', a:'channel',  sp:'take their coat',    el:null, neutral:true, f:1, cost:0, text:'Free, and two energy back. Once — the coat only comes off the once.', energy:2, exhaust:true },
+  { n:'Ask Them To Sit',    r:'basic', a:'timing',   sp:'ask them to sit',    el:null, neutral:true, f:3, cost:1, text:'+4 more if you say it first. Once — nobody sits down twice.', opener:4, exhaust:true },
+  { n:'Set Down The Cloth', r:'basic', a:'timing',   sp:'set down the cloth', el:null, neutral:true, f:1, cost:1, text:'Whatever you say next mends 5 more. Once — the table is already a table.', next:5, exhaust:true },
+  { n:'Shuffle And Cut',    r:'basic', a:'channel',  sp:'shuffle and cut',    el:null, neutral:true, f:2, cost:1, text:'Let them cut it themselves. Draw one.', draw:1 },
+  { n:'Light The Lamp',     r:'basic', a:'timing',   sp:'light the lamp',     el:null, neutral:true, f:2, cost:1, text:'+4 more if you say it last. Once — the lamp stays lit after.', closer:4, exhaust:true },
+  { n:'Say Their Name',     r:'basic', a:'pinpoint', sp:'say their name',     el:null, neutral:true, f:5, cost:2, text:'Out loud, once, correctly. Straight past whatever they are telling themselves.', pierce:true },
+  { n:'Turn The Top Card',  r:'basic', a:'channel',  sp:'turn the top card',  el:null, neutral:true, f:1, cost:1, text:'Draw two while they are still looking at it.', draw:2 }
+];
+
+const MINOR = [
+  // WATER · feeling
+  { n:'Pour The Tea', r:'common', a:'salve',       sp:'pour the tea',            el:'water', f:3, cost:1, text:'This reading costs you 2 less nerve. It is for you as much as for them.', guard:2 },
+  { n:'Sit In The Silence', r:'common', a:'salve',      sp:'sit in the silence',      el:'water', f:1, cost:1, text:'The spiral runs 2 shallower for good, and this reading costs you 2 less. Once.', calm:2, guard:2, exhaust:true },
+  { n:'Hold Their Hand', r:'uncommon', a:'digging',           sp:'hold their hand',           el:'water', f:4, cost:2, text:'+4 more if it follows ▽. You stay in it with them.', follows:'same', bonus:4 },
+  { n:'Say Nothing At All', r:'uncommon', a:'channel',      sp:'say nothing at all',      el:'water', f:0, cost:1, text:'Hands you two energy back. The room does the work.', energy:2 },
+  { n:'Cry A Little With Them', r:'uncommon', a:'',   sp:'cry a little with them',   el:'water', f:5, cost:2, text:'Not entirely faked — and the spiral deepens 2 after this. Once; twice is a performance.', risk:2, exhaust:true },
+  { n:'Agree That It Is Unfair', r:'common', a:'', sp:'agree that it is unfair', el:'water', f:2, cost:1, text:'It is unfair.' },
+  { n:'Let Them Say The Worst Of It', r:'rare', a:'pinpoint', sp:'let them say the worst of it', el:'water', f:8, cost:3, text:'Long, quiet, straight past what they tell themselves — and it costs you 3 less to hear. Once; the worst is only worst once.', pierce:true, guard:3, exhaust:true },
+  // AIR · intellect
+  { n:'Ask Them Why', r:'common', a:'',             sp:'ask them why',             el:'air',   f:3, cost:1, text:'You know. They do not know you know.' },
+  { n:'Name The Feeling', r:'common', a:'switch',        sp:'name the feeling',        el:'air',   f:2, cost:1, text:'+4 more if it follows □. Say the word they would not.', follows:'turn', bonus:4 },
+  { n:'Ask About The Family', r:'common', a:'',    sp:'ask about the family',    el:'air',   f:4, cost:1, text:'It is always the family. Ask, then wait longer than is comfortable.' },
+  { n:'Point Out The Pattern', r:'uncommon', a:'digging',   sp:'point out the pattern',   el:'air',   f:1, cost:1, text:'+4 for every other ◇ in the reading.', perEl:'air', perAmt:4 },
+  { n:'Ask Who Told Them That', r:'uncommon', a:'switch',   sp:'ask who told them that',   el:'air',   f:4, cost:1, text:'Reads as whatever element they answer to.', any:true },
+  { n:'Mention The Mother', r:'common', a:'channel',      sp:'mention the mother',      el:'air',   f:1, cost:1, text:'Draw two while they are still talking.', draw:2 },
+  { n:'Ask What The Village Would Say', r:'rare', a:'', sp:'ask what the village would say', el:'air', f:7, cost:3, text:'Cruel, expensive, and the most reliable thing you own.' },
+  // FIRE · action
+  { n:'Tell Them To Go', r:'common', a:'',          sp:'tell them to go',          el:'fire',  f:4, cost:1, text:'Tonight. While it is still true.' },
+  { n:'Give Them One Instruction', r:'common', a:'switch',sp:'give them one instruction',el:'fire',  f:3, cost:1, text:'+5 more if it follows ▽. Sit in it with them, then tell them what to do about it.', follows:'turn', bonus:5 },
+  { n:'Make Them Promise A Date', r:'uncommon', a:'timing', sp:'make them promise a date', el:'fire',  f:3, cost:1, text:'A day of the week, out loud. They stay one reading longer. Once.', turn:1, exhaust:true },
+  { n:'Send Them Out The Back Door', r:'common', a:'', sp:'send them out the back door', el:'fire', f:2, cost:1, text:'So they do not have to be seen deciding.' },
+  { n:'Burn The Letter', r:'uncommon', a:'',         sp:'burn the letter',         el:'fire',  f:6, cost:2, text:'Enormous, and the spiral deepens 2 after this. There is only the one letter.', risk:2, exhaust:true },
+  { n:'Read For Yourself', r:'uncommon', a:'channel',       sp:'read for yourself',       el:'fire',  f:4, cost:1, text:'Mends nobody. The whole of it goes into your own faith.', bank:true },
+  { n:'Tell Them To Have It Out', r:'rare', a:'', sp:'tell them to have it out', el:'fire', f:9, cost:3, text:'You will hear about this either way. The spiral deepens 3. Once.', risk:3, exhaust:true },
+  // EARTH · material
+  { n:'Read Their Palm', r:'common', a:'',           sp:'read their palm',           el:'earth', f:3, cost:1, text:'You are looking at the calluses, not the lines.' },
+  { n:'Look At Their Hands', r:'common', a:'',       sp:'look at their hands',       el:'earth', f:4, cost:1, text:'Hands say what the mouth has agreed not to.' },
+  { n:'Count It Out In Coins', r:'uncommon', a:'channel',   sp:'count it out in coins',   el:'earth', f:2, cost:1, text:'Earns four centimes. They insist on paying as they go.', coin:4 },
+  { n:'Check The Date', r:'common', a:'salve',          sp:'check the date',          el:'earth', f:2, cost:1, text:'Count backwards with them. The spiral runs 1 shallower. Once — the date does not change.', calm:1, exhaust:true },
+  { n:'Weigh What They Brought', r:'uncommon', a:'switch', sp:'weigh what they brought', el:'earth', f:3, cost:1, text:'+5 more if it follows △. Put the consequence in their hands.', follows:'turn', bonus:5 },
+  { n:'Lay The Stones Out', r:'common', a:'timing',      sp:'lay the stones out',      el:'earth', f:2, cost:1, text:'Worth 2 more if you speak it first.', opener:2 },
+  { n:'Ask What It Costs', r:'rare', a:'channel',       sp:'ask what it costs',       el:'earth', f:6, cost:3, text:'Money is the only thing nobody lies about twice. Pays six.', coin:6 },
+  { n:'Draw The House On Paper', r:'rare', a:'channel', sp:'draw the house on paper', el:'earth', f:5, cost:3, text:'Rooms, doors, who sleeps where. Draw two.', draw:2 }
+];
+
+// A reader is a sign, an element, and eight cards. Two of the signature element,
+// three of each neighbour on the ring, and nothing at all of the opposite — the
+// opposite element has to be picked up during the run, not started with.
+// A reader is two cards of their own sign, one passive, and +2 in their element.
+// The other eight are seven whites and one card borrowed from a neighbouring sign.
+const READERS = [
+  { k:'aries', sign:'ARIES', el:'fire', name:'The Ram', fx:'opener',
+    line:'You tell people to go. It is the only advice anyone has ever come back to thank you for.',
+    rule:'Fire mends +1 in your hands, and whatever you speak first mends +2.',
+    unlock:null,
+    deck:['Tell Them To Go','Send Them Out The Back Door',
+] },
+  { k:'scorpio', sign:'SCORPIO', el:'water', name:'The Scorpion', fx:'pierce',
+    line:'You let them say the worst of it and do not flinch. That is the whole trick and it took years.',
+    rule:'Water mends +1 in your hands, and the first 4 of every reading goes straight past their denial.',
+    unlock:'MEND FOUR IN ONE RUN',
+    deck:['Pour The Tea','Sit In The Silence',
+] },
+  { k:'gemini', sign:'GEMINI', el:'air', name:'The Twins', fx:'hand',
+    line:'You can hold two stories at once and never say which one you believe.',
+    rule:'Air mends +1 in your hands, and you hold one more card than anyone else.',
+    unlock:'MEND THE MAYOR',
+    deck:['Ask Them Why','Mention The Mother',
+] },
+  { k:'taurus', sign:'TAURUS', el:'earth', name:'The Bull', fx:'steady',
+    line:'You do not change the subject. People find it restful, and then unbearable.',
+    rule:'Earth mends +1 in your hands, and saying the same sign twice in a row mends +2.',
+    unlock:'END A RUN WITH NO SCARS',
+    deck:['Read Their Palm','Lay The Stones Out',
+] }
+];
+
+const ARCANA = [
+  { n:'The Fool', r:'uncommon', a:'channel',           num:'0',    el:null,   f:2, cost:1, text:'No element — it breaks nothing and builds nothing. Draw three.', draw:3, neutral:true },
+  { n:'The Magician', r:'rare', a:'switch',       num:'I',    el:'air',  f:3, cost:1, text:'Counts as every element. It follows anything and anything follows it.', wild:true },
+  { n:'The High Priestess', r:'uncommon', a:'salve', num:'II',   el:'water',f:5, cost:2, text:'The spiral runs 2 shallower for good, and this reading costs you 3 less. Once.', calm:2, guard:3, exhaust:true },
+  { n:'The Empress', r:'uncommon', a:'digging',        num:'III',  el:'water',f:2, cost:1, text:'+4 for every other ▽ in the reading.', perEl:'water', perAmt:4 },
+  { n:'The Emperor', r:'rare', a:'',        num:'IV',   el:'earth',f:13, cost:3, text:'Heavy as a table, and about as subtle. Once a night per sitter.', exhaust:true },
+  { n:'The Hierophant', r:'uncommon', a:'switch',     num:'V',    el:'earth',f:5, cost:2, text:'+6 more if it follows △. The lesson after the deed.', follows:'turn', bonus:6 },
+  { n:'The Lovers', r:'uncommon', a:'digging',         num:'VI',   el:'water',f:5, cost:2, text:'+6 more if it follows ▽. Twice in the same breath.', follows:'same', bonus:6 },
+  { n:'Strength', r:'uncommon', a:'pinpoint',           num:'VIII', el:'fire', f:6, cost:2, text:'No trick. Straight through their denial.', pierce:true },
+  { n:'The Hermit', r:'uncommon', a:'channel',         num:'IX',   el:null,   f:0, cost:0, text:'No element. Free. Two energy, 3 nerve, and nothing said at all.', energy:2, nerveUp:3, neutral:true },
+  { n:'The Chariot', r:'uncommon', a:'digging',        num:'VII',  el:'fire', f:4, cost:1, text:'+5 more if it follows △. Do not stop now.', follows:'same', bonus:5 },
+  { n:'The Devil', r:'rare', a:'',          num:'XV',   el:'fire', f:12, cost:3, text:'They agreed to this. The spiral deepens 4. Once.', risk:4, exhaust:true },
+  { n:'The Star', r:'uncommon', a:'timing',           num:'XVII', el:'water',f:3, cost:1, text:'They stay one reading longer, and you come back to yourself: 4 nerve. Once.', turn:1, nerveUp:4, exhaust:true },
+  { n:'The Moon', r:'uncommon', a:'timing',           num:'XVIII',el:'air',  f:4, cost:1, text:'+4 more if you speak it last. Leave them with the question.', closer:4 },
+  { n:'The Sun', r:'uncommon', a:'channel',            num:'XIX',  el:'fire', f:5, cost:1, text:'One energy back. They take their coat off.', energy:1 },
+  { n:'Judgement', r:'rare', a:'pinpoint',          num:'XX',   el:null,   f:8, cost:3, text:'No element, and nothing they believe in the way.', pierce:true, neutral:true },
+  { n:'The World', r:'rare', a:'switch',          num:'XXI',  el:'earth',f:10, cost:3, text:'Reads as whatever element they answer to.', any:true }
+];
+
+const MARKS = [
+  { n:'A Silver Ring',        kind:'RING',   text:'One more energy every reading.', fx:'energy' },
+  { n:'A Borrowed Ring',      kind:'RING',   text:'One more reading with everyone.', fx:'turn' },
+  { n:'A Thumb Ring',         kind:'RING',   text:'One more card in hand.', fx:'hand' },
+  { n:'Salt Under The Nails', kind:'TATTOO', text:'Earth cards mend +2.', fx:'el', el:'earth' },
+  { n:'Smoke In The Throat',  kind:'TATTOO', text:'Fire cards mend +2.', fx:'el', el:'fire' },
+  { n:'A Tide On The Wrist',  kind:'TATTOO', text:'Water cards mend +2.', fx:'el', el:'water' },
+  { n:'A Bird On The Thumb',  kind:'TATTOO', text:'Air cards mend +2.', fx:'el', el:'air' },
+  { n:'A Twelve-Point Star',  kind:'TATTOO', text:'Whatever you speak last mends +3.', fx:'closer' },
+  { n:'A Split Knuckle',      kind:'SCAR',   text:'Cards with no sign mend +3.', fx:'white' },
+  { n:'A Long White Line',    kind:'SCAR',   text:'Whatever you speak first mends +2.', fx:'opener' },
+  { n:'A Steady Voice',       kind:'BOON',   text:'The first 4 of every reading ignores denial.', fx:'pierce' },
+  { n:'A Glass Of Water',     kind:'BOON',   text:'Every reading costs you 1 less nerve.', fx:'steel' },
+  { n:'Usury',                kind:'BOON',   text:'Every reading that mends someone pays 5 centimes.', fx:'usury' }
+];
+
+const SITTERS = [
+  { name:'Mme Perrot', role:'THE LAUNDRESS', p:'she', el:'earth', max:28, start:8, denial:5, drain:4, turns:7,
+    brings:'The smell is not from this village. I have washed it three times and it is not from this village.',
+    win:'She washes the shirt a fourth time, then walks it to the house it came from and hands it over without a word.',
+    fail:'She stops taking laundry. The baskets stack in the yard and the yard becomes the subject.' },
+  { name:'Guillaume', role:'THE POSTMAN', p:'he', el:'air', max:28, start:8, denial:5, drain:4, turns:7,
+    brings:'The letter was undeliverable. I did not recognise the handwriting and I did not open it.',
+    win:'He delivers it late, in person, and stays for the reading of it. Comes back the next week for nothing at all.',
+    fail:'He keeps the sack. Six months of the village goes into a cupboard and stays there.' },
+  { name:'Thérèse', role:'SHE WILL NOT MARRY HIM', p:'she', el:'water', max:30, start:8, denial:5, drain:4, turns:7,
+    brings:'I am simply nervous, as everyone is. It is too late to say anything now anyway.',
+    win:'She says it two days before, in the kitchen, badly, and is astonished to be still standing afterwards.',
+    fail:'She marries him on the Saturday and is very composed about it for eleven years.' },
+  { name:'Old Marceau', role:'THE GRAVEDIGGER', p:'he', el:'earth', max:32, start:9, denial:6, drain:4, turns:7,
+    brings:'The plot was marked wrong on the paper. Nobody has ever asked me about it and nobody will.',
+    win:'He moves the marker himself at four in the morning and tells the family it was always where it is.',
+    fail:'He digs one more than he is asked to and will not say who for.' },
+  { name:'Aurel Aubert', role:'THE ELECTRICIAN', p:'they', el:'fire', max:33, start:9, denial:6, drain:5, turns:7,
+    brings:'The wiring in this house is faulty. Thursdays have always been unlucky for me. I have checked everything there is to check.',
+    win:'They walk the treeline at dusk with a lamp and find the fallen cable arcing in the wet. They fix it themself, in the rain.',
+    fail:'They stop believing in Thursdays, then in wiring generally. The lamps go out one street at a time.' },
+  { name:'Colette Fabre', role:'THE SCHOOLTEACHER', p:'she', el:'air', max:35, start:10, denial:6, drain:5, turns:8,
+    brings:'There is something wrong with that child. I have never taught her anything I should not have. The mothers would never forgive it.',
+    win:'She tells the girl’s mother what she did. It goes badly for an hour and well for a decade.',
+    fail:'She stops teaching. The children keep meeting anyway and invent a thirteenth sign with your face on it.' },
+  { name:'Ambroise Marchand', role:'THE BUTCHER', p:'he', el:'fire', max:36, start:10, denial:7, drain:5, turns:8,
+    brings:'It is a wolf. I have only suspected it since Tuesday. The village would never look at me the same way.',
+    win:'He does it that night, himself, and tells everyone in the morning. They respect him more, not less.',
+    fail:'Not a wolf, then. He starts butchering by intuition rather than inventory.' },
+  { name:'Père Renaud', role:'THE PRIEST', p:'he', el:'water', max:38, start:11, denial:7, drain:5, turns:8,
+    brings:'I do not believe in any of this. The silence was not mine to break. Eleven years of Tuesdays mean nothing.',
+    win:'He lets it go without ever telling anyone what it was, and sleeps through the night for the first time since the war.',
+    fail:'He names you from the pulpit. Not a fraud — that would be survivable — but a witch.' },
+  { name:'Odile Vasseur', role:'THE CLOCKMAKER', p:'she', el:'air', max:29, start:8, denial:5, drain:4, turns:7,
+    brings:'Every clock in this house runs four minutes fast. I have not touched one of them since March and nothing has come of it.',
+    win:'She sets them all right in one afternoon, starting with the one in the room she had stopped going into.',
+    fail:'She lets the whole village drift. People arrive four minutes late to everything and blame the weather.' }
+];
+
+const BOSS = { name:'Mayor Havel', role:'HE PAID IN ADVANCE, WHICH IS ITS OWN KIND OF THREAT', p:'he', el:'earth', max:50, start:13, denial:8, drain:6, turns:9,
+  brings:'The ledger is a record, nothing more. I am protecting the village, not the name. Thirty years is too long to undo, and she never asked me for anything.',
+  win:'He says the name out loud at the town hall. It is a catastrophe and a relief and the village never recovers or wants to.',
+  fail:'He reads the ledger aloud instead. Every fortune in the village, side by side, in your own words.' };
+
+const SHOP_NODE = { kind:'SHOP', title:'The apothecary is open', body:'Ink, cards, and the removal of things.' };
+
+// Events. Two ways out of each, never more.
+const EVENTS = [
+  { kind:'EVENT', title:'Your own chair, for once', body:'Twenty minutes before the next one knocks.',
+    head:'THE BACK ROOM', line:'Spend them on yourself or on the money.',
+    opts:[
+      { rest:'nerve', kind:'SIT AND DO NOTHING', price:'free', name:'Twenty Minutes', text:'You do not think about any of them. Afterwards you can sit with people a little longer than you could.', foot:'+10 nerve now, +2 for the rest of the run' },
+      { rest:'coin', kind:'COUNT THE TILL', price:'free', name:'The Evening’s Take', text:'You go through the saucer twice and find more than you remembered.', foot:'+12 centimes' }
+    ] },
+  { kind:'EVENT', title:'A girl on the stairs, no money', body:'She has been waiting since the last one went in.',
+    head:'SHE CANNOT PAY', line:'She wants to know whether her brother is coming back.',
+    opts:[
+      { rest:'nerve', kind:'READ HER FOR NOTHING', price:'free', name:'For Nothing', text:'You tell her the truth in the kindest order you can find. She goes home lighter and tells nobody who did it.', foot:'+6 nerve, +14 faith' },
+      { rest:'coin', kind:'SEND HER FOR HER MOTHER', price:'free', name:'The Full Rate', text:'She comes back an hour later with the coins in a handkerchief. You read the same cards.', foot:'+16 centimes' }
+    ] },
+  { kind:'EVENT', title:'A card came out of the deck wrong', body:'It was face up in the pack before you shuffled.',
+    head:'THE MISDEAL', line:'Something in the deck is not doing what you asked it to.',
+    opts:[
+      { burn:true, kind:'THE REMOVAL OF THINGS', price:'free', name:'Burn It', text:'Take the weakest thing in your deck out of it for good. You do it in the grate yourself.' },
+      { rest:'nerve', kind:'SHUFFLE AND FORGET IT', price:'free', name:'Let It Lie', text:'You put it back in the middle and decide not to think about it any further tonight.', foot:'+8 nerve' }
+    ] }
+];
+
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = this.fresh(); this.fanRef = React.createRef(); }
+
+  cfg(){ return { energy: this.props.energy ?? 3, hand: this.props.handSize ?? 5, mercy: this.props.mercy ?? false, nerve: this.props.nerve ?? 30 }; }
+
+  fresh(){
+    const reader = READERS[0];
+    const deck = this.baseDeck(reader);
+    const st = { screen:'sign', night:0, step:0, coin:5, faith:0, mended:0, reader, deck, marks:[], scars:[], seq:0, seen:[],
+      nerve: this.cfg().nerve, nerveMax: this.cfg().nerve,
+      options:[], f:null, pick:null, res:null, over:null, sel:null };
+    st.options = this.makeOptions(0, 0, []);
+    return st;
+  }
+
+  baseDeck(reader){
+    const names = BASICS.map(b => b.n).concat(reader.deck);
+    return names.map((n,i) => ({ ...(BASICS.concat(MINOR).find(m => m.n === n)), uid:'b'+i }));
+  }
+
+  pickReader(i){
+    const reader = READERS[i];
+    this.setState({ reader, deck:this.baseDeck(reader), screen:'pick', pick:this.buildGift(reader) });
+  }
+
+  buildGift(reader){
+    const a = feeds(reader.el), b = fedBy(reader.el);
+    const opts = [];
+    const ca = this.minorOfEl(a, []); if (ca) opts.push({ card:ca, kind:EL[a].glyph + ' ' + EL[a].label + ' · FEEDS YOURS', price:'free' });
+    const cb = this.minorOfEl(b, []); if (cb) opts.push({ card:cb, kind:EL[b].glyph + ' ' + EL[b].label + ' · YOURS FEEDS IT', price:'free' });
+    return { head:'ONE MORE CARD BEFORE THE FIRST KNOCK', title:'Borrowed from either side of you', kind:'gift',
+      body:'Ten cards to start. Seven of them are only manners — white, no sign. They carry the last sign along to whatever you say next. Two are your own sign. This is the tenth, and it comes off the ring: the sign that feeds yours, or the one yours feeds.',
+      opts, skippable:false };
+  }
+
+  uid(){ return 'c' + (this.state.seq++) + Math.random().toString(36).slice(2,6); }
+  pickRand(a){ return a[Math.floor(Math.random()*a.length)]; }
+  shuffle(a){ const b=a.slice(); for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; }
+  tint(el,a){ return el && EL[el] ? EL[el].color.replace(')', ' / '+a+')') : 'rgba(234,228,215,'+(a*0.8)+')'; }
+  has(fx){ return (this.state.reader && this.state.reader.fx === fx) || this.state.marks.some(m => m.fx === fx); }
+  elBonus(el){ if (!el) return 0;
+    return this.state.marks.filter(m => m.fx==='el' && m.el===el).length * 2 + (el === this.state.reader.el ? 1 : 0); }
+
+  scaleSitter(s, night, step){
+    const prog = night * 8 + (step || 0);
+    const k = 1 + prog * 0.045;
+    return { ...s, max: Math.round(s.max*k), start: Math.round(s.start*k*0.9),
+      denial: s.denial + Math.floor(prog/3), drain: Math.max(2, s.drain - 1) + Math.floor(prog/8), drainUp: this.cfg().mercy ? 0 : 1 };
+  }
+
+  // Nobody knocks twice in one night.
+  makeOptions(night, step, seen){
+    const last = step === 7;
+    if (night === 2 && last) return [{ kind:'boss', sitter:{ ...BOSS, drainUp: this.cfg().mercy ? 0 : 2 }, quirk:this.pickRand(signFor(BOSS.el)) }];
+    const seenNames = seen || [];
+    let pool = this.shuffle(SITTERS.filter(s => !seenNames.includes(s.name)));
+    if (!pool.length) pool = this.shuffle(SITTERS);
+    const mk = (s, elite) => ({ kind: elite ? 'elite' : 'sitter', sitter:this.scaleSitter(this.eliteOf(s, elite), night, step), quirk:this.pickRand(signFor(s.el)) });
+
+    const opts = [mk(pool[0], false)];
+    if (last) return opts;
+    if (pool[1] && step >= 2 && Math.random() < 0.5) opts.push(mk(pool[1], true));
+    if (step >= 1 && Math.random() < 0.45) opts.push({ kind:'break', rest:SHOP_NODE });
+    if (opts.length < 4 && Math.random() < 0.55) opts.push({ kind:'break', rest:this.pickRand(EVENTS) });
+    if (opts.length === 1 && pool[1]) opts.push(mk(pool[1], false));
+    return opts.slice(0, 4);
+  }
+
+  eliteOf(s, elite){
+    if (!elite) return s;
+    return { ...s, elite:true, role:s.role, max: Math.round(s.max * 1.3), start: s.start + 2,
+      denial: s.denial + 2, drain: s.drain + 1, turns: s.turns + 1 };
+  }
+
+  choose(i){
+    const o = this.state.options[i];
+    if (o.kind !== 'break') return this.startFight(o);
+    if (o.rest.kind === 'SHOP') return this.setState({ screen:'pick', pick:this.buildShop() });
+    return this.setState({ screen:'pick', pick:this.buildEvent(o.rest) });
+  }
+
+  buildEvent(e){
+    return { head:e.head, title:e.title, kind:'rest', body:e.line, opts:e.opts, skippable:true, skipLabel:'LET IT GO BY' };
+  }
+
+  startFight(o){
+    const cfg = this.cfg(), s = o.sitter;
+    const f = { sitter:s, quirk:o.quirk, boss:o.kind==='boss', elite:o.kind==='elite', el:s.el, max:s.max, hp:s.start,
+      denial:s.denial, denialUp: 2 + (o.quirk.denialUp || 0), drain:s.drain, drainUp:s.drainUp, turn:1,
+      turns: s.turns + (this.has('turn') ? 1 : 0),
+      energyMax: cfg.energy + (this.has('energy') ? 1 : 0),
+      handMax: cfg.hand + (this.has('hand') ? 1 : 0),
+      hand:[], draw:this.shuffle(this.state.deck.map(c => ({...c}))), disc:[],
+      cross:[], gone:[], faith:0, coin:0, answer:null };
+    this.beginTurn(f);
+    this.setState({ screen:'read', f, sel:null, res:null, seen:this.state.seen.concat([s.name]) });
+  }
+
+  beginTurn(f){
+    f.energy = f.energyMax;
+    f.cross = [];
+    this.drawTo(f, f.handMax);
+  }
+
+  drawTo(f, n){
+    let guard = 0;
+    while (f.hand.length < n && guard++ < 90){
+      if (!f.draw.length){
+        if (!f.disc.length) break;
+        f.draw = this.shuffle(f.disc); f.disc = [];
+      }
+      f.hand.push(f.draw.shift());
+    }
+  }
+
+  select(uid){ this.setState({ sel: this.state.sel === uid ? null : uid }); }
+
+  _lay(uid){
+    if (this.state.play) return;
+    const f = { ...this.state.f };
+    const c = f.hand.find(x => x.uid === uid);
+    if (!c || c.cost > f.energy) return;
+    f.cross = f.cross.concat([c]);
+    f.hand = f.hand.filter(x => x.uid !== c.uid);
+    f.energy -= c.cost;
+    if (c.energy) f.energy += c.energy;
+    if (c.draw) this.drawTo(f, f.hand.length + c.draw);
+    this.setState({ f, sel:null });
+  }
+
+  elOf(f, c){ return c.wild || c.any ? f.el : c.el; }
+
+  // link between the card being spoken and the last SIGNED card before it
+  linkOf(f, carried, cur){
+    const b = this.elOf(f, cur);
+    if (!b || cur.neutral) return 'flat';
+    if (!carried) return 'open';
+    if (carried === b) return 'same';
+    if (NEXT[carried] === b) return 'turn';
+    if (NEXT[b] === carried) return 'back';
+    return 'break';
+  }
+
+  // ── one pure simulation, used for preview and for resolving ──────────
+  simulate(f){
+    const q = f.quirk;
+    const laid = f.cross.map((c,i) => ({ c, i }));
+    const blank = { rows:[], gross:0, pierced:0, absorbed:0, applied:0, bank:0, over:0, hpAfter:f.hp, calm:0, extraTurns:0, risk:0, coin:0, guard:0, nerveUp:0, links:[],
+      denial: Math.max(0, f.denial - (this.has('pierce') ? 4 : 0)), shieldNext: f.denial + f.denialUp };
+    if (!laid.length) return blank;
+
+    let pending = 0;
+    let gross = 0, pierced = 0, bank = 0, calm = 0, extraTurns = 0, risk = 0, coin = 0, guard = 0, nerveUp = 0;
+    const rows = [];
+
+    let carried = null;
+    laid.forEach((entry, n) => {
+      const c = entry.c, i = entry.i, prev = n ? laid[n-1].c : null;
+      const link = this.linkOf(f, carried, c);
+      const last = n === laid.length - 1;
+      const el = this.elOf(f, c);
+      const follows = !!(c.follows && prev && ((c.follows === 'same' && link === 'same') || (c.follows === 'turn' && link === 'turn')));
+
+      let b = c.f + this.elBonus(el) + pending; pending = 0;
+      if (c.perEl) b += c.perAmt * laid.filter(x => x.c !== c && this.elOf(f, x.c) === c.perEl).length;
+      if (follows) b += c.bonus;
+      if (c.opener && n === 0) b += c.opener;
+      if (this.has('opener') && n === 0) b += 2;
+      if (c.closer && last) b += c.closer;
+      if (this.has('closer') && last) b += 3;
+      if (link === 'same'){ if (this.has('steady')) b += 2; if (q.samePenalty) b -= q.samePenalty; }
+      if (c.neutral && this.has('white')) b += 3;
+      if (el === f.el && !q.noAffinity) b += 2;
+      if (q.halfEl && el === q.halfEl) b = Math.floor(b*0.5);
+
+      let total = Math.max(0, b);
+      if (q.bigFinish && last) total *= 2;
+      if (q.lastHalf && last) total = Math.floor(total/2);
+
+      if (c.calm) calm += c.calm;
+      if (c.guard) guard += c.guard;
+      if (c.nerveUp) nerveUp += c.nerveUp;
+      if (c.turn) extraTurns += c.turn;
+      if (c.risk) risk += c.risk;
+      if (c.coin) coin += c.coin;
+      if (c.bank) bank += total;
+      else { gross += total; if (c.pierce) pierced += total; }
+
+      if (c.next) pending = c.next;
+      if (el && !c.neutral) carried = el;
+
+      const notes = [];
+      if (n === 0) notes.push('opens'); else if (last) notes.push('closes');
+      if (follows) notes.push('follows well');
+      if (c.pierce) notes.push('past denial');
+      if (c.bank) notes.push('into your faith');
+      rows.push({ i, name:c.n, el, total, bank:!!c.bank, pierce:!!c.pierce, link, note:notes.join(' · ') });
+    });
+
+    let halveNote = null;
+    if (q.firstHalf && f.turn === 1){ gross = Math.floor(gross*0.5); pierced = Math.floor(pierced*0.5); halveNote = fill('{s} {is} still cold — halved', f.sitter.p); }
+
+    // Their denial is a shield off the top of every reading, and it thickens as
+    // they hear you out. Your spiral is what the night takes out of you.
+    const denial = Math.max(0, f.denial - (this.has('pierce') ? 4 : 0));
+    const soft = gross - pierced;
+    const absorbed = Math.min(denial, soft);
+    const applied = pierced + Math.max(0, soft - absorbed);
+    const hpAfter = Math.min(f.max, f.hp + applied);
+    const over = Math.max(0, f.hp + applied - f.max);
+    return { rows, gross, pierced, denial, absorbed, applied, bank, over, hpAfter, calm, extraTurns, risk, coin, guard, nerveUp, halveNote,
+      shieldNext: denial + f.denialUp };
+  }
+
+  sentence(f){
+    const parts = [];
+    f.cross.forEach(c => { if (c) parts.push(c.sp || c.n); });
+    if (!parts.length) return 'You have not said anything yet. ' + fill('{S} {is} looking at your hands.', f.sitter.p);
+    const line = parts.length > 1 ? parts.slice(0,-1).join(', ') + ', and ' + parts[parts.length-1] : parts[0];
+    return line.replace(/^(.)/, m => m.toUpperCase()) + '.';
+  }
+
+  lay(uid){ return this._lay(uid); }
+
+  readIt(){
+    const f = this.state.f;
+    if (!f || !f.cross.length || this.state.play) return;
+    this.setState({ play:{ step:0, spoken:[], sim:this.simulate(f) } }, () => this.tick());
+  }
+
+  tick(){
+    const st = this.state, f = st.f, play = st.play;
+    if (!play || !f) return;
+    if (play.step >= f.cross.length){
+      this.timer = setTimeout(() => this.resolveRead(play.sim), 620);
+      return;
+    }
+    const c = f.cross[play.step];
+    const spoken = play.spoken.concat([{ text:this.mumbleWord(c), total:play.sim.rows[play.step].total }]);
+    this.setState({ play:{ ...play, spoken, step:play.step + 1 } }, () => {
+      this.timer = setTimeout(() => this.tick(), 420);
+    });
+  }
+
+  componentDidMount(){ this._onResize = () => this.measureFan(); window.addEventListener('resize', this._onResize); this.measureFan(); }
+  componentDidUpdate(){ this.measureFan(); }
+  measureFan(){
+    const el = this.fanRef && this.fanRef.current;
+    if (!el) return;
+    const w = el.clientWidth;
+    if (w && w !== this.state.fanW) this.setState({ fanW:w });
+  }
+  componentWillUnmount(){ clearTimeout(this.timer); window.removeEventListener('resize', this._onResize); }
+
+  resolveRead(sim){
+    const f = { ...this.state.f };
+    f.hp = sim.hpAfter;
+    f.faith += sim.over + sim.bank;
+    f.coin += sim.coin;
+    f.drain = Math.max(0, f.drain - sim.calm + sim.risk);
+    f.turns += sim.extraTurns;
+    f.gone = (f.gone || []).concat(f.cross.filter(c => c.exhaust));
+    f.disc = f.disc.concat(f.cross.filter(c => !c.exhaust));
+    f.cross = [];
+
+    if (f.hp >= f.max) return this.setState({ f, play:null }, () => this.win(f));
+
+    const spiral = Math.max(0, f.drain - sim.guard - (this.has('steel') ? 1 : 0));
+    const nerve = Math.max(0, Math.min(this.state.nerveMax, this.state.nerve - spiral + sim.nerveUp));
+    if (f.quirk.leak) f.hp = Math.max(0, f.hp - f.quirk.leak);
+    f.drain += f.drainUp + (f.quirk.drainUp || 0);
+    f.denial += f.denialUp;
+
+    if (nerve <= 0) return this.setState({ nerve:0, f, play:null }, () => this.lose(f, 'spent'));
+    if (f.hp <= 0) return this.setState({ nerve, f, play:null }, () => this.lose(f, 'broke'));
+    if (f.turn >= f.turns) return this.setState({ nerve, f, play:null }, () => this.lose(f, 'left'));
+
+    f.turn += 1;
+    this.beginTurn(f);
+    this.setState({ f, sel:null, nerve, play:null });
+  }
+
+  win(f){
+    const st = this.state;
+    const usury = this.has('usury') ? 5 : 0;
+    const faith = f.faith + 12 + (f.boss ? 40 : 0) + (f.elite ? 18 : 0) + (f.turns - f.turn) * 4;
+    this.setState({
+      coin: st.coin + f.coin + usury + 6, faith: st.faith + faith, mended: st.mended + 1,
+      nerve: Math.min(st.nerveMax, st.nerve + 8),
+      res: { kind:'win', head: fill('{S} {goes} home mended', f.sitter.p).toUpperCase(), headColor:GREEN, title:f.sitter.name + ' is whole enough', said:f.sitter.win,
+        lines:[
+          { left:'Composure', right:f.max + ' / ' + f.max, color:GREEN },
+          { left:'Readings used', right:f.turn + ' of ' + f.turns, color:DIM },
+          { left:'Faith earned', right:'+' + faith + (f.faith ? ' (' + f.faith + ' of it overflow)' : ''), color:GOLD },
+          { left:'Centimes', right:'+' + (f.coin + usury + 6) + fill(' — {s} pay{es} either way', f.sitter.p), color:DIM },
+          { left:'Nerve back', right:'+8 · now ' + Math.min(st.nerveMax, st.nerve + 8) + ' / ' + st.nerveMax, color:RED }
+        ], cta:'TAKE SOMETHING FOR IT' } });
+  }
+
+  lose(f, how){
+    const st = this.state;
+    const scar = ['dark','bitter','invented','witch','meat','collapse'][Math.min(5, st.scars.length)];
+    this.setState({
+      coin: st.coin + f.coin + 3, faith: st.faith + Math.floor(f.faith/2), scars: st.scars.concat([scar]),
+      nerve: Math.min(st.nerveMax, st.nerve + 6),
+      res: { kind:'lose', head: fill(how === 'broke' ? '{S} come{es} apart at your table' : how === 'spent' ? '{S} let{es} {r} out' : '{S} put{es} {p} coat on', f.sitter.p).toUpperCase(), headColor:RED,
+        title: how === 'broke' ? f.sitter.name + ' had nothing left to hold' : how === 'spent' ? 'You had nothing left to hear ' + f.sitter.name + ' with' : f.sitter.name + fill(' leaves as {s} came, only later', f.sitter.p),
+        said:f.sitter.fail,
+        lines:[
+          { left:'Composure at the end', right:Math.max(0, f.hp) + ' / ' + f.max, color:RED },
+          { left: fill('{P} spiral, by then', f.sitter.p), right:f.drain + ' nerve a reading', color:RED },
+          { left:'Your nerve', right:Math.max(0, this.state.nerve) + ' / ' + this.state.nerveMax, color:RED },
+          { left:'Faith kept', right:'+' + Math.floor(f.faith/2), color:GOLD },
+          { left:'Centimes', right:'+' + (f.coin + 3) + ' — the money was on the table', color:DIM },
+          { left:'What it leaves on you', right:'a scar', color:RED }
+        ], cta:'GO ON ANYWAY' } });
+  }
+
+  afterRes(){
+    const st = this.state;
+    if (st.res.kind === 'win') return this.setState({ res:null, screen:'pick', pick:this.buildReward(st.f) });
+    if (st.scars.length >= 3) return this.endRun('scars');
+    this.setState({ res:null, f:null }, () => this.advance());
+  }
+
+  advance(){
+    const st = this.state;
+    let night = st.night, step = st.step + 1;
+    let nerve = st.nerve;
+    let seen = st.seen;
+    if (step > 7){ step = 0; night += 1; nerve = st.nerveMax; seen = []; }
+    if (night > 2) return this.endRun('done');
+    this.setState({ screen:'map', f:null, pick:null, res:null, night, step, nerve, seen, options:this.makeOptions(night, step, seen) });
+  }
+
+  endRun(why){
+    const st = this.state, score = st.faith;
+    const tier = score >= 640 ? 'They come from the next village now' : score >= 400 ? 'You are the one they send for' : score >= 200 ? 'You make rent and a reputation' : 'You are still the one in the back room';
+    this.setState({ screen:'over', f:null, pick:null, res:null,
+      over: { color: why === 'done' ? GOLD : RED,
+        head: why === 'scars' ? 'THE VILLAGE HAS DECIDED ABOUT YOU' : why === 'spent' ? 'THERE IS SOMEONE ON THE STAIRS AND YOU DO NOT GET UP' : 'THREE NIGHTS, AND THE PHONE STOPS RINGING',
+        title: tier,
+        body: why === 'scars' ? 'Three came apart at your table. That is one more than a village forgives, and they are careful about it — nobody says anything, they simply stop knocking.' : why === 'spent' ? 'You have nothing left to hear anybody with. You sit in the dark with the cards face down and let them knock, and after a while they stop, and that is the end of it.' : 'You mended ' + st.mended + ' of them. What they say about you afterwards is the only score that was ever being kept.',
+        lines:[
+          { left:'Faith', right:String(score), color:GOLD },
+          { left:'Nerve left', right:st.nerve + ' / ' + st.nerveMax, color:RED },
+          { left:'Mended', right:String(st.mended), color:GREEN },
+          { left:'Scars', right:String(st.scars.length), color:RED },
+          { left:'Deck', right:st.deck.length + ' cards', color:DIM },
+          { left:'Centimes left', right:String(st.coin), color:DIM }
+        ] } });
+  }
+
+  rollMark(kind){
+    const pool = MARKS.filter(m => (!kind || kind === 'ANY' || m.kind === kind) && !this.state.marks.some(x => x.n === m.n));
+    return pool.length ? this.pickRand(pool) : null;
+  }
+  weighted(pool){
+    if (!pool.length) return null;
+    let total = 0; pool.forEach(c => total += (RARW[c.r] || 1));
+    let roll = Math.random() * total;
+    for (const c of pool){ roll -= (RARW[c.r] || 1); if (roll <= 0) return c; }
+    return pool[pool.length-1];
+  }
+  minorOfEl(el, ex){ return this.weighted(MINOR.filter(m => m.el === el && !ex.includes(m.n))); }
+  arcanumOf(el, ex){ return this.weighted(ARCANA.filter(a => a.el === el && !ex.includes(a.n))); }
+  arcanum(ex){ return this.weighted(ARCANA.filter(a => !ex.includes(a.n))); }
+
+  rollOffer(f, ex){
+    const own = Math.random() < 0.5;
+    const el = own ? f.el : this.pickRand(NEIGH[f.el]);
+    if (own && Math.random() < 0.35){
+      const signless = Math.random() < 0.15;
+      const arc = this.arcanumOf(signless ? null : el, ex);
+      if (arc) return { card:arc, kind: (signless ? 'AN ARCANUM WITH NO SIGN' : EL[el].glyph + ' AN ARCANUM OF THEIR SIGN') + ' · ' + arc.num, price:'free' };
+    }
+    const c = this.minorOfEl(el, ex);
+    return c ? { card:c, kind:EL[el].glyph + ' ' + EL[el].label + (el === f.el ? ' · THEIR SIGN' : ''), price:'free' } : null;
+  }
+
+  buildReward(f){
+    const ex = [], opts = [];
+    for (let k = 0; k < 3; k++){
+      const o = this.rollOffer(f, ex);
+      if (o){ ex.push(o.card.n); opts.push(o); }
+    }
+    return { head: fill('{S} pay{es} in more than coin', f.sitter.p).toUpperCase(), title:'Take one card out of the evening', kind:'reward',
+      body:'Three came out of the evening. What got better decides what turns up.',
+      opts, skippable:true, skipLabel:'TAKE NOTHING · +8 FAITH' };
+  }
+
+  buildShop(){
+    const a = this.arcanum([]);
+    const m = this.rollMark();
+    const opts = [];
+    if (a) opts.push({ card:a, kind:'AN ARCANUM · ' + a.num, price:'14 c', cost:14 });
+    if (m) opts.push({ mark:m, kind:m.kind, price:'11 c', cost:11 });
+    opts.push({ burn:true, kind:'THE REMOVAL OF THINGS', price:'8 c', cost:8, name:'Burn A Card', text:'Take the weakest thing in your deck out of it for good. He does it in the grate while you watch.', foot:'a thinner deck tells a straighter story' });
+    return { head:'THE APOTHECARY', title:'He is open because he never sleeps', kind:'shop',
+      body:'Ink, cards, and the removal of things. He does not ask what you want them for.', opts, skippable:true, skipLabel:'LEAVE WITH YOUR MONEY' };
+  }
+
+  buildRest(){
+    const m = this.rollMark('RING');
+    const opts = [
+      { rest:'nerve', kind:'SIT AND DO NOTHING', price:'free', name:'Twenty Minutes', text:'You do not think about any of them. Afterwards you can sit with people a little longer than you could.', foot:'+10 nerve now, +2 for the rest of the run' },
+      { rest:'coin', kind:'COUNT THE TILL', price:'free', name:'The Evening’s Take', text:'You go through the saucer twice and find more than you remembered.', foot:'+12 centimes' }
+    ];
+    if (m) opts.push({ mark:m, kind:'YOUR OWN HANDS · ' + m.kind, price:'free' });
+    return { head:'THE BACK ROOM', title:'Your own chair, for once', kind:'rest',
+      body:'Twenty minutes before the next one knocks. Spend them on yourself, the money, or your hands.', opts, skippable:false };
+  }
+
+  takePick(i){
+    const st = this.state, o = st.pick.opts[i];
+    if (st.pick.kind === 'gift'){
+      return this.setState({ deck: st.deck.concat([{ ...o.card, uid:this.uid() }]), pick:null, screen:'map' });
+    }
+    let deck = st.deck.slice(), marks = st.marks.slice(), coin = st.coin, faith = st.faith;
+    if (o.cost){ if (coin < o.cost) return; coin -= o.cost; }
+    if (o.card) deck = deck.concat([{ ...o.card, uid:this.uid() }]);
+    if (o.mark) marks = marks.concat([o.mark]);
+    if (o.burn){
+      const worst = deck.slice().sort((a,b) => (a.f + a.cost*2) - (b.f + b.cost*2))[0];
+      if (worst) deck = deck.filter(c => c.uid !== worst.uid);
+    }
+    let nerve = st.nerve, nerveMax = st.nerveMax;
+    if (o.rest === 'nerve'){ nerveMax += 2; nerve = Math.min(nerveMax, nerve + 10); }
+    if (o.rest === 'coin') coin += 12;
+    this.setState({ deck, marks, coin, faith, nerve, nerveMax, pick:null }, () => this.advance());
+  }
+
+  skipPick(){
+    const st = this.state;
+    this.setState({ pick:null, faith: st.pick.kind === 'reward' ? st.faith + 8 : st.faith }, () => this.advance());
+  }
+
+  restart(){ this.setState(this.fresh()); }
+
+  tokens(text, uid){
+    return String(text).split(/\s+/).filter(w => w !== '').map(w => {
+      const bare = w.toLowerCase().replace(/[^a-z]/g, '');
+      const desc = KEYS[bare];
+      return { t:w, weight: desc ? 600 : 400,
+        color: desc ? 'oklch(0.84 0.12 85)' : 'rgba(234,228,215,.6)',
+        cursor: desc ? 'help' : 'default',
+        over: desc ? () => this.setState({ kw:{ uid, word:bare.toUpperCase(), desc } }) : () => {},
+        out: desc ? () => this.setState({ kw:null }) : () => {} };
+    });
+  }
+
+  // the one word of a card that carries out loud
+  mumbleWord(c){
+    if (c.num) return c.n.toUpperCase();
+    const STOP = { the:1, a:1, an:1, and:1, their:1, them:1, they:1, it:1, at:1, of:1, to:1, on:1, in:1, out:1, with:1, for:1, that:1, is:1, what:1, who:1, all:1, one:1, up:1, its:1, you:1, yourself:1, me:1, my:1, be:1, do:1 };
+    const w = String(c.sp || c.n).toLowerCase().split(/\s+/).filter(x => x);
+    while (w.length > 1 && STOP[w[w.length-1]]) w.pop();
+    const lastW = w[w.length-1], prev = w[w.length-2];
+    return prev && !STOP[prev] ? prev + ' ' + lastW : lastW;
+  }
+  snip(t){ return t.length > 62 ? t.slice(0, 60).trim() + '…' : t; }
+
+  renderVals(){
+    const st = this.state, f = st.f;
+    const v = {
+      restart: () => this.restart(),
+      nightLabel: ['THE FIRST','THE SECOND','THE THIRD'][Math.min(2, st.night)],
+      faith: st.faith, coin: st.coin, deckCount: st.deck.length, nerveTop: st.nerve + ' / ' + st.nerveMax,
+      readerSign: st.reader.sign, readerLine: st.reader.line, readerRule: st.reader.rule,
+      readerEl: EL[st.reader.el].glyph + ' ' + EL[st.reader.el].label,
+      readerColor: EL[st.reader.el].color,
+      signs: READERS.map((r, i) => {
+        const open = i === 0 || (this.props.allSigns ?? true);
+        return { take: open ? () => this.pickReader(i) : () => {}, locked:!open, opacity: open ? 1 : .5,
+          cursor: open ? 'pointer' : 'not-allowed', sign:r.sign, name:r.name, line:r.line, rule:r.rule,
+          color:EL[r.el].color, el:EL[r.el].glyph + '  ' + EL[r.el].label,
+          opp:'nothing of ' + EL[OPP[r.el]].glyph + ' ' + EL[OPP[r.el]].label + ' to begin with',
+          foot: open ? '10 CARDS · 2 ' + EL[r.el].glyph : 'LOCKED · ' + r.unlock };
+      }),
+      isSign: st.screen === 'sign', isMap: st.screen === 'map', isRead: st.screen === 'read', isPick: st.screen === 'pick', isOver: st.screen === 'over',
+      markTags: st.marks.map(m => ({ label:m.n.toUpperCase(), sub:m.text, color: m.kind === 'SCAR' ? RED : m.kind === 'BOON' ? VIOLET : GOLD })),
+      scarTags: st.scars.map(s => ({ label:'A ' + s.toUpperCase() + ' STORY GOING AROUND' })),
+      elTable: RING.map(k => ({ label:EL[k].glyph + '  ' + EL[k].label, body:EL[k].body, color:EL[k].color })),
+      ring: RING.map((k,i) => ({ label:EL[k].glyph + ' ' + EL[k].label, color:EL[k].color, arrow: i < 3 ? '→' : '↺' })),
+      archTable: Object.keys(ARCH).map(k => ({ k, d:ARCH[k].d, color:ARCH[k].c })),
+      archDesc: k => (ARCH[k] ? ARCH[k].d : ''),
+      mathTable: [
+        { k:'WHAT A CARD MENDS', v:'Its own number, plus anything it earns for where it falls. Nothing multiplies; it all adds.', color:GREEN },
+        { k:'FOLLOWING A SIGN', v:'“+4 more if it follows ▽” looks back at the last signed card. Whites have no sign and carry the previous one along.', color:GOLD },
+        { k:'FIRST AND LAST', v:'Some cards pay for opening the sentence, some for closing it. Everything else falls where it likes.', color:GOLD },
+        { k:'THEIR SIGN', v:'Cards of the same element as the sitter’s sign mend +2 flat.', color:GREEN },
+        { k:'DENIAL', v:'Their shield comes off the top of the whole reading. Cards that go past it are the way through.', color:VIOLET },
+        { k:'WHAT IT IS NOT', v:'There is no fixed number of cards and no special positions. The reading is as long as your energy pays for.', color:DIM }
+      ]
+    };
+    v.runStats = [
+      { k:'NIGHT', v:(st.night + 1) + ' · KNOCK ' + (st.step + 1), color:'rgba(234,228,215,.74)' },
+      { k:'FAITH', v:String(st.faith), color:GOLD },
+      { k:'CENTIMES', v:String(st.coin), color:'rgba(234,228,215,.74)' },
+      { k:'NERVE', v:st.nerve + ' / ' + st.nerveMax, color:RED },
+      { k:'MENDED', v:String(st.mended), color:GREEN },
+      { k:'DECK', v:st.deck.length + ' cards', color:'rgba(234,228,215,.74)' }
+    ];
+    v.menuOpen = !!st.menu;
+    v.menuLabel = st.menu ? 'CLOSE' : 'MENU';
+    v.toggleMenu = () => this.setState({ menu: !this.state.menu });
+    v.marksList = st.marks.map(m => ({ label:m.n, tip:m.text, color: m.kind === 'SCAR' ? RED : m.kind === 'BOON' ? VIOLET : GOLD }))
+      .concat(st.scars.map(s => ({ label:'a ' + s + ' story going around', tip:'', color:RED })));
+    v.marksEmpty = (st.marks.length + st.scars.length) ? '' : 'nothing on your hands yet';
+
+    if (st.screen === 'map'){
+      v.mapTitle = st.step === 7 ? 'The last knock of the night' : 'Who is waiting on the stairs';
+      v.mapStep = 'NIGHT ' + (st.night+1) + ' · KNOCK ' + (st.step+1) + ' OF 8';
+      v.options = st.options.map((o, i) => {
+        const go = () => this.choose(i);
+        if (o.kind !== 'break'){
+          const s = o.sitter;
+          return { go, isSitter:true, kindLabel: o.kind === 'boss' ? fill('{S} paid in advance', s.p).toUpperCase()
+              : (o.kind === 'elite' ? 'A HARD ONE · ' : 'A SITTER · ') + s.role,
+            accent: o.kind === 'boss' ? RED : o.kind === 'elite' ? 'oklch(0.78 0.13 350)' : GOLD, bg:'rgba(0,0,0,.26)', border:'rgba(234,228,215,.14)',
+            title:s.name, sub:this.snip(s.brings), right: o.kind === 'boss' ? 'THE LAST ONE' : o.kind === 'elite' ? 'PAYS BETTER' : fill('{S} will pay', s.p).toUpperCase(),
+            hpLabel:s.start + ' / ' + s.max, hpPct: Math.round(s.start/s.max*100) + '%',
+            denial:s.denial + ' ↑' + (2 + (o.quirk.denialUp || 0)), drainLabel:s.drain + ' ↑' + (s.drainUp||0), turns:s.turns,
+            elColor:EL[s.el].color, elGlyph:EL[s.el].glyph, signName:o.quirk.n, quirk: fill(o.quirk.rule, s.p) };
+        }
+        return { go, isSitter:false, kindLabel: o.rest.kind === 'SHOP' ? 'THE APOTHECARY' : (o.rest.head || 'AN EVENING OFF'),
+          accent:VIOLET, bg:'rgba(0,0,0,.2)', border:'rgba(234,228,215,.1)',
+          title:o.rest.title, sub:o.rest.body, right:'NO READING' };
+      });
+    }
+
+    if (f){
+      const sim = this.simulate(f), q = f.quirk, P = PRON[f.sitter.p] || PRON.they;
+      v.vName = f.sitter.name; v.vRole = f.sitter.role; v.brings = f.sitter.brings;
+      v.elColor = EL[f.el].color; v.elGlyph = EL[f.el].glyph; v.oppColor = EL[OPP[f.el]].color; v.oppGlyph = EL[OPP[f.el]].glyph; v.quirkName = q.n; v.quirkRule = fill(q.rule, f.sitter.p);
+      v.broughtLabel = fill('{S} brought this in with {o}', f.sitter.p).toUpperCase();
+      v.coatLabel = fill('then {s} put{es} {p} coat on', f.sitter.p);
+      v.hpLabel = f.hp + ' / ' + f.max;
+      const spiralNow = f.drain + sim.risk - sim.calm;
+      const hpNow = Math.max(0, f.hp), free = f.max - hpNow;
+      const app = Math.min(sim.applied, free), abs = Math.min(sim.absorbed, Math.max(0, free - app));
+      const pct = n => Math.round(n / f.max * 100) + '%';
+      const end = Math.min(f.max, hpNow + app), sw = Math.min(Math.max(0, spiralNow), end);
+      v.hpPct = pct(hpNow); v.projPct = pct(app); v.absorbPct = pct(abs);
+      const cost = Math.max(0, f.drain + sim.risk - sim.calm - sim.guard - (this.has('steel') ? 1 : 0)), nm = st.nerveMax;
+      v.nerveLabel = st.nerve + ' / ' + nm;
+      v.nervePct = Math.round(Math.max(0, st.nerve - cost) / nm * 100) + '%';
+      v.nerveCostPct = Math.round(Math.min(cost, st.nerve) / nm * 100) + '%';
+      v.nerveHint = 'this reading will cost you ' + cost + ' nerve' + (sim.nerveUp ? ' and hand you ' + sim.nerveUp + ' back' : '') + (st.nerve - cost <= 6 ? ' — after that there is nothing left of you tonight' : '');
+      v.spiralNum = String(spiralNow);
+      v.spiralUp = '↑' + (f.drainUp + (q.drainUp||0));
+      v.turnPips = [];
+      for (let i = 0; i < f.turns; i++) v.turnPips.push({ color: i < (f.turns - f.turn + 1) ? GOLD : 'rgba(234,228,215,.14)' });
+      v.denialLabel = String(sim.denial) + ' ↑' + f.denialUp;
+      const play = st.play;
+      const cur = play && play.spoken.length ? play.spoken[play.spoken.length - 1] : null;
+      const moodKey = !cur ? 'waiting' : cur.total <= 1 ? 'shut' : cur.total <= 4 ? 'listening' : cur.total <= 8 ? 'reached' : 'struck';
+      v.face = { ...MOODS[moodKey], hasScore: !!cur, score: cur ? '+' + cur.total : '', scoreColor: cur && cur.total <= 1 ? DIM : GREEN };
+      v.hasSay = f.turn === 1 && !play; v.portraitSay = f.sitter.brings;
+      v.playing = !!play;
+      v.fanRef = this.fanRef;
+      v.fanScale = String(Math.min(1, Math.max(0.62, (st.fanW || 960) / 860)));
+      v.sentence = play ? ('…' + play.spoken.map(w => w.text).join('… ') + '…') : this.sentence(f);
+      v.handLabel = 'YOUR HAND · ' + f.hand.length + ' CARDS';
+      v.energyLabel = 'ENERGY ' + f.energy + ' / ' + f.energyMax;
+      v.pileLabel = 'DRAW ' + f.draw.length + ' · SPENT ' + f.disc.length + ((f.gone && f.gone.length) ? ' · SPOKEN FOR GOOD ' + f.gone.length : '');
+      v.selHint = 'the reading is as long as your energy pays for';
+      v.previewTotal = sim.applied ? '+' + sim.applied : '—';
+
+      // ── the clean table: numbers on the felt, words in the tooltips ──
+      v.hpTip = 'composure ' + f.hp + ' of ' + f.max + (sim.applied ? ' — this reading puts back ' + sim.applied : '') + (sim.absorbed ? ', ' + sim.absorbed + ' of it held off' : '');
+      v.stats = [
+        { n:String(sim.denial), glyph:'◈', color:'oklch(0.72 0.11 300)', tip:'denial ' + sim.denial + ' — held off the top of every reading, and it thickens ' + f.denialUp + ' each time ' + P.s + ' sits through one' },
+        { n:String(spiralNow), glyph:'⟳', color:RED, tip:P.p + ' spiral ' + spiralNow + ' — what listening costs your nerve, deeper by ' + (f.drainUp + (q.drainUp||0)) + ' a reading' }
+      ];
+      v.turnTip = (f.turns - f.turn + 1) + ' readings left, then ' + fill('{s} put{es} {p} coat on', f.sitter.p);
+      const tal = [{ n: sim.applied ? '+' + sim.applied : '—', label:'MEND', color:GREEN, tip:'what actually goes back into ' + P.o }];
+      if (sim.absorbed) tal.push({ n:'−' + sim.absorbed, label:'HELD', color:VIOLET, tip:fill('{p} denial holds this much off', f.sitter.p) });
+      tal.push({ n:'−' + cost, label:'NERVE', color:RED, tip:v.nerveHint });
+      if (sim.over + sim.bank) tal.push({ n:'+' + (sim.over + sim.bank), label:'FAITH', color:GOLD, tip:'overflow and anything you read for yourself' });
+      v.tally = tal;
+
+      const mkDetail = c => ({ uid:c.uid, name:c.n,
+        el: (c.el ? EL[c.el].glyph + ' ' + EL[c.el].label : '○ NO SIGN') + (c.num ? ' · ' + c.num : ''),
+        color: c.el ? EL[c.el].color : 'rgba(234,228,215,.5)',
+        cost: (c.cost === 0 ? 'FREE' : c.cost + ' ENERGY') + (c.exhaust ? ' · ONCE ONLY' : ''),
+        text: c.text + (c.a ? '  ·  ' + ARCH[c.a].d : '') });
+      const hd = st.hov;
+      v.hasDetail = !!hd; v.noDetail = !hd;
+      v.detailName = hd ? hd.name : ''; v.detailEl = hd ? hd.el : ''; v.detailElColor = hd ? hd.color : DIM;
+      v.detailCost = hd ? hd.cost : ''; v.detailText = hd ? hd.text : '';
+      v.handHint = f.cross.length ? 'SAID IS SAID' : 'THE SPREAD IS THE SENTENCE';
+
+      const laidN = sim.rows.length, slotN = Math.max(4, laidN);
+      v.slots = [];
+      for (let i = 0; i < slotN; i++){
+        if (i < laidN){
+          const r = sim.rows[i], c = f.cross[i], el = this.elOf(f, c), det = mkDetail(c);
+          v.slots.push({ roman:ROM[i] || String(i+1), style:'solid', border:this.tint(el, .5), bg:'rgba(0,0,0,.34)',
+            shadow:'0 10px 24px rgba(0,0,0,.4)',
+            elColor: el ? EL[el].color : 'rgba(234,228,215,.5)', glyph: el ? EL[el].glyph : '○',
+            name:c.n, nameColor:'oklch(0.94 0.014 85)',
+            mend: (r.bank ? '→' : '+') + r.total, mendColor:GREEN,
+            note:r.note, noteColor:'rgba(234,228,215,.42)',
+            over: () => this.setState({ hov: { uid:det.uid, name:det.name, el:det.el, color:det.color,
+              cost: det.cost, text: c.text } }),
+            out: () => this.setState({ hov:null }) });
+        } else {
+          v.slots.push({ roman:ROM[i] || String(i+1), style:'dashed', border:'rgba(234,228,215,.13)', bg:'transparent',
+            shadow:'none', elColor:'rgba(234,228,215,.12)', glyph:'', name:'', nameColor:'transparent',
+            mend:'', mendColor:'transparent', note:'', noteColor:'transparent', over:() => {}, out:() => {} });
+        }
+      }
+
+      v.energyNum = String(f.energy); v.energyMaxNum = String(f.energyMax);
+      v.energyColor = f.energy ? GOLD : 'rgba(234,228,215,.3)';
+      v.energyTip = f.energy + ' of ' + f.energyMax + ' energy left this reading';
+      v.drawPile = { n:String(f.draw.length), tip:'still face down in front of you' };
+      v.discPile = { n:String(f.disc.length), tip:'already said tonight — they come back round when the draw pile runs out' };
+      v.gone = { k:'SAID FOR GOOD', n:String((f.gone || []).length),
+        color: (f.gone && f.gone.length) ? 'oklch(0.74 0.13 250)' : 'rgba(234,228,215,.3)',
+        tip:'once-only cards. They have left the deck for the rest of this sitter.' };
+
+      const ringM = st.marks.filter(m => m.kind === 'RING');
+      const otherM = st.marks.filter(m => m.kind !== 'RING');
+      const GEO = [{ x:'2px', y:'56px', h:'66px', rot:'-21deg', rt:'20px' },
+                   { x:'25px', y:'62px', h:'78px', rot:'-7deg', rt:'25px' },
+                   { x:'47px', y:'60px', h:'71px', rot:'6deg', rt:'22px' },
+                   { x:'69px', y:'52px', h:'56px', rot:'20deg', rt:'16px' }];
+      const mkFingers = pick => GEO.map((g, i) => { const m = pick(i);
+        return { x:g.x, y:g.y, h:g.h, rot:g.rot, ringTop:g.rt,
+          ringTip: m ? m.n + ' — ' + m.text : '', ringOpacity: m ? 1 : 0,
+          ringBg: m ? 'linear-gradient(180deg, oklch(0.90 0.10 88) 0%, oklch(0.60 0.10 78) 100%)' : 'transparent',
+          ringBorder: m ? 'rgba(0,0,0,.45)' : 'transparent',
+          ringGlow: m ? '0 0 9px rgba(212,175,90,.5)' : 'none' }; });
+      v.rightFingers = mkFingers(i => ringM[i * 2]);
+      v.leftFingers = mkFingers(i => ringM[i * 2 + 1]);
+      v.leftTats = otherM.map(m => ({ glyph: m.fx === 'el' ? EL[m.el].glyph : m.kind === 'SCAR' ? '✕' : '✦',
+          color: m.fx === 'el' ? EL[m.el].color : m.kind === 'SCAR' ? RED : VIOLET, tip: m.n + ' — ' + m.text }))
+        .concat(st.scars.map(sc => ({ glyph:'✕', color:RED, tip:'a ' + sc + ' story going around' })));
+
+      const hn = f.hand.length, mid = (hn - 1) / 2, spr = hn > 7 ? 4 : hn > 5 ? 5.5 : 7;
+      v.hand = f.hand.map((c, i) => {
+        const el = this.elOf(f, c), afford = c.cost <= f.energy;
+        const base = c.f + this.elBonus(el) + (el === f.el && !q.noAffinity ? 2 : 0);
+        const off = i - mid, hov = st.hcard === c.uid, kwOpen = !!(st.kw && st.kw.uid === c.uid);
+        const fs = Math.min(1, Math.max(0.62, (st.fanW || 960) / 860));
+        return { pick: () => this.lay(c.uid),
+          over: () => this.setState({ hcard:c.uid }), out: () => this.setState({ hcard:null, kw:null }),
+          z: hov ? 60 : 10 + i,
+          tf: hov ? 'rotate(0deg) translateY(-62px) scale(1.06)'
+                  : 'rotate(' + (off * spr).toFixed(1) + 'deg) translateY(' + (off * off * 2.4).toFixed(0) + 'px)',
+          bg: c.el ? this.tint(c.el, hov ? .2 : .12) : (hov ? 'rgba(234,228,215,.16)' : 'rgba(234,228,215,.09)'),
+          border: c.el ? this.tint(c.el, hov ? .8 : .42) : (hov ? 'rgba(234,228,215,.62)' : 'rgba(234,228,215,.34)'),
+          accentPale: !c.el,
+          accent: c.el ? EL[c.el].color : 'rgba(234,228,215,.72)',
+          glyph: c.el ? EL[c.el].glyph : '○',
+          fg: afford ? 'oklch(0.94 0.014 85)' : 'rgba(234,228,215,.42)',
+          name:c.n,
+          nameSize: ((c.n.length > 24 ? 12.5 : c.n.length > 15 ? 14 : 16) / fs).toFixed(1) + 'px/1.2',
+          costSize: (13 / fs).toFixed(1) + 'px/1', mendSize: (18 / fs).toFixed(1) + 'px/1',
+          tagSize: (8 / fs).toFixed(1) + 'px/1.4',
+          elWord: c.el ? EL[c.el].label : '',
+          hasArch: !!c.a, archWord: c.a ? c.a.toUpperCase() : '',
+          archColor: c.a ? ARCH[c.a].c : 'transparent', archTip: c.a ? ARCH[c.a].d : '',
+          exhaust: !!c.exhaust,
+          mend: String(base),
+          mendColor: base > c.f ? GREEN : base < c.f ? RED : 'oklch(0.92 0.014 85)',
+          mendTip: base === c.f ? 'mends ' + base : base > c.f ? 'mends ' + base + ' — ' + (base - c.f) + ' of it is your hands and their sign' : 'mends ' + base + ' — held down tonight',
+          costMark: c.cost === 0 ? 'FREE' : String(c.cost),
+          costTip: c.cost === 0 ? 'free to say' : c.cost + ' energy',
+          costColor: afford ? GOLD : 'rgba(234,228,215,.28)',
+          exhaustTip: 'once only — it leaves the deck after you say it',
+          opacity: afford ? 1 : .44, cursor: afford ? 'pointer' : 'not-allowed',
+          showText: hov, tokens: this.tokens(c.text, c.uid), textSize: (8.5 / fs).toFixed(1) + 'px/1.5',
+          textW: Math.round(186 / fs) + 'px',
+          kwHeadSize: (8 / fs).toFixed(1) + 'px/1', kwBodySize: (9 / fs).toFixed(1) + 'px/1.5', kwW: Math.round(168 / fs) + 'px',
+          kwOpen, kwWord: kwOpen ? st.kw.word : '', kwDesc: kwOpen ? st.kw.desc : '',
+          kwL: i <= mid ? '104%' : 'auto', kwR: i <= mid ? 'auto' : '104%' };
+      });
+
+      v.cannotRead = !f.cross.length || !!st.play;
+      v.readBg = v.cannotRead ? 'rgba(0,0,0,.2)' : GOLD;
+      v.readBorder = v.cannotRead ? 'rgba(234,228,215,.2)' : GOLD;
+      v.readFg = v.cannotRead ? 'rgba(234,228,215,.4)' : 'oklch(0.18 0.02 60)';
+      v.readOpacity = v.cannotRead ? .6 : 1;
+      v.readIt = () => this.readIt();
+    } else {
+      v.hand = []; v.slots = []; v.tally = [];
+      v.drawPile = { n:'', tip:'' }; v.discPile = { n:'', tip:'' }; v.gone = { k:'', n:'', color:'transparent', tip:'' };
+      v.fanRef = this.fanRef; v.fanScale = '1';
+      v.face = { ...MOODS.waiting, hasScore:false, score:'', scoreColor:DIM };
+      v.hasSay = false; v.portraitSay = ''; v.playing = false; v.sentence = '';
+    }
+
+    if (st.res){
+      v.res = { head:st.res.head, headColor:st.res.headColor, title:st.res.title, said:st.res.said, cta:st.res.cta, go: () => this.afterRes() };
+      v.resLines = st.res.lines;
+    } else { v.res = false; v.resLines = []; }
+
+    if (st.pick){
+      const p = st.pick;
+      v.pick = { head:p.head, title:p.title, body:p.body, skippable:!!p.skippable, skipLabel:p.skipLabel || 'MOVE ON', skip: () => this.skipPick() };
+      v.pickOpts = p.opts.map((o, i) => {
+        const afford = !o.cost || st.coin >= o.cost;
+        const el = o.card ? o.card.el : null;
+        return { take: () => this.takePick(i), locked:!afford,
+          bg: el ? this.tint(el, .12) : o.card ? 'rgba(234,228,215,.09)' : 'rgba(0,0,0,.3)',
+          border: el ? this.tint(el, .42) : o.card ? 'rgba(234,228,215,.34)' : 'rgba(234,228,215,.16)',
+          accent: el ? EL[el].color : o.card ? 'rgba(234,228,215,.72)' : o.mark ? GOLD : VIOLET,
+          rarColor: o.card ? (RAR[o.card.r] || RAR.common) : 'transparent',
+          fg: afford ? 'oklch(0.94 0.014 85)' : 'rgba(234,228,215,.5)',
+          opacity: afford ? 1 : .45, cursor: afford ? 'pointer' : 'not-allowed',
+          kind:o.kind, price:o.price,
+          arch: o.card && o.card.a ? o.card.a.toUpperCase() : '', hasArch: !!(o.card && o.card.a), archColor: o.card && o.card.a ? ARCH[o.card.a].c : 'transparent',
+          archDesc: o.card && o.card.a ? ARCH[o.card.a].d : '',
+          name: o.card ? o.card.n : o.mark ? o.mark.n : o.name,
+          text: o.card ? o.card.text : o.mark ? o.mark.text : o.text,
+          tokens: this.tokens(o.card ? o.card.text : o.mark ? o.mark.text : (o.text || ''), 'pick' + i)
+            .map(t => ({ ...t, tip: KEYS[t.t.toLowerCase().replace(/[^a-z]/g,'')] || '' })),
+          elWord: el ? EL[el].label : o.card ? '' : (o.mark ? 'ON YOUR HANDS' : 'THE EVENING'),
+          exhaust: !!(o.card && o.card.exhaust),
+          costMark: o.card ? (o.card.cost === 0 ? 'FREE' : String(o.card.cost)) : '',
+          costColor: GOLD,
+          mend: o.card ? String(o.card.f) : '',
+          mendColor: 'oklch(0.92 0.014 85)',
+          kindColor: 'rgba(234,228,215,.34)',
+          foot: o.card ? (o.card.cost === 0 ? 'free to lay · mends ' + o.card.f : o.card.cost + ' energy · mends ' + o.card.f) : o.foot || (o.mark ? 'kept for the rest of the run' : ''),
+          footColor: o.card ? GREEN : GOLD };
+      });
+    } else { v.pick = false; v.pickOpts = []; }
+
+    if (st.over){ v.over = st.over; v.overLines = st.over.lines; } else { v.over = false; v.overLines = []; }
+    return v;
+  }
+}
+</script>
+</body>
+</html>

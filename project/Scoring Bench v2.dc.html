@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:oklch(0.16 0.012 60);color:oklch(0.92 0.014 85);}
+  *{box-sizing:border-box;}
+  a{color:oklch(0.84 0.12 85);text-decoration:none;border-bottom:1px solid rgba(212,175,90,.35);}
+  a:hover{color:oklch(0.90 0.13 85);border-bottom-color:oklch(0.90 0.13 85);}
+  button{font-family:'JetBrains Mono',monospace;cursor:pointer;}
+  @keyframes fadein{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% 0%, oklch(0.21 0.02 55) 0%, oklch(0.145 0.012 60) 62%);font-family:'JetBrains Mono',monospace;padding:0 0 70px;">
+  <div style="max-width:1400px;margin:0 auto;padding:0 30px;">
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:24px 0 14px;border-bottom:1px solid rgba(234,228,215,.1);">
+      <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;">
+        <span style="font:400 25px/1 'Instrument Serif',Georgia,serif;">Bad Fortune</span>
+        <span style="font:400 9px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(234,228,215,.34);">BENCH II · THREE TURNS · DISPLACEMENT vs DECLARING A READING</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.3);">TURN</span>
+          <div style="display:flex;gap:4px;">
+            <sc-for list="{{ turnPips }}" as="t" hint-placeholder-count="3">
+              <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.1em;padding:4px 7px;border:1px solid {{ t.border }};border-radius:2px;color:{{ t.color }};background:{{ t.bg }};">{{ t.n }}</span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.3);">ENERGY</span>
+          <div style="display:flex;gap:3px;">
+            <sc-for list="{{ energyPips }}" as="e" hint-placeholder-count="4">
+              <span style="width:9px;height:13px;border:1px solid {{ e.border }};background:{{ e.bg }};border-radius:1px;"></span>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;">
+          <button onClick="{{ undo }}" style="background:transparent;border:1px solid rgba(234,228,215,.2);color:rgba(234,228,215,.55);border-radius:2px;padding:7px 11px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.13em;">TAKE IT BACK</button>
+          <button onClick="{{ endTurn }}" style="background:rgba(212,175,90,.14);border:1px solid rgba(212,175,90,.45);color:oklch(0.84 0.12 85);border-radius:2px;padding:7px 11px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.13em;">{{ endLabel }}</button>
+          <button onClick="{{ reroll }}" style="background:transparent;border:1px solid rgba(234,228,215,.2);color:rgba(234,228,215,.55);border-radius:2px;padding:7px 11px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.13em;">NEW VILLAGER</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:26px;padding:20px 0 0;align-items:start;">
+
+      <div style="display:flex;flex-direction:column;gap:13px;">
+        <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:15px 16px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <span style="font:400 18px/1.15 'Instrument Serif',Georgia,serif;">{{ villagerName }}</span>
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:oklch(0.84 0.12 85);white-space:nowrap;">{{ signName }} · BLESSED IN {{ signEl }}</span>
+          </div>
+          <span style="font:400 italic 12.5px/1.45 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.58);text-wrap:pretty;">{{ villagerWant }}</span>
+          <span style="font:400 8.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.34);text-wrap:pretty;border-top:1px solid rgba(234,228,215,.08);padding-top:9px;">{{ signRule }}</span>
+        </div>
+
+        <div style="border:1px solid rgba(234,228,215,.1);border-radius:3px;padding:14px 15px;background:rgba(0,0,0,.14);display:flex;flex-direction:column;gap:10px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">THE RING · WHERE WEIGHT CAN TRAVEL</span>
+          <div style="display:flex;align-items:stretch;gap:0;">
+            <sc-for list="{{ ring }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;flex:1;min-width:0;">
+                <div style="border:1px solid {{ e.border }};border-radius:2px;padding:8px 7px;display:flex;flex-direction:column;gap:3px;background:{{ e.bg }};flex:1;min-width:0;">
+                  <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ e.color }};">{{ e.label }}</span>
+                  <span style="font:400 12px/1 'Instrument Serif',serif;color:{{ e.pileColor }};">{{ e.pile }}</span>
+                  <span style="font:400 7px/1.2 'JetBrains Mono',monospace;color:rgba(234,228,215,.3);">{{ e.role }}</span>
+                </div>
+                <span style="font:400 9px/1 'JetBrains Mono',monospace;color:rgba(234,228,215,.24);padding:0 3px;">{{ e.link }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <span style="font:400 8px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.32);text-wrap:pretty;">Neighbours pass weight freely. Opposites cannot: {{ oppNote }}. Weight only ever moves — the total never changes.</span>
+        </div>
+
+        <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:14px 15px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:9px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">WHAT SHE BELIEVES</span>
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:rgba(234,228,215,.3);">{{ totalLabel }}</span>
+          </div>
+          <sc-for list="{{ beliefs }}" as="b" hint-placeholder-count="4">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                <span style="font:400 italic 12.5px/1.3 'Instrument Serif',Georgia,serif;color:{{ b.textColor }};text-wrap:pretty;">“{{ b.text }}”</span>
+                <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.08em;color:{{ b.color }};white-space:nowrap;">{{ b.tag }}</span>
+              </div>
+              <div style="height:3px;background:rgba(234,228,215,.07);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;width:{{ b.pct }}%;background:{{ b.color }};opacity:.8;"></div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:11px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">{{ crossLabel }}</span>
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:oklch(0.84 0.12 85);">{{ laidLabel }}</span>
+        </div>
+
+        <sc-if value="{{ hasPreview }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid rgba(212,175,90,.34);border-left:2px solid oklch(0.84 0.12 85);border-radius:2px;padding:9px 12px;background:rgba(212,175,90,.07);display:flex;flex-direction:column;gap:3px;">
+            <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:oklch(0.84 0.12 85);">IF YOU LAY IT · {{ previewCost }}</span>
+            <span style="font:400 italic 12.5px/1.35 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.82);text-wrap:pretty;">{{ previewDisp }}</span>
+            <span style="font:400 8px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.42);text-wrap:pretty;">{{ previewDecl }}</span>
+          </div>
+        </sc-if>
+
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+          <sc-for list="{{ slots }}" as="s" hint-placeholder-count="5">
+            <button onClick="{{ s.click }}" style="grid-area:{{ s.area }};text-align:left;background:{{ s.bg }};border:1px solid {{ s.border }};border-radius:3px;padding:9px 10px;min-height:88px;display:flex;flex-direction:column;gap:5px;justify-content:space-between;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
+                <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.13em;color:rgba(234,228,215,.4);">{{ s.label }}</span>
+                <span style="font:400 9px/1 'Instrument Serif',serif;color:rgba(234,228,215,.28);">{{ s.roman }}</span>
+              </div>
+              <span style="font:400 12.5px/1.2 'Instrument Serif',Georgia,serif;color:{{ s.nameColor }};text-wrap:pretty;">{{ s.name }}</span>
+              <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.09em;color:{{ s.subColor }};">{{ s.sub }}</span>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:7px;padding-top:5px;border-top:1px solid rgba(234,228,215,.1);">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">{{ handLabel }}</span>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;">
+            <sc-for list="{{ hand }}" as="c" hint-placeholder-count="6">
+              <button onClick="{{ c.click }}" style="text-align:left;background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:3px;padding:8px 9px;display:flex;flex-direction:column;gap:4px;opacity:{{ c.opacity }};">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:5px;">
+                  <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ c.color }};">{{ c.elLabel }}</span>
+                  <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.08em;color:{{ c.costColor }};">{{ c.costLabel }}</span>
+                </div>
+                <span style="font:400 12px/1.2 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.9);text-wrap:pretty;">{{ c.n }}</span>
+                <span style="font:400 7.5px/1 'JetBrains Mono',monospace;color:rgba(234,228,215,.34);">FORCE {{ c.f }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:24px 0 0;">
+
+      <div style="border:1px solid rgba(234,228,215,.13);border-top:2px solid oklch(0.76 0.16 45);border-radius:3px;background:rgba(0,0,0,.24);padding:16px 17px 18px;display:flex;flex-direction:column;gap:13px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+            <span style="font:400 17px/1.1 'Instrument Serif',Georgia,serif;">Displacement</span>
+            <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.3);">RESOLVES AS YOU LAY</span>
+          </div>
+          <span style="font:400 9px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.44);text-wrap:pretty;">Each card drags weight off the belief it names and onto its own element. Fire is tonight. Get {{ dispTarget }} of her {{ dispTotal }} onto tonight and she goes.</span>
+        </div>
+
+        <div style="border:1px solid {{ dispVBorder }};border-radius:2px;padding:10px 12px;background:{{ dispVBg }};display:flex;flex-direction:column;gap:5px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.15em;color:{{ dispVColor }};">{{ dispVerdict }}</span>
+          <div style="height:5px;background:rgba(234,228,215,.08);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:{{ dispPct }}%;background:{{ dispVColor }};opacity:.85;"></div>
+          </div>
+          <span style="font:400 8.5px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);text-wrap:pretty;">{{ dispVerdictSub }}</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">EVERY MOVE SHE HAS MADE TONIGHT</span>
+          <sc-for list="{{ dispLog }}" as="l" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid {{ l.color }};padding:3px 0 3px 9px;">
+              <span style="font:500 7px/1.3 'JetBrains Mono',monospace;letter-spacing:.09em;color:{{ l.color }};">{{ l.head }}</span>
+              <span style="font:400 italic 11.5px/1.35 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.66);text-wrap:pretty;">{{ l.body }}</span>
+              <span style="font:400 7.5px/1.3 'JetBrains Mono',monospace;letter-spacing:.06em;color:{{ l.warnColor }};">{{ l.warn }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="border:1px solid rgba(234,228,215,.13);border-top:2px solid oklch(0.74 0.13 130);border-radius:3px;background:rgba(0,0,0,.24);padding:16px 17px 18px;display:flex;flex-direction:column;gap:13px;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+            <span style="font:400 17px/1.1 'Instrument Serif',Georgia,serif;">Declaring A Reading</span>
+            <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.3);">RESOLVES AT TURN’S END</span>
+          </div>
+          <span style="font:400 9px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.44);text-wrap:pretty;">Force is irrelevant. Elements are suits. The shape of the whole cross decides how many of her beliefs it turns over. Turn over three.</span>
+        </div>
+
+        <div style="border:1px solid {{ declVBorder }};border-radius:2px;padding:10px 12px;background:{{ declVBg }};display:flex;flex-direction:column;gap:4px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.15em;color:{{ declVColor }};">{{ declVerdict }}</span>
+          <span style="font:400 8.5px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);text-wrap:pretty;">{{ declVerdictSub }}</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+            <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">ON THE CLOTH NOW</span>
+            <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.09em;color:rgba(234,228,215,.5);">{{ tallyLabel }}</span>
+          </div>
+          <sc-for list="{{ ladder }}" as="r" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid {{ r.border }};border-radius:2px;padding:7px 10px;background:{{ r.bg }};">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+                <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.11em;color:{{ r.color }};">{{ r.name }}</span>
+                <span style="font:400 8px/1.3 'JetBrains Mono',monospace;color:rgba(234,228,215,.32);text-wrap:pretty;">{{ r.need }}</span>
+              </div>
+              <span style="font:400 13px/1 'Instrument Serif',serif;color:{{ r.color }};white-space:nowrap;">{{ r.carries }}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ hasHint }}" hint-placeholder-val="{{ false }}">
+            <span style="font:400 8.5px/1.45 'JetBrains Mono',monospace;color:oklch(0.84 0.12 85);text-wrap:pretty;">{{ ladderHint }}</span>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;padding-top:9px;border-top:1px solid rgba(234,228,215,.09);">
+          <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.3);">WHAT THE READINGS HAVE TURNED OVER</span>
+          <sc-for list="{{ declLog }}" as="l" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column;gap:2px;border-left:2px solid {{ l.color }};padding:3px 0 3px 9px;">
+              <span style="font:500 7px/1.3 'JetBrains Mono',monospace;letter-spacing:.09em;color:{{ l.color }};">{{ l.head }}</span>
+              <span style="font:400 italic 11.5px/1.35 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.66);text-wrap:pretty;">{{ l.body }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+    <sc-if value="{{ done }}" hint-placeholder-val="{{ false }}">
+      <div style="border:1px solid rgba(212,175,90,.3);border-radius:3px;background:rgba(212,175,90,.05);padding:18px 20px;margin-top:22px;display:flex;flex-direction:column;gap:14px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;">
+          <span style="font:400 19px/1.1 'Instrument Serif',Georgia,serif;">She has put her coat on</span>
+          <button onClick="{{ replay }}" style="background:rgba(212,175,90,.14);border:1px solid rgba(212,175,90,.45);color:oklch(0.84 0.12 85);border-radius:2px;padding:8px 12px;font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.13em;">REPLAY THE SAME CARDS BACKWARDS</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;">
+          <sc-for list="{{ finals }}" as="f" hint-placeholder-count="2">
+            <div style="border-left:2px solid {{ f.color }};padding:3px 0 3px 12px;display:flex;flex-direction:column;gap:5px;">
+              <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.15em;color:{{ f.color }};">{{ f.name }} · {{ f.verdict }}</span>
+              <span style="font:400 12.5px/1.35 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.8);text-wrap:pretty;">{{ f.body }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ hasReplay }}" hint-placeholder-val="{{ false }}">
+          <div style="border:1px solid rgba(234,228,215,.16);border-radius:2px;padding:12px 14px;background:rgba(0,0,0,.26);display:flex;flex-direction:column;gap:6px;">
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.15em;color:oklch(0.84 0.12 85);">THE SAME CARDS, LAID IN THE OPPOSITE ORDER</span>
+            <span style="font:400 12.5px/1.4 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.85);text-wrap:pretty;">{{ replayDisp }}</span>
+            <span style="font:400 12.5px/1.4 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.85);text-wrap:pretty;">{{ replayDecl }}</span>
+            <span style="font:400 8.5px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.42);text-wrap:pretty;">{{ replayNote }}</span>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;padding:22px 0 0;">
+      <sc-for list="{{ notes }}" as="n" hint-placeholder-count="2">
+        <div style="border-left:2px solid {{ n.color }};padding:2px 0 2px 12px;display:flex;flex-direction:column;gap:5px;">
+          <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.15em;color:{{ n.color }};">{{ n.tag }}</span>
+          <span style="font:400 13px/1.25 'Instrument Serif',Georgia,serif;">{{ n.title }}</span>
+          <span style="font:400 9px/1.55 'JetBrains Mono',monospace;color:rgba(234,228,215,.42);text-wrap:pretty;">{{ n.body }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1460,&quot;height&quot;:1560}}">
+const GOLD = 'oklch(0.84 0.12 85)';
+const RED  = 'oklch(0.72 0.15 25)';
+const GRN  = 'oklch(0.74 0.13 130)';
+
+const EL = {
+  water:{ label:'WATER', name:'feeling',   color:'oklch(0.72 0.14 245)' },
+  earth:{ label:'EARTH', name:'material',  color:'oklch(0.74 0.13 130)' },
+  fire: { label:'FIRE',  name:'action',    color:'oklch(0.76 0.16 45)'  },
+  air:  { label:'AIR',   name:'intellect', color:'oklch(0.85 0.10 95)'  }
+};
+// ring order — neighbours in this list feed each other, opposites do not
+const ELS = ['water','earth','fire','air'];
+const NEIGH = { water:['air','earth'], earth:['water','fire'], fire:['earth','air'], air:['fire','water'] };
+const OPP   = { water:'fire', fire:'water', earth:'air', air:'earth' };
+const REL = (a,b) => a === b ? 2 : NEIGH[a].indexOf(b) > -1 ? 1 : 0.5;
+const REL_NAME = { 2:'NAMES IT DIRECTLY', 1:'COMES AT IT SIDEWAYS', 0.5:'CHANGES THE SUBJECT' };
+const SIGN_NAMES = { water:'CANCER', earth:'TAURUS', fire:'ARIES', air:'GEMINI' };
+const SIGN_RULE = {
+  water:'Born under water. Anything you say in water lands half again as hard.',
+  earth:'Born under earth. Anything you say in earth lands half again as hard.',
+  fire :'Born under fire. Anything you say in fire lands half again as hard.',
+  air  :'Born under air. Anything you say in air lands half again as hard.'
+};
+
+const SLOTS = [
+  { label:'BEHIND HER',   roman:'I',   area:'2 / 1 / 3 / 2' },
+  { label:'OVER HER',     roman:'II',  area:'1 / 2 / 2 / 3' },
+  { label:'THE HEART',    roman:'III', area:'2 / 2 / 3 / 3' },
+  { label:'BENEATH HER',  roman:'IV',  area:'3 / 2 / 4 / 3' },
+  { label:'AHEAD OF HER', roman:'V',   area:'2 / 3 / 3 / 4' }
+];
+
+const COST = f => f <= 2 ? 0 : f <= 4 ? 1 : 3;
+const POOL = [
+  { n:'Pour The Tea',            el:'water', f:3 },
+  { n:'Hold Her Hand',           el:'water', f:6 },
+  { n:'Cry A Little With Her',   el:'water', f:4 },
+  { n:'Sit In The Silence',      el:'water', f:2 },
+  { n:'Let Her Talk',            el:'water', f:5 },
+  { n:'Ask Her Why',             el:'air',   f:3 },
+  { n:'Ask About The Family',    el:'air',   f:4 },
+  { n:'Point Out The Pattern',   el:'air',   f:5 },
+  { n:'Name The Feeling',        el:'air',   f:2 },
+  { n:'Ask Who Told Her That',   el:'air',   f:6 },
+  { n:'Read Her Palm',           el:'earth', f:3 },
+  { n:'Look At Her Hands',       el:'earth', f:4 },
+  { n:'Count It Out In Coins',   el:'earth', f:2 },
+  { n:'Weigh What She Brought',  el:'earth', f:5 },
+  { n:'Ask What It Costs',       el:'earth', f:6 },
+  { n:'Tell Her To Go',          el:'fire',  f:4 },
+  { n:'Burn The Letter',         el:'fire',  f:6 },
+  { n:'Say It To His Face',      el:'fire',  f:5 },
+  { n:'Refuse To Read Further',  el:'fire',  f:3 },
+  { n:'Send Her Out The Back',   el:'fire',  f:2 }
+];
+
+const VILLAGERS = [
+  { name:'Mme Aubain, who came about the letter',
+    want:'She wants to be told to leave, and she wants it to be somebody else’s idea.',
+    b:{ water:'He does not mean it when he is like that',
+        earth:'The house is the only thing my mother left me',
+        air:'People would talk, and they would be right to',
+        fire:'I could be gone before the bread comes' } },
+  { name:'Le Bihan, who came about the boat',
+    want:'He wants permission to sell the thing his father built.',
+    b:{ water:'My father would take it as an insult',
+        earth:'She is worth more than they are offering',
+        air:'A man without a boat here is nothing at all',
+        fire:'I take the money Thursday and I do not look back' } },
+  { name:'Sœur Ondine, who came about the child',
+    want:'She wants to be told the thing she already knows is not a sin.',
+    b:{ water:'I promised, and a promise is a promise',
+        earth:'There is no money in it either way',
+        air:'The parish decides these things, not me',
+        fire:'I go to her tonight and I say it out loud' } }
+];
+
+const rnd = s => () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+function makeRun(seed){
+  const r = rnd(seed * 7919 + 13);
+  const v = VILLAGERS[Math.floor(r() * VILLAGERS.length) % VILLAGERS.length];
+  const beliefs = ELS.map(e => ({ el:e, text:v.b[e], w0:5 + Math.floor(r() * 5) }));
+  const sign = ELS[Math.floor(r() * 4) % 4];
+  const deck = POOL.map((c,i) => ({ ...c, cost:COST(c.f), uid:c.n + '#' + i }));
+  for (let i = deck.length - 1; i > 0; i--){
+    const j = Math.floor(r() * (i + 1)); const t = deck[i]; deck[i] = deck[j]; deck[j] = t;
+  }
+  const piles = {}; beliefs.forEach(b => piles[b.el] = b.w0);
+  return {
+    villager:v, beliefs, sign, piles,
+    hand: deck.slice(0, 6), deck: deck.slice(6),
+    turn:1, energy:4, cross:[null,null,null,null,null], sel:null,
+    plays:[], dispLog:[], declLog:[], brokenD:{}, done:false, replayRes:null
+  };
+}
+
+// ── one displacement step. Pure: mutates the piles object it is given ──
+function step(piles, card, sign){
+  const cands = ELS.filter(e => e !== card.el && piles[e] > 0)
+    .sort((a,b) => (REL(card.el, b) - REL(card.el, a)) || (piles[b] - piles[a]));
+  if (!cands.length) return null;
+  const from = cands[0], rel = REL(card.el, from);
+  const boost = card.el === sign ? 1.5 : 1;
+  const want = Math.max(1, Math.round(card.f * rel * boost));
+  const amt = Math.min(want, piles[from]);
+  piles[from] -= amt; piles[card.el] += amt;
+  return { from, to:card.el, amt, want, rel, blessed:boost > 1 };
+}
+
+// ── the shape of a cross. Order-independent by construction. ──────────
+function shapeOf(cards, sign){
+  const cnt = {}; cards.forEach(c => cnt[c.el] = (cnt[c.el] || 0) + 1);
+  const ranked = Object.keys(cnt).sort((a,b) => cnt[b] - cnt[a]);
+  const c0 = ranked[0] ? cnt[ranked[0]] : 0;
+  const c1 = ranked[1] ? cnt[ranked[1]] : 0;
+  let key, name, take, seed = [];
+  if (c0 >= 3 && c1 >= 2){ key='full';  name='AN UNANSWERABLE READING'; take=4; seed=[ranked[0],ranked[1]]; }
+  else if (ranked.length === 4){ key='wheel'; name='THE WHOLE WHEEL'; take=3; }
+  else if (c0 >= 3){ key='three'; name='A STRAIGHT READING'; take=3; seed=[ranked[0]]; }
+  else if (c0 === 2 && c1 === 2){ key='twopair'; name='SHE HEARS HERSELF TWICE'; take=2; seed=[ranked[0],ranked[1]]; }
+  else if (c0 === 2){ key='pair'; name='A SINGLE ECHO'; take=1; seed=[ranked[0]]; }
+  else { key='none'; name = cards.length ? 'SHE HEARS NOTHING IN IT' : 'AN EMPTY CLOTH'; take=0; }
+  let blessed = false;
+  if (take && ranked[0] === sign){ take = Math.min(4, take + 1); blessed = true; }
+  return { key, name, take, seed, cnt, ranked, blessed };
+}
+
+const LADDER = [
+  { key:'pair',    name:'A SINGLE ECHO',           need:'two of one element',            carries:1 },
+  { key:'twopair', name:'SHE HEARS HERSELF TWICE', need:'two pairs',                     carries:2 },
+  { key:'three',   name:'A STRAIGHT READING',      need:'three of one element',          carries:3 },
+  { key:'wheel',   name:'THE WHOLE WHEEL',         need:'all four elements at once',     carries:3 },
+  { key:'full',    name:'AN UNANSWERABLE READING', need:'three of one, two of another',  carries:4 }
+];
+
+class Component extends DCLogic {
+  state = { seed:1, ...makeRun(1) };
+
+  reroll = () => { const seed = this.state.seed + 1; this.setState({ seed, ...makeRun(seed) }); };
+  pick = uid => () => this.setState({ sel:this.state.sel === uid ? null : uid });
+
+  place = i => () => {
+    const st = this.state;
+    if (st.done || st.cross[i] || !st.sel) return;
+    const card = st.hand.find(c => c.uid === st.sel);
+    if (!card || card.cost > st.energy) return;
+    const piles = { ...st.piles };
+    const mv = step(piles, card, st.sign);
+    const cross = st.cross.slice(); cross[i] = card;
+    const txt = {}; st.beliefs.forEach(b => txt[b.el] = b.text);
+    const log = st.dispLog.concat([{
+      turn:st.turn, slot:i, card, mv,
+      head: 'T' + st.turn + ' · ' + SLOTS[i].label + ' · ' + card.n.toUpperCase() + (mv ? ' · ' + REL_NAME[mv.rel] : ''),
+      body: mv ? 'drags ' + mv.amt + ' off “' + txt[mv.from] + '” and onto ' + EL[mv.to].label.toLowerCase()
+               : 'there was nothing left anywhere else to move',
+      warn: mv && mv.from === 'fire' ? 'THIS TOOK ' + mv.amt + ' BACK OFF TONIGHT'
+          : mv && mv.want > mv.amt ? mv.want - mv.amt + ' OF IT HAD NOWHERE TO COME FROM'
+          : mv && mv.blessed ? 'HALF AGAIN, BECAUSE SHE WAS BORN UNDER IT' : '',
+      color: EL[card.el].color
+    }]);
+    this.setState({
+      piles, cross, dispLog:log, sel:null,
+      energy: st.energy - card.cost,
+      hand: st.hand.filter(c => c.uid !== card.uid),
+      plays: st.plays.concat([{ card, slot:i, turn:st.turn }])
+    });
+  };
+
+  undo = () => {
+    const st = this.state;
+    if (st.done || !st.plays.length) return;
+    const last = st.plays[st.plays.length - 1];
+    if (last.turn !== st.turn) return;
+    const rec = st.dispLog[st.dispLog.length - 1];
+    const piles = { ...st.piles };
+    if (rec && rec.mv){ piles[rec.mv.to] -= rec.mv.amt; piles[rec.mv.from] += rec.mv.amt; }
+    const cross = st.cross.slice(); cross[last.slot] = null;
+    this.setState({
+      piles, cross, sel:null,
+      energy: st.energy + last.card.cost,
+      hand: st.hand.concat([last.card]),
+      plays: st.plays.slice(0, -1),
+      dispLog: st.dispLog.slice(0, -1)
+    });
+  };
+
+  endTurn = () => {
+    const st = this.state;
+    if (st.done) return;
+    const laid = st.cross.filter(Boolean);
+    const sh = shapeOf(laid, st.sign);
+    const brokenD = { ...st.brokenD };
+    const avail = st.beliefs.filter(b => !brokenD[b.el]).sort((a,b) => {
+      const sa = sh.seed.indexOf(a.el) > -1 ? 1 : 0, sb = sh.seed.indexOf(b.el) > -1 ? 1 : 0;
+      return (sb - sa) || (a.w0 - b.w0);
+    });
+    const took = avail.slice(0, sh.take);
+    took.forEach(b => brokenD[b.el] = true);
+    const declLog = st.declLog.concat([{
+      head: 'TURN ' + st.turn + ' · ' + sh.name + (sh.blessed ? ' · READ IN HER OWN SIGN' : '') +
+            ' · ' + (sh.ranked.length ? sh.ranked.map(e => sh.cnt[e] + '×' + EL[e].label).join(' ') : 'NOTHING'),
+      body: took.length ? 'turns over ' + took.map(b => '“' + b.text + '”').join(' · ')
+                        : 'she listens, agrees with none of it, and nothing turns over',
+      color: took.length ? GRN : 'rgba(234,228,215,.3)'
+    }]);
+    const turn = st.turn + 1;
+    const done = turn > 3;
+    const need = 6 - st.hand.length;
+    let deck = st.deck.slice();
+    if (deck.length < need) deck = deck.concat(POOL.map((c,i) => ({ ...c, cost:COST(c.f), uid:c.n + '@' + turn + i })));
+    this.setState({
+      brokenD, declLog, done,
+      turn: done ? 3 : turn,
+      energy: 4,
+      cross:[null,null,null,null,null], sel:null,
+      hand: st.hand.concat(deck.slice(0, need)),
+      deck: deck.slice(need)
+    });
+  };
+
+  replay = () => {
+    const st = this.state;
+    const piles = {}; st.beliefs.forEach(b => piles[b.el] = b.w0);
+    st.plays.slice().reverse().forEach(p => step(piles, p.card, st.sign));
+    const byTurn = {};
+    st.plays.forEach(p => { (byTurn[p.turn] = byTurn[p.turn] || []).push(p.card); });
+    let take = 0;
+    Object.keys(byTurn).forEach(t => { take += shapeOf(byTurn[t], st.sign).take; });
+    this.setState({ replayRes:{ fire:piles.fire, take:Math.min(4, take) } });
+  };
+
+  renderVals(){
+    const st = this.state;
+    const total = ELS.reduce((s,e) => s + st.piles[e], 0);
+    const target = Math.ceil(total * 0.55);
+    const txt = {}; st.beliefs.forEach(b => txt[b.el] = b.text);
+    const laid = st.cross.filter(Boolean);
+    const sel = st.hand.find(c => c.uid === st.sel);
+    const sh = shapeOf(laid, st.sign);
+    const dispWon = st.piles.fire >= target;
+    const declCount = Object.keys(st.brokenD).length;
+    const declWon = declCount >= 3;
+
+    // what the selected card would do
+    let previewDisp = '', previewDecl = '', previewCost = '';
+    if (sel){
+      const p = { ...st.piles };
+      const mv = step(p, sel, st.sign);
+      previewCost = sel.cost === 0 ? 'FREE' : sel.cost + ' ENERGY' + (sel.cost > st.energy ? ' · YOU CANNOT AFFORD IT' : '');
+      previewDisp = mv
+        ? 'It names “' + txt[mv.from] + '” — ' + REL_NAME[mv.rel].toLowerCase() + ' — and drags ' + mv.amt +
+          ' of it onto ' + EL[mv.to].label.toLowerCase() + (mv.from === 'fire' ? ', which is weight coming back OFF tonight.' : '.')
+        : 'There is nothing left for it to move.';
+      const nsh = shapeOf(laid.concat([sel]), st.sign);
+      previewDecl = 'The cross would read ' + nsh.name.toLowerCase() + ' · carries ' + nsh.take +
+        (nsh.take > sh.take ? ' — one more than it does now' : nsh.take < sh.take ? ' — fewer than it does now' : ' — no change to the shape');
+    }
+
+    // ladder + the card that would climb it
+    let hint = '';
+    if (!st.done){
+      for (const e of ELS){
+        const nsh = shapeOf(laid.concat([{ el:e, f:1 }]), st.sign);
+        if (nsh.take > sh.take){
+          hint = 'One more ' + EL[e].label.toLowerCase() + ' on the cloth and it becomes ' + nsh.name.toLowerCase() + ' — carrying ' + nsh.take + '.';
+          break;
+        }
+      }
+    }
+
+    return {
+      undo:this.undo, endTurn:this.endTurn, reroll:this.reroll, replay:this.replay,
+      villagerName: st.villager.name,
+      villagerWant: st.villager.want,
+      signName: SIGN_NAMES[st.sign],
+      signEl: EL[st.sign].label,
+      signRule: SIGN_RULE[st.sign],
+      endLabel: st.turn >= 3 ? 'FINISH THE READING' : 'END THE TURN',
+      turnPips: [1,2,3].map(n => ({
+        n:'0' + n,
+        color: n === st.turn && !st.done ? GOLD : n < st.turn || st.done ? 'rgba(234,228,215,.5)' : 'rgba(234,228,215,.22)',
+        border: n === st.turn && !st.done ? 'rgba(212,175,90,.5)' : 'rgba(234,228,215,.13)',
+        bg: n === st.turn && !st.done ? 'rgba(212,175,90,.12)' : 'transparent'
+      })),
+      energyPips: [0,1,2,3].map(i => ({
+        border: i < st.energy ? 'rgba(212,175,90,.55)' : 'rgba(234,228,215,.15)',
+        bg: i < st.energy ? 'rgba(212,175,90,.5)' : 'transparent'
+      })),
+      ring: ELS.map((e,i) => ({
+        label:EL[e].label, role: e === 'fire' ? 'tonight' : EL[e].name,
+        color:EL[e].color, pile:st.piles[e],
+        pileColor: e === 'fire' ? GOLD : 'rgba(234,228,215,.8)',
+        border: e === 'fire' ? 'rgba(212,175,90,.4)' : 'rgba(234,228,215,.12)',
+        bg: e === 'fire' ? 'rgba(212,175,90,.07)' : 'rgba(0,0,0,.16)',
+        link: i < 3 ? '—' : '↺'
+      })),
+      oppNote: 'water and fire never touch, earth and air never touch',
+      totalLabel: 'SHE IS CARRYING ' + total + ', ALWAYS',
+      beliefs: st.beliefs.map(b => {
+        const broken = !!st.brokenD[b.el];
+        return {
+          text:b.text,
+          tag: (broken ? 'TURNED OVER · ' : '') + EL[b.el].label + ' · ' + st.piles[b.el],
+          color: broken ? GRN : EL[b.el].color,
+          textColor: broken ? 'rgba(234,228,215,.45)' : 'rgba(234,228,215,.88)',
+          pct: Math.round(st.piles[b.el] / Math.max(1,total) * 100)
+        };
+      }),
+      crossLabel: sel ? 'LAY “' + sel.n.toUpperCase() + '” — PICK A POSITION' : 'THE CROSS · TAP A CARD, THEN A POSITION',
+      laidLabel: laid.length + ' / 5 LAID · ' + st.energy + ' ENERGY LEFT',
+      hasPreview: !!sel, previewDisp, previewDecl, previewCost,
+      slots: SLOTS.map((s,i) => {
+        const c = st.cross[i];
+        return {
+          label:s.label, roman:s.roman, area:s.area, click:this.place(i),
+          name: c ? c.n : (sel ? 'lay it here' : '—'),
+          sub: c ? EL[c.el].label + ' · FORCE ' + c.f : 'EMPTY',
+          nameColor: c ? 'rgba(234,228,215,.95)' : 'rgba(234,228,215,.22)',
+          subColor: c ? EL[c.el].color : 'rgba(234,228,215,.2)',
+          bg: c ? 'rgba(0,0,0,.3)' : sel ? 'rgba(212,175,90,.07)' : 'rgba(0,0,0,.14)',
+          border: c ? EL[c.el].color.replace(')', ' / .5)') : sel ? 'rgba(212,175,90,.4)' : 'rgba(234,228,215,.12)'
+        };
+      }),
+      handLabel: 'IN HAND · ' + st.hand.length + ' · UNPLAYED CARDS STAY WITH YOU',
+      hand: st.hand.map(c => {
+        const afford = c.cost <= st.energy;
+        return {
+          n:c.n, f:c.f, elLabel:EL[c.el].label, color:EL[c.el].color, click:this.pick(c.uid),
+          costLabel: c.cost === 0 ? 'FREE' : c.cost + 'E',
+          costColor: afford ? GOLD : RED,
+          opacity: afford ? 1 : .42,
+          bg: st.sel === c.uid ? 'rgba(212,175,90,.14)' : 'rgba(0,0,0,.2)',
+          border: st.sel === c.uid ? 'rgba(212,175,90,.55)' : 'rgba(234,228,215,.13)'
+        };
+      }),
+
+      dispTarget: target, dispTotal: total,
+      dispPct: Math.min(100, Math.round(st.piles.fire / Math.max(1,target) * 100)),
+      dispVerdict: dispWon ? 'SHE GOES TONIGHT · ' + st.piles.fire + ' / ' + target : 'ON TONIGHT · ' + st.piles.fire + ' / ' + target,
+      dispVerdictSub: dispWon ? 'most of what she believes is pointed at the door'
+        : (target - st.piles.fire) + ' more of her has to end up on tonight. Fire cannot reach ' +
+          EL[OPP.fire].label.toLowerCase() + ' — that weight has to be walked round the ring first.',
+      dispVColor: dispWon ? GOLD : RED,
+      dispVBg: dispWon ? 'rgba(212,175,90,.1)' : 'rgba(150,40,30,.1)',
+      dispVBorder: dispWon ? 'rgba(212,175,90,.34)' : 'rgba(190,70,55,.34)',
+      dispLog: st.dispLog.slice().reverse().map(l => ({
+        head:l.head, body:l.body, warn:l.warn, color:l.color,
+        warnColor: l.mv && l.mv.from === 'fire' ? RED : GOLD
+      })),
+
+      tallyLabel: sh.ranked.length ? sh.ranked.map(e => sh.cnt[e] + '×' + EL[e].label).join(' · ') : 'NOTHING YET',
+      ladder: LADDER.map(r => {
+        const isNow = r.key === sh.key;
+        return {
+          name: r.name + (isNow && sh.blessed ? ' ·  +1 IN HER SIGN' : ''),
+          need: r.need, carries: isNow ? sh.take : r.carries,
+          color: isNow ? GOLD : r.carries >= 3 ? 'rgba(234,228,215,.42)' : 'rgba(234,228,215,.28)',
+          border: isNow ? 'rgba(212,175,90,.5)' : 'rgba(234,228,215,.1)',
+          bg: isNow ? 'rgba(212,175,90,.09)' : 'transparent'
+        };
+      }),
+      hasHint: !!hint, ladderHint: hint,
+      declVerdict: declWon ? 'SHE BELIEVES THE READING · ' + declCount + ' OF 4 TURNED' : declCount + ' OF 4 TURNED OVER',
+      declVerdictSub: declWon ? 'three of her four will not stand, and she cannot argue with the parts'
+        : 'the cross reads ' + sh.name.toLowerCase() + ' right now, carrying ' + sh.take + ' when the turn ends',
+      declVColor: declWon ? GOLD : RED,
+      declVBg: declWon ? 'rgba(212,175,90,.1)' : 'rgba(150,40,30,.1)',
+      declVBorder: declWon ? 'rgba(212,175,90,.34)' : 'rgba(190,70,55,.34)',
+      declLog: st.declLog.slice().reverse(),
+
+      done: st.done,
+      finals: [
+        { name:'DISPLACEMENT', verdict: dispWon ? 'SHE GOES' : 'SHE STAYS', color:EL.fire.color,
+          body: dispWon ? 'You moved ' + st.piles.fire + ' of her ' + total + ' onto tonight. She goes.'
+                        : 'Tonight ended with ' + st.piles.fire + ' of ' + target + '. She thanks you and goes home.' },
+        { name:'DECLARING A READING', verdict: declWon ? 'SHE BELIEVES IT' : 'SHE DOES NOT', color:GRN,
+          body: declCount + ' of her four beliefs turned over across three readings.' +
+                (declWon ? ' Enough.' : ' Three was the number.') }
+      ],
+      hasReplay: !!st.replayRes,
+      replayDisp: st.replayRes ? 'Displacement: tonight ends on ' + st.replayRes.fire + ' instead of ' + st.piles.fire + '.' : '',
+      replayDecl: st.replayRes ? 'Declaring: ' + st.replayRes.take + ' beliefs turned over — the same as before.' : '',
+      replayNote: st.replayRes
+        ? (st.replayRes.fire === st.piles.fire
+            ? 'Identical this time — which happens when nothing you laid ever had to borrow from a belief a later card needed.'
+            : 'That gap is the whole argument for displacement: the cards were the same, only the order changed. Shapes cannot do that — a shape is a set, and sets have no order.')
+        : '',
+      notes: [
+        { tag:'READ THIS ONE FIRST', color:EL.fire.color, title:'Where displacement gets its teeth',
+          body:'Fire changes the subject on ' + EL[OPP.fire].label.toLowerCase() + ' — it can only take half. So the weight sitting on “' + txt[OPP.fire] + '” cannot be sent to tonight directly. You have to walk it round the ring with earth or air first, then fire it out. Lay those in the wrong order and you spend a turn moving weight you cannot use.' },
+        { tag:'AND THIS', color:GRN, title:'Why declaring feels flat inside a turn',
+          body:'A shape is a set. It does not care which card you laid first, so the turn resolves the same however you sequence it — the decision is entirely in what you drew and what you built the deck out of. Watch the ladder: once you can see the rung, the turn plays itself. That is the trade.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

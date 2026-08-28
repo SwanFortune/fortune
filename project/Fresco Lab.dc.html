@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#0e0c14;}
+  a{color:oklch(0.78 0.12 85);text-decoration:none;border-bottom:1px solid oklch(0.78 0.12 85 / .35);}
+  a:hover{color:oklch(0.88 0.12 85);border-bottom-color:oklch(0.88 0.12 85 / .8);}
+  @keyframes fpop{0%{transform:scale(.6);opacity:0}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+</style>
+</helmet>
+
+<div style="background:#0e0c14;color:#e9e3d6;font-family:'JetBrains Mono',ui-monospace,monospace;min-height:100vh;padding:0 0 120px;">
+ <div style="max-width:1280px;margin:0 auto;padding:0 40px;">
+
+  <header style="padding:80px 0 52px;border-bottom:1px solid rgba(233,227,214,.12);">
+    <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.22em;color:oklch(0.78 0.12 85);text-transform:uppercase;margin-bottom:26px;">Round 03 · Fresco, with your direction</div>
+    <h1 style="font:400 76px/0.95 'Instrument Serif',Georgia,serif;margin:0 0 24px;letter-spacing:-.01em;max-width:20ch;">The Chart</h1>
+    <p style="font:400 19px/1.6 'Instrument Serif',Georgia,serif;color:rgba(233,227,214,.72);max-width:66ch;margin:0;text-wrap:pretty;">Cards are zodiac signs. Signs carry elements. Elements agree or fight with their neighbours on the board. Your Jokers are the Major Arcana. The chain you liked is still here — it just became something you can see, spread across a grid instead of ticking in a corner.</p>
+  </header>
+
+  <!-- ══ IT IS NOT A MINDFUCK ══ -->
+  <section style="padding:56px 0;border-bottom:1px solid rgba(233,227,214,.12);">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.78 0.12 85);margin-bottom:24px;">FIRST, YOUR OBJECTION</div>
+    <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:48px;align-items:start;">
+      <div>
+        <h3 style="font:400 30px/1.15 'Instrument Serif',Georgia,serif;margin:0 0 14px;">Fresco is not hard to build. It is Carcassonne.</h3>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.62);margin:0 0 14px;text-wrap:pretty;">You feared it because "the illustration is the mechanic" sounds like the computer has to understand pictures. It does not. The computer compares two <strong style="color:#e9e3d6;font-weight:500;">symbols</strong>; the illustration is what makes the match obvious to a human before they have read anything. Carcassonne has shipped this exact model since 2000, in cardboard.</p>
+        <p style="font:400 13.5px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.62);margin:0;text-wrap:pretty;">Here is the entire data model of the prototype below. Every rule in the game is one of these five lines. If your artist draws Aries so that its fire visibly licks toward the edge of the card, the player will feel continuity the engine never computed.</p>
+      </div>
+      <div style="background:#161320;border:1px solid rgba(233,227,214,.14);border-radius:5px;padding:22px 24px;font:400 12px/1.9 'JetBrains Mono',monospace;color:rgba(233,227,214,.75);">
+        <div style="color:rgba(233,227,214,.35);">// the whole game</div>
+        <div>Sign  = { glyph, element, modality }</div>
+        <div>Cell  = Sign | empty</div>
+        <div>Board = Cell[16]</div>
+        <div style="margin-top:10px;color:rgba(233,227,214,.35);">// the only rule that matters</div>
+        <div>aspect(a, b) =</div>
+        <div style="padding-left:20px;">a == b            <span style="color:oklch(0.78 0.12 85);">→ conjunction</span></div>
+        <div style="padding-left:20px;">compatible(a, b)  <span style="color:oklch(0.78 0.12 85);">→ trine</span></div>
+        <div style="padding-left:20px;">else              <span style="color:oklch(0.70 0.15 25);">→ square</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PROTOTYPE ══ -->
+  <section style="padding:56px 0 0;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:10px;">
+      <h2 style="font:400 44px/1 'Instrument Serif',Georgia,serif;margin:0;">Play it <span style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.4);vertical-align:middle;">— 4 READINGS</span></h2>
+      <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(233,227,214,.25);color:rgba(233,227,214,.75);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:oklch(0.78 0.12 85);color:oklch(0.86 0.12 85);">RESTART RUN</button>
+    </div>
+    <p style="font:400 14px/1.7 'JetBrains Mono',monospace;color:rgba(233,227,214,.55);max-width:82ch;margin:0 0 28px;text-wrap:pretty;">Pick a sign from your hand, then place it on the chart. It scores against every neighbour it touches, multiplied by the size of the elemental group it joins. Fill the chart, beat the quota, take an Arcanum.</p>
+
+    <div style="background:#161320;border:1px solid rgba(233,227,214,.14);border-radius:6px;overflow-x:auto;overflow-y:hidden;">
+     <div style="min-width:1140px;">
+
+      <div style="display:flex;align-items:center;gap:30px;padding:16px 24px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(233,227,214,.1);">
+        <div>
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:7px;">READING</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;">{{ readingLabel }}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="display:flex;justify-content:space-between;font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:8px;">
+            <span>SCORE</span><span>QUOTA {{ quota }}</span>
+          </div>
+          <div style="height:10px;background:rgba(0,0,0,.5);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:{{ scorePct }};background:oklch(0.78 0.12 85);transition:width .4s ease;"></div>
+          </div>
+          <div style="font:400 20px/1 'Instrument Serif',serif;margin-top:8px;color:oklch(0.86 0.12 85);">{{ score }}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:7px;">CELLS LEFT</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;">{{ cellsLeft }}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:7px;">IN THE BAG</div>
+          <div style="font:400 22px/1 'Instrument Serif',serif;color:rgba(233,227,214,.7);">{{ deckCount }}</div>
+        </div>
+      </div>
+
+      <!-- arcana rail -->
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 24px;border-bottom:1px solid rgba(233,227,214,.1);min-height:58px;">
+        <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);flex:none;width:62px;">ARCANA</div>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+          <sc-for list="{{ arcana }}" as="a" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border:1px solid oklch(0.78 0.12 85 / .45);border-radius:3px;background:rgba(0,0,0,.3);">
+              <span style="width:20px;height:28px;border-radius:2px;background:repeating-linear-gradient(135deg, rgba(233,227,214,.14) 0 4px, transparent 4px 8px);border:1px dashed oklch(0.78 0.12 85 / .5);flex:none;"></span>
+              <span style="font:400 15px/1.2 'Instrument Serif',serif;color:#e9e3d6;">{{ a.name }}</span>
+              <span style="font:400 9.5px/1.3 'JetBrains Mono',monospace;color:rgba(233,227,214,.5);max-width:190px;">{{ a.text }}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noArcana }}" hint-placeholder-val="{{ true }}">
+            <div style="font:400 11px/1.4 'JetBrains Mono',monospace;color:rgba(233,227,214,.28);padding:8px 0;">the deck is unread — clear a chart to draw one</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 330px;">
+
+        <div style="padding:28px;border-right:1px solid rgba(233,227,214,.1);min-height:560px;display:flex;flex-direction:column;align-items:center;">
+
+          <sc-if value="{{ inPlay }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:26px;width:100%;">
+
+              <!-- the chart -->
+              <div style="display:grid;grid-template-columns:{{ gridCols }};grid-template-rows:{{ gridCols }};gap:8px;padding:16px;border:1px solid rgba(233,227,214,.12);border-radius:4px;background:radial-gradient(circle at 50% 45%, rgba(233,227,214,.05), transparent 70%);">
+                <sc-for list="{{ cells }}" as="c" hint-placeholder-count="16">
+                  <button onClick="{{ c.click }}" style="position:relative;border-radius:3px;cursor:{{ c.cursor }};background:{{ c.bg }};border:1px solid {{ c.border }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:0;overflow:hidden;">
+                    <div style="position:absolute;top:0;left:22%;right:22%;height:3px;background:{{ c.nT }};"></div>
+                    <div style="position:absolute;bottom:0;left:22%;right:22%;height:3px;background:{{ c.nB }};"></div>
+                    <div style="position:absolute;left:0;top:22%;bottom:22%;width:3px;background:{{ c.nL }};"></div>
+                    <div style="position:absolute;right:0;top:22%;bottom:22%;width:3px;background:{{ c.nR }};"></div>
+                    <div style="font:400 34px/1 'Instrument Serif',serif;font-variant-emoji:text;color:{{ c.fg }};">{{ c.glyph }}</div>
+                    <div style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ c.sub }};">{{ c.label }}</div>
+                  </button>
+                </sc-for>
+              </div>
+
+              <!-- readout -->
+              <div style="min-height:52px;display:flex;align-items:center;justify-content:center;">
+                <sc-if value="{{ hasLast }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:16px;font-family:'Instrument Serif',serif;animation:fpop .3s ease both;">
+                    <span style="font-size:15px;font-family:'JetBrains Mono',monospace;color:rgba(233,227,214,.45);letter-spacing:.1em;">{{ lastName }}</span>
+                    <span style="font-size:32px;color:rgba(233,227,214,.85);">{{ lastBase }}</span>
+                    <span style="font-size:20px;color:rgba(233,227,214,.3);">×</span>
+                    <span style="font-size:32px;color:oklch(0.78 0.13 235);">{{ lastMult }}</span>
+                    <span style="font-size:20px;color:rgba(233,227,214,.3);">=</span>
+                    <span style="font-size:46px;color:oklch(0.86 0.12 85);">{{ lastTotal }}</span>
+                    <span style="font-size:13px;font-family:'JetBrains Mono',monospace;color:rgba(233,227,214,.4);max-width:26ch;">{{ lastNote }}</span>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- hand -->
+              <div style="width:100%;">
+                <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:12px;">HAND — SELECT A SIGN, THEN A CELL</div>
+                <div style="display:flex;gap:12px;">
+                  <sc-for list="{{ hand }}" as="h" hint-placeholder-count="3">
+                    <button onClick="{{ h.click }}" style="width:104px;cursor:pointer;background:{{ h.bg }};border:1px solid {{ h.border }};border-radius:4px;padding:13px 10px;display:flex;flex-direction:column;align-items:center;gap:7px;transition:transform .12s ease;" style-hover="transform:translateY(-6px);">
+                      <div style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ h.color }};">{{ h.element }}</div>
+                      <div style="font:400 40px/1 'Instrument Serif',serif;font-variant-emoji:text;color:{{ h.color }};">{{ h.glyph }}</div>
+                      <div style="font:400 13px/1 'Instrument Serif',serif;color:rgba(233,227,214,.8);">{{ h.name }}</div>
+                      <div style="font:400 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:rgba(233,227,214,.4);">{{ h.modality }} · {{ h.val }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ inReward }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:40px 0;">
+              <div style="text-align:center;">
+                <div style="font:400 34px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:8px;">The chart resolves</div>
+                <div style="font:400 12px/1.6 'JetBrains Mono',monospace;color:rgba(233,227,214,.5);">Draw one Arcanum. It stays with you for the rest of the run.</div>
+              </div>
+              <div style="display:flex;gap:18px;">
+                <sc-for list="{{ offers }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" style="width:196px;text-align:left;cursor:pointer;background:#1e1a2a;border:1px solid oklch(0.78 0.12 85 / .4);border-radius:5px;padding:16px;display:flex;flex-direction:column;gap:12px;" style-hover="background:#262135;transform:translateY(-5px);">
+                    <div style="width:100%;height:118px;border-radius:3px;background:repeating-linear-gradient(135deg, rgba(233,227,214,.07) 0 6px, transparent 6px 12px);border:1px dashed oklch(0.78 0.12 85 / .4);display:flex;align-items:center;justify-content:center;font:400 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(233,227,214,.35);">ARCANUM ART</div>
+                    <div style="font:400 10px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.78 0.12 85);">{{ o.num }}</div>
+                    <div style="font:400 22px/1.1 'Instrument Serif',Georgia,serif;color:#e9e3d6;">{{ o.name }}</div>
+                    <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(233,227,214,.65);">{{ o.text }}</div>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:80px 0;">
+              <div style="font:400 54px/1 'Instrument Serif',Georgia,serif;color:{{ overColor }};">{{ overTitle }}</div>
+              <div style="font:400 13px/1.7 'JetBrains Mono',monospace;color:rgba(233,227,214,.55);max-width:48ch;text-align:center;text-wrap:pretty;">{{ overText }}</div>
+              <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.78 0.12 85);border:none;color:#0e0c14;padding:13px 22px;border-radius:3px;cursor:pointer;">READ AGAIN</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- rail -->
+        <div style="padding:28px 24px;display:flex;flex-direction:column;gap:24px;background:rgba(0,0,0,.2);">
+          <div>
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:13px;">ASPECTS</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              <sc-for list="{{ aspects }}" as="a" hint-placeholder-count="3">
+                <div style="display:flex;gap:10px;align-items:baseline;font:400 11px/1.55 'JetBrains Mono',monospace;">
+                  <span style="width:9px;height:9px;border-radius:50%;background:{{ a.color }};flex:none;"></span>
+                  <span style="color:{{ a.color }};letter-spacing:.1em;width:76px;flex:none;">{{ a.name }}</span>
+                  <span style="color:rgba(233,227,214,.5);">{{ a.desc }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:13px;">CONSTELLATIONS ON THE CHART</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ groups }}" as="g" hint-placeholder-count="2">
+                <div style="display:flex;align-items:center;justify-content:space-between;font:400 11px/1.4 'JetBrains Mono',monospace;padding:8px 11px;border:1px solid {{ g.color }};border-radius:3px;background:rgba(0,0,0,.25);">
+                  <span style="color:{{ g.color }};letter-spacing:.12em;">{{ g.element }}</span>
+                  <span style="color:rgba(233,227,214,.6);">largest ×{{ g.size }}</span>
+                </div>
+              </sc-for>
+              <sc-if value="{{ noGroups }}" hint-placeholder-val="{{ true }}">
+                <div style="font:400 10.5px/1.5 'JetBrains Mono',monospace;color:rgba(233,227,214,.28);">nothing placed yet</div>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="flex:1;">
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(233,227,214,.38);margin-bottom:13px;">LOG</div>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <sc-for list="{{ log }}" as="l" hint-placeholder-count="3">
+                <div style="font:400 10.5px/1.5 'JetBrains Mono',monospace;color:{{ l.color }};">{{ l.text }}</div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(233,227,214,.12);border:1px solid rgba(233,227,214,.12);border-top:none;">
+      <sc-for list="{{ notes }}" as="n" hint-placeholder-count="6">
+        <div style="background:#161320;padding:22px 20px;">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:10px;">
+            <span style="font:500 10px/1 'JetBrains Mono',monospace;color:oklch(0.78 0.12 85);">{{ n.num }}</span>
+            <span style="font:500 11px/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;color:#e9e3d6;">{{ n.title }}</span>
+          </div>
+          <p style="font:400 12px/1.7 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);margin:0;text-wrap:pretty;">{{ n.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ══ ART DIRECTION ══ -->
+  <section style="padding:88px 0 0;">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.78 0.12 85);margin-bottom:18px;">FOR YOUR ARTIST</div>
+    <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:26ch;">Astrology gives her a finite, famous, drawable canon</h2>
+    <p style="font:400 15px/1.7 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);max-width:74ch;margin:0 0 44px;text-wrap:pretty;">This is the strongest thing about the direction you picked, and it is a production argument as much as an aesthetic one. Twelve signs and twenty-two Arcana is a <em style="font-family:'Instrument Serif',serif;font-size:17px;font-style:italic;color:#e9e3d6;">closed set</em>. She can see the finish line on day one, the player arrives already knowing half the vocabulary, and every image has centuries of iconography to push against or subvert.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(233,227,214,.12);border:1px solid rgba(233,227,214,.12);">
+      <sc-for list="{{ artdir }}" as="a" hint-placeholder-count="4">
+        <div style="background:#161320;padding:28px 26px;display:flex;flex-direction:column;gap:12px;">
+          <div style="font:400 23px/1.15 'Instrument Serif',Georgia,serif;color:#e9e3d6;">{{ a.title }}</div>
+          <p style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.62);margin:0;text-wrap:pretty;">{{ a.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:44px;border:1px solid rgba(233,227,214,.12);">
+      <div style="display:grid;grid-template-columns:.8fr 1fr 1.4fr;gap:28px;padding:16px 24px;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(233,227,214,.12);font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(233,227,214,.4);">
+        <div>ASSET</div><div>COUNT</div><div>WHY IT IS SAFE TO COMMIT TO</div>
+      </div>
+      <sc-for list="{{ assets }}" as="x" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:.8fr 1fr 1.4fr;gap:28px;padding:18px 24px;border-bottom:1px solid rgba(233,227,214,.08);font:400 12.5px/1.65 'JetBrains Mono',monospace;">
+          <div style="color:#e9e3d6;">{{ x.asset }}</div>
+          <div style="color:oklch(0.82 0.12 85);">{{ x.count }}</div>
+          <div style="color:rgba(233,227,214,.55);">{{ x.why }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ══ HONEST RISKS ══ -->
+  <section style="padding:88px 0 0;">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.70 0.15 25);margin-bottom:18px;">WHAT I AM WORRIED ABOUT</div>
+    <h2 style="font:400 44px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 40px;max-width:24ch;">Three ways this dies</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">
+      <sc-for list="{{ risks }}" as="r" hint-placeholder-count="3">
+        <div style="border:1px solid rgba(233,227,214,.14);border-radius:5px;padding:26px 24px;display:flex;flex-direction:column;gap:12px;">
+          <div style="font:400 21px/1.2 'Instrument Serif',Georgia,serif;color:#e9e3d6;">{{ r.title }}</div>
+          <p style="font:400 12.5px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);margin:0;text-wrap:pretty;">{{ r.body }}</p>
+          <div style="padding-top:12px;border-top:1px dashed rgba(233,227,214,.14);font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(233,227,214,.45);"><span style="color:oklch(0.78 0.12 85);">Test for it — </span>{{ r.test }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:80px 0 0;border-top:1px solid rgba(233,227,214,.12);margin-top:88px;">
+    <h2 style="font:400 32px/1.15 'Instrument Serif',Georgia,serif;margin:0 0 24px;">Where I'd go next</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.78 0.12 85);">A · </span>Play four runs. Tell me whether placing feels better than playing a hand did in Continuo. If yes, this is the game and everything else is content.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.78 0.12 85);">B · </span>I'll write all 22 Major Arcana as mechanics — name, effect, one-line art brief — so your artist can start on the real content set while you build the engine.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(233,227,214,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.78 0.12 85);">C · </span>Or three art directions on this same chart — woodcut, risograph occult zine, gilded manuscript — so you two argue with pictures instead of adjectives.</p>
+    </div>
+  </section>
+
+ </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;gridSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:3,&quot;max&quot;:6,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;handSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:2,&quot;max&quot;:6,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;quotaGrowth&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:2.3,&quot;min&quot;:1.3,&quot;max&quot;:3.5,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;},&quot;squarePenalty&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:-2,&quot;min&quot;:-10,&quot;max&quot;:2,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the run)&quot;}}">
+const EL = {
+  fire:  { label: 'FIRE',  color: 'oklch(0.72 0.15 45)' },
+  earth: { label: 'EARTH', color: 'oklch(0.72 0.15 145)' },
+  air:   { label: 'AIR',   color: 'oklch(0.72 0.15 95)' },
+  water: { label: 'WATER', color: 'oklch(0.72 0.15 245)' }
+};
+const FRIEND = { fire: 'air', air: 'fire', water: 'earth', earth: 'water' };
+
+const V = '\uFE0E'; // force text presentation — these glyphs default to colour emoji
+const SIGNS = [
+  { n: 'Aries',       g: '\u2648' + V, e: 'fire',  m: 'CARDINAL' },
+  { n: 'Taurus',      g: '\u2649' + V, e: 'earth', m: 'FIXED' },
+  { n: 'Gemini',      g: '\u264A' + V, e: 'air',   m: 'MUTABLE' },
+  { n: 'Cancer',      g: '\u264B' + V, e: 'water', m: 'CARDINAL' },
+  { n: 'Leo',         g: '\u264C' + V, e: 'fire',  m: 'FIXED' },
+  { n: 'Virgo',       g: '\u264D' + V, e: 'earth', m: 'MUTABLE' },
+  { n: 'Libra',       g: '\u264E' + V, e: 'air',   m: 'CARDINAL' },
+  { n: 'Scorpio',     g: '\u264F' + V, e: 'water', m: 'FIXED' },
+  { n: 'Sagittarius', g: '\u2650' + V, e: 'fire',  m: 'MUTABLE' },
+  { n: 'Capricorn',   g: '\u2651' + V, e: 'earth', m: 'CARDINAL' },
+  { n: 'Aquarius',    g: '\u2652' + V, e: 'air',   m: 'FIXED' },
+  { n: 'Pisces',      g: '\u2653' + V, e: 'water', m: 'MUTABLE' }
+];
+const MODV = { CARDINAL: 4, FIXED: 3, MUTABLE: 2 };
+
+// One line of data + one illustration = one unit of game.
+const ARCANA = {
+  sun:        { num:'XIX',  name:'The Sun',        text:'Fire conjunctions score 12 instead of 6.' },
+  moon:       { num:'XVIII',name:'The Moon',       text:'Water signs are worth +3.' },
+  star:       { num:'XVII', name:'The Star',       text:'Every constellation counts as one larger.' },
+  tower:      { num:'XVI',  name:'The Tower',      text:'Squares score +5 instead of costing you.' },
+  temperance: { num:'XIV',  name:'Temperance',     text:'Trines score as conjunctions.' },
+  empress:    { num:'III',  name:'The Empress',    text:'Earth signs are worth +3.' },
+  magician:   { num:'I',    name:'The Magician',   text:'Your first placement each chart agrees with everything.' },
+  fool:       { num:'0',    name:'The Fool',       text:'Draw one more sign into hand.' },
+  justice:    { num:'XI',   name:'Justice',        text:'Cardinal signs score double their value.' },
+  hermit:     { num:'IX',   name:'The Hermit',     text:'A sign placed touching nothing scores 16.' },
+  wheel:      { num:'X',    name:'Wheel of Fortune',text:'Three extra signs in the bag each chart.' },
+  death:      { num:'XIII', name:'Death',          text:'Mutable signs are worth +4.' }
+};
+
+const ASPECTS = [
+  { name:'CONJUNCTION', color:'oklch(0.78 0.12 85)', desc:'same element — +6, and the constellation grows' },
+  { name:'TRINE',       color:'oklch(0.72 0.13 200)', desc:'fire\u2013air or water\u2013earth — +3' },
+  { name:'SQUARE',      color:'oklch(0.68 0.15 25)',  desc:'opposed elements — \u22122' }
+];
+
+const NOTES = [
+  { num:'01', title:'THE CHAIN, DEMOTED', body:'You wanted it less central. It is now spatial: a constellation is a run of same-element signs, and it multiplies only the cards touching it. It is visible on the board instead of tracked in a corner, and it dies with each chart — so a bad reading costs you one chart, not the run.' },
+  { num:'02', title:'ASTROLOGY IS FREE ONBOARDING', body:'Fire beats with air, water with earth. Most players already half-know this, and the ones who do not learn it in one chart. You are borrowing a symbol system the world spent two thousand years teaching itself — that is a tutorial you never have to write.' },
+  { num:'03', title:'MODALITY IS THE SECOND AXIS', body:'Cardinal 4, Fixed 3, Mutable 2. It does almost nothing on its own — deliberately. It exists so Arcana have a second thing to hook onto, which is how you get a hundred distinct Jokers out of a tiny rule set.' },
+  { num:'04', title:'PLACEMENT BEATS SELECTION', body:'Choosing where is a richer decision than choosing which, and it photographs better. A filled chart is a screenshot; a played hand is a receipt. For a game that lives or dies on people posting it, that matters more than it should.' },
+  { num:'05', title:'SQUARES SHOULD STING, NOT KILL', body:'A square is \u22122, not a run-ender. Every chart forces a few of them because your hand will not cooperate, and the interesting play is choosing which clash to eat. Punishment that you route around is design; punishment that you avoid is a wall.' },
+  { num:'06', title:'THE ART IS DOING THE WORK', body:'Right now the cells are glyphs on flat colour and it still reads. With real illustration — fire licking toward the card edge, water pooling at the border — the player stops parsing symbols and starts seeing a picture assemble. That gap is where your artist earns the game.' }
+];
+
+const ARTDIR = [
+  { title:'Give her the edges as a hard constraint', body:'Every sign illustration must resolve its element visibly at the card border, on all four sides. That is the one non-negotiable rule of the art brief, and it is what turns 16 separate pictures into one fresco. Everything else — style, palette, subject — she owns.' },
+  { title:'Signs are furniture, Arcana are cast', body:'Twelve signs get a restrained, repeatable treatment; they are seen a thousand times a run. Twenty-two Arcana get full character illustration and can be as strange and personal as she wants — they are the thing players screenshot, name their runs after, and argue about.' },
+  { title:'Pick a printing process, not a mood', body:'"Occult" is not a direction. "Two-colour risograph on grey stock", "16th-century woodcut with modern typography", "gilded manuscript with flat digital colour" — those are directions. A named process constrains a hundred small decisions in advance, which is exactly what a two-person team needs.' },
+  { title:'Test everything at 40% and in greyscale', body:'A player identifies a card by silhouette and value, at thumbnail size, mid-decision. If two signs are indistinguishable greyscaled and small, they are indistinguishable in play, no matter how beautiful they are at full size. Make this her acceptance test from the first drawing.' }
+];
+
+const ASSETS = [
+  { asset:'Zodiac signs', count:'12', why:'Fixed by the cosmos. Cannot grow, cannot creep, everyone already knows the list.' },
+  { asset:'Major Arcana', count:'22', why:'Also fixed, also famous. A finish line your artist can see from day one.' },
+  { asset:'Minor Arcana', count:'56 — optional', why:'Your entire post-launch content plan, already named and structured, if you ever want it.' },
+  { asset:'Board / chart frame', count:'1', why:'Drawn once, on screen always. Worth a week of her time on its own.' },
+  { asset:'Enemies', count:'0', why:'There are none. That is the whole scope argument from last round, still holding.' }
+];
+
+const RISKS = [
+  { title:'It becomes a puzzle, not a slot machine', body:'Placement is slower and more deliberate than playing a hand. If a chart takes four minutes of chin-stroking, you have made a good puzzle game and lost the compulsive loop you wanted.', test:'Time ten charts. If the median is over 90 seconds, shrink the grid to 3×3.' },
+  { title:'Astrology reads as decoration', body:'If a player could swap the twelve signs for twelve coloured shapes and lose nothing, the theme is a skin and the direction has failed. The system must reward knowing what a fixed water sign actually means.', test:'Show a build to someone who reads charts. If they do not smile at one Arcanum, go deeper.' },
+  { title:'The grid caps your ceiling', body:'Sixteen cells is a hard limit on how big a score can get. Balatro\u2019s joy is numbers that break the display; a bounded board fights that unless Arcana can bend the board itself.', test:'Make sure at least three Arcana add, remove or rotate cells. Ceiling-breakers must exist.' }
+];
+
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = this.fresh(); }
+
+  cfg() {
+    return {
+      hand: this.props.handSize ?? 3,
+      grid: this.props.gridSize ?? 4,
+      growth: this.props.quotaGrowth ?? 2.3,
+      squarePenalty: this.props.squarePenalty ?? -2
+    };
+  }
+
+  N() { return this.cfg().grid * this.cfg().grid; }
+  quotaFor(r) { return Math.round(90 * Math.pow(this.cfg().growth, r) / 5) * 5; }
+  has(s, k) { return s.arcana.indexOf(k) >= 0; }
+
+  bag(s) {
+    const n = this.N() + 2 + (this.has(s, 'wheel') ? 3 : 0);
+    const out = [];
+    for (let i = 0; i < n; i++) { const sg = SIGNS[Math.floor(Math.random() * SIGNS.length)]; out.push({ ...sg, uid: i + '_' + Math.random() }); }
+    return out;
+  }
+
+  fresh() {
+    const s = { reading: 0, score: 0, phase: 'play', arcana: [], offers: [], board: [], deck: [], hand: [], sel: -1, last: null, placed: 0, log: [{ text: '\u2500 First reading. Quota ' + this.quotaFor(0) + '.', color: 'oklch(0.82 0.12 85)' }] };
+    this.startReading(s, 0);
+    return s;
+  }
+
+  componentDidUpdate(p) {
+    const k = ['handSize','gridSize','quotaGrowth','squarePenalty'];
+    if (k.some(x => p[x] !== this.props[x])) this.setState(this.fresh());
+  }
+
+  startReading(s, r) {
+    s.reading = r; s.score = 0; s.phase = 'play'; s.sel = -1; s.last = null; s.placed = 0;
+    s.board = new Array(this.N()).fill(null);
+    s.deck = this.bag(s); s.hand = [];
+    const hs = this.cfg().hand + (this.has(s, 'fool') ? 1 : 0);
+    while (s.hand.length < hs && s.deck.length) s.hand.push(s.deck.pop());
+  }
+
+  say(s, text, color) { s.log = [{ text, color: color || 'rgba(233,227,214,.5)' }].concat(s.log).slice(0, 8); }
+
+  neighbours(i) {
+    const g = this.cfg().grid, x = i % g, y = Math.floor(i / g), out = [];
+    if (y > 0) out.push({ i: i - g, d: 'T' });
+    if (y < g - 1) out.push({ i: i + g, d: 'B' });
+    if (x > 0) out.push({ i: i - 1, d: 'L' });
+    if (x < g - 1) out.push({ i: i + 1, d: 'R' });
+    return out;
+  }
+
+  aspect(a, b) { return a === b ? 'conj' : FRIEND[a] === b ? 'trine' : 'square'; }
+
+  groupSize(board, i, el) {
+    const seen = {}; const stack = [i]; let n = 0;
+    while (stack.length) {
+      const k = stack.pop();
+      if (seen[k]) continue;
+      seen[k] = 1; n++;
+      for (const nb of this.neighbours(k)) if (board[nb.i] && board[nb.i].e === el && !seen[nb.i]) stack.push(nb.i);
+    }
+    return n;
+  }
+
+  select(i) { this.setState(p => ({ ...p, sel: p.sel === i ? -1 : i })); }
+
+  place(cell) {
+    this.setState(p => {
+      if (p.phase !== 'play' || p.sel < 0 || p.board[cell]) return p;
+      const s = { ...p, board: p.board.slice(), hand: p.hand.slice(), deck: p.deck.slice(), log: p.log.slice() };
+      const card = p.hand[p.sel];
+
+      let val = MODV[card.m];
+      if (card.e === 'water' && this.has(s, 'moon')) val += 3;
+      if (card.e === 'earth' && this.has(s, 'empress')) val += 3;
+      if (card.m === 'MUTABLE' && this.has(s, 'death')) val += 4;
+      if (card.m === 'CARDINAL' && this.has(s, 'justice')) val *= 2;
+
+      const wild = this.has(s, 'magician') && p.placed === 0;
+      let aspectPts = 0, conj = 0, tri = 0, sq = 0;
+      for (const nb of this.neighbours(cell)) {
+        const o = p.board[nb.i];
+        if (!o) continue;
+        const a = wild ? 'conj' : this.aspect(card.e, o.e);
+        if (a === 'conj') { conj++; aspectPts += (card.e === 'fire' && this.has(s, 'sun')) ? 12 : 6; }
+        else if (a === 'trine') { tri++; aspectPts += this.has(s, 'temperance') ? 6 : 3; }
+        else { sq++; aspectPts += this.has(s, 'tower') ? 5 : this.cfg().squarePenalty; }
+      }
+      const touching = conj + tri + sq;
+      if (touching === 0 && this.has(s, 'hermit')) aspectPts += 16;
+
+      s.board[cell] = card;
+      let mult = this.groupSize(s.board, cell, card.e);
+      if (this.has(s, 'star')) mult += 1;
+
+      const base = Math.max(1, val + aspectPts);
+      const total = base * mult;
+      s.score += total;
+      s.placed = p.placed + 1;
+
+      const bits = [];
+      if (conj) bits.push(conj + ' conjunction' + (conj > 1 ? 's' : ''));
+      if (tri) bits.push(tri + ' trine' + (tri > 1 ? 's' : ''));
+      if (sq) bits.push(sq + ' square' + (sq > 1 ? 's' : ''));
+      s.last = { name: card.n, base, mult, total, note: bits.length ? bits.join(', ') : 'no aspects' };
+      this.say(s, card.n + ' — ' + base + ' × ' + mult + ' = ' + total, 'oklch(0.84 0.12 85)');
+
+      s.hand.splice(p.sel, 1);
+      s.sel = -1;
+      if (s.deck.length) s.hand.push(s.deck.pop());
+
+      const full = s.board.every(c => c) || s.hand.length === 0;
+      if (s.score >= this.quotaFor(s.reading)) {
+        if (s.reading + 1 >= 4) { s.phase = 'won'; return s; }
+        s.phase = 'reward';
+        const pool = Object.keys(ARCANA).filter(k => s.arcana.indexOf(k) < 0).sort(() => Math.random() - 0.5);
+        s.offers = pool.slice(0, 3);
+      } else if (full) {
+        s.phase = 'lost';
+      }
+      return s;
+    });
+  }
+
+  take(k) {
+    this.setState(p => {
+      const s = { ...p, arcana: p.arcana.concat([k]), log: p.log.slice() };
+      this.say(s, '\u2500 Reading ' + (s.reading + 2) + '. Quota ' + this.quotaFor(s.reading + 1) + '.', 'oklch(0.82 0.12 85)');
+      this.startReading(s, s.reading + 1);
+      return s;
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const R = ['I', 'II', 'III', 'IV'];
+    const quota = this.quotaFor(s.reading);
+    const selCard = s.sel >= 0 ? s.hand[s.sel] : null;
+
+    const cells = s.board.map((c, i) => {
+      const nCol = { T: 'transparent', B: 'transparent', L: 'transparent', R: 'transparent' };
+      if (c) for (const nb of this.neighbours(i)) {
+        const o = s.board[nb.i];
+        if (!o) continue;
+        const a = this.aspect(c.e, o.e);
+        nCol[nb.d] = a === 'conj' ? EL[c.e].color : a === 'trine' ? 'oklch(0.62 0.09 200)' : 'oklch(0.50 0.12 25 / .8)';
+      }
+      const canPlace = !c && selCard && s.phase === 'play';
+      return {
+        glyph: c ? c.g : (canPlace ? '+' : '·'),
+        label: c ? EL[c.e].label : '',
+        fg: c ? EL[c.e].color : (canPlace ? 'rgba(233,227,214,.35)' : 'rgba(233,227,214,.12)'),
+        sub: c ? 'rgba(233,227,214,.35)' : 'transparent',
+        bg: c ? 'rgba(0,0,0,.35)' : (canPlace ? 'rgba(233,227,214,.05)' : 'rgba(0,0,0,.2)'),
+        border: c ? EL[c.e].color + '' : (canPlace ? 'oklch(0.78 0.12 85 / .5)' : 'rgba(233,227,214,.1)'),
+        cursor: canPlace ? 'pointer' : 'default',
+        nT: nCol.T, nB: nCol.B, nL: nCol.L, nR: nCol.R,
+        click: () => this.place(i)
+      };
+    });
+
+    const sizes = {};
+    s.board.forEach((c, i) => { if (c) sizes[c.e] = Math.max(sizes[c.e] || 0, this.groupSize(s.board, i, c.e)); });
+    const groups = Object.keys(sizes).sort((a, b) => sizes[b] - sizes[a]).map(k => ({ element: EL[k].label, color: EL[k].color, size: sizes[k] }));
+
+    return {
+      aspects: ASPECTS, notes: NOTES, artdir: ARTDIR, assets: ASSETS, risks: RISKS,
+      inPlay: s.phase === 'play', inReward: s.phase === 'reward',
+      isOver: s.phase === 'won' || s.phase === 'lost',
+      overTitle: s.phase === 'won' ? 'The chart is complete' : 'The chart falls short',
+      overColor: s.phase === 'won' ? 'oklch(0.80 0.12 145)' : 'oklch(0.68 0.15 25)',
+      overText: s.phase === 'won'
+        ? 'Four readings. Now the question that decides whether this is a game: which Arcanum did you build around, and did the board look different because of it? If every run fills the grid the same way, the Arcana are not doing enough.'
+        : 'Look at the board you left behind. The loss is usually visible — a scattered element, a corner you wasted early. That legibility is the strongest argument for placement over hand-play.',
+      gridCols: 'repeat(' + this.cfg().grid + ', ' + (this.cfg().grid <= 4 ? 96 : this.cfg().grid === 5 ? 80 : 68) + 'px)',
+      readingLabel: R[s.reading] || 'IV',
+      quota, score: s.score,
+      scorePct: Math.min(100, Math.round((s.score / quota) * 100)) + '%',
+      cellsLeft: s.board.filter(c => !c).length,
+      deckCount: s.deck.length,
+      cells,
+      hand: s.hand.map((c, i) => ({
+        glyph: c.g, name: c.n, element: EL[c.e].label, color: EL[c.e].color,
+        modality: c.m, val: MODV[c.m],
+        bg: s.sel === i ? '#2a2438' : '#1e1a2a',
+        border: s.sel === i ? EL[c.e].color : 'rgba(233,227,214,.16)',
+        click: () => this.select(i)
+      })),
+      hasLast: !!s.last,
+      lastName: s.last ? s.last.name : '',
+      lastBase: s.last ? s.last.base : 0,
+      lastMult: s.last ? s.last.mult : 1,
+      lastTotal: s.last ? s.last.total : 0,
+      lastNote: s.last ? s.last.note : '',
+      groups, noGroups: groups.length === 0,
+      arcana: s.arcana.map(k => ({ name: ARCANA[k].name, text: ARCANA[k].text })),
+      noArcana: s.arcana.length === 0,
+      offers: s.offers.map(k => ({ num: ARCANA[k].num, name: ARCANA[k].name, text: ARCANA[k].text, pick: () => this.take(k) })),
+      log: s.log,
+      restart: () => this.setState(this.fresh())
+    };
+  }
+}
+
+</script>
+</body>
+</html>

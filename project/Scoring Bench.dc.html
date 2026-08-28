@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  html,body{margin:0;padding:0;background:oklch(0.16 0.012 60);color:oklch(0.92 0.014 85);}
+  *{box-sizing:border-box;}
+  a{color:oklch(0.84 0.12 85);text-decoration:none;border-bottom:1px solid rgba(212,175,90,.35);}
+  a:hover{color:oklch(0.90 0.13 85);border-bottom-color:oklch(0.90 0.13 85);}
+  button{font-family:'JetBrains Mono',monospace;cursor:pointer;}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:radial-gradient(120% 80% at 50% 0%, oklch(0.21 0.02 55) 0%, oklch(0.145 0.012 60) 62%);font-family:'JetBrains Mono',monospace;padding:0 0 60px;">
+  <div style="max-width:1340px;margin:0 auto;padding:0 30px;">
+
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:26px 0 16px;border-bottom:1px solid rgba(234,228,215,.1);">
+      <div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;">
+        <span style="font:400 26px/1 'Instrument Serif',Georgia,serif;">Bad Fortune</span>
+        <span style="font:400 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:rgba(234,228,215,.34);">SCORING BENCH · ONE CROSS, THREE MODELS, RESOLVED AT ONCE</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onClick="{{ clear }}" style="background:transparent;border:1px solid rgba(234,228,215,.22);color:rgba(234,228,215,.62);border-radius:2px;padding:7px 12px;font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;">TAKE IT ALL BACK</button>
+        <button onClick="{{ reroll }}" style="background:rgba(212,175,90,.12);border:1px solid rgba(212,175,90,.4);color:oklch(0.84 0.12 85);border-radius:2px;padding:7px 12px;font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;">ANOTHER VILLAGER</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:30px;padding:22px 0 4px;align-items:start;">
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="border:1px solid rgba(234,228,215,.12);border-radius:3px;padding:16px 17px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:11px;">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <span style="font:400 19px/1.1 'Instrument Serif',Georgia,serif;">{{ villagerName }}</span>
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.84 0.12 85);">{{ signName }} · BLESSED IN {{ signEl }}</span>
+          </div>
+          <span style="font:400 italic 12.5px/1.45 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.6);text-wrap:pretty;">{{ villagerWant }}</span>
+          <div style="display:flex;flex-direction:column;gap:7px;padding-top:3px;border-top:1px solid rgba(234,228,215,.08);">
+            <sc-for list="{{ beliefs }}" as="b" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+                  <span style="font:400 italic 13px/1.3 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.88);text-wrap:pretty;">“{{ b.text }}”</span>
+                  <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ b.color }};white-space:nowrap;">{{ b.elLabel }} · {{ b.w }}</span>
+                </div>
+                <div style="height:3px;background:rgba(234,228,215,.08);border-radius:2px;overflow:hidden;">
+                  <div style="height:100%;width:{{ b.pct }}%;background:{{ b.color }};opacity:.8;"></div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <div style="border:1px solid rgba(234,228,215,.1);border-radius:3px;padding:14px 15px;background:rgba(0,0,0,.14);display:flex;flex-direction:column;gap:9px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">THE RING · NEIGHBOURS FEED, OPPOSITES FIGHT</span>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;">
+            <sc-for list="{{ ring }}" as="e" hint-placeholder-count="4">
+              <div style="border:1px solid {{ e.border }};border-radius:2px;padding:8px 9px;display:flex;flex-direction:column;gap:3px;background:{{ e.bg }};">
+                <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:{{ e.color }};">{{ e.label }}</span>
+                <span style="font:400 8px/1.3 'JetBrains Mono',monospace;color:rgba(234,228,215,.4);">{{ e.name }}</span>
+                <span style="font:400 8px/1.3 'JetBrains Mono',monospace;color:rgba(234,228,215,.28);">vs {{ e.opp }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">{{ crossLabel }}</span>
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:oklch(0.84 0.12 85);">{{ laidLabel }}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:auto auto auto;gap:9px;">
+          <sc-for list="{{ slots }}" as="s" hint-placeholder-count="5">
+            <button onClick="{{ s.click }}" style="grid-area:{{ s.area }};text-align:left;background:{{ s.bg }};border:1px solid {{ s.border }};border-radius:3px;padding:10px 11px;min-height:96px;display:flex;flex-direction:column;gap:6px;justify-content:space-between;">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+                <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:rgba(234,228,215,.42);">{{ s.label }}</span>
+                <span style="font:400 9px/1 'Instrument Serif',serif;color:rgba(234,228,215,.3);">{{ s.roman }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px;">
+                <span style="font:400 13px/1.25 'Instrument Serif',Georgia,serif;color:{{ s.nameColor }};text-wrap:pretty;">{{ s.name }}</span>
+                <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ s.subColor }};">{{ s.sub }}</span>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <sc-for list="{{ s.arms }}" as="a" hint-placeholder-count="1">
+                  <span style="font:500 7px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ a.color }};border:1px solid {{ a.border }};border-radius:1px;padding:2px 4px;">{{ a.label }}</span>
+                </sc-for>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:8px;padding-top:6px;border-top:1px solid rgba(234,228,215,.1);">
+          <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.34);">{{ handLabel }}</span>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
+            <sc-for list="{{ hand }}" as="c" hint-placeholder-count="6">
+              <button onClick="{{ c.click }}" style="text-align:left;background:{{ c.bg }};border:1px solid {{ c.border }};border-radius:3px;padding:9px 10px;display:flex;flex-direction:column;gap:5px;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:6px;">
+                  <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:{{ c.color }};">{{ c.elLabel }}</span>
+                  <span style="font:400 12px/1 'Instrument Serif',serif;color:oklch(0.84 0.12 85);">{{ c.f }}</span>
+                </div>
+                <span style="font:400 12.5px/1.2 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.9);text-wrap:pretty;">{{ c.n }}</span>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:26px 0 0;">
+      <sc-for list="{{ models }}" as="m" hint-placeholder-count="3">
+        <div style="border:1px solid {{ m.border }};border-top:2px solid {{ m.accent }};border-radius:3px;background:rgba(0,0,0,.24);padding:16px 16px 18px;display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;">
+              <span style="font:400 17px/1.1 'Instrument Serif',Georgia,serif;">{{ m.name }}</span>
+              <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.3);">{{ m.tag }}</span>
+            </div>
+            <span style="font:400 9px/1.5 'JetBrains Mono',monospace;color:rgba(234,228,215,.44);text-wrap:pretty;">{{ m.how }}</span>
+          </div>
+
+          <div style="border:1px solid {{ m.vBorder }};border-radius:2px;padding:9px 11px;background:{{ m.vBg }};display:flex;flex-direction:column;gap:3px;">
+            <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ m.vColor }};">{{ m.verdict }}</span>
+            <span style="font:400 9px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);text-wrap:pretty;">{{ m.verdictSub }}</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ m.rows }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;flex-direction:column;gap:4px;">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;">
+                  <span style="font:400 11.5px/1.25 'Instrument Serif',Georgia,serif;color:{{ r.textColor }};text-wrap:pretty;">{{ r.label }}</span>
+                  <span style="font:500 8px/1 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ r.color }};white-space:nowrap;">{{ r.val }}</span>
+                </div>
+                <div style="height:3px;background:rgba(234,228,215,.07);border-radius:2px;overflow:hidden;">
+                  <div style="height:100%;width:{{ r.pct }}%;background:{{ r.color }};opacity:.75;"></div>
+                </div>
+                <span style="font:400 8px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.32);text-wrap:pretty;">{{ r.sub }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;padding-top:9px;border-top:1px solid rgba(234,228,215,.09);">
+            <sc-for list="{{ m.lines }}" as="l" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font:500 7.5px/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;color:{{ l.color }};">{{ l.left }}</span>
+                <span style="font:400 italic 11.5px/1.35 'Instrument Serif',Georgia,serif;color:rgba(234,228,215,.62);text-wrap:pretty;">{{ l.right }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;padding:20px 0 0;">
+      <sc-for list="{{ notes }}" as="n" hint-placeholder-count="3">
+        <div style="border-left:2px solid {{ n.color }};padding:2px 0 2px 12px;display:flex;flex-direction:column;gap:5px;">
+          <span style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:{{ n.color }};">{{ n.tag }}</span>
+          <span style="font:400 13px/1.25 'Instrument Serif',Georgia,serif;">{{ n.title }}</span>
+          <span style="font:400 9px/1.55 'JetBrains Mono',monospace;color:rgba(234,228,215,.42);text-wrap:pretty;">{{ n.body }}</span>
+        </div>
+      </sc-for>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:1500}}">
+const GOLD = 'oklch(0.84 0.12 85)';
+const RED  = 'oklch(0.72 0.15 25)';
+const GRN  = 'oklch(0.74 0.13 130)';
+
+const EL = {
+  water:{ label:'WATER', name:'feeling',   color:'oklch(0.72 0.14 245)' },
+  earth:{ label:'EARTH', name:'material',  color:'oklch(0.74 0.13 130)' },
+  fire: { label:'FIRE',  name:'action',    color:'oklch(0.76 0.16 45)'  },
+  air:  { label:'AIR',   name:'intellect', color:'oklch(0.85 0.10 95)'  }
+};
+const ELS = ['water','earth','fire','air'];
+const SIGN_NAMES = { water:'CANCER', earth:'TAURUS', fire:'ARIES', air:'GEMINI' };
+const NEIGH = { water:['air','earth'], earth:['water','fire'], fire:['earth','air'], air:['fire','water'] };
+const OPP   = { water:'fire', fire:'water', earth:'air', air:'earth' };
+const REL = (a,b) => a === b ? 2 : NEIGH[a].indexOf(b) > -1 ? 1 : 0.5;
+const REL_NAME = { 2:'NAMES IT DIRECTLY', 1:'COMES AT IT SIDEWAYS', 0.5:'CHANGES THE SUBJECT' };
+
+// 0 behind · 1 over · 2 heart · 3 beneath · 4 ahead
+const SLOTS = [
+  { label:'BEHIND HER',   roman:'I',   area:'2 / 1 / 3 / 2' },
+  { label:'OVER HER',     roman:'II',  area:'1 / 2 / 2 / 3' },
+  { label:'THE HEART',    roman:'III', area:'2 / 2 / 3 / 3' },
+  { label:'BENEATH HER',  roman:'IV',  area:'3 / 2 / 4 / 3' },
+  { label:'AHEAD OF HER', roman:'V',   area:'2 / 3 / 3 / 4' }
+];
+const ARM_H = [0,2,4], ARM_V = [1,2,3];
+const ARMS_OF = i => [].concat(ARM_H.indexOf(i) > -1 ? ['ACROSS'] : [], ARM_V.indexOf(i) > -1 ? ['DOWN'] : []);
+
+const POOL = [
+  { n:'Pour The Tea',            el:'water', f:3 },
+  { n:'Hold Her Hand',           el:'water', f:6 },
+  { n:'Cry A Little With Her',   el:'water', f:4 },
+  { n:'Sit In The Silence',      el:'water', f:2 },
+  { n:'Ask Her Why',             el:'air',   f:3 },
+  { n:'Ask About The Family',    el:'air',   f:4 },
+  { n:'Point Out The Pattern',   el:'air',   f:5 },
+  { n:'Name The Feeling',        el:'air',   f:2 },
+  { n:'Read Her Palm',           el:'earth', f:3 },
+  { n:'Look At Her Hands',       el:'earth', f:4 },
+  { n:'Count It Out In Coins',   el:'earth', f:2 },
+  { n:'Weigh What She Brought',  el:'earth', f:5 },
+  { n:'Tell Her To Go',          el:'fire',  f:4 },
+  { n:'Burn The Letter',         el:'fire',  f:6 },
+  { n:'Say It To His Face',      el:'fire',  f:5 },
+  { n:'Refuse To Read Further',  el:'fire',  f:3 }
+];
+
+const VILLAGERS = [
+  { name:'Mme Aubain, who came about the letter',
+    want:'She wants to be told to leave, and she wants it to be somebody else’s idea.',
+    b:{ water:'He does not mean it when he is like that',
+        earth:'The house is the only thing my mother left me',
+        air:'People would talk, and they would be right to',
+        fire:'I could be gone before the bread comes' } },
+  { name:'Le Bihan, who came about the boat',
+    want:'He wants permission to sell the thing his father built.',
+    b:{ water:'My father would take it as an insult',
+        earth:'She is worth more than they are offering',
+        air:'A man without a boat here is nothing at all',
+        fire:'I take the money Thursday and I do not look back' } },
+  { name:'Sœur Ondine, who came about the child',
+    want:'She wants to be told the thing she already knows is not a sin.',
+    b:{ water:'I promised, and a promise is a promise',
+        earth:'There is no money in it either way',
+        air:'The parish decides these things, not me',
+        fire:'I go to her tonight and I say it out loud' } }
+];
+
+const rng = s => () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+function makeRun(seed){
+  const r = rng(seed * 7919 + 13);
+  const v = VILLAGERS[Math.floor(r() * VILLAGERS.length) % VILLAGERS.length];
+  const beliefs = ELS.map(e => {
+    const w = 5 + Math.floor(r() * 5);
+    return { el:e, text:v.b[e], w, w0:w };
+  });
+  const sign = ELS[Math.floor(r() * 4) % 4];
+  const pool = POOL.slice();
+  const hand = [];
+  while (hand.length < 6 && pool.length){
+    const c = pool.splice(Math.floor(r() * pool.length), 1)[0];
+    hand.push({ ...c, uid:c.n });
+  }
+  return { villager:v, beliefs, sign, hand };
+}
+
+class Component extends DCLogic {
+  state = { seed:1, sel:null, cross:[null,null,null,null,null], ...makeRun(1) };
+
+  reroll = () => {
+    const seed = this.state.seed + 1;
+    this.setState({ seed, sel:null, cross:[null,null,null,null,null], ...makeRun(seed) });
+  };
+  clear = () => {
+    const back = this.state.cross.filter(Boolean);
+    this.setState({ cross:[null,null,null,null,null], sel:null, hand:this.state.hand.concat(back) });
+  };
+  pick = uid => () => this.setState({ sel:this.state.sel === uid ? null : uid });
+  place = i => () => {
+    const { sel, cross, hand } = this.state;
+    const nx = cross.slice();
+    if (!sel){
+      if (!cross[i]) return;
+      nx[i] = null;
+      this.setState({ cross:nx, hand:hand.concat([cross[i]]) });
+      return;
+    }
+    const card = hand.find(c => c.uid === sel);
+    if (!card) return;
+    const back = cross[i] ? [cross[i]] : [];
+    nx[i] = card;
+    this.setState({ cross:nx, sel:null, hand:hand.filter(c => c.uid !== sel).concat(back) });
+  };
+
+  snip(t){ return t.length > 34 ? t.slice(0, 33).trim() + '…' : t; }
+
+  // ── MODEL 1 · DISPLACEMENT ─────────────────────────────────────────
+  // Conviction is conserved. Cards never destroy it, only drag it from
+  // one belief onto the belief that shares their element. FIRE is
+  // "tonight" — pile enough there and she acts.
+  displacement(){
+    const { beliefs, cross, sign } = this.state;
+    const piles = {}; beliefs.forEach(b => piles[b.el] = b.w0);
+    const total = ELS.reduce((s,e) => s + piles[e], 0);
+    const target = Math.ceil(total * 0.55);
+    const txt = {}; beliefs.forEach(b => txt[b.el] = b.text);
+    const lines = [];
+    cross.forEach((c, i) => {
+      if (!c) return;
+      const cands = ELS.filter(e => e !== c.el && piles[e] > 0)
+        .sort((a,b) => (REL(c.el, b) - REL(c.el, a)) || (piles[b] - piles[a]));
+      if (!cands.length){
+        lines.push({ left:c.n + ' · NOTHING LEFT TO MOVE', right:'she has already put it all somewhere else', color:'rgba(234,228,215,.3)' });
+        return;
+      }
+      const from = cands[0], rel = REL(c.el, from);
+      const boost = c.el === sign ? 1.5 : 1;
+      const want = Math.max(1, Math.round(c.f * rel * boost));
+      const amt = Math.min(want, piles[from]);
+      piles[from] -= amt; piles[c.el] += amt;
+      lines.push({
+        left: SLOTS[i].label + ' · ' + c.n + ' · ' + REL_NAME[rel] + (boost > 1 ? ' · BLESSED' : ''),
+        right: 'drags ' + amt + ' off “' + this.snip(txt[from]) + '” and onto ' + EL[c.el].label.toLowerCase() +
+               (want > amt ? ' — ' + (want - amt) + ' of it had nowhere to come from' : ''),
+        color: EL[c.el].color
+      });
+    });
+    const won = piles.fire >= target;
+    const rows = ELS.map(e => ({
+      label: (e === 'fire' ? '→ ' : '') + txt[e],
+      val: piles[e] + (e === 'fire' ? ' / ' + target : ''),
+      sub: e === 'fire' ? 'TONIGHT · needs ' + target + ' of her ' + total + ' to move her'
+          : piles[e] === beliefs.find(b => b.el === e).w0 ? 'untouched' : 'was ' + beliefs.find(b => b.el === e).w0,
+      color: e === 'fire' ? (won ? GOLD : RED) : EL[e].color,
+      textColor: e === 'fire' ? 'rgba(234,228,215,.95)' : 'rgba(234,228,215,.7)',
+      pct: Math.round(piles[e] / total * 100)
+    }));
+    return {
+      key:'disp', name:'Displacement', tag:'CONSERVED',
+      how:'Her conviction is a fixed quantity. Cards move it, never destroy it — onto the belief sharing their element. Fire is tonight. Get 55% there.',
+      accent:EL.fire.color, border:'rgba(234,228,215,.13)',
+      verdict: won ? 'SHE GOES TONIGHT' : 'IT IS STILL SPREAD TOO THIN',
+      verdictSub: won ? 'most of what she believes is now pointed at the door'
+                      : (target - piles.fire) + ' more of her has to end up on tonight',
+      vColor: won ? GOLD : RED,
+      vBg: won ? 'rgba(212,175,90,.1)' : 'rgba(150,40,30,.1)',
+      vBorder: won ? 'rgba(212,175,90,.34)' : 'rgba(190,70,55,.34)',
+      rows, lines
+    };
+  }
+
+  // ── MODEL 2 · CONTRADICTION PAIRS ──────────────────────────────────
+  // No numbers at all. A belief breaks when two cards of OPPOSITE
+  // elements sit on the same line of the cross. The heart is on both.
+  contradiction(){
+    const { beliefs, cross, sign } = this.state;
+    const armCards = arm => arm.map(i => cross[i] ? { c:cross[i], i } : null).filter(Boolean);
+    const arms = [{ n:'ACROSS', ix:ARM_H }, { n:'DOWN', ix:ARM_V }];
+    const lines = [], broken = {};
+    beliefs.forEach(b => {
+      const need = OPP[b.el];
+      for (const a of arms){
+        const cs = armCards(a.ix);
+        const mine = cs.filter(x => x.c.el === b.el)[0];
+        const anti = cs.filter(x => x.c.el === need)[0];
+        if (mine && anti && !broken[b.el]){
+          broken[b.el] = { arm:a.n, a:mine.c.n, b:anti.c.n };
+          lines.push({
+            left: a.n + ' · ' + EL[b.el].label + ' AGAINST ' + EL[need].label,
+            right: '“' + mine.c.n + '” and “' + anti.c.n + '” cannot both be true, and she said both',
+            color: EL[b.el].color
+          });
+        }
+      }
+    });
+    let count = Object.keys(broken).length;
+    let bonus = null;
+    const signPair = broken[sign] || broken[OPP[sign]];
+    if (signPair && count >= 2){
+      const left = beliefs.filter(b => !broken[b.el]).sort((a,b) => a.w0 - b.w0)[0];
+      if (left){
+        broken[left.el] = { arm:'BLESSED', a:'—', b:'—' };
+        bonus = left;
+        count += 1;
+        lines.push({ left:'HER OWN SIGN TURNED ON HER', right:'the pincer ran through ' + EL[sign].label.toLowerCase() + ', so “' + this.snip(left.text) + '” goes with it', color:GOLD });
+      }
+    }
+    const won = count >= 3;
+    const rows = beliefs.map(b => {
+      const br = broken[b.el];
+      return {
+        label: b.text, val: br ? 'BROKEN' : 'HELD',
+        sub: br ? (br.arm === 'BLESSED' ? 'carried off by the blessed pincer' : 'pinched ' + br.arm.toLowerCase() + ' the cross')
+                : 'needs ' + EL[b.el].label.toLowerCase() + ' and ' + EL[OPP[b.el]].label.toLowerCase() + ' on one line',
+        color: br ? GRN : 'rgba(234,228,215,.24)',
+        textColor: br ? 'rgba(234,228,215,.95)' : 'rgba(234,228,215,.5)',
+        pct: br ? 100 : 0
+      };
+    });
+    return {
+      key:'contra', name:'Contradiction', tag:'NO NUMBERS',
+      how:'Force is irrelevant. A belief breaks when two opposing elements sit on the same line of the cross — she has agreed to both. Break three.',
+      accent:EL.air.color, border:'rgba(234,228,215,.13)',
+      verdict: won ? 'SHE HEARS HERSELF' : count + (count === 1 ? ' BELIEF BROKEN' : ' BELIEFS BROKEN'),
+      verdictSub: won ? 'three of her four will not hold at once, and she knows it'
+                      : 'three must break — the heart sits on both lines',
+      vColor: won ? GOLD : RED,
+      vBg: won ? 'rgba(212,175,90,.1)' : 'rgba(150,40,30,.1)',
+      vBorder: won ? 'rgba(212,175,90,.34)' : 'rgba(190,70,55,.34)',
+      rows, lines
+    };
+  }
+
+  // ── MODEL 3 · DECLARE A READING ────────────────────────────────────
+  // The five positions are a hand. You declare its shape; the shape
+  // decides what breaks. Elements are suits, not damage.
+  declare(){
+    const { beliefs, cross, sign } = this.state;
+    const laid = cross.filter(Boolean);
+    const cnt = {}; laid.forEach(c => cnt[c.el] = (cnt[c.el] || 0) + 1);
+    const ranked = Object.keys(cnt).sort((a,b) => (cnt[b] - cnt[a]) || 0);
+    const c0 = ranked[0] ? cnt[ranked[0]] : 0;
+    const c1 = ranked[1] ? cnt[ranked[1]] : 0;
+    const distinct = ranked.length;
+    let shape, take, seed = [];
+    if (c0 >= 3 && c1 >= 2){ shape = 'AN UNANSWERABLE READING'; take = 4; seed = [ranked[0], ranked[1]]; }
+    else if (distinct === 4){ shape = 'THE WHOLE WHEEL'; take = 3; }
+    else if (c0 >= 3){ shape = 'A STRAIGHT READING'; take = 3; seed = [ranked[0]]; }
+    else if (c0 === 2 && c1 === 2){ shape = 'SHE HEARS HERSELF TWICE'; take = 2; seed = [ranked[0], ranked[1]]; }
+    else if (c0 === 2){ shape = 'A SINGLE ECHO'; take = 1; seed = [ranked[0]]; }
+    else { shape = laid.length ? 'SHE HEARS NOTHING IN IT' : 'AN EMPTY CLOTH'; take = 0; }
+    const lines = [];
+    if (laid.length) lines.push({
+      left:'THE SHAPE · ' + ranked.map(e => cnt[e] + '×' + EL[e].label).join(' · '),
+      right:shape.toLowerCase() + ' — ' + (take ? 'it carries ' + take : 'it carries nothing'),
+      color: ranked[0] ? EL[ranked[0]].color : 'rgba(234,228,215,.3)'
+    });
+    if (take && ranked[0] === sign){
+      take = Math.min(4, take + 1);
+      lines.push({ left:'READ IN HER OWN SIGN', right:'the shape leans ' + EL[sign].label.toLowerCase() + ', which is what she was born under — it carries one more', color:GOLD });
+    }
+    const order = beliefs.slice().sort((a,b) => {
+      const sa = seed.indexOf(a.el) > -1 ? 1 : 0, sb = seed.indexOf(b.el) > -1 ? 1 : 0;
+      return (sb - sa) || (a.w0 - b.w0);
+    });
+    const broken = {};
+    order.slice(0, take).forEach(b => broken[b.el] = true);
+    if (take) lines.push({
+      left:'WHAT IT TURNS OVER',
+      right:order.slice(0, take).map(b => '“' + this.snip(b.text) + '”').join(' · '),
+      color:GRN
+    });
+    const won = take >= 3;
+    const rows = beliefs.map(b => ({
+      label:b.text, val:broken[b.el] ? 'TURNED' : 'HELD',
+      sub: broken[b.el] ? (seed.indexOf(b.el) > -1 ? 'named by the shape itself' : 'the shape was big enough to reach it')
+                        : 'out of the shape’s reach · she holds ' + b.w0,
+      color: broken[b.el] ? GRN : 'rgba(234,228,215,.24)',
+      textColor: broken[b.el] ? 'rgba(234,228,215,.95)' : 'rgba(234,228,215,.5)',
+      pct: broken[b.el] ? 100 : 0
+    }));
+    return {
+      key:'declare', name:'Declare A Reading', tag:'SUITS, NOT DAMAGE',
+      how:'The five positions are a hand. Three of one element, two pairs, the whole wheel — the shape you make decides how much it carries. Carry three.',
+      accent:EL.earth.color, border:'rgba(234,228,215,.13)',
+      verdict: won ? 'SHE BELIEVES THE READING' : shape,
+      verdictSub: won ? 'the shape was coherent enough that she cannot argue with the parts'
+                      : 'it needs to carry three — build a bigger shape',
+      vColor: won ? GOLD : RED,
+      vBg: won ? 'rgba(212,175,90,.1)' : 'rgba(150,40,30,.1)',
+      vBorder: won ? 'rgba(212,175,90,.34)' : 'rgba(190,70,55,.34)',
+      rows, lines
+    };
+  }
+
+  renderVals(){
+    const st = this.state;
+    const maxW = Math.max.apply(null, st.beliefs.map(b => b.w0));
+    const laidCount = st.cross.filter(Boolean).length;
+    const selCard = st.hand.find(c => c.uid === st.sel);
+    return {
+      clear: this.clear,
+      reroll: this.reroll,
+      villagerName: st.villager.name,
+      villagerWant: st.villager.want,
+      signName: SIGN_NAMES[st.sign],
+      signEl: EL[st.sign].label,
+      beliefs: st.beliefs.map(b => ({
+        text:b.text, elLabel:EL[b.el].label, color:EL[b.el].color,
+        w:b.w0, pct:Math.round(b.w0 / maxW * 100)
+      })),
+      ring: ELS.map(e => ({
+        label:EL[e].label, name:EL[e].name, opp:EL[OPP[e]].label,
+        color:EL[e].color, border:'rgba(234,228,215,.12)', bg:'rgba(0,0,0,.16)'
+      })),
+      crossLabel: selCard ? 'LAY “' + selCard.n.toUpperCase() + '” — PICK A POSITION' : 'THE CROSS · TAP A CARD, THEN A POSITION',
+      laidLabel: laidCount + ' / 5 LAID',
+      slots: SLOTS.map((s, i) => {
+        const c = st.cross[i];
+        return {
+          label:s.label, roman:s.roman, area:s.area, click:this.place(i),
+          name: c ? c.n : (selCard ? 'lay it here' : '—'),
+          sub: c ? EL[c.el].label + ' · FORCE ' + c.f : (i === 2 ? 'ON BOTH LINES' : 'EMPTY'),
+          nameColor: c ? 'rgba(234,228,215,.95)' : 'rgba(234,228,215,.24)',
+          subColor: c ? EL[c.el].color : 'rgba(234,228,215,.22)',
+          bg: c ? 'rgba(0,0,0,.3)' : selCard ? 'rgba(212,175,90,.07)' : 'rgba(0,0,0,.14)',
+          border: c ? EL[c.el].color.replace(')', ' / .5)').replace('oklch(', 'oklch(') : selCard ? 'rgba(212,175,90,.4)' : 'rgba(234,228,215,.12)',
+          arms: ARMS_OF(i).map(a => ({
+            label:a, color:'rgba(234,228,215,.34)', border:'rgba(234,228,215,.14)'
+          }))
+        };
+      }),
+      handLabel: 'IN HAND · ' + st.hand.length + ' · TAP TO SELECT, TAP A LAID CARD TO TAKE IT BACK',
+      hand: st.hand.map(c => ({
+        n:c.n, f:c.f, elLabel:EL[c.el].label, color:EL[c.el].color, click:this.pick(c.uid),
+        bg: st.sel === c.uid ? 'rgba(212,175,90,.14)' : 'rgba(0,0,0,.2)',
+        border: st.sel === c.uid ? 'rgba(212,175,90,.55)' : 'rgba(234,228,215,.13)'
+      })),
+      models: [this.displacement(), this.contradiction(), this.declare()],
+      notes: [
+        { tag:'WHAT TO FEEL FOR', color:EL.fire.color, title:'Displacement is the only one that is order-dependent',
+          body:'Fire cannot get at her WATER belief — it changes the subject. So water weight has to be walked round the ring first, with earth or air, before fire can take it. Lay the same four cards in a different order and you get a different night. That is the thing v16 does not have.' },
+        { tag:'WHAT TO FEEL FOR', color:EL.air.color, title:'Contradiction is the cleanest to read and the flattest to play',
+          body:'You will get it instantly — two opposites on one line, done. Watch how fast it becomes a checklist: with four beliefs there are only so many pincers, and force values stop mattering, which makes two thirds of your deck interchangeable.' },
+        { tag:'WHAT TO FEEL FOR', color:EL.earth.color, title:'Declaring a reading makes the deck the puzzle, not the turn',
+          body:'The turn is nearly automatic once you see your hand — but building a deck that can reliably make shapes is a real long game. It may be the wrong grain: it rewards you between readings rather than during one.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

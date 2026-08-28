@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#0d0b11;}
+  a{color:oklch(0.80 0.12 85);text-decoration:none;border-bottom:1px solid oklch(0.80 0.12 85 / .35);}
+  a:hover{color:oklch(0.90 0.12 85);border-bottom-color:oklch(0.90 0.12 85 / .8);}
+  @keyframes ppop{0%{transform:scale(.72);opacity:0}65%{transform:scale(1.09)}100%{transform:scale(1);opacity:1}}
+</style>
+</helmet>
+
+<div style="background:#0d0b11;color:#eae4d7;font-family:'JetBrains Mono',ui-monospace,monospace;min-height:100vh;padding:0 0 120px;">
+ <div style="max-width:1300px;margin:0 auto;padding:0 40px;">
+
+  <header style="padding:80px 0 48px;">
+    <div style="font:400 11px/1 'JetBrains Mono',monospace;letter-spacing:.22em;color:oklch(0.80 0.12 85);text-transform:uppercase;margin-bottom:26px;">Round 04 · The concept</div>
+    <h1 style="font:400 82px/0.95 'Instrument Serif',Georgia,serif;margin:0 0 28px;letter-spacing:-.01em;">The Parlour</h1>
+    <p style="font:400 30px/1.35 'Instrument Serif',Georgia,serif;color:#eae4d7;max-width:24ch;margin:0 0 22px;text-wrap:pretty;">It's poker, but the hands are horoscopes — and you're bluffing the client sitting across the table.</p>
+    <p style="font:400 14px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.55);max-width:72ch;margin:0;text-wrap:pretty;">You are a fraud in a witch's den. Clients sit down, each with a price on their belief. You deal spreads of zodiac cards; named combinations — <span style="color:#eae4d7;">Conjunction, Trine, Grand Cross</span> — score like poker hands. Tarot Arcana up your sleeve break the rules. And the client watches, and interrupts, and does not care for water signs.</p>
+  </header>
+
+  <section style="display:grid;grid-template-columns:repeat(3,1fr);gap:34px;padding:0 0 56px;border-bottom:1px solid rgba(234,228,215,.12);">
+    <div>
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.80 0.12 85);margin-bottom:14px;">THE BORROWED VOCABULARY</div>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.62);margin:0;text-wrap:pretty;">Balatro works because you already know what a Full House is. Astrology is the only other scoring vocabulary a stranger walks in already half-knowing. Conjunction is a pair. Trine is a flush. Grand Cross is a straight. Nobody needs a tutorial for this, and that is the whole reason to pick it.</p>
+    </div>
+    <div>
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.80 0.12 85);margin-bottom:14px;">THE SCORE IS DIEGETIC</div>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.62);margin:0;text-wrap:pretty;">You are not producing chips. You are producing <span style="color:#eae4d7;">Awe</span>, and the quota is a person's <span style="color:#eae4d7;">Doubt</span>. Same arithmetic as Balatro, but every number on screen is a thing happening in the fiction. That costs zero engineering and buys you the entire tone of the game.</p>
+    </div>
+    <div>
+      <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.80 0.12 85);margin-bottom:14px;">THE ENEMY IS A FACE</div>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.62);margin:0;text-wrap:pretty;">Each client is a portrait, a demand, one rule they impose, and three lines of dialogue. No combat, no HP, no AI — but a person reacting to your spread lands harder than a health bar. One illustration and four strings per enemy. That is the cheapest personality in games.</p>
+    </div>
+  </section>
+
+  <!-- ══ PROTOTYPE ══ -->
+  <section style="padding:56px 0 0;">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:22px;">
+      <h2 style="font:400 42px/1 'Instrument Serif',Georgia,serif;margin:0;">Sit down <span style="font:400 13px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.4);vertical-align:middle;">— FIVE CLIENTS</span></h2>
+      <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(234,228,215,.25);color:rgba(234,228,215,.75);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:oklch(0.80 0.12 85);color:oklch(0.88 0.12 85);">NEW NIGHT</button>
+    </div>
+
+    <div style="background:#151220;border:1px solid rgba(234,228,215,.14);border-radius:6px;overflow-x:auto;overflow-y:hidden;">
+     <div style="min-width:1280px;">
+
+      <!-- arcana rail -->
+      <div style="display:flex;align-items:center;gap:12px;padding:13px 22px;background:rgba(0,0,0,.3);border-bottom:1px solid rgba(234,228,215,.1);min-height:56px;">
+        <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.35);flex:none;width:62px;">ARCANA</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <sc-for list="{{ arcana }}" as="a" hint-placeholder-count="2">
+            <div style="display:flex;align-items:center;gap:9px;padding:6px 11px;border:1px solid {{ a.border }};border-radius:3px;background:rgba(0,0,0,.3);">
+              <span style="width:18px;height:26px;border-radius:2px;background:repeating-linear-gradient(135deg, rgba(234,228,215,.14) 0 4px, transparent 4px 8px);border:1px dashed oklch(0.80 0.12 85 / .5);flex:none;"></span>
+              <span style="font:400 14px/1.2 'Instrument Serif',serif;color:#eae4d7;">{{ a.name }}</span>
+              <span style="font:400 9.5px/1.3 'JetBrains Mono',monospace;color:rgba(234,228,215,.48);max-width:172px;">{{ a.text }}</span>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noArcana }}" hint-placeholder-val="{{ true }}">
+            <div style="font:400 11px/1.4 'JetBrains Mono',monospace;color:rgba(234,228,215,.26);padding:8px 0;">your sleeves are empty</div>
+          </sc-if>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:290px 1fr 250px;">
+
+        <!-- CLIENT -->
+        <div style="padding:24px 22px;border-right:1px solid rgba(234,228,215,.1);background:rgba(0,0,0,.22);display:flex;flex-direction:column;gap:18px;">
+          <div style="width:100%;aspect-ratio:3/4;border-radius:4px;background:repeating-linear-gradient(135deg, rgba(234,228,215,.06) 0 7px, transparent 7px 14px);border:1px dashed rgba(234,228,215,.25);display:flex;align-items:flex-end;justify-content:center;padding-bottom:14px;font:400 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.32);">CLIENT PORTRAIT</div>
+          <div>
+            <div style="font:400 27px/1.1 'Instrument Serif',Georgia,serif;color:#eae4d7;margin-bottom:5px;">{{ clientName }}</div>
+            <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.4);">{{ clientTitle }}</div>
+          </div>
+          <div style="padding:12px 14px;border-left:2px solid oklch(0.70 0.15 25);background:rgba(0,0,0,.3);">
+            <div style="font:500 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.72 0.15 25);margin-bottom:8px;">{{ clientInsist }}</div>
+            <div style="font:400 11.5px/1.6 'JetBrains Mono',monospace;color:rgba(234,228,215,.75);">{{ clientRule }}</div>
+          </div>
+          <div style="font:400 17px/1.5 'Instrument Serif',Georgia,serif;font-style:italic;color:rgba(234,228,215,.72);min-height:80px;text-wrap:pretty;">"{{ clientLine }}"</div>
+          <div>
+            <div style="display:flex;justify-content:space-between;font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.35);margin-bottom:8px;">
+              <span>AWE</span><span>DOUBT {{ doubt }}</span>
+            </div>
+            <div style="height:11px;background:rgba(0,0,0,.55);border-radius:2px;overflow:hidden;">
+              <div style="height:100%;width:{{ awePct }};background:oklch(0.80 0.12 85);transition:width .45s ease;"></div>
+            </div>
+            <div style="font:400 22px/1 'Instrument Serif',serif;margin-top:9px;color:oklch(0.88 0.12 85);">{{ awe }}</div>
+          </div>
+        </div>
+
+        <!-- TABLE -->
+        <div style="padding:26px 24px;display:flex;flex-direction:column;min-height:600px;">
+
+          <sc-if value="{{ inRead }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;height:100%;">
+
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;">
+                <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:{{ readingColor }};">{{ readingName }}</div>
+                <div style="display:flex;align-items:center;gap:14px;font-family:'Instrument Serif',serif;animation:ppop .3s ease both;">
+                  <span style="font-size:44px;color:rgba(234,228,215,.9);">{{ insight }}</span>
+                  <span style="font-size:22px;color:rgba(234,228,215,.28);">×</span>
+                  <span style="font-size:44px;color:oklch(0.74 0.14 25);">{{ conviction }}</span>
+                  <span style="font-size:22px;color:rgba(234,228,215,.28);">=</span>
+                  <span style="font-size:62px;color:oklch(0.88 0.12 85);">{{ preview }}</span>
+                </div>
+                <div style="display:flex;gap:9px;min-height:112px;align-items:center;">
+                  <sc-for list="{{ spread }}" as="c" hint-placeholder-count="0">
+                    <div style="width:74px;padding:11px 6px;border-radius:4px;text-align:center;border:1px solid {{ c.color }};background:rgba(0,0,0,.35);animation:ppop .26s ease both;opacity:{{ c.opacity }};">
+                      <div style="font:400 30px/1 'Instrument Serif',serif;font-variant-emoji:text;color:{{ c.color }};">{{ c.glyph }}</div>
+                      <div style="font:400 11px/1 'Instrument Serif',serif;color:rgba(234,228,215,.8);margin-top:6px;">{{ c.name }}</div>
+                      <div style="font:400 8.5px/1 'JetBrains Mono',monospace;color:rgba(234,228,215,.4);margin-top:5px;">{{ c.scored }}</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;">
+                  <div style="display:flex;gap:22px;font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.38);">
+                    <span>SPREADS <span style="color:{{ spreadsColor }};font-size:13px;">{{ spreadsLeft }}</span></span>
+                    <span>DISCARDS <span style="color:#eae4d7;font-size:13px;">{{ discardsLeft }}</span></span>
+                    <span>DECK <span style="color:#eae4d7;font-size:13px;">{{ deckCount }}</span></span>
+                    <span>SELECTED {{ selCount }}/5</span>
+                  </div>
+                  <div style="display:flex;gap:10px;">
+                    <button onClick="{{ doDiscard }}" style="font:500 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:none;border:1px solid rgba(234,228,215,.22);color:rgba(234,228,215,.6);padding:11px 16px;border-radius:3px;cursor:pointer;" style-hover="border-color:rgba(234,228,215,.5);color:#eae4d7;">DISCARD</button>
+                    <button onClick="{{ doPlay }}" style="font:500 10.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.80 0.12 85);border:none;color:#0d0b11;padding:11px 24px;border-radius:3px;cursor:pointer;" style-hover="background:oklch(0.88 0.12 85);">READ</button>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;min-height:126px;align-items:flex-end;">
+                  <sc-for list="{{ hand }}" as="h" hint-placeholder-count="8">
+                    <button onClick="{{ h.click }}" style="width:78px;height:{{ h.h }};cursor:pointer;background:{{ h.bg }};border:1px solid {{ h.border }};border-radius:4px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;transition:height .12s ease;">
+                      <div style="font:500 7.5px/1 'JetBrains Mono',monospace;letter-spacing:.14em;color:{{ h.color }};">{{ h.element }}</div>
+                      <div style="font:400 30px/1 'Instrument Serif',serif;font-variant-emoji:text;color:{{ h.color }};">{{ h.glyph }}</div>
+                      <div style="font:400 11px/1 'Instrument Serif',serif;color:rgba(234,228,215,.82);">{{ h.name }}</div>
+                      <div style="font:400 8px/1 'JetBrains Mono',monospace;letter-spacing:.08em;color:rgba(234,228,215,.35);">{{ h.modality }} · {{ h.val }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ inShop }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;">
+              <div style="text-align:center;">
+                <div style="font:400 32px/1.1 'Instrument Serif',Georgia,serif;margin-bottom:8px;">They pay, and leave</div>
+                <div style="font:400 12px/1.6 'JetBrains Mono',monospace;color:rgba(234,228,215,.5);">Slip one card into your sleeve before the next knock.</div>
+              </div>
+              <div style="display:flex;gap:16px;">
+                <sc-for list="{{ offers }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.pick }}" style="width:190px;text-align:left;cursor:pointer;background:#1d1830;border:1px solid oklch(0.80 0.12 85 / .4);border-radius:5px;padding:15px;display:flex;flex-direction:column;gap:11px;" style-hover="background:#252039;transform:translateY(-5px);">
+                    <div style="width:100%;height:112px;border-radius:3px;background:repeating-linear-gradient(135deg, rgba(234,228,215,.07) 0 6px, transparent 6px 12px);border:1px dashed oklch(0.80 0.12 85 / .4);display:flex;align-items:center;justify-content:center;font:400 8.5px/1 'JetBrains Mono',monospace;letter-spacing:.12em;color:rgba(234,228,215,.32);">ARCANUM ART</div>
+                    <div style="font:400 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:oklch(0.80 0.12 85);">{{ o.num }}</div>
+                    <div style="font:400 21px/1.1 'Instrument Serif',Georgia,serif;color:#eae4d7;">{{ o.name }}</div>
+                    <div style="font:400 11px/1.6 'JetBrains Mono',monospace;color:rgba(234,228,215,.65);">{{ o.text }}</div>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;">
+              <div style="font:400 52px/1.05 'Instrument Serif',Georgia,serif;color:{{ overColor }};text-align:center;max-width:16ch;">{{ overTitle }}</div>
+              <div style="font:400 13px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.55);max-width:48ch;text-align:center;text-wrap:pretty;">{{ overText }}</div>
+              <button onClick="{{ restart }}" style="font:500 11px/1 'JetBrains Mono',monospace;letter-spacing:.14em;background:oklch(0.80 0.12 85);border:none;color:#0d0b11;padding:13px 22px;border-radius:3px;cursor:pointer;">ANOTHER NIGHT</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <!-- READINGS TABLE -->
+        <div style="padding:24px 20px;background:rgba(0,0,0,.22);border-left:1px solid rgba(234,228,215,.1);">
+          <div style="font:500 9px/1 'JetBrains Mono',monospace;letter-spacing:.18em;color:rgba(234,228,215,.35);margin-bottom:14px;">READINGS</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <sc-for list="{{ table }}" as="t" hint-placeholder-count="9">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 9px;border-radius:3px;background:{{ t.bg }};border:1px solid {{ t.border }};">
+                <div>
+                  <div style="font:400 12.5px/1.2 'Instrument Serif',serif;font-size:14px;color:{{ t.fg }};">{{ t.name }}</div>
+                  <div style="font:400 8.5px/1.3 'JetBrains Mono',monospace;color:rgba(234,228,215,.32);margin-top:3px;">{{ t.desc }}</div>
+                </div>
+                <div style="font:400 11px/1 'JetBrains Mono',monospace;color:{{ t.fg }};flex:none;padding-left:8px;">{{ t.base }}×{{ t.mult }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+     </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(234,228,215,.12);border:1px solid rgba(234,228,215,.12);border-top:none;">
+      <sc-for list="{{ notes }}" as="n" hint-placeholder-count="6">
+        <div style="background:#151220;padding:22px 20px;">
+          <div style="display:flex;gap:10px;align-items:baseline;margin-bottom:10px;">
+            <span style="font:500 10px/1 'JetBrains Mono',monospace;color:oklch(0.80 0.12 85);">{{ n.num }}</span>
+            <span style="font:500 11px/1.3 'JetBrains Mono',monospace;letter-spacing:.1em;color:#eae4d7;">{{ n.title }}</span>
+          </div>
+          <p style="font:400 12px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);margin:0;text-wrap:pretty;">{{ n.body }}</p>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <!-- ══ CONTENT ENGINE ══ -->
+  <section style="padding:80px 0 0;">
+    <div style="font:500 10px/1 'JetBrains Mono',monospace;letter-spacing:.2em;color:oklch(0.80 0.12 85);margin-bottom:18px;">THE CONTENT ENGINE</div>
+    <h2 style="font:400 42px/1.05 'Instrument Serif',Georgia,serif;margin:0 0 20px;max-width:24ch;">One client = one portrait, one rule, four lines</h2>
+    <p style="font:400 14.5px/1.7 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);max-width:74ch;margin:0 0 40px;text-wrap:pretty;">This is the unit you and your artist can both produce in an afternoon, forever. Thirty clients is a full game and a cast of characters. Compare that to thirty Slay the Spire enemies.</p>
+    <div style="border:1px solid rgba(234,228,215,.12);">
+      <div style="display:grid;grid-template-columns:.9fr 1fr 1.5fr;gap:28px;padding:15px 22px;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(234,228,215,.12);font:500 9.5px/1 'JetBrains Mono',monospace;letter-spacing:.16em;color:rgba(234,228,215,.4);">
+        <div>CLIENT</div><div>THE RULE THEY IMPOSE</div><div>WHAT IT DOES TO YOUR PLAY</div>
+      </div>
+      <sc-for list="{{ roster }}" as="r" hint-placeholder-count="5">
+        <div style="display:grid;grid-template-columns:.9fr 1fr 1.5fr;gap:28px;padding:17px 22px;border-bottom:1px solid rgba(234,228,215,.08);font:400 12.5px/1.65 'JetBrains Mono',monospace;">
+          <div style="color:#eae4d7;">{{ r.who }}</div>
+          <div style="color:oklch(0.74 0.14 25);">{{ r.rule }}</div>
+          <div style="color:rgba(234,228,215,.55);">{{ r.effect }}</div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section style="padding:80px 0 0;border-top:1px solid rgba(234,228,215,.12);margin-top:80px;">
+    <h2 style="font:400 30px/1.15 'Instrument Serif',Georgia,serif;margin:0 0 24px;">Where I'd go next</h2>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:28px;">
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.80 0.12 85);">A · </span>Say the pitch out loud to someone who does not play these games. If they get it in one sentence, the concept is done and everything after this is craft.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.80 0.12 85);">B · </span>I'll write all 22 Arcana as mechanics plus a roster of 15 clients with their dialogue — a real content sheet your artist can start drawing from immediately.</p>
+      <p style="font:400 13px/1.75 'JetBrains Mono',monospace;color:rgba(234,228,215,.6);margin:0;text-wrap:pretty;"><span style="color:oklch(0.80 0.12 85);">C · </span>Or three art directions on this exact table — woodcut, risograph occult zine, gilded manuscript — so the two of you argue with pictures instead of adjectives.</p>
+    </div>
+  </section>
+
+ </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;handSize&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:8,&quot;min&quot;:5,&quot;max&quot;:12,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the night)&quot;},&quot;spreadsPerClient&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:4,&quot;min&quot;:2,&quot;max&quot;:8,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the night)&quot;},&quot;discardsPerClient&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:0,&quot;max&quot;:8,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the night)&quot;},&quot;doubtScale&quot;:{&quot;editor&quot;:&quot;float&quot;,&quot;default&quot;:1,&quot;min&quot;:0.4,&quot;max&quot;:2.5,&quot;step&quot;:0.1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Balance (restarts the night)&quot;}}">
+const EL = {
+  fire:  { label: 'FIRE',  color: 'oklch(0.74 0.15 45)' },
+  earth: { label: 'EARTH', color: 'oklch(0.74 0.14 145)' },
+  air:   { label: 'AIR',   color: 'oklch(0.80 0.13 95)' },
+  water: { label: 'WATER', color: 'oklch(0.72 0.14 245)' }
+};
+const V = '\uFE0E';
+const SIGNS = [
+  { n:'Aries', g:'\u2648'+V, e:'fire',  m:'CARDINAL' },
+  { n:'Taurus', g:'\u2649'+V, e:'earth', m:'FIXED' },
+  { n:'Gemini', g:'\u264A'+V, e:'air',   m:'MUTABLE' },
+  { n:'Cancer', g:'\u264B'+V, e:'water', m:'CARDINAL' },
+  { n:'Leo', g:'\u264C'+V, e:'fire',  m:'FIXED' },
+  { n:'Virgo', g:'\u264D'+V, e:'earth', m:'MUTABLE' },
+  { n:'Libra', g:'\u264E'+V, e:'air',   m:'CARDINAL' },
+  { n:'Scorpio', g:'\u264F'+V, e:'water', m:'FIXED' },
+  { n:'Sagittarius', g:'\u2650'+V, e:'fire',  m:'MUTABLE' },
+  { n:'Capricorn', g:'\u2651'+V, e:'earth', m:'CARDINAL' },
+  { n:'Aquarius', g:'\u2652'+V, e:'air',   m:'FIXED' },
+  { n:'Pisces', g:'\u2653'+V, e:'water', m:'MUTABLE' }
+];
+
+// The poker-hand table. This is the whole "click" of the game.
+const READINGS = {
+  solitary:   { name:'Solitary',    desc:'no combination',            base:5,  mult:1 },
+  conjunction:{ name:'Conjunction', desc:'two of the same sign',      base:10, mult:2 },
+  opposition: { name:'Opposition',  desc:'two opposing signs',        base:20, mult:3 },
+  trine:      { name:'Trine',       desc:'three of one element',      base:30, mult:3 },
+  tsquare:    { name:'T-Square',    desc:'three of one modality',     base:35, mult:4 },
+  procession: { name:'Procession',  desc:'three signs in sequence',   base:40, mult:4 },
+  stellium:   { name:'Stellium',    desc:'three of the same sign',    base:50, mult:5 },
+  grandcross: { name:'Grand Cross', desc:'all four elements at once', base:60, mult:6 },
+  grandtrine: { name:'Grand Trine', desc:'four of one element',       base:80, mult:8 }
+};
+const ORDER = ['grandtrine','grandcross','stellium','procession','tsquare','trine','opposition','conjunction','solitary'];
+
+const ARCANA = {
+  fool:       { num:'0',    name:'The Fool',        text:'+4 Conviction. Always.' },
+  magician:   { num:'I',    name:'The Magician',    text:'Each Mutable sign read: +2 Conviction.' },
+  priestess:  { num:'II',   name:'The High Priestess', text:'Each Water sign read: +25 Insight.' },
+  empress:    { num:'III',  name:'The Empress',     text:'Each Earth sign read: +25 Insight.' },
+  emperor:    { num:'IV',   name:'The Emperor',     text:'Each Fixed sign read: +2 Conviction.' },
+  hierophant: { num:'V',    name:'The Hierophant',  text:'Trines and Grand Trines: +50 Insight.' },
+  lovers:     { num:'VI',   name:'The Lovers',      text:'Oppositions triple their Conviction.' },
+  chariot:    { num:'VII',  name:'The Chariot',     text:'+40 Insight on your first spread each client.' },
+  strength:   { num:'VIII', name:'Strength',        text:'Each Fire sign read: +3 Conviction.' },
+  hermit:     { num:'IX',   name:'The Hermit',      text:'Read exactly one card: ×5 Conviction.' },
+  wheel:      { num:'X',    name:'Wheel of Fortune',text:'One extra spread with every client.' },
+  justice:    { num:'XI',   name:'Justice',         text:'All three modalities in a spread: +80 Insight.' },
+  death:      { num:'XIII', name:'Death',           text:'Each unused discard: +3 Conviction.' },
+  star:       { num:'XVII', name:'The Star',        text:'+15 Insight for each Arcanum you hold.' },
+  sun:        { num:'XIX',  name:'The Sun',         text:'Every card one element: ×2 Conviction.' }
+};
+
+const CLIENTS = [
+  { name:'Madame Ozell', title:'THE WIDOW', insist:'SHE INSISTS', doubt:280, rule:'noWater', ruleText:'Water signs are worth nothing to her.',
+    open:'My husband drowned. Do not show me the sea.',
+    lines:['That is a shopping list, not a fate.','Go on. You have my ear, briefly.','Yes. Yes, that is him exactly.'] },
+  { name:'Corvin Ashe', title:'THE DEBTOR', insist:'HE INSISTS', doubt:700, rule:'fewSpreads', ruleText:'He grants you one spread fewer.',
+    open:'I am owed elsewhere in the hour. Be quick, or be wrong.',
+    lines:['You are wasting a man\u2019s last evening.','Hm. Keep talking.','Then I still have time. Thank you.'] },
+  { name:'The Sisters Vane', title:'TWO MOUTHS, ONE CHAIR', insist:'THEY INSIST', doubt:1600, rule:'noRepeat', ruleText:'A sign repeated in one spread scores nothing.',
+    open:'We do not care to hear the same name twice.',
+    lines:['She says you are stalling. I agree.','Oh \u2014 she likes that one.','We are both satisfied. That is rare.'] },
+  { name:'Magistrate Holt', title:'HE HAS HANGED SEVEN', insist:'HE INSTRUCTS', doubt:3400, rule:'noCardinal', ruleText:'Cardinal signs are worth nothing to him.',
+    open:'Cardinal signs are the grammar of liars. Avoid them.',
+    lines:['I have hanged people for less theatre.','Continue. Carefully.','...I will not be arresting you tonight.'] },
+  { name:'The Hollow Man', title:'HE PAID IN ADVANCE', insist:'HE REQUIRES', doubt:7200, rule:'silentArcana', ruleText:'Your Arcana are silent on the first spread.',
+    open:'Put away your paper saints. I want to hear you unaided, first.',
+    lines:['I know what you are. Say something true.','Closer.','Ah. So you were never lying.'] }
+];
+
+const NOTES = [
+  { num:'01', title:'THE HAND TABLE IS THE TUTORIAL', body:'The list on the right is the only teaching this game does, and it is the same trick Balatro plays. A player who knows poker reads that column once and is fluent. A player who knows astrology is fluent before they sit down. You are inheriting two literacies for free.' },
+  { num:'02', title:'TWO AXES, NOT ONE', body:'Every sign is an element AND a modality. Poker gives you suit and rank; astrology gives you the same two-axis grid with a story attached. That is what makes Trine and T-Square feel different rather than reskinned, and it is what gives Arcana enough hooks to stay distinct across a hundred of them.' },
+  { num:'03', title:'THE CLIENT REPLACES THE BLIND', body:'Mechanically this is a Balatro boss blind. Emotionally it is a person watching you lie. Same code, entirely different game, and the difference is one portrait and four strings. This is the highest return on effort available anywhere in your project.' },
+  { num:'04', title:'THEY TALK BACK', body:'The line under the portrait changes with how well your last spread scored. It costs three strings per client and it is the single feature that stops this being "Balatro with a skin". Write these lines yourself and write them well \u2014 they are the game\u2019s voice.' },
+  { num:'05', title:'FRAUD IS THE THEME', body:'You are not a real seer, and the game never says whether the cards mean anything. That ambiguity is free depth, it justifies the mechanics being a scoring system rather than a prophecy, and it gives the final client somewhere to go.' },
+  { num:'06', title:'WHAT IS STILL MISSING', body:'There is no economy, no shop with money, no deck modification, no run map. Deliberately \u2014 you should feel whether the core reads well before any of that exists. If ten minutes here is fun, the rest is known work.' }
+];
+
+const ROSTER = [
+  { who:'The Widow', rule:'Water signs score nothing', effect:'Removes a quarter of the deck from your maths. Teaches element-aware play in one client.' },
+  { who:'The Debtor', rule:'One spread fewer', effect:'The purest pressure knob. Every other client can be tuned against this baseline.' },
+  { who:'The Sisters Vane', rule:'No repeated signs in a spread', effect:'Kills Conjunction and Stellium outright. Forces a completely different hand shape.' },
+  { who:'Magistrate Holt', rule:'Cardinal signs score nothing', effect:'Attacks modality instead of element \u2014 the same rule shape hitting the other axis.' },
+  { who:'The Hollow Man', rule:'Arcana silent on the first spread', effect:'Attacks your build rather than your deck. The finale should always break the thing you were proudest of.' }
+];
+
+class Component extends DCLogic {
+  constructor(p) { super(p); this.state = this.fresh(); }
+
+  cfg() {
+    return {
+      hand: this.props.handSize ?? 8,
+      spreads: this.props.spreadsPerClient ?? 4,
+      discards: this.props.discardsPerClient ?? 3,
+      doubtScale: this.props.doubtScale ?? 1
+    };
+  }
+
+  deckOf() {
+    const d = [];
+    for (let c = 0; c < 4; c++) SIGNS.forEach((s, i) => d.push({ ...s, i, uid: c + '-' + i }));
+    return d.sort(() => Math.random() - 0.5);
+  }
+
+  has(s, k) { return s.arcana.indexOf(k) >= 0; }
+
+  fresh() {
+    const s = { ci: 0, awe: 0, phase: 'read', arcana: [], offers: [], deck: [], hand: [], sel: [], last: null, line: CLIENTS[0].open, spreadNo: 0 };
+    this.startClient(s, 0);
+    return s;
+  }
+
+  componentDidUpdate(p) {
+    const k = ['handSize','spreadsPerClient','discardsPerClient','doubtScale'];
+    if (k.some(x => p[x] !== this.props[x])) this.setState(this.fresh());
+  }
+
+  startClient(s, i) {
+    const c = CLIENTS[i];
+    s.ci = i; s.awe = 0; s.phase = 'read'; s.sel = []; s.last = null; s.spreadNo = 0;
+    s.line = c.open;
+    s.spreads = this.cfg().spreads + (this.has(s, 'wheel') ? 1 : 0) - (c.rule === 'fewSpreads' ? 1 : 0);
+    s.discards = this.cfg().discards;
+    s.deck = this.deckOf(); s.hand = [];
+    while (s.hand.length < this.cfg().hand && s.deck.length) s.hand.push(s.deck.pop());
+  }
+
+  detect(cards) {
+    if (!cards.length) return null;
+    const els = {}, mods = {}, sig = {};
+    cards.forEach(c => { els[c.e] = (els[c.e] || 0) + 1; mods[c.m] = (mods[c.m] || 0) + 1; sig[c.i] = (sig[c.i] || 0) + 1; });
+    const maxEl = Math.max(...Object.values(els));
+    const maxSig = Math.max(...Object.values(sig));
+    const maxMod = Math.max(...Object.values(mods));
+    if (maxEl >= 4) return 'grandtrine';
+    if (Object.keys(els).length === 4) return 'grandcross';
+    if (maxSig >= 3) return 'stellium';
+    const idx = [...new Set(cards.map(c => c.i))].sort((a, b) => a - b);
+    for (let k = 0; k + 2 < idx.length; k++) if (idx[k + 1] === idx[k] + 1 && idx[k + 2] === idx[k] + 2) return 'procession';
+    if (maxMod >= 3) return 'tsquare';
+    if (maxEl >= 3) return 'trine';
+    for (const a of cards) for (const b of cards) if (a !== b && Math.abs(a.i - b.i) === 6) return 'opposition';
+    if (maxSig >= 2) return 'conjunction';
+    return 'solitary';
+  }
+
+  // The scoring pass. Every Arcanum and every client rule is read here, once.
+  evaluate(s, cards, live) {
+    const client = CLIENTS[s.ci];
+    const key = this.detect(cards) || 'solitary';
+    const R = READINGS[key];
+    let insight = R.base, mult = R.mult;
+    const quiet = client.rule === 'silentArcana' && s.spreadNo === 0;
+    const A = k => !quiet && this.has(s, k);
+
+    const seen = {};
+    const marks = cards.map(c => {
+      let ok = true;
+      if (client.rule === 'noWater' && c.e === 'water') ok = false;
+      if (client.rule === 'noCardinal' && c.m === 'CARDINAL') ok = false;
+      if (client.rule === 'noRepeat') { if (seen[c.i]) ok = false; seen[c.i] = 1; }
+      if (ok) {
+        insight += c.i + 1;
+        if (A('priestess') && c.e === 'water') insight += 25;
+        if (A('empress') && c.e === 'earth') insight += 25;
+        if (A('magician') && c.m === 'MUTABLE') mult += 2;
+        if (A('emperor') && c.m === 'FIXED') mult += 2;
+        if (A('strength') && c.e === 'fire') mult += 3;
+      }
+      return ok;
+    });
+
+    if (A('fool')) mult += 4;
+    if (A('hierophant') && (key === 'trine' || key === 'grandtrine')) insight += 50;
+    if (A('lovers') && key === 'opposition') mult *= 3;
+    if (A('chariot') && s.spreadNo === 0) insight += 40;
+    if (A('hermit') && cards.length === 1) mult *= 5;
+    if (A('justice') && new Set(cards.map(c => c.m)).size === 3) insight += 80;
+    if (A('death')) mult += 3 * s.discards;
+    if (A('star')) insight += 15 * s.arcana.length;
+    if (A('sun') && new Set(cards.map(c => c.e)).size === 1) mult *= 2;
+
+    return { key, R, insight, mult, total: insight * mult, marks };
+  }
+
+  toggle(i) {
+    this.setState(p => {
+      if (p.phase !== 'read') return p;
+      const sel = p.sel.slice(), at = sel.indexOf(i);
+      if (at >= 0) sel.splice(at, 1); else if (sel.length < 5) sel.push(i);
+      return { ...p, sel };
+    });
+  }
+
+  read() {
+    this.setState(p => {
+      if (p.phase !== 'read' || !p.sel.length) return p;
+      const s = { ...p, hand: p.hand.slice(), deck: p.deck.slice() };
+      const cards = p.sel.map(i => p.hand[i]);
+      const r = this.evaluate(s, cards, false);
+      s.awe = p.awe + r.total;
+      s.last = { key: r.key, cards, marks: r.marks, insight: r.insight, mult: r.mult, total: r.total };
+      s.spreads = p.spreads - 1;
+      s.spreadNo = p.spreadNo + 1;
+      s.hand = p.hand.filter((_, i) => p.sel.indexOf(i) < 0);
+      s.sel = [];
+      while (s.hand.length < this.cfg().hand && s.deck.length) s.hand.push(s.deck.pop());
+
+      const client = CLIENTS[p.ci];
+      const doubt = Math.round(client.doubt * this.cfg().doubtScale);
+      const share = r.total / doubt;
+      s.line = client.lines[share > 0.45 ? 2 : share > 0.18 ? 1 : 0];
+
+      if (s.awe >= doubt) {
+        if (p.ci + 1 >= CLIENTS.length) { s.phase = 'won'; return s; }
+        s.phase = 'shop';
+        s.line = client.lines[2];
+        s.offers = Object.keys(ARCANA).filter(k => s.arcana.indexOf(k) < 0).sort(() => Math.random() - 0.5).slice(0, 3);
+      } else if (s.spreads <= 0) {
+        s.phase = 'lost';
+      }
+      return s;
+    });
+  }
+
+  discard() {
+    this.setState(p => {
+      if (p.phase !== 'read' || !p.sel.length || p.discards <= 0) return p;
+      const s = { ...p, deck: p.deck.slice() };
+      s.hand = p.hand.filter((_, i) => p.sel.indexOf(i) < 0);
+      s.sel = []; s.discards = p.discards - 1;
+      while (s.hand.length < this.cfg().hand && s.deck.length) s.hand.push(s.deck.pop());
+      return s;
+    });
+  }
+
+  take(k) {
+    this.setState(p => {
+      const s = { ...p, arcana: p.arcana.concat([k]) };
+      this.startClient(s, p.ci + 1);
+      return s;
+    });
+  }
+
+  renderVals() {
+    const s = this.state;
+    const client = CLIENTS[s.ci];
+    const doubt = Math.round(client.doubt * this.cfg().doubtScale);
+    const selCards = s.sel.map(i => s.hand[i]);
+    const live = selCards.length ? this.evaluate(s, selCards, true) : null;
+    const shownKey = live ? live.key : (s.last ? s.last.key : null);
+    const shown = shownKey ? READINGS[shownKey] : null;
+
+    const spreadCards = live
+      ? selCards.map((c, k) => ({ glyph: c.g, name: c.n, color: EL[c.e].color, opacity: live.marks[k] ? '1' : '.28', scored: live.marks[k] ? '+' + (c.i + 1) : 'ignored' }))
+      : (s.last ? s.last.cards.map((c, k) => ({ glyph: c.g, name: c.n, color: EL[c.e].color, opacity: s.last.marks[k] ? '1' : '.28', scored: s.last.marks[k] ? '+' + (c.i + 1) : 'ignored' })) : []);
+
+    return {
+      notes: NOTES, roster: ROSTER,
+      inRead: s.phase === 'read', inShop: s.phase === 'shop',
+      isOver: s.phase === 'won' || s.phase === 'lost',
+      overTitle: s.phase === 'won' ? 'The last one believed you' : 'They stop believing',
+      overColor: s.phase === 'won' ? 'oklch(0.84 0.12 85)' : 'oklch(0.68 0.15 25)',
+      overText: s.phase === 'won'
+        ? 'Five clients, no truth told. Now the real test: could you describe the run you just had to a friend in one sentence? If yes, the concept holds. If not, the Arcana are too quiet.'
+        : 'Look at which client stopped you. If it is always the same one, that rule is too strong \u2014 or the Arcana that answer it come too late.',
+
+      clientName: client.name, clientTitle: client.title, clientRule: client.ruleText, clientLine: s.line,
+      clientInsist: client.insist,
+      doubt, awe: s.awe, awePct: Math.min(100, Math.round((s.awe / doubt) * 100)) + '%',
+
+      readingName: shown ? shown.name.toUpperCase() : 'SELECT UP TO FIVE CARDS',
+      readingColor: shown ? 'oklch(0.84 0.12 85)' : 'rgba(234,228,215,.3)',
+      insight: live ? live.insight : (s.last ? s.last.insight : 0),
+      conviction: live ? live.mult : (s.last ? s.last.mult : 0),
+      preview: live ? live.total : (s.last ? s.last.total : 0),
+      spread: spreadCards,
+
+      spreadsLeft: s.spreads, discardsLeft: s.discards, deckCount: s.deck.length,
+      spreadsColor: s.spreads <= 1 ? 'oklch(0.70 0.15 25)' : '#eae4d7',
+      selCount: s.sel.length,
+
+      hand: s.hand.map((c, i) => {
+        const on = s.sel.indexOf(i) >= 0;
+        return {
+          glyph: c.g, name: c.n, element: EL[c.e].label, color: EL[c.e].color,
+          modality: c.m.slice(0, 4), val: c.i + 1,
+          h: on ? '134px' : '118px',
+          bg: on ? '#282142' : '#1d1830',
+          border: on ? EL[c.e].color : 'rgba(234,228,215,.16)',
+          click: () => this.toggle(i)
+        };
+      }),
+
+      table: ORDER.slice().reverse().map(k => {
+        const on = shownKey === k;
+        return { name: READINGS[k].name, desc: READINGS[k].desc, base: READINGS[k].base, mult: READINGS[k].mult,
+          bg: on ? 'oklch(0.80 0.12 85 / .14)' : 'transparent',
+          border: on ? 'oklch(0.80 0.12 85 / .5)' : 'transparent',
+          fg: on ? 'oklch(0.88 0.12 85)' : 'rgba(234,228,215,.62)' };
+      }),
+
+      arcana: s.arcana.map(k => ({ name: ARCANA[k].name, text: ARCANA[k].text, border: 'oklch(0.80 0.12 85 / .45)' })),
+      noArcana: s.arcana.length === 0,
+      offers: s.offers.map(k => ({ num: ARCANA[k].num, name: ARCANA[k].name, text: ARCANA[k].text, pick: () => this.take(k) })),
+
+      doPlay: () => this.read(),
+      doDiscard: () => this.discard(),
+      restart: () => this.setState(this.fresh())
+    };
+  }
+}
+
+</script>
+</body>
+</html>
