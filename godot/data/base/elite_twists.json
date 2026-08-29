@@ -1,0 +1,10 @@
+{
+  "_comment": "Ported from ELITE_TWISTS in Parlour v23.dc.html (line ~1417). One is rolled per elite sitter (Run.elite_of) and modifies their base stats.",
+  "elite_twists": [
+    { "tag": "BROUGHT SOMEONE ALONG",        "t": "A second pair of ears in the doorway. Their wall starts 4 thicker.", "denial": 4 },
+    { "tag": "HAS SAT WITH A READER BEFORE", "t": "{S} know{es} the patter, so there is far more to fill.", "maxMul": 1.55 },
+    { "tag": "PAID BEFORE SITTING DOWN",     "t": "Coin on the cloth first. Their wall thickens twice as fast.", "shieldMul": 2 },
+    { "tag": "WILL NOT TAKE THE COAT OFF",   "t": "{S} sit{es} down still buttoned. One card fewer in your hand.", "hand": -1 },
+    { "tag": "CAME AT CLOSING TIME",         "t": "No time for a long sentence. One reading fewer than usual.", "turns": -1 }
+  ]
+}

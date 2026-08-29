@@ -1,0 +1,15 @@
+{
+  "_comment": "Ported from EFFECTS in Parlour v23.dc.html (line ~1095). Card text should be generated from a card's mechanical fields via Rules.auto_text(), never hand-authored, unless the card sets custom=true.",
+  "card_effects": [
+    { "k": "draw",      "pre": "Draw",                                 "post": "cards.",                          "d": 1 },
+    { "k": "energy",    "pre": "Hand back",                            "post": "energy.",                         "d": 1 },
+    { "k": "coin",      "pre": "Pay",                                  "post": "centimes.",                       "d": 3 },
+    { "k": "turn",      "pre": "Keep them here",                       "post": "readings longer.",                "d": 1 },
+    { "k": "opener",    "pre": "If said first, restore",               "post": "more.",                           "d": 3 },
+    { "k": "closer",    "pre": "If said last, restore",                "post": "more.",                           "d": 3 },
+    { "k": "next",      "pre": "Whatever is said next restores",       "post": "more.",                           "d": 4 },
+    { "k": "bonusFlat", "pre": "Always restore",                       "post": "more.",                           "d": 2 },
+    { "k": "solo",      "pre": "If it is the only card said, restore", "post": "more.",                           "d": 6 },
+    { "k": "perLaid",   "pre": "Restore",                              "post": "more for every card before it.",  "d": 2 }
+  ]
+}

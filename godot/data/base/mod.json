@@ -1,0 +1,26 @@
+{
+  "id": "parlour.base",
+  "name": "Parlour — Base Content",
+  "version": "0.1.0",
+  "priority": 0,
+  "description": "The core game content ported from Parlour v23.dc.html. Not a mod in the user-facing sense — loaded first, always, and cannot be disabled. Its shape is identical to a real mod pack's shape (see /godot/mods_example/example_mod) so the loading and merge code has exactly one code path for both.",
+  "files": [
+    "elements.json",
+    "fx.json",
+    "card_effects.json",
+    "signs.json",
+    "jobs.json",
+    "readers.json",
+    "cards_basics.json",
+    "cards_chroma.json",
+    "cards_minor.json",
+    "cards_arcana.json",
+    "relics.json",
+    "marks.json",
+    "elite_twists.json",
+    "sitters.json",
+    "boss.json",
+    "events.json",
+    "shop.json"
+  ]
+}

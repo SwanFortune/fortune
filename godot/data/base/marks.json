@@ -1,0 +1,18 @@
+{
+  "_comment": "Ported from MARKS in Parlour v23.dc.html (line ~1424). Awarded from between-reading events and the apothecary shop, not from combat. Same runtime effect as relics.json.",
+  "marks": [
+    { "n": "A Silver Ring",        "kind": "RING",   "text": "One more energy every reading.", "fx": "energy" },
+    { "n": "A Borrowed Ring",      "kind": "RING",   "text": "One more reading with everyone.", "fx": "turn" },
+    { "n": "A Thumb Ring",         "kind": "RING",   "text": "One more card in hand.", "fx": "hand" },
+    { "n": "Salt Under The Nails", "kind": "TATTOO", "text": "Earth cards restore +2.", "fx": "el", "el": "earth" },
+    { "n": "Smoke In The Throat",  "kind": "TATTOO", "text": "Fire cards restore +2.", "fx": "el", "el": "fire" },
+    { "n": "A Tide On The Wrist",  "kind": "TATTOO", "text": "Water cards restore +2.", "fx": "el", "el": "water" },
+    { "n": "A Bird On The Thumb",  "kind": "TATTOO", "text": "Air cards restore +2.", "fx": "el", "el": "air" },
+    { "n": "A Twelve-Point Star",  "kind": "TATTOO", "text": "Whatever you speak last restores +3.", "fx": "closer" },
+    { "n": "A Split Knuckle",      "kind": "SCAR",   "text": "Cards with no sign restore +3.", "fx": "white" },
+    { "n": "A Long White Line",    "kind": "SCAR",   "text": "Whatever you speak first restores +2.", "fx": "opener" },
+    { "n": "A Steady Voice",       "kind": "BOON",   "text": "The first 4 of every reading ignores denial.", "fx": "pierce" },
+    { "n": "A Glass Of Water",     "kind": "BOON",   "text": "Draw one more every reading.", "fx": "hand" },
+    { "n": "Usury",                "kind": "BOON",   "text": "Every reading that restores someone pays 5 centimes.", "fx": "usury" }
+  ]
+}

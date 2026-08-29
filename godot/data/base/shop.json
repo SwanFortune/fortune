@@ -1,0 +1,11 @@
+{
+  "_comment": "Ported from SHOP_NODE / buildShop() in Parlour v23.dc.html (line ~1484, ~2303). The apothecary always offers one Arcanum (14c), one random Mark (11c), and the removal of the deck's weakest card (8c).",
+  "shop": {
+    "kind": "SHOP",
+    "title": "The apothecary is open", "body": "Ink, cards, and the removal of things.",
+    "head": "THE APOTHECARY", "line": "He is open because he never sleeps",
+    "arcanum_price": 14, "mark_price": 11,
+    "burn_price": 8, "burn_name": "Burn A Card",
+    "burn_text": "Take the weakest thing in your deck out of it for good. He does it in the grate while you watch."
+  }
+}

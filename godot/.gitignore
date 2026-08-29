@@ -1,0 +1,4 @@
+# Godot 4 local cache/import artifacts — regenerated on open, not source.
+.godot/
+*.translation
+export_presets.cfg

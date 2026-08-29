@@ -1,0 +1,11 @@
+{
+  "_comment": "Ported from RELICS in Parlour v23.dc.html (line ~1409). Dropped by elite sitters on win (Run.roll_relic). Both relics and marks populate the same runtime state.marks array as permanent passive bonuses — kept as two source pools per the original data, distinguished only by drop source and 'kind' badge color.",
+  "relics": [
+    { "n": "The Widow's Wedding Band", "kind": "RING",   "text": "One more energy every reading.", "fx": "energy" },
+    { "n": "A Dead Man's Signet",      "kind": "RING",   "text": "One more card in hand.", "fx": "hand" },
+    { "n": "The Sergeant's Thumb Ring","kind": "RING",   "text": "One more card in hand every reading.", "fx": "hand" },
+    { "n": "A Debt Collector's Band",  "kind": "RING",   "text": "Five centimes extra off everyone you restore.", "fx": "usury" },
+    { "n": "Ash Rubbed Into The Wrist","kind": "TATTOO", "text": "Fire cards restore +2.", "fx": "el", "el": "fire" },
+    { "n": "A Drowned Sailor's Mark",  "kind": "TATTOO", "text": "Water cards restore +2.", "fx": "el", "el": "water" }
+  ]
+}

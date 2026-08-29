@@ -1,0 +1,15 @@
+{
+  "_comment": "Ported from JOBS in Parlour v23.dc.html (line ~1230). Keyed by the job's role string, which sitters.json/boss.json reference via 'role'.",
+  "jobs": {
+    "THE LAUNDRESS":                                      { "t": "She works while she talks. You draw one more card every reading.", "fx": "deal1" },
+    "THE POSTMAN":                                        { "t": "He brings you things. One more energy every reading.", "fx": "energy1" },
+    "SHE WILL NOT MARRY HIM":                              { "t": "It is Saturday either way. One reading fewer than usual.", "fx": "rush" },
+    "THE GRAVEDIGGER":                                    { "t": "He is in no hurry at all. One reading more than usual.", "fx": "slow" },
+    "THE ELECTRICIAN":                                    { "t": "They want the fault found first. Whatever opens the sentence restores +3.", "fx": "opener3" },
+    "THE SCHOOLTEACHER":                                  { "t": "She marks your work. Saying the same sign twice in a row restores +3.", "fx": "steady3" },
+    "THE BUTCHER":                                        { "t": "He pays by weight. Every reading pays 3 centimes.", "fx": "coin3" },
+    "THE PRIEST":                                         { "t": "He has heard worse in confidence. Your first reading deals two more cards.", "fx": "free1" },
+    "THE CLOCKMAKER":                                     { "t": "Four minutes fast. Whatever closes the sentence restores +3.", "fx": "closer3" },
+    "HE PAID IN ADVANCE, WHICH IS ITS OWN KIND OF THREAT": { "t": "He paid in advance. One card fewer in every hand.", "fx": "tax2" }
+  }
+}

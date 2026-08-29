@@ -1,0 +1,10 @@
+{
+  "id": "example.a_new_card",
+  "name": "Example Mod — A New Card",
+  "version": "1.0.0",
+  "priority": 10,
+  "description": "Demonstrates the pack format: adds one new minor card to the water pool. Loaded automatically in dev builds (Content.LOAD_EXAMPLE_MODS); real player mods work identically from user://mods/<your_mod>/.",
+  "files": [
+    "cards_minor.json"
+  ]
+}

@@ -1,0 +1,22 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="Parlour"
+run/main_scene="res://scenes/Boot.tscn"
+config/features=PackedStringArray("4.3", "GL Compatibility")
+config/icon=""
+
+[autoload]
+
+Workshop="*res://autoload/Workshop.gd"
+Content="*res://autoload/Content.gd"
+Rules="*res://autoload/Rules.gd"
+Run="*res://autoload/Run.gd"
+Nav="*res://autoload/Nav.gd"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

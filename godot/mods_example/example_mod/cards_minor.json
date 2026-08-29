@@ -1,0 +1,6 @@
+{
+  "_comment": "A mod's data file uses the exact same schema as the base game's — this is cards_minor.json again, just in a different pack. The record's key field ('n', per ModLoader.ARRAY_KEY_FIELDS) decides whether it's a new card or an override of an existing one; 'Warm The Cup' doesn't exist in the base pool, so it's appended.",
+  "cards_minor": [
+    { "n": "Warm The Cup", "r": "common", "a": "", "sp": "warm the cup", "el": "water", "f": 3, "cost": 1, "draw": 1 }
+  ]
+}

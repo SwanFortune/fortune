@@ -1,0 +1,17 @@
+{
+  "elements": {
+    "water": { "label": "WATER", "glyph": "▽", "color": "#5B9BD5", "gives": "Feeling",       "body": "Nodding, tea, silence, sitting closer, hugging." },
+    "air":   { "label": "AIR",   "glyph": "◇", "color": "#D9C87A", "gives": "Understanding", "body": "Naming it. The family, the pattern, the plot." },
+    "fire":  { "label": "FIRE",  "glyph": "△", "color": "#D97F4C", "gives": "Empowerment",   "body": "Take it. Refuse. Backflip. Scream. Destroy it. Action." },
+    "earth": { "label": "EARTH", "glyph": "□", "color": "#8FBF6B", "gives": "Anchoring",     "body": "Coins, calluses, taxes, dates, the material world." }
+  },
+  "ring": ["fire", "earth", "air", "water"],
+  "next": { "fire": "earth", "earth": "air", "air": "water", "water": "fire" },
+  "opp":  { "fire": "air", "air": "fire", "earth": "water", "water": "earth" },
+  "neighbors": {
+    "fire":  ["water", "earth"],
+    "earth": ["fire", "air"],
+    "air":   ["earth", "water"],
+    "water": ["air", "fire"]
+  }
+}

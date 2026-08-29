@@ -1,0 +1,10 @@
+{
+  "_comment": "Ported from BOSS in Parlour v23.dc.html (line ~1479). Always the final (8th) knock of night 3.",
+  "boss": {
+    "name": "Mayor Havel", "role": "HE PAID IN ADVANCE, WHICH IS ITS OWN KIND OF THREAT", "p": "he", "el": "earth",
+    "max": 50, "denial": 8, "drain": 6, "turns": 9,
+    "brings": "The ledger is a record, nothing more. I am protecting the village, not the name. Thirty years is too long to undo, and she never asked me for anything.",
+    "win": "He says the name out loud at the town hall. It is a catastrophe and a relief and the village never recovers or wants to.",
+    "fail": "He reads the ledger aloud instead. Every fortune in the village, side by side, in your own words."
+  }
+}

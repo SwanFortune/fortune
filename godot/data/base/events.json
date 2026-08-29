@@ -1,0 +1,23 @@
+{
+  "_comment": "Adapted from EVENTS in Parlour v23.dc.html (line ~1487). PORTING DECISION (see docs/PORTING_NOTES.md): the source's 'rest:nerve' option reward is dead — the 'nerve'/spiral stat was removed from the design in chat11 but these three event option rewards were never migrated off it, so 'foot' text like '+10 nerve now, +2 for the rest of the run' currently does nothing in v23. We ported the flavor text and choice structure unchanged but replaced the reward with a flat faith payout on the affected options (still free, still the 'spend it on yourself / score' vs 'spend it on money' choice the source event was going for), and dropped the foot line that no longer applies.",
+  "events": [
+    { "title": "Your own chair, for once", "body": "Twenty minutes before the next one knocks.",
+      "head": "THE BACK ROOM", "line": "Spend them on yourself or on the money.",
+      "opts": [
+        { "kind": "SIT AND DO NOTHING", "name": "Twenty Minutes", "text": "You do not think about any of them. Afterwards you can sit with people a little longer than you could.", "reward": { "faith": 10 } },
+        { "kind": "COUNT THE TILL", "name": "The Evening's Take", "text": "You go through the saucer twice and find more than you remembered.", "reward": { "coin": 12 } }
+      ] },
+    { "title": "A girl on the stairs, no money", "body": "She has been waiting since the last one went in.",
+      "head": "SHE CANNOT PAY", "line": "She wants to know whether her brother is coming back.",
+      "opts": [
+        { "kind": "READ HER FOR NOTHING", "name": "For Nothing", "text": "You tell her the truth in the kindest order you can find. She goes home lighter and tells nobody who did it.", "reward": { "faith": 14 } },
+        { "kind": "SEND HER FOR HER MOTHER", "name": "The Full Rate", "text": "She comes back an hour later with the coins in a handkerchief. You read the same cards.", "reward": { "coin": 16 } }
+      ] },
+    { "title": "A card came out of the deck wrong", "body": "It was face up in the pack before you shuffled.",
+      "head": "THE MISDEAL", "line": "Something in the deck is not doing what you asked it to.",
+      "opts": [
+        { "kind": "THE REMOVAL OF THINGS", "name": "Burn It", "text": "Take the weakest thing in your deck out of it for good. You do it in the grate yourself.", "reward": { "burn": true } },
+        { "kind": "SHUFFLE AND FORGET IT", "name": "Let It Lie", "text": "You put it back in the middle and decide not to think about it any further tonight.", "reward": { "faith": 8 } }
+      ] }
+  ]
+}

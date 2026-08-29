@@ -1,0 +1,29 @@
+{
+  "_comment": "Ported from SIGNS in Parlour v23.dc.html (line ~1201). {S}/{s}/{is}/{es}/{p}/{do}/{o}/{r} are pronoun tokens filled from a sitter's pronoun (he/she/they) at display time — see PRON in the source.",
+  "signs": [
+    { "k": "aries",       "n": "ARIES",       "el": "fire",  "dn": "THE HEAD START",
+      "rule": "{S} {is} already ahead of you. The first card of every reading restores nothing.", "fx": "mutefirst" },
+    { "k": "leo",         "n": "LEO",         "el": "fire",  "dn": "THE AUDIENCE",
+      "rule": "{S} need{es} it to be a performance. A reading of fewer than three cards restores nothing at all.", "fx": "minthree" },
+    { "k": "sagittarius", "n": "SAGITTARIUS", "el": "fire",  "dn": "THE INTERRUPTION",
+      "rule": "{S} interrupt{es} with a story of {p} own. Whatever you speak last restores half.", "fx": "lasthalf" },
+    { "k": "taurus",      "n": "TAURUS",      "el": "earth", "dn": "THE COLD SHOULDER",
+      "rule": "Nothing reaches {o} cold. A wall holds off the first points of every reading, and it thickens 2 each time.", "fx": "shield" },
+    { "k": "virgo",       "n": "VIRGO",       "el": "earth", "dn": "THE CORRECTION",
+      "rule": "{S} correct{es} you back into shape. A sign already spoken in this reading restores nothing the second time.", "fx": "norepeat" },
+    { "k": "capricorn",   "n": "CAPRICORN",   "el": "earth", "dn": "THE DISBELIEF",
+      "rule": "{S} {do} not believe anything happens tonight. Fire restores nothing at {p} table.", "fx": "deadel", "dead": "fire" },
+    { "k": "gemini",      "n": "GEMINI",      "el": "air",   "dn": "THE CHANGED SUBJECT",
+      "rule": "{S} will not sit still. One card leaves your hand at random before every reading.", "fx": "steal" },
+    { "k": "libra",       "n": "LIBRA",       "el": "air",   "dn": "THE OTHER HAND",
+      "rule": "{S} weigh{es} both sides of everything. Cards of {p} own sign restore half.", "fx": "halfown" },
+    { "k": "aquarius",    "n": "AQUARIUS",    "el": "air",   "dn": "THE ABSENCE",
+      "rule": "{S} {is} already somewhere else. You have one less energy every reading.", "fx": "energydown" },
+    { "k": "cancer",      "n": "CANCER",      "el": "water", "dn": "THE WITHDRAWAL",
+      "rule": "{S} take{es} it back inside. Whatever your best card restores is halved.", "fx": "halfbest" },
+    { "k": "scorpio",     "n": "SCORPIO",     "el": "water", "dn": "THE X-RAY",
+      "rule": "{S} know{es} what you are. No card pays its condition — nothing for opening, closing or following.", "fx": "nobonus" },
+    { "k": "pisces",      "n": "PISCES",      "el": "water", "dn": "THE TIDE",
+      "rule": "{S} cannot hold it. Nothing is held off the first reading, and the wall thickens 4 after every one.", "fx": "tide" }
+  ]
+}
