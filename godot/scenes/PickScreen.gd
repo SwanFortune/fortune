@@ -16,10 +16,10 @@ func _ready() -> void:
 	m.add_child(v)
 
 	if pick.get("head", "") != "":
-		v.add_child(UIKit.label(pick["head"], 13, UIKit.GOLD))
-	v.add_child(UIKit.label(pick.get("title", ""), 22, UIKit.INK))
-	v.add_child(UIKit.label(pick.get("body", ""), 13, UIKit.DIM))
-	v.add_child(UIKit.label("Coin: %s   Faith: %s   Deck: %s cards" % [Run.state["coin"], Run.state["faith"], Run.state["deck"].size()], 12, UIKit.DIM))
+		v.add_child(UIKit.block(pick["head"], 13, UIKit.GOLD))
+	v.add_child(UIKit.block(pick.get("title", ""), 22, UIKit.INK))
+	v.add_child(UIKit.block(pick.get("body", ""), 13, UIKit.DIM))
+	v.add_child(UIKit.block("Coin: %s   Faith: %s   Deck: %s cards" % [Run.state["coin"], Run.state["faith"], Run.state["deck"].size()], 12, UIKit.DIM))
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
@@ -36,7 +36,7 @@ func _ready() -> void:
 		v.add_child(UIKit.button(pick.get("skipLabel", "SKIP"), _skip))
 
 
-func _opt_button(o: Dictionary, i: int) -> Button:
+func _opt_button(o: Dictionary, i: int) -> Control:
 	var lines: Array = []
 	var cost := int(o.get("cost", 0))
 	var afford := cost <= int(Run.state["coin"])

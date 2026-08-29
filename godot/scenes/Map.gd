@@ -10,9 +10,9 @@ func _ready() -> void:
 	m.add_child(v)
 
 	var st: Dictionary = Run.state
-	v.add_child(UIKit.label("NIGHT %d · KNOCK %d OF 8" % [int(st["night"]) + 1, int(st["step"]) + 1], 14, UIKit.GOLD))
-	v.add_child(UIKit.label("Who knocks tonight?", 22, UIKit.INK))
-	v.add_child(UIKit.label("Reader: %s · Coin: %s · Faith: %s · Mended: %s · Deck: %s" % [
+	v.add_child(UIKit.block("NIGHT %d · KNOCK %d OF 8" % [int(st["night"]) + 1, int(st["step"]) + 1], 14, UIKit.GOLD))
+	v.add_child(UIKit.block("Who knocks tonight?", 22, UIKit.INK))
+	v.add_child(UIKit.block("Reader: %s · Coin: %s · Faith: %s · Mended: %s · Deck: %s" % [
 		st["reader"]["name"], st["coin"], st["faith"], st["mended"], st["deck"].size()
 	], 12, UIKit.DIM))
 
@@ -28,7 +28,7 @@ func _ready() -> void:
 		list.add_child(_opt_button(opts[i], i))
 
 
-func _opt_button(o: Dictionary, i: int) -> Button:
+func _opt_button(o: Dictionary, i: int) -> Control:
 	var lines: Array = []
 	match o["kind"]:
 		"sitter", "elite", "boss":

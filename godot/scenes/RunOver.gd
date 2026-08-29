@@ -12,9 +12,9 @@ func _ready() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	m.add_child(v)
 
-	v.add_child(UIKit.label(over.get("head", ""), 15, UIKit.GOLD))
-	v.add_child(UIKit.label(over.get("title", ""), 22, UIKit.INK))
-	v.add_child(UIKit.label(over.get("body", ""), 13, UIKit.DIM))
+	v.add_child(UIKit.block(over.get("head", ""), 15, UIKit.GOLD))
+	v.add_child(UIKit.block(over.get("title", ""), 22, UIKit.INK))
+	v.add_child(UIKit.block(over.get("body", ""), 13, UIKit.DIM))
 
 	for line in over.get("lines", []):
 		var row := UIKit.hbox(12)

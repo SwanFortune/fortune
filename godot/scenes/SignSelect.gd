@@ -9,8 +9,8 @@ func _ready() -> void:
 	var v := UIKit.vbox(14)
 	m.add_child(v)
 
-	v.add_child(UIKit.label("CHOOSE YOUR SIGN", 26, UIKit.GOLD))
-	v.add_child(UIKit.label("Every reader is a sign, an element, and a starting deck of ten.", 13, UIKit.DIM))
+	v.add_child(UIKit.block("CHOOSE YOUR SIGN", 26, UIKit.GOLD))
+	v.add_child(UIKit.block("Every reader is a sign, an element, and a starting deck of ten.", 13, UIKit.DIM))
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)

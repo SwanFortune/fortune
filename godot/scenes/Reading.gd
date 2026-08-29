@@ -18,19 +18,19 @@ func _ready() -> void:
 
 	var s: Dictionary = f["sitter"]
 	var q: Dictionary = f["quirk"]
-	v.add_child(UIKit.label("%s · %s" % [s["name"], s["role"]], 18, UIKit.INK))
-	v.add_child(UIKit.label("sign %s — %s: %s" % [q["n"], q["dn"], q["rule"]], 12, UIKit.DIM))
+	v.add_child(UIKit.block("%s · %s" % [s["name"], s["role"]], 18, UIKit.INK))
+	v.add_child(UIKit.block("sign %s — %s: %s" % [q["n"], q["dn"], q["rule"]], 12, UIKit.DIM))
 
 	var hp_ratio := float(f["hp"]) / float(f["max"]) if int(f["max"]) > 0 else 0.0
 	var energy_ratio := float(f["energy"]) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
 	v.add_child(UIKit.stat_row("Composure", "%s / %s" % [f["hp"], f["max"]], hp_ratio, UIKit.GREEN))
 	v.add_child(UIKit.stat_row("Energy", "%s / %s" % [f["energy"], f["energyMax"]], energy_ratio, UIKit.GOLD))
-	v.add_child(UIKit.label("Reading %s of %s   ·   Denial wall %s" % [f["turn"], f["turns"], f["denial"]], 12, UIKit.DIM))
+	v.add_child(UIKit.block("Reading %s of %s   ·   Denial wall %s" % [f["turn"], f["turns"], f["denial"]], 12, UIKit.DIM))
 
 	if f.get("taken", null) != null:
-		v.add_child(UIKit.label("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
+		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
 
-	v.add_child(UIKit.label("SAID SO FAR", 12, UIKit.DIM))
+	v.add_child(UIKit.block("SAID SO FAR", 12, UIKit.DIM))
 	var cross_box := UIKit.hbox(6)
 	v.add_child(cross_box)
 	if f["cross"].is_empty():
@@ -55,7 +55,7 @@ func _ready() -> void:
 		list.add_child(_card_button(c, f))
 
 
-func _card_button(c: Dictionary, f: Dictionary) -> Button:
+func _card_button(c: Dictionary, f: Dictionary) -> Control:
 	var afford := int(c.get("cost", 0)) <= int(f["energy"])
 	var el_c: Color = UIKit.el_color(c["el"]) if c.get("el") != null else UIKit.DIM
 	var lines := [

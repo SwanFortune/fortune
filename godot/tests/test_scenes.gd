@@ -18,6 +18,14 @@ var run: Node
 func _initialize() -> void:
 	content = root.get_node("Content")
 	run = root.get_node("Run")
+	# See screenshot.gd's _initialize() comment: Run._ready() (state =
+	# fresh()) is deferred to the first process frame, and this script awaits
+	# frames later on — without waiting one out first, that deferred _ready()
+	# would fire mid-sweep and silently reset whatever state the current
+	# _visit() just built. Order happened to make this harmless today (the
+	# first visit is "sign", which wants fresh() anyway) but that's luck, not
+	# a guarantee against future reordering.
+	await process_frame
 	content.reload()
 
 	await _visit("sign", func(): run.state = run.fresh())
