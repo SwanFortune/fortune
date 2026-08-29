@@ -78,7 +78,11 @@ The user asked for best judgment on these, flagged rather than silently made:
   `UIKit.el_glyph()` — not the SVG path art), no booster-pack-opening
   animation, no letter-by-letter "mumble" reveal when a reading resolves, no
   cursor-following tooltip (Godot's native hover tooltip is used instead —
-  see `UIKit.KEYS`/`card_keyword_tooltip()`). A fan-of-cards hand layout and a
+  see `UIKit.KEYS`/`card_keyword_tooltip()`). Card and portrait illustration
+  is **not missing so much as pending**: the pipeline for it is built and
+  tested (`autoload/Art.gd`, `data/base/art_manifest.json`,
+  `docs/ART_GUIDE.md`), every asset falls back to a placeholder until
+  delivered, and nothing needs a code change when art lands. A fan-of-cards hand layout and a
   procedural mood-reactive sitter portrait ARE in (see `UIKit.card_face()` /
   `UIKit.sitter_portrait()`), on the Reading screen specifically — other
   screens (PickScreen's reward/shop rows) intentionally keep the roomier
@@ -132,13 +136,20 @@ content changes.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
 - `autoload/Workshop.gd` — the Steam Workshop stub; see `docs/STEAM_WORKSHOP.md`.
+- `autoload/Art.gd` — resolves art ids to textures, null when undelivered;
+  see `docs/ART_GUIDE.md` (artist-facing) and `tests/gen_art_manifest.gd`.
 - `scenes/` — the playable UI.
 - `tests/` — headless tests, runnable without a display:
   `godot --headless --path godot -s tests/test_rules.gd` (scoring engine),
   `tests/test_run.gd` (state machine, plays random full encounters),
   `tests/test_scenes.gd` (instantiates every screen against every game state),
   `tests/test_content_audit.gd` (fx cross-check, the AUDIT tab equivalent),
+  `tests/test_art.gd` (art manifest -> texture pipeline, incl. the
+  "runs fine with zero art delivered" guarantee),
   `tests/balance_sim.gd -- <n>` (difficulty report, the BALANCE tab equivalent),
+  `tests/gen_art_manifest.gd` (regenerates the artist's checklist from live
+  content), `tests/gen_test_art.gd` (dev-only: fake gradient art to exercise
+  the delivered-art path),
   `tests/screenshot.gd <scenario> <out.png>` (dev-only: renders one scenario
   under a real Xvfb + software-GL display and saves a PNG — how every UI
   layout claim in this file and in commit messages was actually verified,

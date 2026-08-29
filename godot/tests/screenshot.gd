@@ -1,9 +1,16 @@
 ## Dev-only tool (not part of the test suite): boots a scene under a real
-## (Xvfb) display, lets one frame settle, and saves a PNG. Not run in CI —
-## used interactively during visual work since this environment has no
+## (Xvfb) display, lets it settle, and saves a PNG. Not run in CI — used
+## interactively during visual work since this environment has no
 ## interactive display of its own. Run with:
-##   xvfb-run -a godot --path godot -s tests/screenshot.gd -- <scene_setup> <out.png>
-## where <scene_setup> is one of the keys in SETUPS below.
+##   xvfb-run -a godot --path godot -s tests/screenshot.gd -- <scene_setup> <out.png> [settle_seconds]
+## where <scene_setup> is one of the keys in _setup() below.
+##
+## settle_seconds (default 1.2) is how long to let animations run before
+## capturing. Pass a small value (e.g. 0.12) to catch a frame mid-tween —
+## that's how the animation work was verified, since a single PNG can't show
+## motion but a pair of them at different settle times can show that
+## something is in fact moving (a half-filled bar at 0.12s vs. a full one at
+## 1.2s proves the tween is running, not just that the end state is right).
 extends SceneTree
 
 var content: Node
@@ -27,6 +34,7 @@ func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
 	var setup_name := args[0] if args.size() > 0 else "sign"
 	var out_path := args[1] if args.size() > 1 else "/tmp/screenshot.png"
+	var settle: float = float(args[2]) if args.size() > 2 else 1.2
 
 	_setup(setup_name)
 	var scene_path: String = Nav.SCENES.get(run.state["screen"], "res://scenes/MainMenu.tscn")
@@ -37,15 +45,20 @@ func _initialize() -> void:
 	var instance: Node = packed.instantiate()
 	root.add_child(instance)
 
-	for i in 6:
+	# Let the scene lay out, then run animations for `settle` seconds of
+	# real time. create_timer() is driven by the same frame loop the tweens
+	# are, so this advances them rather than just sleeping past them.
+	for i in 3:
 		await process_frame
+	if settle > 0.0:
+		await create_timer(settle).timeout
 
 	if OS.get_environment("PARLOUR_DEBUG_SIZES") == "1":
 		_debug_sizes(instance)
 
 	var img := root.get_viewport().get_texture().get_image()
 	img.save_png(out_path)
-	print("saved ", out_path, " (", scene_path, ")")
+	print("saved ", out_path, " (", scene_path, ", settled ", settle, "s)")
 	quit(0)
 
 
@@ -70,9 +83,12 @@ func _setup(name: String) -> void:
 			run.state = run.fresh()
 			run.pick_reader(0)
 			run.take_pick(0)
-		"read":
+		"read", "read_cancer":
 			run.state = run.fresh()
-			run.pick_reader(0)
+			# Cancer (index 3) starts holding Pour The Tea, which is the card
+			# the art-pipeline test image is attached to — handy for checking
+			# delivered card art actually renders in the hand.
+			run.pick_reader(3 if name == "read_cancer" else 0)
 			run.take_pick(0)
 			var sitter_idx := -1
 			for i in run.state["options"].size():

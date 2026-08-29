@@ -32,9 +32,10 @@ godot --headless --path godot -s tests/test_rules.gd          # scoring engine v
 godot --headless --path godot -s tests/test_run.gd             # state machine, plays random full encounters
 godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
 godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check (the AUDIT tab equivalent)
+godot --headless --path godot -s tests/test_art.gd             # art manifest -> texture pipeline
 ```
 
-All four should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
+All five should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
 
 There's also a balance report (not pass/fail — read it, see `docs/PORTING_NOTES.md`'s "Balance: a first read"):
 
@@ -51,13 +52,26 @@ xvfb-run -a godot --path godot -s tests/screenshot.gd -- read out.png
 # scenario is one of: sign, gift, map, read, read_laid, win, reward, over
 ```
 
+## For the artist
+
+Everything that needs drawing is catalogued in `data/base/art_manifest.json`
+(generated from live content, so it can't go stale), and **`docs/ART_GUIDE.md`
+is the brief** — sizes, safe zones, naming, tone, and the full checklist.
+Art is optional at every point: anything not yet delivered falls back to a
+procedural placeholder, so the game always runs and improves piece by piece.
+
+```
+godot --headless --path godot -s tests/gen_art_manifest.gd   # refresh the checklist after content changes
+```
+
 ## Layout
 
 ```
-autoload/     Content, ModLoader, Rules, Run, Nav, Workshop — see their doc comments
+autoload/     Content, ModLoader, Rules, Run, Nav, Workshop, Art — see their doc comments
 data/base/    the base game's content, as JSON (also the mod-pack schema — see docs/MODDING.md)
+assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
 scenes/       the playable UI
 mods_example/ a tiny working example mod, proving the pack format end to end
-tests/        headless tests (no editor/display required)
-docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md
+tests/        headless tests + dev tools (no editor/display required)
+docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md
 ```

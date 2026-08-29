@@ -1,12 +1,93 @@
 {
   "_comment": "Ported from BASICS in Parlour v23.dc.html (line ~1276). f = base restore, cost = energy cost (0..3). These 7 plus a reader's 2 signature cards plus 1 borrowed neighbour-element card make the starting 10-card deck.",
   "cards_basics": [
-    { "n": "Take Their Coat",    "r": "basic", "a": "channel", "sp": "take their coat",    "el": null, "neutral": true, "f": 1, "cost": 0, "energy": 2, "exhaust": true },
-    { "n": "Ask Them To Sit",    "r": "basic", "a": "timing",  "sp": "ask them to sit",    "el": null, "neutral": true, "f": 3, "cost": 1, "opener": 4, "exhaust": true },
-    { "n": "Set Down The Cloth", "r": "basic", "a": "timing",  "sp": "set down the cloth", "el": null, "neutral": true, "f": 1, "cost": 1, "next": 5, "exhaust": true },
-    { "n": "Light The Lamp",     "r": "basic", "a": "timing",  "sp": "light the lamp",     "el": null, "neutral": true, "f": 2, "cost": 1, "closer": 4, "exhaust": true },
-    { "n": "Shuffle And Cut",    "r": "basic", "a": "",        "sp": "shuffle and cut",    "el": null, "neutral": true, "f": 2, "cost": 1, "draw": 1 },
-    { "n": "Say Their Name",     "r": "basic", "a": "pinpoint","sp": "say their name",     "el": null, "neutral": true, "f": 5, "cost": 2, "pierce": true },
-    { "n": "Turn The Top Card",  "r": "basic", "a": "",        "sp": "turn the top card",  "el": null, "neutral": true, "f": 1, "cost": 1, "draw": 2 }
+    {
+      "n": "Take Their Coat",
+      "r": "basic",
+      "a": "channel",
+      "sp": "take their coat",
+      "el": null,
+      "neutral": true,
+      "f": 1,
+      "cost": 0,
+      "energy": 2,
+      "exhaust": true,
+      "fl": "The coat only comes off the once."
+    },
+    {
+      "n": "Ask Them To Sit",
+      "r": "basic",
+      "a": "timing",
+      "sp": "ask them to sit",
+      "el": null,
+      "neutral": true,
+      "f": 3,
+      "cost": 1,
+      "opener": 4,
+      "exhaust": true,
+      "fl": "Do not make them do it twice, please."
+    },
+    {
+      "n": "Set Down The Cloth",
+      "r": "basic",
+      "a": "timing",
+      "sp": "set down the cloth",
+      "el": null,
+      "neutral": true,
+      "f": 1,
+      "cost": 1,
+      "next": 5,
+      "exhaust": true,
+      "fl": "The table is already a table."
+    },
+    {
+      "n": "Light The Lamp",
+      "r": "basic",
+      "a": "timing",
+      "sp": "light the lamp",
+      "el": null,
+      "neutral": true,
+      "f": 2,
+      "cost": 1,
+      "closer": 4,
+      "exhaust": true,
+      "fl": "The lamp stays lit after."
+    },
+    {
+      "n": "Shuffle And Cut",
+      "r": "basic",
+      "a": "",
+      "sp": "shuffle and cut",
+      "el": null,
+      "neutral": true,
+      "f": 2,
+      "cost": 1,
+      "draw": 1,
+      "fl": "Let them cut it themselves."
+    },
+    {
+      "n": "Say Their Name",
+      "r": "basic",
+      "a": "pinpoint",
+      "sp": "say their name",
+      "el": null,
+      "neutral": true,
+      "f": 5,
+      "cost": 2,
+      "pierce": true,
+      "fl": "Out loud, once, correctly."
+    },
+    {
+      "n": "Turn The Top Card",
+      "r": "basic",
+      "a": "",
+      "sp": "turn the top card",
+      "el": null,
+      "neutral": true,
+      "f": 1,
+      "cost": 1,
+      "draw": 2,
+      "fl": "Classic sleight of hand."
+    }
   ]
 }

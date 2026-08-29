@@ -220,21 +220,33 @@ func start_fight(o: Dictionary) -> void:
 	state_changed.emit()
 
 
+## Animation bookkeeping note: the UI (Reading.gd) fully rebuilds itself from
+## Run.state on every action rather than staying alive and being incrementally
+## updated (see UIKit.gd's doc comment), so there's no persistent node around
+## to interpolate FROM. The fields below (_prevHp/_prevEnergy/_justDrawn/
+## _justDiscarded) exist purely so the next rebuild can still animate
+## correctly: they snapshot "what changed this action" onto the fight dict
+## itself, read once by the UI and not treated as real game state anywhere
+## in Rules.gd or elsewhere in Run.gd.
 func begin_turn(f: Dictionary) -> void:
 	if has("serpent") and f["turn"] > 1:
 		var cur: String = state.get("serp_el", "") if state.get("serp_el", "") != "" else state["reader"]["el"]
 		var ring: Array = Content.ring
 		state["serp_el"] = ring[(ring.find(cur) + 1) % ring.size()]
+	f["_prevEnergy"] = 0  # a new reading's energy bar animates as a full recharge, not a jump
 	f["energy"] = f["energyMax"]
 	f["cross"] = []
+	f["_justDiscarded"] = []
 	if not f["hand"].is_empty():
 		f["swept"] = f["hand"].size()
+		f["_justDiscarded"] = f["hand"].map(func(c): return c["n"])
 		f["disc"] = f["disc"] + f["hand"]
 		f["hand"] = []
 	else:
 		f["swept"] = 0
 	var free1_bonus := 2 if (f.get("job", {}).get("fx", "") == "free1" and f["turn"] == 1) else 0
 	draw_to(f, int(f["handMax"]) + free1_bonus)
+	f["_justDrawn"] = f["hand"].map(func(c): return c["uid"])
 	f["taken"] = null
 	var quirk: Dictionary = f.get("quirk", {})
 	if quirk.get("fx", "") == "steal" and not f["hand"].is_empty():
@@ -271,13 +283,18 @@ func lay_card(card_uid: String) -> void:
 			break
 	if c.is_empty() or int(c.get("cost", 0)) > int(f["energy"]):
 		return
+	f["_prevEnergy"] = f["energy"]
+	f["_prevHp"] = f["hp"]  # unchanged by laying a card — avoids replaying a stale hp animation from a prior reading
+	f["_justDiscarded"] = []
 	f["cross"].append(c)
 	f["hand"] = f["hand"].filter(func(x): return x["uid"] != card_uid)
 	f["energy"] -= int(c.get("cost", 0))
 	if c.has("energy"):
 		f["energy"] += int(c["energy"])
+	var before_uids: Array = f["hand"].map(func(x): return x["uid"])
 	if c.has("draw"):
 		draw_to(f, f["hand"].size() + int(c["draw"]))
+	f["_justDrawn"] = f["hand"].filter(func(x): return not before_uids.has(x["uid"])).map(func(x): return x["uid"])
 	state["sel"] = ""
 	state_changed.emit()
 
@@ -295,6 +312,7 @@ func read_it() -> void:
 
 func resolve_read(sim: Dictionary) -> void:
 	var f: Dictionary = state["f"]
+	f["_prevHp"] = f["hp"]
 	f["hp"] = sim["hpAfter"]
 	f["faith"] = int(f["faith"]) + int(sim["over"]) + int(sim["bank"])
 	f["coin"] = int(f["coin"]) + int(sim["coin"])

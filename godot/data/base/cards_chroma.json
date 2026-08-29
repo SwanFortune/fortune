@@ -1,7 +1,29 @@
 {
   "_comment": "Ported from CHROMA in Parlour v23.dc.html (line ~1286). chroma:true cards count as whatever the reader's current element is (Rules.my_el()) — only meaningful for Serpentarius, whose deck starts with these two.",
   "cards_chroma": [
-    { "n": "Stir The Soup", "r": "common", "a": "digging", "sp": "stir the soup", "el": null, "chroma": true, "f": 3, "cost": 1, "bonusFlat": 2 },
-    { "n": "Whatever Is In Season", "r": "common", "a": "channel", "sp": "say whatever is in season", "el": null, "chroma": true, "f": 2, "cost": 1, "draw": 1 }
+    {
+      "n": "Stir The Soup",
+      "r": "common",
+      "a": "digging",
+      "sp": "stir the soup",
+      "el": null,
+      "chroma": true,
+      "f": 3,
+      "cost": 1,
+      "bonusFlat": 2,
+      "fl": "You do not look at what goes in."
+    },
+    {
+      "n": "Whatever Is In Season",
+      "r": "common",
+      "a": "channel",
+      "sp": "say whatever is in season",
+      "el": null,
+      "chroma": true,
+      "f": 2,
+      "cost": 1,
+      "draw": 1,
+      "fl": "Never the same twice, and nobody complains."
+    }
   ]
 }

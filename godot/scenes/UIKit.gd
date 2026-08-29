@@ -190,9 +190,40 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 	return wrap
 
 
+## The running SceneTree, for kicking off Tweens from a static RefCounted
+## helper. Node.create_tween() would be the normal way to do this, but the
+## nodes these helpers build aren't attached to anything yet at the point
+## they're constructed (their caller only parents them a few lines later) —
+## calling create_tween() on a not-yet-attached node fails since it goes
+## through get_tree() internally, which is null until the node is in the
+## live tree. SceneTree.create_tween() has no such requirement: it just needs
+## the tree to exist, not the animated node specifically, and a Tween's
+## property writes land on whatever node reference it holds regardless of
+## that node's own tree membership at the moment the tween was created — by
+## the time the next frame actually renders, the whole subtree these helpers
+## return is attached (every UI screen builds and parents its entire tree
+## synchronously within one _ready() call), so the animation is visible from
+## frame one with no dropped or out-of-order property writes.
+static func tree() -> SceneTree:
+	return Engine.get_main_loop()
+
+
+## Every animation helper below calls this immediately after create_tween().
+## A SceneTree-level tween (see tree() above) is NOT tied to any node's
+## lifetime by default, so if the screen it's animating gets torn down before
+## the tween finishes — this UI rebuilds the whole scene on every action, so
+## that's routine, not an edge case — the tween keeps running and then writes
+## to a freed node on its next step, which is a hard error, not a silent
+## no-op. bind_node() makes the tween stop itself the moment `target` leaves
+## the tree, which is exactly the lifetime this needs to track.
+static func bound_tween(target: Node) -> Tween:
+	return tree().create_tween().bind_node(target)
+
+
 ## A plain two-rect meter (no Theme/StyleBox fuss) — used for composure and
-## energy on the Reading screen. `ratio` is clamped to [0, 1].
-static func bar(ratio: float, fg: Color, w: float = 260, h: float = 14) -> Control:
+## energy on the Reading screen. Animates from `from_ratio` to `to_ratio`
+## (pass them equal for no animation); both clamped to [0, 1].
+static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h: float = 14, duration: float = 0.5) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(w, h)
 	var bg := ColorRect.new()
@@ -202,19 +233,60 @@ static func bar(ratio: float, fg: Color, w: float = 260, h: float = 14) -> Contr
 	var fill := ColorRect.new()
 	fill.color = fg
 	fill.position = Vector2.ZERO
-	fill.size = Vector2(w * clampf(ratio, 0.0, 1.0), h)
+	fill.size = Vector2(w * clampf(from_ratio, 0.0, 1.0), h)
 	c.add_child(fill)
+	var target_w := w * clampf(to_ratio, 0.0, 1.0)
+	if not is_equal_approx(fill.size.x, target_w):
+		bound_tween(fill).tween_property(fill, "size:x", target_w, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	return c
 
 
-static func stat_row(caption: String, value_text: String, ratio: float, fg: Color, tooltip: String = "") -> Control:
+static func stat_row(caption: String, value_text: String, from_ratio: float, to_ratio: float, fg: Color, tooltip: String = "") -> Control:
 	var row := hbox(10)
 	row.tooltip_text = tooltip
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(label(caption, 12, DIM))
-	row.add_child(bar(ratio, fg))
-	row.add_child(label(value_text, 12, INK))
+	row.add_child(bar(from_ratio, to_ratio, fg))
+	var value_l := label(value_text, 12, INK)
+	row.add_child(value_l)
+	if not is_equal_approx(from_ratio, to_ratio):
+		pulse(value_l, GREEN if to_ratio > from_ratio else RED)
 	return row
+
+
+## A quick color flash + scale bump — used on a value label the instant it
+## changes (composure/energy ticking, faith/coin gained) so the change reads
+## as an event, not just a number that's suddenly different after a screen
+## rebuild. Pivots from the node's top-left rather than its center — its
+## real size isn't known yet at the point this is called (layout hasn't run;
+## a fresh Control reports size (0,0) until it's actually been through a
+## layout pass), so a true center-pivot isn't available cheaply here. Small
+## enough content (a stat value, a few characters) that it isn't noticeable.
+static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> void:
+	if node is Label:
+		var start_color: Color = node.get_theme_color("font_color") if node.has_theme_color("font_color") else INK
+		bound_tween(node).tween_method(func(c: Color): node.add_theme_color_override("font_color", c), flash_color, start_color, duration).set_trans(Tween.TRANS_CUBIC)
+	node.scale = Vector2(1.35, 1.35)
+	bound_tween(node).tween_property(node, "scale", Vector2.ONE, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Fades + scales a node in — used for newly-drawn hand cards and the
+## most-recently-laid card, staggered by `delay` so a hand of 5 reads as a
+## deal rather than a simultaneous pop. Animates modulate/scale rather than
+## position deliberately: every place this is used lives inside a real
+## Container (HFlowContainer for the hand, HBoxContainer for the laid line),
+## and a Container re-asserts its children's `position` on every layout
+## pass — animating position there would just fight the container and
+## visibly snap back or jitter. modulate and scale aren't part of Container
+## layout, so they're safe to drive with a tween no matter what the parent
+## does on its next sort.
+static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32) -> void:
+	node.modulate.a = 0.0
+	node.scale = Vector2(0.75, 0.75)
+	var t := bound_tween(node)
+	t.set_parallel(true)
+	t.tween_property(node, "modulate:a", 1.0, duration).set_delay(delay).set_trans(Tween.TRANS_QUAD)
+	t.tween_property(node, "scale", Vector2.ONE, duration).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## A small procedural face reacting to how close the sitter is to mended
@@ -223,7 +295,13 @@ static func stat_row(caption: String, value_text: String, ratio: float, fg: Colo
 ## mouth shape, and a warm "flush" glow) — not the source's hand-drawn
 ## portrait, which this pass doesn't attempt, but the same idea: composure
 ## climbing is legible on the sitter's face, not just in a number.
-static func sitter_portrait(el: String, hp_ratio: float) -> Control:
+## `art` is an optional delivered portrait (Art.sitter_texture(...)); when
+## present it replaces the procedural face entirely, keeping only the
+## composure glow behind it. Null (the default, and the state of every sitter
+## until the artist delivers) falls through to the drawn placeholder.
+static func sitter_portrait(el: String, hp_ratio: float, art: Texture2D = null) -> Control:
+	if art != null:
+		return sitter_portrait_art(el, hp_ratio, art)
 	var port := Control.new()
 	port.custom_minimum_size = Vector2(96, 96)
 	var r := clampf(hp_ratio, 0.0, 1.0)
@@ -268,6 +346,35 @@ static func sitter_portrait(el: String, hp_ratio: float) -> Control:
 		for i in pts.size() - 1:
 			port.draw_line(pts[i], pts[i + 1], Color(0.3, 0.18, 0.14), 2.2, true)
 	)
+	return port
+
+
+## Delivered-portrait variant of sitter_portrait(). Keeps the composure-driven
+## element glow (so the "they're softening" read survives) but lets the
+## artwork carry the face. Portraits are authored 3:4 (see docs/ART_GUIDE.md);
+## this crops to the square header slot, biased to the top where the face is.
+static func sitter_portrait_art(el: String, hp_ratio: float, art: Texture2D) -> Control:
+	var port := Control.new()
+	port.custom_minimum_size = Vector2(96, 96)
+	var flush := clampf(hp_ratio, 0.0, 1.0)
+	var glow := el_color(el)
+
+	var glow_layer := Control.new()
+	glow_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow_layer.draw.connect(func():
+		if flush > 0.05:
+			glow_layer.draw_circle(Vector2(48, 48), 46, Color(glow, 0.10 + flush * 0.18))
+	)
+	port.add_child(glow_layer)
+
+	var tex := TextureRect.new()
+	tex.texture = art
+	tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	port.add_child(tex)
 	return port
 
 
@@ -366,11 +473,41 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 	top.add_child(restore_l)
 	v.add_child(top)
 
+	# The middle band is the art slot. With art delivered the name sits over
+	# it on a scrim (so it stays legible against any illustration); with none,
+	# the name simply centres in the empty band exactly as before.
+	var art := Art.card_texture(c)
 	var name_l := block(card_summary(c), 12, INK if enabled else DIM)
-	name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_l.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	v.add_child(name_l)
+	if art == null:
+		name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_l.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		v.add_child(name_l)
+	else:
+		var band := Control.new()
+		band.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var tex := TextureRect.new()
+		tex.texture = art
+		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if not enabled:
+			tex.modulate = Color(1, 1, 1, 0.45)
+		band.add_child(tex)
+		var scrim := ColorRect.new()
+		scrim.color = Color(0.05, 0.045, 0.055, 0.55)
+		scrim.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		scrim.anchor_top = 0.62
+		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(scrim)
+		name_l.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		name_l.anchor_top = 0.62
+		name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.add_child(name_l)
+		v.add_child(band)
 
 	var tags: Array = []
 	if c.get("exhaust", false):

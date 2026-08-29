@@ -2,3 +2,7 @@
 .godot/
 *.translation
 export_presets.cfg
+
+# Godot re-creates .import sidecars for any art dropped in assets/art/;
+# they're machine-generated, not source.
+assets/art/**/*.import
