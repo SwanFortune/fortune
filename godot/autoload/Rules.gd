@@ -256,6 +256,44 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 	}
 
 
+## Mirrors fxAudit() (~1114): cross-checks every fx key referenced by a
+## reader/relic/mark ("trait"), sign ("sign"), or job ("job") against the FX
+## registry — catches a typo'd fx key, one borrowed from the wrong category
+## (e.g. a sign using a job-only fx), or an "el"-flavored fx (like the
+## generic elemental relic bonus) missing its element. This is exactly the
+## check the source's dev-only AUDIT tab ran continuously while the content
+## was being authored; nothing calls it automatically here, so run it via
+## `godot --headless -s tests/test_content_audit.gd` after editing any
+## data/base/*.json or mod pack.
+func fx_audit() -> Array[String]:
+	var bad: Array[String] = []
+	var fx: Dictionary = Content.fx
+
+	var check_list = func(list: Array, on: String, name_fn: Callable):
+		for e in list:
+			var key: String = e.get("fx", "")
+			if not fx.has(key):
+				bad.append("%s → unknown fx \"%s\"" % [name_fn.call(e), key])
+			elif fx[key].get("on", "") != on:
+				bad.append("%s → fx \"%s\" belongs to %s" % [name_fn.call(e), key, fx[key]["on"]])
+			elif fx[key].get("needsEl", false) and e.get("el", null) == null and e.get("dead", null) == null:
+				bad.append("%s → fx \"%s\" needs an element" % [name_fn.call(e), key])
+
+	check_list.call(Content.readers, "trait", func(r): return r.get("sign", r.get("k", "?")))
+	check_list.call(Content.relics, "trait", func(r): return r.get("n", "?"))
+	check_list.call(Content.marks, "trait", func(m): return m.get("n", "?"))
+	check_list.call(Content.signs, "sign", func(s): return s.get("n", "?"))
+
+	var job_list: Array = []
+	for job_key in Content.jobs.keys():
+		var j: Dictionary = Content.jobs[job_key].duplicate()
+		j["_k"] = job_key
+		job_list.append(j)
+	check_list.call(job_list, "job", func(j): return j.get("_k", "?"))
+
+	return bad
+
+
 ## Mirrors autoText(c) (~1251): generates a card's printed effect text from its
 ## mechanical fields, so a moddable card never needs its text hand-written
 ## unless it explicitly sets custom=true.

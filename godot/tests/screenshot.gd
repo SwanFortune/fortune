@@ -52,7 +52,9 @@ func _initialize() -> void:
 func _debug_sizes(n: Node, depth: int = 0) -> void:
 	if n is Control:
 		var c: Control = n
-		print("  ".repeat(depth), n.get_class(), " ", n.name, " size=", c.size, " min=", c.get_minimum_size(), " flags_h=", c.size_flags_horizontal)
+		var tip := c.tooltip_text
+		var tip_note := "" if tip == "" else (" tooltip=%d chars" % tip.length())
+		print("  ".repeat(depth), n.get_class(), " ", n.name, " size=", c.size, " min=", c.get_minimum_size(), " flags_h=", c.size_flags_horizontal, tip_note)
 	for child in n.get_children():
 		_debug_sizes(child, depth + 1)
 

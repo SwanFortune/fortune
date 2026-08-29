@@ -18,14 +18,23 @@ func _ready() -> void:
 
 	var s: Dictionary = f["sitter"]
 	var q: Dictionary = f["quirk"]
-	v.add_child(UIKit.block("%s · %s" % [s["name"], s["role"]], 18, UIKit.INK))
-	v.add_child(UIKit.block("sign %s — %s: %s" % [q["n"], q["dn"], q["rule"]], 12, UIKit.DIM))
-
 	var hp_ratio := float(f["hp"]) / float(f["max"]) if int(f["max"]) > 0 else 0.0
 	var energy_ratio := float(f["energy"]) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
-	v.add_child(UIKit.stat_row("Composure", "%s / %s" % [f["hp"], f["max"]], hp_ratio, UIKit.GREEN))
-	v.add_child(UIKit.stat_row("Energy", "%s / %s" % [f["energy"], f["energyMax"]], energy_ratio, UIKit.GOLD))
-	v.add_child(UIKit.block("Reading %s of %s   ·   Denial wall %s" % [f["turn"], f["turns"], f["denial"]], 12, UIKit.DIM))
+
+	var header := UIKit.hbox(14)
+	header.add_child(UIKit.sitter_portrait(s["el"], hp_ratio))
+	var header_text := UIKit.vbox(4)
+	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_text.add_child(UIKit.block("%s · %s   %s" % [s["name"], s["role"], UIKit.el_tag(s["el"])], 18, UIKit.INK))
+	header_text.add_child(UIKit.block("sign %s — %s: %s" % [q["n"], q["dn"], q["rule"]], 12, UIKit.DIM))
+	header.add_child(header_text)
+	v.add_child(header)
+	v.add_child(UIKit.stat_row("Composure", "%s / %s" % [f["hp"], f["max"]], hp_ratio, UIKit.GREEN, UIKit.KEYS["composure"]))
+	v.add_child(UIKit.stat_row("Energy", "%s / %s" % [f["energy"], f["energyMax"]], energy_ratio, UIKit.GOLD, UIKit.KEYS["energy"]))
+	var denial_row := UIKit.block("Reading %s of %s   ·   Denial wall %s" % [f["turn"], f["turns"], f["denial"]], 12, UIKit.DIM)
+	denial_row.tooltip_text = UIKit.KEYS["denial"]
+	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
+	v.add_child(denial_row)
 
 	if f.get("taken", null) != null:
 		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
@@ -40,31 +49,23 @@ func _ready() -> void:
 		for i in f["cross"].size():
 			var c: Dictionary = f["cross"][i]
 			var row: Dictionary = preview["rows"][i] if i < preview["rows"].size() else {}
-			cross_box.add_child(UIKit.label("%s (+%s)" % [c["n"], row.get("total", "?")], 12, UIKit.GREEN))
+			cross_box.add_child(UIKit.label("%s (+%s)" % [UIKit.card_summary(c), row.get("total", "?")], 12, UIKit.GREEN))
 
 	v.add_child(UIKit.button("READ IT", _read_it))
 
-	v.add_child(UIKit.label("YOUR HAND", 12, UIKit.DIM))
+	var hand_label := UIKit.label("YOUR HAND — hover a card for its full text", 12, UIKit.DIM)
+	v.add_child(hand_label)
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
-	scroll.custom_minimum_size = Vector2(0, 320)
-	var list := UIKit.vbox(6)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
+	scroll.custom_minimum_size = Vector2(0, 340)
+	var fan := HFlowContainer.new()
+	fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	fan.add_theme_constant_override("h_separation", 8)
+	fan.add_theme_constant_override("v_separation", 8)
+	scroll.add_child(fan)
 	for c in f["hand"]:
-		list.add_child(_card_button(c, f))
-
-
-func _card_button(c: Dictionary, f: Dictionary) -> Control:
-	var afford := int(c.get("cost", 0)) <= int(f["energy"])
-	var el_c: Color = UIKit.el_color(c["el"]) if c.get("el") != null else UIKit.DIM
-	var lines := [
-		["%s   (cost %s)" % [c["n"], c.get("cost", 0)], 15, el_c if afford else UIKit.DIM],
-		[UIKit.card_text(c), 12, UIKit.INK if afford else UIKit.DIM],
-	]
-	if c.get("fl", "") != "":
-		lines.append([c["fl"], 11, UIKit.DIM])
-	return UIKit.panel_button(lines, _lay.bind(c["uid"]), afford)
+		var afford := int(c.get("cost", 0)) <= int(f["energy"])
+		fan.add_child(UIKit.card_face(c, _lay.bind(c["uid"]), afford))
 
 
 func _lay(card_uid: String) -> void:

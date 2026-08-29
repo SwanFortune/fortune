@@ -36,7 +36,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			var q: Dictionary = o["quirk"]
 			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
 			lines.append(["%s%s" % [tag, s["name"]], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
-			lines.append(["%s · sign %s (%s) · element %s" % [s["role"], q["n"], q["dn"], s["el"].to_upper()], 12, UIKit.el_color(s["el"])])
+			lines.append(["%s · sign %s (%s) · %s" % [s["role"], q["n"], q["dn"], UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
 			lines.append([s["brings"], 12, UIKit.DIM])
 		"break":

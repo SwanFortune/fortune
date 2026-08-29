@@ -25,7 +25,7 @@ func _ready() -> void:
 		var lines := [
 			["%s — %s" % [r["name"], r["sign"]], 16, UIKit.INK],
 			[r["line"], 12, UIKit.DIM],
-			["%s (%s)" % [r["rule"], r["el"].to_upper()], 12, el_c],
+			["%s  %s" % [UIKit.el_glyph(r["el"]), r["rule"]], 12, el_c],
 			["Starts with: %s" % ", ".join(r.get("deck", [])), 11, UIKit.DIM],
 		]
 		list.add_child(UIKit.panel_button(lines, _pick.bind(i)))

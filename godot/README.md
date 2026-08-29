@@ -28,17 +28,27 @@ unzip godot.zip && chmod +x Godot_v4.3-stable_linux.x86_64
 No display needed:
 
 ```
-godot --headless --path godot -s tests/test_rules.gd    # scoring engine vs hand-traced cases
-godot --headless --path godot -s tests/test_run.gd       # state machine, plays random full encounters
-godot --headless --path godot -s tests/test_scenes.gd    # every screen against every game state
+godot --headless --path godot -s tests/test_rules.gd          # scoring engine vs hand-traced cases
+godot --headless --path godot -s tests/test_run.gd             # state machine, plays random full encounters
+godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
+godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check (the AUDIT tab equivalent)
 ```
 
-All three should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
+All four should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
 
 There's also a balance report (not pass/fail — read it, see `docs/PORTING_NOTES.md`'s "Balance: a first read"):
 
 ```
 godot --headless --path godot -s tests/balance_sim.gd -- 600   # 600 sampled fights, ~1-2s
+```
+
+And a dev-only screenshot tool, for anyone doing further UI work without an
+interactive display of their own (needs `xvfb-run`; real OpenGL software
+rendering via Mesa/llvmpipe, not a mock):
+
+```
+xvfb-run -a godot --path godot -s tests/screenshot.gd -- read out.png
+# scenario is one of: sign, gift, map, read, read_laid, win, reward, over
 ```
 
 ## Layout

@@ -73,18 +73,23 @@ The user asked for best judgment on these, flagged rather than silently made:
 
 ## Not in this pass (by design, per the agreed scope)
 
-- **Visual polish.** No fan-of-cards layout, no portrait mood animation, no
-  hand-drawn sign/element/planet SVG glyphs, no unified tooltip system, no
-  booster-pack-opening animation, no letter-by-letter "mumble" reveal when a
-  reading resolves. The UI (`scenes/*.gd` + `scenes/UIKit.gd`) is plain
-  labels-and-buttons, built to prove the loop plays correctly, not to look
-  like the prototype. Pixel-matching the source's design is a real follow-up
-  task, not a rejection of the "recreate pixel-perfectly" brief — it's a
-  scope cut for this pass specifically.
-- **The CARD TABLE dev UI** (CARDS/AUDIT tabs — live-editing content and
-  cross-checking `fx` keys against hand-written prose). Nothing calls
-  `Rules.auto_text()`/an fx-audit for the whole content set yet outside the
-  tests; only the balance simulator below was built out.
+- **Full visual fidelity.** No hand-drawn sign/element/planet SVG art (glyphs
+  use the source's own unicode fallback character instead — see
+  `UIKit.el_glyph()` — not the SVG path art), no booster-pack-opening
+  animation, no letter-by-letter "mumble" reveal when a reading resolves, no
+  cursor-following tooltip (Godot's native hover tooltip is used instead —
+  see `UIKit.KEYS`/`card_keyword_tooltip()`). A fan-of-cards hand layout and a
+  procedural mood-reactive sitter portrait ARE in (see `UIKit.card_face()` /
+  `UIKit.sitter_portrait()`), on the Reading screen specifically — other
+  screens (PickScreen's reward/shop rows) intentionally keep the roomier
+  full-text row style, since a considered reward/shop choice benefits from
+  everything visible at once, unlike a hand you're scanning at a glance.
+  Pixel-matching the source's design beyond that is a real follow-up task,
+  not a rejection of the "recreate pixel-perfectly" brief.
+- **The CARD TABLE dev UI's CARDS tab** (live-editing content in a running
+  game — this port edits content by editing JSON directly instead). The
+  AUDIT tab equivalent IS ported — see `Rules.fx_audit()` and
+  `tests/test_content_audit.gd`.
 - **Full Steam Workshop / Steamworks integration** — see `docs/STEAM_WORKSHOP.md`.
 - **Meta-progression** (persistent unlocks across runs) — never implemented
   in the source either; nothing to port.
@@ -131,4 +136,10 @@ content changes.
 - `tests/` — headless tests, runnable without a display:
   `godot --headless --path godot -s tests/test_rules.gd` (scoring engine),
   `tests/test_run.gd` (state machine, plays random full encounters),
-  `tests/test_scenes.gd` (instantiates every screen against every game state).
+  `tests/test_scenes.gd` (instantiates every screen against every game state),
+  `tests/test_content_audit.gd` (fx cross-check, the AUDIT tab equivalent),
+  `tests/balance_sim.gd -- <n>` (difficulty report, the BALANCE tab equivalent),
+  `tests/screenshot.gd <scenario> <out.png>` (dev-only: renders one scenario
+  under a real Xvfb + software-GL display and saves a PNG — how every UI
+  layout claim in this file and in commit messages was actually verified,
+  not guessed at; requires `xvfb-run`, not part of the pass/fail test suite).

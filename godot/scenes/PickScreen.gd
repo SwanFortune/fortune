@@ -19,7 +19,10 @@ func _ready() -> void:
 		v.add_child(UIKit.block(pick["head"], 13, UIKit.GOLD))
 	v.add_child(UIKit.block(pick.get("title", ""), 22, UIKit.INK))
 	v.add_child(UIKit.block(pick.get("body", ""), 13, UIKit.DIM))
-	v.add_child(UIKit.block("Coin: %s   Faith: %s   Deck: %s cards" % [Run.state["coin"], Run.state["faith"], Run.state["deck"].size()], 12, UIKit.DIM))
+	var status_row := UIKit.block("Coin: %s   Faith: %s   Deck: %s cards" % [Run.state["coin"], Run.state["faith"], Run.state["deck"].size()], 12, UIKit.DIM)
+	status_row.tooltip_text = UIKit.KEYS["centimes"] + "\n\n" + UIKit.KEYS["faith"]
+	status_row.mouse_filter = Control.MOUSE_FILTER_PASS
+	v.add_child(status_row)
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
@@ -40,6 +43,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	var lines: Array = []
 	var cost := int(o.get("cost", 0))
 	var afford := cost <= int(Run.state["coin"])
+	var tooltip := ""
 
 	if o.has("card"):
 		var c: Dictionary = o["card"]
@@ -49,6 +53,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		lines.append([UIKit.card_text(c), 12, UIKit.INK])
 		if c.get("fl", "") != "":
 			lines.append([c["fl"], 11, UIKit.DIM])
+		tooltip = UIKit.card_keyword_tooltip(c)
 	elif o.has("mark"):
 		var mk: Dictionary = o["mark"]
 		lines.append([o.get("kind", ""), 11, UIKit.GOLD])
@@ -67,7 +72,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	if reward.has("coin"):
 		lines.append(["+%s centimes" % reward["coin"], 12, UIKit.GREEN])
 
-	return UIKit.panel_button(lines, _take.bind(i), afford)
+	return UIKit.panel_button(lines, _take.bind(i), afford, tooltip)
 
 
 func _take(i: int) -> void:
