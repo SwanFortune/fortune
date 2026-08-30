@@ -24,8 +24,8 @@ static func build(host: Node) -> Control:
 		UIKit.el_glyph(reader.get("el", "")), I18n.reader_field(reader, "name")
 	], 12, UIKit.el_color(reader.get("el", ""))))
 
-	bar.add_child(_stat(I18n.t("Faith"), str(st.get("faith", 0)), UIKit.GOLD, UIKit.KEYS["faith"]))
-	bar.add_child(_stat(I18n.t("Centimes"), str(st.get("coin", 0)), UIKit.GOLD, UIKit.KEYS["centimes"]))
+	bar.add_child(_stat(I18n.t("Faith"), str(st.get("faith", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["faith"])))
+	bar.add_child(_stat(I18n.t("Centimes"), str(st.get("coin", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["centimes"])))
 	bar.add_child(_stat(I18n.t("Mended"), str(st.get("mended", 0)), UIKit.GREEN, ""))
 
 	var spacer := Control.new()

@@ -192,6 +192,31 @@ func _ui_strings() -> Array[String]:
 		"Faith", "Centimes", "Mended", "DECK", "MARKS", "CLOSE",
 		"YOUR DECK", "YOUR HANDS", "cards",
 		"Nothing on your hands yet. Rings and marks come from elites, events and the apothecary.",
+		# result / end-of-run (keys emitted by Run.gd — see its header)
+		"GOES HOME WHOLE", "PUTS THE COAT BACK ON", "TAKE SOMETHING FOR IT",
+		"SEE WHAT THEY SAY", "%s is whole enough", "%s leaves as they came, only later",
+		"Composure at the end", "Readings used", "Faith earned", "Faith kept",
+		"(%s of it overflow)", "Off a hard one", "it stays on your hands",
+		"the money was on the table", "And that is the whole of it", "one is all it takes",
+		"ONE OF THEM WENT HOME AS THEY CAME", "THREE NIGHTS, AND THE KNOCKING STOPS",
+		"Restored", "Deck", "Centimes left", "SKIP", "%s cards",
+		# library extras
+		"CHANGED", "● marks a card you've changed",
+		"Pierces denial", "Once per sitter", "Restores faith, not composure",
+		"Counts as every element", "Reads as their element",
+		"Counts as your current element", "No element (basic decency)",
+		# keyword glossary (UIKit.KEYS)
+		"ONCE — it can be said one time a sitter, then it is spoken for good.",
+		"ENERGY — what a single reading can pay for. It comes back in full every reading.",
+		"DRAW — take that many more cards into your hand, straight away.",
+		"DISCARD — every reading, whatever is left in your hand goes. You draw a fresh one.",
+		"DENIAL — their sign. One named thing it does to every reading you give them.",
+		"COMPOSURE — what you are filling. Fill it before they leave and they go home whole.",
+		"FAITH — your score, and what the village says about you afterwards.",
+		"CENTIMES — money. It buys cards and ink from the apothecary.",
+		"FOLLOWS — it only pays if the card said before it carried that sign.",
+		"FIRST — it only pays if it opens the sentence.",
+		"LAST — it only pays if it closes the sentence.",
 	]
 
 

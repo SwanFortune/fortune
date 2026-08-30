@@ -11,9 +11,12 @@ extends SceneTree
 
 const OUT_PATH := "res://data/base/art_manifest.json"
 
+var art: Node
+
 
 func _initialize() -> void:
 	var content: Node = root.get_node("Content")
+	art = root.get_node("Art")
 	await process_frame
 	content.reload()
 
@@ -119,22 +122,12 @@ func _spec() -> Dictionary:
 	}
 
 
-## Lowercase, ASCII-folded, hyphen-separated. Deliberately strips accents
-## (Thérèse -> therese, Père Renaud -> pere-renaud) so filenames stay
-## portable across filesystems and safe in git/Workshop archives.
+## Delegates to Art.slug() rather than keeping a second copy. These two used
+## to be independent implementations of the same rule, pinned together only
+## by a test — if they ever drifted, ids generated here would silently stop
+## resolving at runtime and every asset would fall back to placeholder.
 func _slug(s: String) -> String:
-	var out := s.to_lower()
-	var from := ["é", "è", "ê", "ë", "à", "â", "ä", "î", "ï", "ô", "ö", "ù", "û", "ü", "ç", "’", "'"]
-	var to := ["e", "e", "e", "e", "a", "a", "a", "i", "i", "o", "o", "u", "u", "u", "c", "", ""]
-	for i in from.size():
-		out = out.replace(from[i], to[i])
-	var result := ""
-	for ch in out:
-		if (ch >= "a" and ch <= "z") or (ch >= "0" and ch <= "9"):
-			result += ch
-		elif result.length() > 0 and not result.ends_with("-"):
-			result += "-"
-	return result.trim_suffix("-")
+	return art.slug(s)
 
 
 func _load_existing() -> Dictionary:

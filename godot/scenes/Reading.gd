@@ -39,10 +39,10 @@ func _ready() -> void:
 	header_text.add_child(UIKit.block("sign %s — %s: %s" % [I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_field(q, "rule")], 12, UIKit.DIM))
 	header.add_child(header_text)
 	v.add_child(header)
-	v.add_child(UIKit.stat_row(I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, UIKit.KEYS["composure"]))
-	v.add_child(UIKit.stat_row(I18n.t("Energy"), "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, UIKit.KEYS["energy"]))
+	v.add_child(UIKit.stat_row(I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, I18n.t(UIKit.KEYS["composure"])))
+	v.add_child(UIKit.stat_row(I18n.t("Energy"), "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, I18n.t(UIKit.KEYS["energy"])))
 	var denial_row := UIKit.block("%s %s / %s   ·   %s %s" % [I18n.t("Reading"), f["turn"], f["turns"], I18n.t("Denial wall"), f["denial"]], 12, UIKit.DIM)
-	denial_row.tooltip_text = UIKit.KEYS["denial"]
+	denial_row.tooltip_text = I18n.t(UIKit.KEYS["denial"])
 	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(denial_row)
 

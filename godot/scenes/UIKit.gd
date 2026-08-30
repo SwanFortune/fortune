@@ -39,21 +39,21 @@ const KEYS := {
 static func card_keyword_tooltip(c: Dictionary) -> String:
 	var lines: Array = []
 	if c.has("draw"):
-		lines.append(KEYS["draw"])
+		lines.append(I18n.t(KEYS["draw"]))
 	if c.has("energy"):
-		lines.append(KEYS["energy"])
+		lines.append(I18n.t(KEYS["energy"]))
 	if c.has("coin"):
-		lines.append(KEYS["centimes"])
+		lines.append(I18n.t(KEYS["centimes"]))
 	if c.get("exhaust", false):
-		lines.append(KEYS["once"])
+		lines.append(I18n.t(KEYS["once"]))
 	if c.has("follows"):
-		lines.append(KEYS["follows"])
+		lines.append(I18n.t(KEYS["follows"]))
 	if c.has("opener"):
-		lines.append(KEYS["first"])
+		lines.append(I18n.t(KEYS["first"]))
 	if c.has("closer"):
-		lines.append(KEYS["last"])
+		lines.append(I18n.t(KEYS["last"]))
 	if c.get("pierce", false):
-		lines.append(KEYS["denial"])
+		lines.append(I18n.t(KEYS["denial"]))
 	return "\n\n".join(lines)
 const GREEN := Color(0.56, 0.75, 0.45)
 const RED := Color(0.82, 0.42, 0.38)
@@ -491,6 +491,24 @@ static func card_summary(c: Dictionary) -> String:
 		bits.append(el_glyph(el))
 	bits.append(I18n.card_name(c))
 	return " ".join(bits)
+
+
+## Resolves the display-string convention Run.gd emits (see its header):
+## a String is a translation key; an Array is [format_key, arg, ...] whose
+## key is translated first and then "%"-formatted. Anything else stringifies.
+## Empty/null yields "" so callers can pass optional fields straight through.
+static func tr_line(value) -> String:
+	if value == null:
+		return ""
+	if value is Array:
+		if value.is_empty():
+			return ""
+		var fmt: String = I18n.t(str(value[0]))
+		var args: Array = value.slice(1)
+		if args.is_empty():
+			return fmt
+		return fmt % (args[0] if args.size() == 1 else args)
+	return I18n.t(str(value))
 
 
 static func card_text(c: Dictionary) -> String:

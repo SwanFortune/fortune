@@ -5,6 +5,17 @@
 ## Dictionary mirroring the source's `this.state`) and call these methods;
 ## they never touch Rules or Content directly for game-flow decisions.
 ##
+## DISPLAY-STRING CONVENTION. This file is game logic and must not compose
+## finished, human-facing prose — doing so was an i18n dead end (~30 strings
+## that could never be translated) as well as a layering violation. Instead,
+## any user-facing text emitted into `state` is one of:
+##   - a plain String, which is a translation key (the English source text
+##     itself, per I18n.t's source-as-key scheme);
+##   - an Array [format_key, arg, ...], for text that interpolates data —
+##     the key is translated first, then "%" applied to the args.
+## The display layer resolves both through UIKit.tr_line(). Numbers and
+## names stay unlocalized on purpose; only the words around them are keys.
+##
 ## Deliberately NOT ported: the letter-by-letter "mumble" reveal animation
 ## (tick()/resolveRead's setTimeout chain) and card-table dev tooling (AUDIT/
 ## BALANCE/HANDOFF tabs, simFight/simSweep). See docs/PORTING_NOTES.md.
@@ -364,14 +375,15 @@ func win(f: Dictionary) -> void:
 	var sitter: Dictionary = f["sitter"]
 	var lines: Array = [
 		{"left": "Composure", "right": "%s / %s" % [f["max"], f["max"]]},
-		{"left": "Readings used", "right": "%s of %s" % [f["turn"], f["turns"]]},
-		{"left": "Faith earned", "right": "+%s%s" % [faith, (" (%s of it overflow)" % f["faith"]) if int(f["faith"]) > 0 else ""]},
+		{"left": "Readings used", "right": "%s / %s" % [f["turn"], f["turns"]]},
+		{"left": "Faith earned", "right": "+%s" % faith,
+			"note": ["(%s of it overflow)", f["faith"]] if int(f["faith"]) > 0 else null},
 		{"left": "Centimes", "right": "+%s" % coin_gain},
 	]
 	if relic != null:
-		lines.append({"left": "Off a hard one", "right": "%s — it stays on your hands" % relic["n"]})
+		lines.append({"left": "Off a hard one", "right": relic["n"], "note": ["it stays on your hands"]})
 	state["res"] = {
-		"kind": "win", "head": "GOES HOME WHOLE", "title": "%s is whole enough" % sitter["name"],
+		"kind": "win", "head": "GOES HOME WHOLE", "title": ["%s is whole enough", sitter["name"]],
 		"said": sitter["win"], "lines": lines, "cta": "TAKE SOMETHING FOR IT", "sitter": sitter,
 	}
 	state_changed.emit()
@@ -384,14 +396,15 @@ func lose(f: Dictionary, _how: String) -> void:
 	state["coin"] = int(state["coin"]) + coin_gain
 	state["faith"] = int(state["faith"]) + faith_kept
 	state["res"] = {
-		"kind": "lose", "head": "PUTS THE COAT BACK ON", "title": "%s leaves as they came, only later" % sitter["name"],
+		"kind": "lose", "head": "PUTS THE COAT BACK ON",
+		"title": ["%s leaves as they came, only later", sitter["name"]],
 		"said": sitter["fail"],
 		"lines": [
 			{"left": "Composure at the end", "right": "%s / %s" % [max(0, f["hp"]), f["max"]]},
-			{"left": "Readings used", "right": "%s of %s" % [f["turn"], f["turns"]]},
+			{"left": "Readings used", "right": "%s / %s" % [f["turn"], f["turns"]]},
 			{"left": "Faith kept", "right": "+%s" % faith_kept},
-			{"left": "Centimes", "right": "+%s — the money was on the table" % coin_gain},
-			{"left": "And that is the whole of it", "right": "one is all it takes"},
+			{"left": "Centimes", "right": "+%s" % coin_gain, "note": ["the money was on the table"]},
+			{"left": "And that is the whole of it", "right": "", "note": ["one is all it takes"]},
 		],
 		"cta": "SEE WHAT THEY SAY", "sitter": sitter,
 	}
@@ -447,12 +460,12 @@ func end_run(why: String) -> void:
 	state["over"] = {
 		"head": "ONE OF THEM WENT HOME AS THEY CAME" if why == "failed" else "THREE NIGHTS, AND THE KNOCKING STOPS",
 		"title": tier,
-		"body": "Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice." if why == "failed"
-			else "You mended %s of them. What they say about you afterwards is the only score that was ever being kept." % state["mended"],
+		"body": ["Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice."] if why == "failed"
+			else ["You mended %s of them. What they say about you afterwards is the only score that was ever being kept.", state["mended"]],
 		"lines": [
 			{"left": "Faith", "right": str(score)},
 			{"left": "Restored", "right": str(state["mended"])},
-			{"left": "Deck", "right": "%s cards" % state["deck"].size()},
+			{"left": "Deck", "right": ["%s cards", state["deck"].size()]},
 			{"left": "Centimes left", "right": str(state["coin"])},
 		],
 	}

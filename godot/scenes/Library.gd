@@ -106,10 +106,10 @@ func _filter_row() -> Control:
 	el_opt.set_item_metadata(0, "all")
 	var j := 1
 	for el in Content.ring:
-		el_opt.add_item("%s %s" % [UIKit.el_glyph(el), str(el).to_upper()])
+		el_opt.add_item(UIKit.el_tag(el))
 		el_opt.set_item_metadata(j, el)
 		j += 1
-	el_opt.add_item("No element")
+	el_opt.add_item(I18n.t("No element"))
 	el_opt.set_item_metadata(j, "none")
 	el_opt.item_selected.connect(func(idx: int):
 		_element_filter = el_opt.get_item_metadata(idx)
@@ -131,10 +131,10 @@ func _filter_row() -> Control:
 
 func _pool_label(pool: String) -> String:
 	match pool:
-		"cards_basics": return "Basics"
-		"cards_chroma": return "Chromatic"
-		"cards_minor": return "Minor"
-		"cards_arcana": return "Arcana"
+		"cards_basics": return I18n.t("Basics")
+		"cards_chroma": return I18n.t("Chromatic")
+		"cards_minor": return I18n.t("Minor")
+		"cards_arcana": return I18n.t("Arcana")
 	return pool
 
 
@@ -180,7 +180,7 @@ func _rebuild_list() -> void:
 			[UIKit.card_text(c), 11, UIKit.INK],
 		]
 		_list_box.add_child(UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
-			"● marks a card you've changed" if edited else ""))
+			I18n.t("● marks a card you've changed") if edited else ""))
 
 
 func _select(pool: String, card_name: String) -> void:
@@ -192,9 +192,9 @@ func _select(pool: String, card_name: String) -> void:
 func _refresh_summary() -> void:
 	var n := CardEdits.edit_count()
 	if n == 0:
-		_summary_label.text = "Edit any card's numbers and its printed text regenerates to match. Changes save as a shareable mod pack — nothing here touches the base game files."
+		_summary_label.text = I18n.t("Edit any card's numbers and its printed text regenerates to match. Changes save as a shareable mod pack — nothing here touches the base game files.")
 	else:
-		_summary_label.text = "%d card(s) changed. Saved as a mod pack at %s — that folder is shareable and Workshop-ready as-is." % [n, CardEdits.pack_path_for_display()]
+		_summary_label.text = I18n.t("%d card(s) changed. Saved as a mod pack at %s — that folder is shareable and Workshop-ready as-is.") % [n, CardEdits.pack_path_for_display()]
 
 
 # ── editor ──────────────────────────────────────────────────────────────
@@ -222,7 +222,7 @@ func _rebuild_editor() -> void:
 	_editor_box.add_child(UIKit.block(UIKit.card_summary(c), 20, el_c))
 	_editor_box.add_child(UIKit.block("%s · %s%s" % [
 		_pool_label(_selected_pool), c.get("r", "?"),
-		"  ·  CHANGED" if CardEdits.has_edit(_selected_pool, c["n"]) else "",
+		"  ·  " + I18n.t("CHANGED") if CardEdits.has_edit(_selected_pool, c["n"]) else "",
 	], 11, UIKit.GOLD if CardEdits.has_edit(_selected_pool, c["n"]) else UIKit.DIM))
 
 	# Live preview: exactly the text a player sees, regenerated from the
@@ -249,7 +249,7 @@ func _rebuild_editor() -> void:
 	_editor_box.add_child(_gap())
 	_editor_box.add_child(UIKit.block(I18n.t("FLAGS"), 11, UIKit.GOLD))
 	for key in FLAGS:
-		_editor_box.add_child(_flag_row(c, key, FLAGS[key]))
+		_editor_box.add_child(_flag_row(c, key, I18n.t(FLAGS[key])))
 
 	_editor_box.add_child(_gap())
 	var actions := UIKit.hbox(8)

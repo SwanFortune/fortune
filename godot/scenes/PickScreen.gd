@@ -17,9 +17,9 @@ func _ready() -> void:
 
 	v.add_child(RunHeader.build(self))
 	if pick.get("head", "") != "":
-		v.add_child(UIKit.block(pick["head"], 13, UIKit.GOLD))
-	v.add_child(UIKit.block(pick.get("title", ""), 22, UIKit.INK))
-	v.add_child(UIKit.block(pick.get("body", ""), 13, UIKit.DIM))
+		v.add_child(UIKit.block(I18n.t(str(pick["head"])), 13, UIKit.GOLD))
+	v.add_child(UIKit.block(I18n.t(str(pick.get("title", ""))), 22, UIKit.INK))
+	v.add_child(UIKit.block(I18n.t(str(pick.get("body", ""))), 13, UIKit.DIM))
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
@@ -33,7 +33,7 @@ func _ready() -> void:
 		list.add_child(_opt_button(opts[i], i))
 
 	if pick.get("skippable", false):
-		v.add_child(UIKit.button(pick.get("skipLabel", "SKIP"), _skip))
+		v.add_child(UIKit.button(I18n.t(str(pick.get("skipLabel", "SKIP"))), _skip))
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:
@@ -45,7 +45,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	if o.has("card"):
 		var c: Dictionary = o["card"]
 		var el_c: Color = UIKit.el_color(c["el"]) if c.get("el") != null else UIKit.DIM
-		lines.append([o.get("kind", ""), 11, UIKit.GOLD])
+		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
 		lines.append([UIKit.card_summary(c), 16, el_c])
 		lines.append([UIKit.card_text(c), 12, UIKit.INK])
 		if c.get("fl", "") != "":
@@ -53,13 +53,13 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		tooltip = UIKit.card_keyword_tooltip(c)
 	elif o.has("mark"):
 		var mk: Dictionary = o["mark"]
-		lines.append([o.get("kind", ""), 11, UIKit.GOLD])
-		lines.append([mk["n"], 16, UIKit.INK])
-		lines.append([mk["text"], 12, UIKit.DIM])
+		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
+		lines.append([I18n.content("mark/" + Art.slug(str(mk.get("n",""))), "n", str(mk.get("n",""))), 16, UIKit.INK])
+		lines.append([I18n.content("mark/" + Art.slug(str(mk.get("n",""))), "text", str(mk.get("text",""))), 12, UIKit.DIM])
 	else:
-		lines.append([o.get("kind", ""), 11, UIKit.GOLD])
-		lines.append([o.get("name", ""), 16, UIKit.INK])
-		lines.append([o.get("text", ""), 12, UIKit.DIM])
+		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
+		lines.append([I18n.t(str(o.get("name", ""))), 16, UIKit.INK])
+		lines.append([I18n.t(str(o.get("text", ""))), 12, UIKit.DIM])
 
 	if cost > 0:
 		lines.append(["Cost: %s centimes" % cost, 12, UIKit.GOLD if afford else UIKit.RED])
