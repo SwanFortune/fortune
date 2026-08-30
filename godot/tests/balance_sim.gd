@@ -132,8 +132,8 @@ func sim_fight(reader: Dictionary, sitter: Dictionary, quirk: Dictionary) -> Dic
 		"denialUp": int(denial_shield.get(quirk.get("fx", ""), 0)) * int(sitter.get("shieldMul", 1)),
 		"turn": 1,
 		"turns": int(sitter["turns"]) + (1 if rules.has(ctx, "turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
-		"energyMax": int(run.CFG_ENERGY) + (1 if rules.has(ctx, "energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if quirk.get("fx", "") == "energydown" else 0),
-		"handMax": int(run.CFG_HAND) + (1 if rules.has(ctx, "hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) - (1 if job.get("fx", "") == "tax2" else 0),
+		"energyMax": int(run.cfg_energy()) + (1 if rules.has(ctx, "energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if quirk.get("fx", "") == "energydown" else 0),
+		"handMax": int(run.cfg_hand()) + (1 if rules.has(ctx, "hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) - (1 if job.get("fx", "") == "tax2" else 0),
 		"readerEl": reader["el"], "hand": [], "draw": run.shuffle(run.base_deck(reader)), "disc": [],
 		"cross": [], "gone": [], "faith": 0, "coin": 0,
 	}

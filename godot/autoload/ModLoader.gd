@@ -45,6 +45,10 @@ const SCALAR_CATEGORIES := ["boss", "shop"]
 
 var errors: Array[String] = []
 
+## Whether to scan res://mods_example/. Set by Content from the player
+## setting of the same name; user://mods/ and Workshop items always load.
+var load_example_mods: bool = true
+
 
 ## Runs discovery + load + merge and returns the final registries dict,
 ## keyed by category name ("signs", "cards_minor", "fx", ...).
@@ -66,7 +70,8 @@ func discover_pack_dirs() -> Array[String]:
 		dirs.append("res://data/base")
 
 	var extra: Array[Dictionary] = []  # {path, priority}
-	_collect_subpacks("res://mods_example", extra)
+	if load_example_mods:
+		_collect_subpacks("res://mods_example", extra)
 	_ensure_user_mods_dir()
 	_collect_subpacks("user://mods", extra)
 	for p in Workshop.get_installed_item_paths():

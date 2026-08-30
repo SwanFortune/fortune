@@ -10,11 +10,13 @@ config/icon=""
 
 [autoload]
 
+Settings="*res://autoload/Settings.gd"
 Workshop="*res://autoload/Workshop.gd"
 Content="*res://autoload/Content.gd"
 Art="*res://autoload/Art.gd"
 Rules="*res://autoload/Rules.gd"
 Run="*res://autoload/Run.gd"
+CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
 
 [rendering]

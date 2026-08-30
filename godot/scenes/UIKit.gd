@@ -220,6 +220,80 @@ static func bound_tween(target: Node) -> Tween:
 	return tree().create_tween().bind_node(target)
 
 
+## True when the player has turned animation off (Settings' animation_scale
+## at 0). Every animate_* helper checks this and jumps straight to the end
+## state instead of tweening — so "off" genuinely means no motion, not fast
+## motion, which is the point for anyone who set it for motion sensitivity.
+static func motion_off() -> bool:
+	return Settings.animation_scale() <= 0.01
+
+
+## A duration scaled by the player's animation-speed setting.
+static func dur(seconds: float) -> float:
+	return seconds / maxf(Settings.animation_scale(), 0.01)
+
+
+## A labelled slider row bound to one numeric Settings key. `fmt` turns the
+## raw value into its readout ("80%", "1.2x", "3"); pass `whole` for keys
+## whose value must stay an integer.
+static func setting_slider(key: String, caption: String, help: String, fmt: Callable, whole: bool = false) -> Control:
+	var def: Array = Settings.DEFS[key]
+	var row := hbox(12)
+	row.tooltip_text = help
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var cap := label(caption, 13, INK)
+	cap.custom_minimum_size.x = 190
+	row.add_child(cap)
+
+	var slider := HSlider.new()
+	slider.min_value = float(def[1])
+	slider.max_value = float(def[2])
+	slider.step = 1.0 if whole else 0.05
+	slider.value = float(Settings.get_value(key))
+	slider.custom_minimum_size = Vector2(260, 18)
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slider)
+
+	var readout := label(str(fmt.call(Settings.get_value(key))), 13, GOLD)
+	readout.custom_minimum_size.x = 70
+	row.add_child(readout)
+
+	slider.value_changed.connect(func(v: float):
+		Settings.set_value(key, int(round(v)) if whole else v)
+		readout.text = str(fmt.call(Settings.get_value(key)))
+	)
+	return row
+
+
+## A labelled on/off row bound to one boolean Settings key. `on_toggled` runs
+## after the setting is stored, for keys that need extra work (e.g. reloading
+## content when the mod toggle flips).
+static func setting_toggle(key: String, caption: String, help: String, on_toggled: Callable = Callable()) -> Control:
+	var row := hbox(12)
+	row.tooltip_text = help
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+
+	var cap := label(caption, 13, INK)
+	cap.custom_minimum_size.x = 190
+	row.add_child(cap)
+
+	var box := CheckButton.new()
+	box.button_pressed = bool(Settings.get_value(key))
+	row.add_child(box)
+
+	var help_l := label(help, 11, DIM)
+	help_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(help_l)
+
+	box.toggled.connect(func(pressed: bool):
+		Settings.set_value(key, pressed)
+		if on_toggled.is_valid():
+			on_toggled.call(pressed)
+	)
+	return row
+
+
 ## A plain two-rect meter (no Theme/StyleBox fuss) — used for composure and
 ## energy on the Reading screen. Animates from `from_ratio` to `to_ratio`
 ## (pass them equal for no animation); both clamped to [0, 1].
@@ -237,7 +311,10 @@ static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h
 	c.add_child(fill)
 	var target_w := w * clampf(to_ratio, 0.0, 1.0)
 	if not is_equal_approx(fill.size.x, target_w):
-		bound_tween(fill).tween_property(fill, "size:x", target_w, duration).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		if motion_off():
+			fill.size.x = target_w
+		else:
+			bound_tween(fill).tween_property(fill, "size:x", target_w, dur(duration)).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	return c
 
 
@@ -263,11 +340,13 @@ static func stat_row(caption: String, value_text: String, from_ratio: float, to_
 ## layout pass), so a true center-pivot isn't available cheaply here. Small
 ## enough content (a stat value, a few characters) that it isn't noticeable.
 static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> void:
+	if motion_off():
+		return  # nothing to restore: the node is already in its end state
 	if node is Label:
 		var start_color: Color = node.get_theme_color("font_color") if node.has_theme_color("font_color") else INK
-		bound_tween(node).tween_method(func(c: Color): node.add_theme_color_override("font_color", c), flash_color, start_color, duration).set_trans(Tween.TRANS_CUBIC)
+		bound_tween(node).tween_method(func(c: Color): node.add_theme_color_override("font_color", c), flash_color, start_color, dur(duration)).set_trans(Tween.TRANS_CUBIC)
 	node.scale = Vector2(1.35, 1.35)
-	bound_tween(node).tween_property(node, "scale", Vector2.ONE, duration).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	bound_tween(node).tween_property(node, "scale", Vector2.ONE, dur(duration)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## Fades + scales a node in — used for newly-drawn hand cards and the
@@ -281,12 +360,14 @@ static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> v
 ## layout, so they're safe to drive with a tween no matter what the parent
 ## does on its next sort.
 static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32) -> void:
+	if motion_off():
+		return  # leave it fully visible at rest scale; no fade-in to play
 	node.modulate.a = 0.0
 	node.scale = Vector2(0.75, 0.75)
 	var t := bound_tween(node)
 	t.set_parallel(true)
-	t.tween_property(node, "modulate:a", 1.0, duration).set_delay(delay).set_trans(Tween.TRANS_QUAD)
-	t.tween_property(node, "scale", Vector2.ONE, duration).set_delay(delay).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	t.tween_property(node, "modulate:a", 1.0, dur(duration)).set_delay(dur(delay)).set_trans(Tween.TRANS_QUAD)
+	t.tween_property(node, "scale", Vector2.ONE, dur(duration)).set_delay(dur(delay)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## A small procedural face reacting to how close the sitter is to mended

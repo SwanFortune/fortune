@@ -4,9 +4,10 @@
 ## touches ModLoader or raw JSON directly.
 extends Node
 
-## Set to false to skip loading res://mods_example/ (useful for a "vanilla"
-## smoke test). Player-provided mods in user://mods/ and Workshop items always load.
-const LOAD_EXAMPLE_MODS := true
+## NOTE: this used to be a `const LOAD_EXAMPLE_MODS := true` that nothing
+## actually read — ModLoader scanned res://mods_example/ unconditionally, so
+## the constant was documentation, not behaviour. It's now a real player
+## setting that ModLoader genuinely honours (see reload()).
 
 var registries: Dictionary = {}
 var load_errors: Array[String] = []
@@ -49,6 +50,7 @@ func _ready() -> void:
 
 func reload() -> void:
 	var loader := ModLoader.new()
+	loader.load_example_mods = bool(Settings.get_value("load_example_mods"))
 	registries = loader.build_registries()
 	load_errors = loader.errors
 	for e in load_errors:

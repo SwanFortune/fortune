@@ -14,7 +14,13 @@ func _ready() -> void:
 	v.add_child(UIKit.block("a fortune-teller's ledger, in card form — Godot vertical-slice port", 14, UIKit.DIM))
 	v.add_child(Control.new())  # spacer
 	v.add_child(UIKit.button("BEGIN A READING", _begin))
+	v.add_child(UIKit.button("LIBRARY", func(): Nav.goto_library()))
+	v.add_child(UIKit.button("SETTINGS", func(): Nav.goto_settings()))
 	v.add_child(UIKit.button("QUIT", _quit))
+
+	var edits := CardEdits.edit_count()
+	if edits > 0:
+		v.add_child(UIKit.block("%d card(s) changed in the Library." % edits, 11, UIKit.GOLD))
 
 	if not Content.load_errors.is_empty():
 		v.add_child(UIKit.block("Content load warnings (see console): %d" % Content.load_errors.size(), 12, UIKit.RED))

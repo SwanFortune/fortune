@@ -12,8 +12,17 @@ extends Node
 
 signal state_changed
 
-const CFG_ENERGY := 3
-const CFG_HAND := 5
+## Baseline energy per reading and cards dealt per hand, before any
+## reader/relic/job/sign modifier. These mirror the prototype's own cfg()
+## props (energy: 3, handSize: 5) and are player-adjustable in Settings —
+## the source exposed them as tweakable knobs too, so treating them as
+## settings rather than constants matches its intent.
+static func cfg_energy() -> int:
+	return int(Settings.get_value("start_energy"))
+
+
+static func cfg_hand() -> int:
+	return int(Settings.get_value("hand_size"))
 
 var state: Dictionary = {}
 
@@ -206,8 +215,8 @@ func start_fight(o: Dictionary) -> void:
 		"denial": wall, "denialUp": int(denial_shield.get(q.get("fx", ""), 0)) * int(s.get("shieldMul", 1)),
 		"turn": 1,
 		"turns": int(s["turns"]) + (1 if has("turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
-		"energyMax": CFG_ENERGY + (1 if has("energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if q.get("fx", "") == "energydown" else 0),
-		"handMax": CFG_HAND + (1 if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
+		"energyMax": cfg_energy() + (1 if has("energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if q.get("fx", "") == "energydown" else 0),
+		"handMax": cfg_hand() + (1 if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
 		"readerEl": state["reader"]["el"], "hand": [], "draw": shuffle(state["deck"].duplicate(true)), "disc": [],
 		"cross": [], "gone": [], "faith": 0, "coin": 0, "energy": 0, "swept": 0, "taken": null,
 	}

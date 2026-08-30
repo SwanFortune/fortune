@@ -36,10 +36,21 @@ func _initialize() -> void:
 	var out_path := args[1] if args.size() > 1 else "/tmp/screenshot.png"
 	var settle: float = float(args[2]) if args.size() > 2 else 1.2
 
-	_setup(setup_name)
-	var scene_path: String = Nav.SCENES.get(run.state["screen"], "res://scenes/MainMenu.tscn")
-	if run.state["screen"] == "read" and not run.state.get("res", {}).is_empty():
-		scene_path = "res://scenes/ResultScreen.tscn"
+	# Standalone screens aren't reachable from Run.state's "screen" field —
+	# they're menus, not run states — so they're addressed by name directly.
+	const STANDALONE := {
+		"menu": "res://scenes/MainMenu.tscn",
+		"settings": "res://scenes/SettingsMenu.tscn",
+		"library": "res://scenes/Library.tscn",
+	}
+	var scene_path: String
+	if STANDALONE.has(setup_name):
+		scene_path = STANDALONE[setup_name]
+	else:
+		_setup(setup_name)
+		scene_path = Nav.SCENES.get(run.state["screen"], "res://scenes/MainMenu.tscn")
+		if run.state["screen"] == "read" and not run.state.get("res", {}).is_empty():
+			scene_path = "res://scenes/ResultScreen.tscn"
 
 	var packed: PackedScene = load(scene_path)
 	var instance: Node = packed.instantiate()

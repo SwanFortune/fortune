@@ -51,9 +51,10 @@ func _ready() -> void:
 	if not discarded.is_empty():
 		var disc_label := UIKit.block("Discarded: %s" % ", ".join(discarded), 11, UIKit.DIM)
 		v.add_child(disc_label)
-		var fade := UIKit.bound_tween(disc_label)
-		fade.tween_interval(0.9)
-		fade.tween_property(disc_label, "modulate:a", 0.0, 1.2).set_trans(Tween.TRANS_QUAD)
+		if not UIKit.motion_off():
+			var fade := UIKit.bound_tween(disc_label)
+			fade.tween_interval(UIKit.dur(0.9))
+			fade.tween_property(disc_label, "modulate:a", 0.0, UIKit.dur(1.2)).set_trans(Tween.TRANS_QUAD)
 
 	v.add_child(UIKit.block("SAID SO FAR", 12, UIKit.DIM))
 	var cross_box := UIKit.hbox(6)
