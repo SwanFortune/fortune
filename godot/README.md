@@ -33,9 +33,11 @@ godot --headless --path godot -s tests/test_run.gd             # state machine, 
 godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
 godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check (the AUDIT tab equivalent)
 godot --headless --path godot -s tests/test_art.gd             # art manifest -> texture pipeline
+godot --headless --path godot -s tests/test_library.gd         # Library edits -> mod pack -> live content
+godot --headless --path godot -s tests/test_i18n.gd            # localization + fallback
 ```
 
-All five should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
+All seven should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
 
 There's also a balance report (not pass/fail — read it, see `docs/PORTING_NOTES.md`'s "Balance: a first read"):
 
@@ -64,14 +66,21 @@ procedural placeholder, so the game always runs and improves piece by piece.
 godot --headless --path godot -s tests/gen_art_manifest.gd   # refresh the checklist after content changes
 ```
 
+## Languages
+
+English plus a partially-filled French locale. Everything translatable lives
+in one generated file per language (`data/base/locale/fr.json`); untranslated
+strings fall back to English, so a half-finished locale is playable. See
+`docs/LOCALIZATION.md`.
+
 ## Layout
 
 ```
-autoload/     Content, ModLoader, Rules, Run, Nav, Workshop, Art — see their doc comments
+autoload/     Settings, Content, ModLoader, Rules, Run, Nav, Workshop, Art, I18n, CardEdits — see their doc comments
 data/base/    the base game's content, as JSON (also the mod-pack schema — see docs/MODDING.md)
 assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
 scenes/       the playable UI
 mods_example/ a tiny working example mod, proving the pack format end to end
 tests/        headless tests + dev tools (no editor/display required)
-docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md
+docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md, LOCALIZATION.md
 ```

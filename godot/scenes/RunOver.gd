@@ -26,7 +26,7 @@ func _ready() -> void:
 		row.add_child(right)
 		v.add_child(row)
 
-	v.add_child(UIKit.button("BEGIN AGAIN", _restart))
+	v.add_child(UIKit.button(I18n.t("BEGIN AGAIN"), _restart))
 
 
 func _restart() -> void:

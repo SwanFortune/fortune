@@ -33,13 +33,13 @@ func _ready() -> void:
 	header.add_child(UIKit.sitter_portrait(s["el"], hp_ratio, Art.sitter_texture(s)))
 	var header_text := UIKit.vbox(4)
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_text.add_child(UIKit.block("%s · %s   %s" % [s["name"], s["role"], UIKit.el_tag(s["el"])], 18, UIKit.INK))
-	header_text.add_child(UIKit.block("sign %s — %s: %s" % [q["n"], q["dn"], q["rule"]], 12, UIKit.DIM))
+	header_text.add_child(UIKit.block("%s · %s   %s" % [I18n.sitter_field(s, "name"), I18n.sitter_field(s, "role"), UIKit.el_tag(s["el"])], 18, UIKit.INK))
+	header_text.add_child(UIKit.block("sign %s — %s: %s" % [I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_field(q, "rule")], 12, UIKit.DIM))
 	header.add_child(header_text)
 	v.add_child(header)
-	v.add_child(UIKit.stat_row("Composure", "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, UIKit.KEYS["composure"]))
-	v.add_child(UIKit.stat_row("Energy", "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, UIKit.KEYS["energy"]))
-	var denial_row := UIKit.block("Reading %s of %s   ·   Denial wall %s" % [f["turn"], f["turns"], f["denial"]], 12, UIKit.DIM)
+	v.add_child(UIKit.stat_row(I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, UIKit.KEYS["composure"]))
+	v.add_child(UIKit.stat_row(I18n.t("Energy"), "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, UIKit.KEYS["energy"]))
+	var denial_row := UIKit.block("%s %s / %s   ·   %s %s" % [I18n.t("Reading"), f["turn"], f["turns"], I18n.t("Denial wall"), f["denial"]], 12, UIKit.DIM)
 	denial_row.tooltip_text = UIKit.KEYS["denial"]
 	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(denial_row)
@@ -49,18 +49,18 @@ func _ready() -> void:
 
 	var discarded: Array = f.get("_justDiscarded", [])
 	if not discarded.is_empty():
-		var disc_label := UIKit.block("Discarded: %s" % ", ".join(discarded), 11, UIKit.DIM)
+		var disc_label := UIKit.block("%s %s" % [I18n.t("Discarded:"), ", ".join(discarded)], 11, UIKit.DIM)
 		v.add_child(disc_label)
 		if not UIKit.motion_off():
 			var fade := UIKit.bound_tween(disc_label)
 			fade.tween_interval(UIKit.dur(0.9))
 			fade.tween_property(disc_label, "modulate:a", 0.0, UIKit.dur(1.2)).set_trans(Tween.TRANS_QUAD)
 
-	v.add_child(UIKit.block("SAID SO FAR", 12, UIKit.DIM))
+	v.add_child(UIKit.block(I18n.t("SAID SO FAR"), 12, UIKit.DIM))
 	var cross_box := UIKit.hbox(6)
 	v.add_child(cross_box)
 	if f["cross"].is_empty():
-		cross_box.add_child(UIKit.label("(nothing yet)", 12, UIKit.DIM))
+		cross_box.add_child(UIKit.label(I18n.t("(nothing yet)"), 12, UIKit.DIM))
 	else:
 		var preview: Dictionary = Rules.simulate(Run.run_ctx(), f)
 		for i in f["cross"].size():
@@ -74,9 +74,9 @@ func _ready() -> void:
 				# a reading, "new" and "only" are the same card either way).
 				UIKit.animate_in(chip)
 
-	v.add_child(UIKit.button("READ IT", _read_it))
+	v.add_child(UIKit.button(I18n.t("READ IT"), _read_it))
 
-	var hand_label := UIKit.label("YOUR HAND — hover a card for its full text", 12, UIKit.DIM)
+	var hand_label := UIKit.label(I18n.t("YOUR HAND — hover a card for its full text"), 12, UIKit.DIM)
 	v.add_child(hand_label)
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)

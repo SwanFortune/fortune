@@ -481,7 +481,7 @@ static func el_glyph(el: String) -> String:
 static func el_tag(el: String) -> String:
 	if el == null or el == "":
 		return ""
-	return "%s %s" % [el_glyph(el), str(el).to_upper()]
+	return "%s %s" % [el_glyph(el), I18n.element_field(el, "label")]
 
 
 static func card_summary(c: Dictionary) -> String:
@@ -489,7 +489,7 @@ static func card_summary(c: Dictionary) -> String:
 	var el = c.get("el")
 	if el != null and el != "":
 		bits.append(el_glyph(el))
-	bits.append(c.get("n", "?"))
+	bits.append(I18n.card_name(c))
 	return " ".join(bits)
 
 
@@ -515,8 +515,8 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 	var el = c.get("el")
 	var el_c: Color = el_color(el) if el != null and el != "" else DIM
 	var tip_lines: Array = [card_text(c)]
-	if c.get("fl", "") != "":
-		tip_lines.append(c["fl"])
+	if I18n.card_flavor(c) != "":
+		tip_lines.append(I18n.card_flavor(c))
 	var kw := card_keyword_tooltip(c)
 	if kw != "":
 		tip_lines.append(kw)
@@ -592,9 +592,9 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 
 	var tags: Array = []
 	if c.get("exhaust", false):
-		tags.append("ONCE")
+		tags.append(I18n.t("ONCE"))
 	if c.get("pierce", false):
-		tags.append("PIERCE")
+		tags.append(I18n.t("PIERCE"))
 	if tags.size() > 0:
 		var tag_l := label(" · ".join(tags), 9, DIM)
 		tag_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

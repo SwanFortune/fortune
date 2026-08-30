@@ -47,10 +47,10 @@ func _ready() -> void:
 	m.add_child(v)
 
 	var head := UIKit.hbox(12)
-	var title := UIKit.block("LIBRARY", 24, UIKit.GOLD)
+	var title := UIKit.block(I18n.t("LIBRARY"), 24, UIKit.GOLD)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(title)
-	head.add_child(UIKit.button("BACK", _back))
+	head.add_child(UIKit.button(I18n.t("BACK"), _back))
 	v.add_child(head)
 
 	_summary_label = UIKit.block("", 11, UIKit.DIM)
@@ -88,7 +88,7 @@ func _filter_row() -> Control:
 	var row := UIKit.hbox(8)
 
 	var pool_opt := OptionButton.new()
-	pool_opt.add_item("All pools")
+	pool_opt.add_item(I18n.t("All pools"))
 	pool_opt.set_item_metadata(0, "all")
 	var i := 1
 	for pool in CardEdits.POOLS:
@@ -102,7 +102,7 @@ func _filter_row() -> Control:
 	row.add_child(pool_opt)
 
 	var el_opt := OptionButton.new()
-	el_opt.add_item("All elements")
+	el_opt.add_item(I18n.t("All elements"))
 	el_opt.set_item_metadata(0, "all")
 	var j := 1
 	for el in Content.ring:
@@ -118,7 +118,7 @@ func _filter_row() -> Control:
 	row.add_child(el_opt)
 
 	var search := LineEdit.new()
-	search.placeholder_text = "Search by name…"
+	search.placeholder_text = I18n.t("Search by name…")
 	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	search.text_changed.connect(func(t: String):
 		_search = t.strip_edges().to_lower()
@@ -165,7 +165,7 @@ func _rebuild_list() -> void:
 		child.queue_free()
 	var rows := _visible_rows()
 	if rows.is_empty():
-		_list_box.add_child(UIKit.block("Nothing matches those filters.", 12, UIKit.DIM))
+		_list_box.add_child(UIKit.block(I18n.t("Nothing matches those filters."), 12, UIKit.DIM))
 		return
 	for r in rows:
 		var c: Dictionary = r["card"]
@@ -214,7 +214,7 @@ func _rebuild_editor() -> void:
 
 	var c := _selected_card()
 	if c.is_empty():
-		_editor_box.add_child(UIKit.block("Pick a card on the left to edit it.", 13, UIKit.DIM))
+		_editor_box.add_child(UIKit.block(I18n.t("Pick a card on the left to edit it."), 13, UIKit.DIM))
 		return
 
 	var el = c.get("el")
@@ -228,37 +228,37 @@ func _rebuild_editor() -> void:
 	# Live preview: exactly the text a player sees, regenerated from the
 	# current field values rather than stored separately.
 	var preview := UIKit.block(UIKit.card_text(c), 13, UIKit.INK)
-	_editor_box.add_child(UIKit.block("READS AS", 11, UIKit.DIM))
+	_editor_box.add_child(UIKit.block(I18n.t("READS AS"), 11, UIKit.DIM))
 	_editor_box.add_child(preview)
 	if c.get("fl", "") != "":
 		_editor_box.add_child(UIKit.block(c["fl"], 11, UIKit.DIM))
 
 	_editor_box.add_child(_gap())
-	_editor_box.add_child(UIKit.block("CORE", 11, UIKit.GOLD))
-	_editor_box.add_child(_int_row(c, "cost", "Energy cost", 0, 6))
-	_editor_box.add_child(_int_row(c, "f", "Base restore", 0, 30))
+	_editor_box.add_child(UIKit.block(I18n.t("CORE"), 11, UIKit.GOLD))
+	_editor_box.add_child(_int_row(c, "cost", I18n.t("Energy cost"), 0, 6))
+	_editor_box.add_child(_int_row(c, "f", I18n.t("Base restore"), 0, 30))
 	_editor_box.add_child(_element_row(c))
 
 	_editor_box.add_child(_gap())
-	_editor_box.add_child(UIKit.block("EFFECTS", 11, UIKit.GOLD))
+	_editor_box.add_child(UIKit.block(I18n.t("EFFECTS"), 11, UIKit.GOLD))
 	_editor_box.add_child(UIKit.block(
-		"Set a value to 0 to remove that effect from the card entirely.", 11, UIKit.DIM))
+		I18n.t("Set a value to 0 to remove that effect from the card entirely."), 11, UIKit.DIM))
 	for e in Content.card_effects:
 		_editor_box.add_child(_effect_row(c, e))
 
 	_editor_box.add_child(_gap())
-	_editor_box.add_child(UIKit.block("FLAGS", 11, UIKit.GOLD))
+	_editor_box.add_child(UIKit.block(I18n.t("FLAGS"), 11, UIKit.GOLD))
 	for key in FLAGS:
 		_editor_box.add_child(_flag_row(c, key, FLAGS[key]))
 
 	_editor_box.add_child(_gap())
 	var actions := UIKit.hbox(8)
 	if CardEdits.has_edit(_selected_pool, c["n"]):
-		actions.add_child(UIKit.button("REVERT THIS CARD", func():
+		actions.add_child(UIKit.button(I18n.t("REVERT THIS CARD"), func():
 			CardEdits.revert_card(_selected_pool, c["n"])
 			_reload_content()
 		))
-	actions.add_child(UIKit.button("REVERT ALL CARDS", func():
+	actions.add_child(UIKit.button(I18n.t("REVERT ALL CARDS"), func():
 		CardEdits.revert_all()
 		_reload_content()
 	))
@@ -349,12 +349,12 @@ func _flag_row(c: Dictionary, field: String, caption: String) -> Control:
 
 func _element_row(c: Dictionary) -> Control:
 	var row := UIKit.hbox(10)
-	var cap := UIKit.label("Element", 12, UIKit.INK)
+	var cap := UIKit.label(I18n.t("Element"), 12, UIKit.INK)
 	cap.custom_minimum_size.x = 150
 	row.add_child(cap)
 
 	var opt := OptionButton.new()
-	opt.add_item("None")
+	opt.add_item(I18n.t("None"))
 	opt.set_item_metadata(0, null)
 	var current = c.get("el")
 	var selected := 0

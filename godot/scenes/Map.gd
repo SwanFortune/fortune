@@ -11,7 +11,7 @@ func _ready() -> void:
 
 	var st: Dictionary = Run.state
 	v.add_child(UIKit.block("NIGHT %d · KNOCK %d OF 8" % [int(st["night"]) + 1, int(st["step"]) + 1], 14, UIKit.GOLD))
-	v.add_child(UIKit.block("Who knocks tonight?", 22, UIKit.INK))
+	v.add_child(UIKit.block(I18n.t("Who knocks tonight?"), 22, UIKit.INK))
 	v.add_child(UIKit.block("Reader: %s · Coin: %s · Faith: %s · Mended: %s · Deck: %s" % [
 		st["reader"]["name"], st["coin"], st["faith"], st["mended"], st["deck"].size()
 	], 12, UIKit.DIM))
@@ -35,14 +35,14 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			var s: Dictionary = o["sitter"]
 			var q: Dictionary = o["quirk"]
 			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
-			lines.append(["%s%s" % [tag, s["name"]], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
-			lines.append(["%s · sign %s (%s) · %s" % [s["role"], q["n"], q["dn"], UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
+			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
+			lines.append(["%s · sign %s (%s) · %s" % [I18n.sitter_field(s, "role"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
-			lines.append([s["brings"], 12, UIKit.DIM])
+			lines.append([I18n.sitter_field(s, "brings"), 12, UIKit.DIM])
 		"break":
 			var rest: Dictionary = o["rest"]
 			if rest.get("kind", "") == "SHOP":
-				lines.append(["THE APOTHECARY", 17, UIKit.GOLD])
+				lines.append([I18n.t("THE APOTHECARY"), 17, UIKit.GOLD])
 				lines.append([rest.get("title", ""), 12, UIKit.DIM])
 			else:
 				lines.append([rest.get("head", "EVENT"), 13, UIKit.GOLD])

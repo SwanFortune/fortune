@@ -21,6 +21,7 @@
     "sitters.json",
     "boss.json",
     "events.json",
-    "shop.json"
+    "shop.json",
+    "locale/fr.json"
   ]
 }

@@ -35,6 +35,10 @@ func _initialize() -> void:
 	var setup_name := args[0] if args.size() > 0 else "sign"
 	var out_path := args[1] if args.size() > 1 else "/tmp/screenshot.png"
 	var settle: float = float(args[2]) if args.size() > 2 else 1.2
+	# Optional 4th arg: locale to render in, for checking a translation.
+	if args.size() > 3:
+		root.get_node("Settings").set_value("locale", args[3])
+		root.get_node("I18n").reload()
 
 	# Standalone screens aren't reachable from Run.state's "screen" field —
 	# they're menus, not run states — so they're addressed by name directly.

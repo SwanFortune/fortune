@@ -34,6 +34,8 @@ const DEFS := {
 	# gameplay — the two knobs the prototype exposed as props (its cfg())
 	"start_energy": [3, 1, 8],
 	"hand_size": [5, 3, 10],
+	# language
+	"locale": ["en"],
 	# content
 	"load_example_mods": [true],
 }

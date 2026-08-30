@@ -166,14 +166,18 @@ func _merge_file(data: Dictionary, registries: Dictionary, pack_id: String) -> v
 
 func _is_known_category(category: String) -> bool:
 	return category in ARRAY_KEY_FIELDS or category in DICT_CATEGORIES or category in SCALAR_CATEGORIES \
-		or category in ["ring", "next", "opp", "neighbors", "denial_shield"]
+		or category in ["ring", "next", "opp", "neighbors", "denial_shield"] \
+		or category.begins_with("locale_")
 
 
 func _merge_category(category: String, value, registries: Dictionary) -> void:
 	if category in SCALAR_CATEGORIES:
 		registries[category] = value
 		return
-	if category in DICT_CATEGORIES:
+	# locale_<lang> tables merge key-by-key like any other dict category, so
+	# a mod can translate just the handful of strings it cares about without
+	# having to restate a whole locale.
+	if category in DICT_CATEGORIES or category.begins_with("locale_"):
 		if not registries.has(category):
 			registries[category] = {}
 		for k in value.keys():
