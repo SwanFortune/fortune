@@ -10,11 +10,11 @@ func _ready() -> void:
 	m.add_child(v)
 
 	var st: Dictionary = Run.state
-	v.add_child(UIKit.block("NIGHT %d · KNOCK %d OF 8" % [int(st["night"]) + 1, int(st["step"]) + 1], 14, UIKit.GOLD))
+	v.add_child(RunHeader.build(self))
+	v.add_child(UIKit.block("%s %d · %s %d / 8" % [
+		I18n.t("NIGHT"), int(st["night"]) + 1, I18n.t("KNOCK"), int(st["step"]) + 1
+	], 14, UIKit.GOLD))
 	v.add_child(UIKit.block(I18n.t("Who knocks tonight?"), 22, UIKit.INK))
-	v.add_child(UIKit.block("Reader: %s · Coin: %s · Faith: %s · Mended: %s · Deck: %s" % [
-		st["reader"]["name"], st["coin"], st["faith"], st["mended"], st["deck"].size()
-	], 12, UIKit.DIM))
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
@@ -38,6 +38,9 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
 			lines.append(["%s · sign %s (%s) · %s" % [I18n.sitter_field(s, "role"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
+			var job: Dictionary = Content.get_job(s["role"])
+			if job.get("t", "") != "":
+				lines.append([I18n.job_text(s["role"], job), 11, UIKit.GOLD])
 			lines.append([I18n.sitter_field(s, "brings"), 12, UIKit.DIM])
 		"break":
 			var rest: Dictionary = o["rest"]

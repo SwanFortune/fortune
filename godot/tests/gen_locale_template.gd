@@ -188,6 +188,10 @@ func _ui_strings() -> Array[String]:
 		"READ IT", "Composure", "Energy", "Reading", "Denial wall", "Discarded:",
 		"BEGIN AGAIN", "sign", "cost", "composure", "denial", "readings",
 		"THE APOTHECARY", "ELITE", "THE MAYOR", "ONCE", "PIERCE", "No element",
+		# run header + overlays
+		"Faith", "Centimes", "Mended", "DECK", "MARKS", "CLOSE",
+		"YOUR DECK", "YOUR HANDS", "cards",
+		"Nothing on your hands yet. Rings and marks come from elites, events and the apothecary.",
 	]
 
 

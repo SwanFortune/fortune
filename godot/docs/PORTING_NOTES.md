@@ -97,7 +97,11 @@ The user asked for best judgment on these, flagged rather than silently made:
 - **Full Steam Workshop / Steamworks integration** — see `docs/STEAM_WORKSHOP.md`.
 - **Meta-progression** (persistent unlocks across runs) — never implemented
   in the source either; nothing to port.
-- **Localization, controller support, save/resume mid-run, settings menu.**
+- **Controller support and save/resume mid-run.** (A settings menu and
+  localization now exist — see `scenes/SettingsMenu.gd` and
+  `docs/LOCALIZATION.md`.) Save/resume is the more significant of the two
+  gaps for a roguelike: a run currently lives only in memory and is lost if
+  the game closes.
 
 ## Balance: a first read
 

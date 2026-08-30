@@ -22,6 +22,8 @@ func _ready() -> void:
 	var v := UIKit.vbox(10)
 	m.add_child(v)
 
+	v.add_child(RunHeader.build(self))
+
 	var s: Dictionary = f["sitter"]
 	var q: Dictionary = f["quirk"]
 	var hp_ratio := float(f["hp"]) / float(f["max"]) if int(f["max"]) > 0 else 0.0

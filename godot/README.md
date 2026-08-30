@@ -79,7 +79,7 @@ strings fall back to English, so a half-finished locale is playable. See
 autoload/     Settings, Content, ModLoader, Rules, Run, Nav, Workshop, Art, I18n, CardEdits — see their doc comments
 data/base/    the base game's content, as JSON (also the mod-pack schema — see docs/MODDING.md)
 assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
-scenes/       the playable UI
+scenes/       the playable UI (incl. SettingsMenu, Library, and the in-run RunHeader)
 mods_example/ a tiny working example mod, proving the pack format end to end
 tests/        headless tests + dev tools (no editor/display required)
 docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md, LOCALIZATION.md

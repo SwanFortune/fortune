@@ -16,7 +16,11 @@ func _ready() -> void:
 
 	v.add_child(UIKit.block(res.get("head", ""), 15, UIKit.GREEN if win else UIKit.RED))
 	v.add_child(UIKit.block(res.get("title", ""), 22, UIKit.INK))
-	v.add_child(UIKit.block(res.get("said", ""), 13, UIKit.DIM))
+	var sitter: Dictionary = res.get("sitter", {})
+	var said_field: String = "win" if win else "fail"
+	v.add_child(UIKit.block(
+		I18n.sitter_field(sitter, said_field) if not sitter.is_empty() else res.get("said", ""),
+		13, UIKit.DIM))
 
 	for line in res.get("lines", []):
 		var row := UIKit.hbox(12)

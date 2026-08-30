@@ -96,8 +96,26 @@ func _initialize() -> void:
 		run.after_res()
 	)
 
+	_test_settings_return_path()
+
 	print("SCENE SWEEP DONE")
 	quit(0)
+
+
+## The in-run SETTINGS chip has to remember which screen to come back to,
+## or a player who opens settings mid-run gets dumped at the main menu with
+## their run still live but unreachable. Checks the handoff Nav does, rather
+## than the scene swap itself (which is deferred to idle and so isn't
+## observable from inside the frame that triggers it).
+func _test_settings_return_path() -> void:
+	var nav: Node = root.get_node("Nav")
+	nav.settings_return_scene = ""
+	nav.goto_settings("res://scenes/Map.tscn")
+	if nav.settings_return_scene != "res://scenes/Map.tscn":
+		printerr("FAIL: Nav should record the return scene, got '%s'" % nav.settings_return_scene)
+	else:
+		print("--- settings return path OK ---")
+	nav.settings_return_scene = ""
 
 
 func _visit(label: String, setup: Callable) -> void:

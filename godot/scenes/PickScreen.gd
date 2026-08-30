@@ -15,14 +15,11 @@ func _ready() -> void:
 	var v := UIKit.vbox(14)
 	m.add_child(v)
 
+	v.add_child(RunHeader.build(self))
 	if pick.get("head", "") != "":
 		v.add_child(UIKit.block(pick["head"], 13, UIKit.GOLD))
 	v.add_child(UIKit.block(pick.get("title", ""), 22, UIKit.INK))
 	v.add_child(UIKit.block(pick.get("body", ""), 13, UIKit.DIM))
-	var status_row := UIKit.block("Coin: %s   Faith: %s   Deck: %s cards" % [Run.state["coin"], Run.state["faith"], Run.state["deck"].size()], 12, UIKit.DIM)
-	status_row.tooltip_text = UIKit.KEYS["centimes"] + "\n\n" + UIKit.KEYS["faith"]
-	status_row.mouse_filter = Control.MOUSE_FILTER_PASS
-	v.add_child(status_row)
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)

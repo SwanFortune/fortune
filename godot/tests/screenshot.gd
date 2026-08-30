@@ -68,6 +68,17 @@ func _initialize() -> void:
 	if settle > 0.0:
 		await create_timer(settle).timeout
 
+	# Optional 5th arg: text of a Button to press before capturing, so the
+	# modal overlays (deck, marks) can be screenshotted — they only exist
+	# after a click, and a static capture can't click for itself.
+	if args.size() > 4:
+		var pressed := _press_button(instance, args[4])
+		if not pressed:
+			printerr("no button matching '%s' found" % args[4])
+		for i in 3:
+			await process_frame
+		await create_timer(0.6).timeout
+
 	if OS.get_environment("PARLOUR_DEBUG_SIZES") == "1":
 		_debug_sizes(instance)
 
@@ -75,6 +86,16 @@ func _initialize() -> void:
 	img.save_png(out_path)
 	print("saved ", out_path, " (", scene_path, ", settled ", settle, "s)")
 	quit(0)
+
+
+func _press_button(n: Node, needle: String) -> bool:
+	if n is Button and str(n.text).contains(needle):
+		n.emit_signal("pressed")
+		return true
+	for child in n.get_children():
+		if _press_button(child, needle):
+			return true
+	return false
 
 
 func _debug_sizes(n: Node, depth: int = 0) -> void:
@@ -115,6 +136,12 @@ func _setup(name: String) -> void:
 			run.choose(sitter_idx)
 			if OS.get_environment("PARLOUR_DEBUG_SIZES") == "1":
 				print("after choose, screen=", run.state["screen"], " f=", run.state["f"])
+		"marks":
+			# Grant a couple of marks so the "what's on your hands" overlay has
+			# something to show — they're otherwise only reachable by winning
+			# an elite, which a screenshot can't wait around for.
+			_setup("read")
+			run.state["marks"] = [content.marks[0], content.relics[0]]
 		"read_laid":
 			_setup("read")
 			var f: Dictionary = run.state["f"]
