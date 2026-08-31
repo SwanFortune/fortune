@@ -1,0 +1,13 @@
+{
+  "_comment": "Demonstrates the `unlock` field, which the base game ships on every reader but never uses (all base readers are unlocked from the first launch — see autoload/Profile.gd). This reader stays locked until you have finished two runs. A condition is {stat, at_least} or {stat, includes}; `text` is what the player is told, and is a translation key like any other UI string. Drop `text` and Profile derives a plainer line from the condition.",
+  "readers": [
+    {
+      "k": "example_lantern", "planet": "MOON", "sign": "THE LANTERN", "el": "fire",
+      "name": "The Lantern Keeper", "fx": "opener",
+      "line": "You keep the light on for people who are not coming back.",
+      "rule": "Fire restores +1, and your first card restores +2.",
+      "unlock": { "stat": "runs_finished", "at_least": 2, "text": "Finish two runs" },
+      "deck": ["Light The Lamp", "Sit In The Silence"]
+    }
+  ]
+}

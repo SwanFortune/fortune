@@ -77,7 +77,12 @@ func done(name: String) -> void:
 
 func _test_content_loaded() -> void:
 	check(content.signs.size() == 12, "expected 12 signs, got %d" % content.signs.size())
-	check(content.readers.size() == 13, "expected 13 readers, got %d" % content.readers.size())
+	# Base readers by key rather than a count of the merged list: the example
+	# pack now adds a fourteenth to demonstrate the unlock field, and a mod
+	# adding a reader is the point of the pipeline rather than a regression.
+	for key in ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra",
+			"scorpio", "sagittarius", "capricorn", "aquarius", "pisces", "serpentarius"]:
+		check(not content.get_reader(key).is_empty(), "base reader '%s' should be loaded" % key)
 	check(content.jobs.size() == 10, "expected 10 jobs, got %d" % content.jobs.size())
 	check(content.sitters.size() == 9, "expected 9 sitters, got %d" % content.sitters.size())
 	check(content.has_card("Pour The Tea"), "base card Pour The Tea should be loaded")

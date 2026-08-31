@@ -86,10 +86,30 @@ func texture(id: String) -> Texture2D:
 	# yet — trust it and skip the disk check entirely. Any other status still
 	# gets verified against the filesystem, so a status of "final" with no
 	# file present degrades to the placeholder rather than erroring.
-	if entry.get("status", "missing") != "missing" and ResourceLoader.exists(path):
-		tex = load(path) as Texture2D
+	if entry.get("status", "missing") != "missing":
+		tex = _load_texture(path)
 	_cache[id] = tex
 	return tex
+
+
+## Decodes an image from BYTES rather than going through load().
+##
+## load() only resolves assets the editor has imported — it needs the .import
+## file and the converted resource under .godot/imported/. Art delivered after
+## the fact and dropped straight into assets/art/ has none of that, and art a
+## MOD ships in user://mods/ never can: the import pipeline only covers res://
+## assets known at export time. So the original ResourceLoader.exists() + load()
+## pair worked only for art that had been through the editor, which is the one
+## case that was never going to be the interesting one. This path works for
+## both, and is why "drop the PNG in and it appears" is actually true.
+func _load_texture(path: String) -> Texture2D:
+	if not FileAccess.file_exists(path):
+		return null
+	var img := Image.new()
+	if img.load(path) != OK or img.is_empty():
+		push_warning("[Art] %s could not be read as an image." % path)
+		return null
+	return ImageTexture.create_from_image(img)
 
 
 func card_texture(card: Dictionary) -> Texture2D:

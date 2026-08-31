@@ -39,13 +39,19 @@ const ARRAY_KEY_FIELDS := {
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
-const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns"]
+const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]
 
 ## The base game's own pack. Forced first, never disabled.
 const BASE_DIR := "res://data/base"
+const BASE_ID := "parlour.base"
+
+## Field stamped onto every merged record naming the pack that last defined it.
+## Underscore-prefixed to match the convention for keys that are bookkeeping
+## rather than content.
+const PACK_FIELD := "_pack"
 
 var errors: Array[String] = []
 
@@ -208,7 +214,7 @@ func _merge_file(data: Dictionary, registries: Dictionary, pack_id: String, rec:
 		if not _is_known_category(raw_key):
 			errors.append("%s: unrecognised top-level key \"%s\" ignored" % [pack_id, raw_key])
 			continue
-		_merge_category(raw_key, data[raw_key], registries)
+		_merge_category(raw_key, data[raw_key], registries, pack_id)
 		if not rec.is_empty():
 			if not rec["categories"].has(raw_key):
 				rec["categories"].append(raw_key)
@@ -222,7 +228,7 @@ func _is_known_category(category: String) -> bool:
 		or category.begins_with("locale_")
 
 
-func _merge_category(category: String, value, registries: Dictionary) -> void:
+func _merge_category(category: String, value, registries: Dictionary, pack_id: String = "") -> void:
 	if category in SCALAR_CATEGORIES:
 		registries[category] = value
 		return
@@ -242,16 +248,23 @@ func _merge_category(category: String, value, registries: Dictionary) -> void:
 	var key_field: String = ARRAY_KEY_FIELDS[category]
 	if not registries.has(category):
 		registries[category] = []
-	_merge_array_by_key(registries[category], value, key_field)
+	_merge_array_by_key(registries[category], value, key_field, pack_id)
 
 
-func _merge_array_by_key(target: Array, incoming: Array, key_field: String) -> void:
+## Records carry a PACK_FIELD naming whoever last defined them. It answers the
+## question a modder actually asks ("who overrode my card?"), and it lets
+## anything that reasons about base content — tests/test_art.gd, for one — tell
+## "the base game is missing this" from "a mod added this", which are opposite
+## conclusions from the same missing manifest entry.
+func _merge_array_by_key(target: Array, incoming: Array, key_field: String, pack_id: String = "") -> void:
 	var index_of := {}
 	for i in target.size():
 		var rec = target[i]
 		if rec.has(key_field):
 			index_of[rec[key_field]] = i
 	for rec in incoming:
+		if pack_id != "":
+			rec[PACK_FIELD] = pack_id
 		if not rec.has(key_field):
 			target.append(rec)
 			continue

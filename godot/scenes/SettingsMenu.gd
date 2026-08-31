@@ -60,6 +60,16 @@ func _ready() -> void:
 		func(x): return str(x), true
 	))
 
+	_section(v, I18n.t("CONTROLS"))
+	v.add_child(UIKit.block(
+		I18n.t("The whole game is playable from the keyboard or a gamepad: Tab and the arrow keys move between things, and Confirm activates whatever is highlighted."),
+		11, UIKit.DIM))
+	for entry in Settings.ACTIONS:
+		v.add_child(_keybind_row(entry[0], entry[1]))
+	v.add_child(UIKit.block(
+		I18n.t("Only the keyboard key is changed — an action keeps its gamepad button either way."),
+		11, UIKit.DIM))
+
 	_section(v, I18n.t("LANGUAGE"))
 	v.add_child(_language_row())
 	var cov := I18n.coverage(I18n.current())
@@ -76,7 +86,7 @@ func _ready() -> void:
 		func(_p): Content.reload(); Art.reload()
 	))
 	v.add_child(UIKit.block(
-		"Mods loaded: %d pack(s). %s" % [_pack_count(), _errors_line()],
+		I18n.t("Mods loaded: %s pack(s). %s") % [_pack_count(), _errors_line()],
 		11, UIKit.RED if not Content.load_errors.is_empty() else UIKit.DIM
 	))
 
@@ -114,6 +124,47 @@ func _language_row() -> Control:
 	return row
 
 
+## One rebindable action. Pressing the button arms a capture: the next key
+## goes to that action. Escape cancels rather than binding itself, since a
+## player who has just bound Confirm to something unreachable needs one key
+## that always means "get me out of this".
+func _keybind_row(action: String, caption: String) -> Control:
+	var row := UIKit.hbox(12)
+	var cap := UIKit.label(I18n.t(caption), 13, UIKit.INK)
+	cap.custom_minimum_size.x = 190
+	row.add_child(cap)
+
+	var armed := false
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(150, 32)
+	b.text = Settings.key_label(action)
+	b.pressed.connect(func():
+		armed = true
+		b.text = I18n.t("press a key…")
+	)
+	# A key press is only a rebind while this row is armed; the rest of the time
+	# it must fall through, or arming one row would swallow the whole screen's
+	# keyboard navigation.
+	b.gui_input.connect(func(event: InputEvent):
+		if not armed or not (event is InputEventKey) or not event.pressed or event.echo:
+			return
+		armed = false
+		if event.keycode != KEY_ESCAPE:
+			Settings.set_keybind(action, event.physical_keycode if event.physical_keycode != 0 else event.keycode)
+		b.text = Settings.key_label(action)
+		b.accept_event()
+	)
+	row.add_child(b)
+
+	var reset := UIKit.button(I18n.t("DEFAULT"), func():
+		Settings.clear_keybind(action)
+		b.text = Settings.key_label(action)
+	)
+	reset.custom_minimum_size = Vector2(100, 32)
+	row.add_child(reset)
+	return row
+
+
 func _section(v: VBoxContainer, title: String) -> void:
 	var sp := Control.new()
 	sp.custom_minimum_size.y = 8
@@ -121,16 +172,21 @@ func _section(v: VBoxContainer, title: String) -> void:
 	v.add_child(UIKit.block(title, 12, UIKit.GOLD))
 
 
+## Content already records what discovery found; re-running it here meant a
+## second, subtly different answer (it counted discovered dirs, not loaded
+## packs, so a pack switched off in the Mods screen still counted).
 func _pack_count() -> int:
-	var loader := ModLoader.new()
-	loader.load_example_mods = bool(Settings.get_value("load_example_mods"))
-	return loader.discover_pack_dirs().size()
+	var live := 0
+	for p in Content.packs:
+		if bool(p.get("enabled", true)):
+			live += 1
+	return live
 
 
 func _errors_line() -> String:
 	if Content.load_errors.is_empty():
-		return "No content errors."
-	return "%d content warning(s) — see console." % Content.load_errors.size()
+		return I18n.t("No content errors.")
+	return I18n.t("%s content warning(s) — see MODS.") % Content.load_errors.size()
 
 
 func _reset() -> void:

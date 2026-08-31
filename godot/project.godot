@@ -14,12 +14,39 @@ Settings="*res://autoload/Settings.gd"
 Workshop="*res://autoload/Workshop.gd"
 Content="*res://autoload/Content.gd"
 Art="*res://autoload/Art.gd"
+Audio="*res://autoload/Audio.gd"
 I18n="*res://autoload/I18n.gd"
 Rules="*res://autoload/Rules.gd"
 Run="*res://autoload/Run.gd"
 Save="*res://autoload/Save.gd"
+Profile="*res://autoload/Profile.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
+
+[input]
+
+; The game's own actions. ui_accept and ui_cancel are Godot built-ins and are
+; deliberately NOT redefined here — they already carry sensible defaults on
+; keyboard and gamepad, and Button responds to ui_accept natively, so
+; overriding them would only risk desyncing panel rows from real Buttons.
+; Both are still rebindable: see Settings.ACTIONS, which lists them alongside
+; these and rewrites whichever the player changes.
+parlour_read={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":82,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+, Object(InputEventJoypadButton,"resource_local_to_scene":false,"resource_name":"","device":-1,"button_index":2,"pressure":0.0,"pressed":false,"script":null)
+]
+}
+parlour_deck={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":68,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
+}
+parlour_marks={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":77,"physical_keycode":0,"key_label":0,"unicode":0,"location":0,"echo":false,"script":null)
+]
+}
 
 [rendering]
 

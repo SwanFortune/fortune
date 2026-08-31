@@ -1,10 +1,11 @@
 {
   "id": "example.a_new_card",
-  "name": "Example Mod — A New Card",
+  "name": "Example Mod \u2014 A New Card And A Locked Reader",
   "version": "1.0.0",
   "priority": 10,
-  "description": "Demonstrates the pack format: adds one new minor card to the water pool. Loaded automatically while the 'Load example mods' setting is on; real player mods work identically from user://mods/<your_mod>/.",
+  "description": "Demonstrates the pack format: adds one new minor card to the water pool, and one reader locked behind a condition to show that readers.json's `unlock` field is real (no base reader uses it). Loaded automatically while the 'Load example mods' setting is on; real player mods work identically from user://mods/<your_mod>/.",
   "files": [
-    "cards_minor.json"
+    "cards_minor.json",
+    "readers.json"
   ]
 }

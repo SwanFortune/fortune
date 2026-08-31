@@ -113,7 +113,14 @@ static func block(text: String, size: int = 16, color: Color = INK) -> Label:
 static func button(text: String, on_pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
-	b.pressed.connect(on_pressed)
+	# Sound goes on here rather than at each of the ~40 call sites, for the same
+	# reason make_interactive() exists: one place to change, and no button that
+	# somebody forgot to wire.
+	b.pressed.connect(func():
+		Audio.play("ui_press")
+		on_pressed.call()
+	)
+	b.focus_entered.connect(func(): Audio.play("ui_move"))
 	b.custom_minimum_size = Vector2(0, 36)
 	return b
 
@@ -186,6 +193,7 @@ static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Cal
 	wrap.focus_entered.connect(func():
 		style.border_color = FOCUS
 		style.set_border_width_all(maxi(base_width, 2))
+		Audio.play("ui_move")
 	)
 	wrap.focus_exited.connect(func():
 		style.border_color = base_border
@@ -197,9 +205,11 @@ static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Cal
 			# switches to the keyboard carries on from where they clicked rather
 			# than from wherever focus happened to be left.
 			wrap.grab_focus()
+			Audio.play("ui_press")
 			on_pressed.call()
 			wrap.accept_event()
 		elif event.is_action_pressed("ui_accept"):
+			Audio.play("ui_press")
 			on_pressed.call()
 			wrap.accept_event()
 	)

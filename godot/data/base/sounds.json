@@ -1,0 +1,14 @@
+{
+  "_comment": "NOT from the source prototype, which shipped no audio — added during the port; see docs/SOUND_GUIDE.md. Keys must match Audio.EVENTS exactly (tests/test_audio.gd enforces it in both directions). Every sound here is a PLACEHOLDER, synthesized by tests/gen_sounds.py, and is meant to be replaced. 'file' is optional and defaults to assets/audio/<event>.wav; a bare filename resolves under assets/audio/, a res:// or user:// path is taken as-is, so a mod can point at its own folder. 'gain_db' trims a sound that lands too loud without re-rendering it. 'pitch_jitter' varies pitch by +/- that fraction per play so a run of the same sound (five cards dealt in a row) does not machine-gun.",
+  "sounds": {
+    "card_draw":       { "status": "placeholder", "gain_db": -9.0, "pitch_jitter": 0.07 },
+    "card_lay":        { "status": "placeholder", "gain_db": -6.0, "pitch_jitter": 0.05 },
+    "card_discard":    { "status": "placeholder", "gain_db": -10.0, "pitch_jitter": 0.03 },
+    "reading_resolve": { "status": "placeholder", "gain_db": -8.0, "pitch_jitter": 0.0 },
+    "sitter_win":      { "status": "placeholder", "gain_db": -7.0, "pitch_jitter": 0.0 },
+    "sitter_lose":     { "status": "placeholder", "gain_db": -7.0, "pitch_jitter": 0.0 },
+    "coin":            { "status": "placeholder", "gain_db": -11.0, "pitch_jitter": 0.06 },
+    "ui_move":         { "status": "placeholder", "gain_db": -18.0, "pitch_jitter": 0.04 },
+    "ui_press":        { "status": "placeholder", "gain_db": -14.0, "pitch_jitter": 0.03 }
+  }
+}

@@ -51,6 +51,7 @@ func _ready() -> void:
 
 	var discarded: Array = f.get("_justDiscarded", [])
 	if not discarded.is_empty():
+		Audio.play("card_discard")
 		var disc_label := UIKit.block("%s %s" % [I18n.t("Discarded:"), ", ".join(discarded)], 11, UIKit.DIM)
 		v.add_child(disc_label)
 		if not UIKit.motion_off():
@@ -96,17 +97,40 @@ func _ready() -> void:
 		fan.add_child(face)
 		if just_drawn.has(c["uid"]):
 			UIKit.animate_in(face, deal_index * 0.06)
+			_deal_sound(deal_index * 0.06)
 			deal_index += 1
 	# The hand, not the run header above it. See Map.gd. Falls back to the whole
 	# screen when the hand is empty, so READ IT is still reachable.
 	UIKit.focus_first(fan if fan.get_child_count() > 0 else self)
 
 
+## One click per card dealt, staggered to match the deal animation. Uses the
+## same delay the tween does, so a hand riffles rather than arriving as one
+## thud — and goes silent with the animations when motion is turned off.
+func _deal_sound(delay: float) -> void:
+	if UIKit.motion_off() or delay <= 0.0:
+		Audio.play("card_draw")
+		return
+	var timer := get_tree().create_timer(UIKit.dur(delay))
+	timer.timeout.connect(func(): Audio.play("card_draw"))
+
+
 func _lay(card_uid: String) -> void:
+	Audio.play("card_lay")
 	Run.lay_card(card_uid)
 	Nav.goto_for_state()
 
 
 func _read_it() -> void:
+	Audio.play("reading_resolve")
 	Run.read_it()
 	Nav.goto_for_state()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("parlour_read"):
+		_read_it()
+		get_viewport().set_input_as_handled()
+		return
+	if RunHeader.handle_shortcut(event, self):
+		get_viewport().set_input_as_handled()

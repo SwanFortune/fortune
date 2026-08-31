@@ -69,3 +69,8 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 func _choose(i: int) -> void:
 	Run.choose(i)
 	Nav.goto_for_state()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if RunHeader.handle_shortcut(event, self):
+		get_viewport().set_input_as_handled()

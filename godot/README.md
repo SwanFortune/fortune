@@ -38,9 +38,12 @@ godot --headless --path godot -s tests/test_art.gd             # art manifest ->
 godot --headless --path godot -s tests/test_library.gd         # Library edits -> mod pack -> live content
 godot --headless --path godot -s tests/test_i18n.gd            # localization + fallback
 godot --headless --path godot -s tests/test_save.gd            # save/resume round-trip
+godot --headless --path godot -s tests/test_settings.gd        # key rebinding + setting hygiene
+godot --headless --path godot -s tests/test_audio.gd           # sound registry + runtime loader
+godot --headless --path godot -s tests/test_profile.gd         # cross-run stats + reader unlocks
 ```
 
-All eight should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All eleven should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker
@@ -65,7 +68,7 @@ xvfb-run -a godot --path godot -s tests/screenshot.gd -- read out.png
 #   win, reward, over, menu, menu_saved, mods, settings, library
 ```
 
-## For the artist
+## For the artist and the composer
 
 Everything that needs drawing is catalogued in `data/base/art_manifest.json`
 (generated from live content, so it can't go stale), and **`docs/ART_GUIDE.md`
@@ -75,6 +78,17 @@ procedural placeholder, so the game always runs and improves piece by piece.
 
 ```
 godot --headless --path godot -s tests/gen_art_manifest.gd   # refresh the checklist after content changes
+```
+
+Sound works the same way. The nine moments the game announces are listed in
+`data/base/sounds.json` and **`docs/SOUND_GUIDE.md` is the brief**. What ships
+today is placeholder audio, marked as such; drop a real file into
+`assets/audio/` and set that entry's status to `"final"`. No import step and no
+editor needed — both loaders read from bytes at runtime, which is also the only
+way a mod's own art or audio can work at all.
+
+```
+python3 tests/gen_sounds.py                                  # regenerate the placeholders
 ```
 
 ## Languages

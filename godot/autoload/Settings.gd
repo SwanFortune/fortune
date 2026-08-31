@@ -38,6 +38,10 @@ const DEFS := {
 	"locale": ["en"],
 	# content
 	"load_example_mods": [true],
+	# controls: {action_name: keycode}. Only the KEYBOARD binding of an action
+	# is overridable here; an action's gamepad events are left alone, so a
+	# rebind never silently costs a controller player their button.
+	"keybinds": [{}],
 	# ids of mod packs the player switched off in the Mods screen. The base
 	# pack is not listed here and cannot be disabled — without it there is no
 	# game to mod. Stored as ids rather than paths so a pack keeps its setting
@@ -45,13 +49,33 @@ const DEFS := {
 	"disabled_mods": [[]],
 }
 
+## The actions offered for rebinding, in the order the settings screen lists
+## them. ui_accept and ui_cancel are Godot built-ins rather than actions this
+## project declares (see the [input] section of project.godot for why), but they
+## are the two a player is most likely to want moved, so they belong on the list
+## — InputMap treats a built-in action like any other.
+const ACTIONS := [
+	["ui_accept", "Confirm / play a card"],
+	["ui_cancel", "Back / close"],
+	["parlour_read", "Read it"],
+	["parlour_deck", "Show your deck"],
+	["parlour_marks", "Show your marks"],
+]
+
+## Each action's shipped keyboard events, captured before any override is
+## applied. Without this a rebind would be irreversible: overriding replaces the
+## keyboard events, so "reset" would have nothing to put back.
+var _default_keys: Dictionary = {}
+
 var _values: Dictionary = {}
 
 
 func _ready() -> void:
+	_remember_default_keys()
 	load_from_disk()
 	_apply_display()
 	_apply_audio()
+	_apply_input()
 
 
 func get_value(key: String):
@@ -64,7 +88,7 @@ func get_value(key: String):
 	# default for every later reader, in a way no test would obviously catch.
 	# Copy on the way out; callers are then free to mutate what they hold and
 	# pass it to set_value().
-	return value.duplicate() if typeof(value) == TYPE_ARRAY else value
+	return value.duplicate() if typeof(value) in [TYPE_ARRAY, TYPE_DICTIONARY] else value
 
 
 func set_value(key: String, value) -> void:
@@ -84,6 +108,8 @@ func set_value(key: String, value) -> void:
 		_apply_display()
 	elif key in ["master_volume", "muted"]:
 		_apply_audio()
+	elif key == "keybinds":
+		_apply_input()
 	changed.emit(key)
 
 
@@ -92,7 +118,68 @@ func reset_to_defaults() -> void:
 	save_to_disk()
 	_apply_display()
 	_apply_audio()
+	_apply_input()
 	changed.emit("")
+
+
+# ── controls ────────────────────────────────────────────────────────────
+
+func _remember_default_keys() -> void:
+	for entry in ACTIONS:
+		var action: String = entry[0]
+		if not InputMap.has_action(action):
+			push_warning("[Settings] no such input action '%s'" % action)
+			continue
+		var keys: Array = []
+		for e in InputMap.action_get_events(action):
+			if e is InputEventKey:
+				keys.append(e)
+		_default_keys[action] = keys
+
+
+## Rewrites the InputMap from the stored overrides. Only keyboard events are
+## touched: an action's joypad events are left in place, so rebinding a key
+## never costs a controller player their button.
+func _apply_input() -> void:
+	var binds: Dictionary = get_value("keybinds")
+	for entry in ACTIONS:
+		var action: String = entry[0]
+		if not InputMap.has_action(action):
+			continue
+		for e in InputMap.action_get_events(action):
+			if e is InputEventKey:
+				InputMap.action_erase_event(action, e)
+		if binds.has(action):
+			var ev := InputEventKey.new()
+			ev.physical_keycode = int(binds[action])
+			InputMap.action_add_event(action, ev)
+		else:
+			for e in _default_keys.get(action, []):
+				InputMap.action_add_event(action, e)
+
+
+## The key currently bound to `action`, as something to show a player. Falls
+## back to the action name if it somehow has no keyboard event at all, rather
+## than rendering an empty cell that looks like a bug.
+func key_label(action: String) -> String:
+	if not InputMap.has_action(action):
+		return "?"
+	for e in InputMap.action_get_events(action):
+		if e is InputEventKey:
+			return e.as_text_physical_keycode() if e.physical_keycode != 0 else e.as_text_keycode()
+	return "—"
+
+
+func set_keybind(action: String, keycode: int) -> void:
+	var binds: Dictionary = get_value("keybinds")
+	binds[action] = keycode
+	set_value("keybinds", binds)
+
+
+func clear_keybind(action: String) -> void:
+	var binds: Dictionary = get_value("keybinds")
+	if binds.erase(action):
+		set_value("keybinds", binds)
 
 
 func default_for(key: String):

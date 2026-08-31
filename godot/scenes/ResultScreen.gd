@@ -5,6 +5,7 @@ func _ready() -> void:
 	var res: Dictionary = Run.state["res"]
 	var kind: String = res.get("kind", "")
 	var win: bool = kind == "win"
+	Audio.play("sitter_win" if win else "sitter_lose")
 
 	var root := UIKit.root_control()
 	add_child(root)

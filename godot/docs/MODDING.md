@@ -97,6 +97,7 @@ each record is merged by:
 | `denial_shield` | object | (whole-value override) | `fx.json` |
 | `denial_wall` | object | (whole-object merge) | `fx.json` |
 | `pronouns` | object | (whole-object merge) | `pronouns.json` |
+| `sounds` | object | (whole-object merge) | `sounds.json` |
 | `card_effects` | array | `k` | `card_effects.json` |
 | `signs` | array | `k` | `signs.json` |
 | `jobs` | object | (whole-object merge) | `jobs.json` |
@@ -154,6 +155,44 @@ display time. Add a key here and you can use it as a sitter's `p`. The
 verb-agreement tokens (`is`/`es`/`has`/`do`/`goes`) exist so one sentence reads
 correctly for both singular and plural pronouns — write `"{S} need{es} it"`,
 not `"She needs it"`.
+
+### Sounds
+
+`sounds` maps a game moment to an audio file. The moments are fixed (they are
+`Audio.EVENTS` in `autoload/Audio.gd`); a pack repoints one by naming it:
+
+```json
+{ "sounds": { "card_lay": { "file": "res://mods/my_pack/audio/slap.ogg" } } }
+```
+
+A `res://` or `user://` path is taken as-is, so point at your own folder; a
+bare filename resolves under the base game's `assets/audio/`. WAV, OGG and MP3
+are read **from bytes at runtime**, not through Godot's import pipeline, which
+is what makes a mod's audio work at all — the importer only ever sees `res://`
+assets known at export time. The same is true of a mod's **art**. See
+`docs/SOUND_GUIDE.md` for the spec and what each moment is for.
+
+### Locking a reader
+
+Every reader carries an `unlock` field. `null` — what all thirteen base
+readers have — means always available. A condition makes the reader appear on
+the sign-select screen greyed out, with what it wants written underneath:
+
+```json
+"unlock": { "stat": "runs_finished", "at_least": 2, "text": "Finish two runs" }
+```
+
+`stat` is one of the keys in `Profile.STATS` (`runs_finished`, `best_faith`,
+`total_mended`, `readers_finished`), compared with `at_least` for the numbers
+or `includes` for the list. `text` is what the player is told and is a
+translation key like any other UI string; leave it out and a plainer line is
+derived from the condition.
+
+An unknown stat or a condition with no comparison is **reported and treated as
+unlocked** — a typo in a pack should not produce a reader nobody can select.
+
+`mods_example/example_mod/readers.json` is a working example. No base reader
+uses this; whether one should is the game author's call.
 
 ## Card and record schema
 

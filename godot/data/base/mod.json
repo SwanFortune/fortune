@@ -23,6 +23,7 @@
     "boss.json",
     "events.json",
     "shop.json",
+    "sounds.json",
     "locale/fr.json"
   ]
 }

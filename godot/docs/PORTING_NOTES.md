@@ -95,18 +95,15 @@ The user asked for best judgment on these, flagged rather than silently made:
   AUDIT tab equivalent IS ported — see `Rules.fx_audit()` and
   `tests/test_content_audit.gd`.
 - **Full Steam Workshop / Steamworks integration** — see `docs/STEAM_WORKSHOP.md`.
-- **Meta-progression** (persistent unlocks across runs) — never implemented
-  in the source either; nothing to port. Note that every reader carries an
-  `unlock: null` field that nothing reads, so the *scaffolding* is ported and
-  inert: all 13 readers are available from the first launch.
-- **Key rebinding**, and any on-screen hint that keyboard/gamepad play exists.
-  Navigation itself now works — see below.
-- **Sound.** `master_volume` and `muted` drive the real AudioServer master bus
-  (deliberately — see `autoload/Settings.gd`), but the game ships no audio
-  files, so both are honest wiring with nothing to carry.
+- **Any actual meta-progression content.** The unlock *mechanism* is now real
+  (see below) but no base reader uses it; all 13 are still available from the
+  first launch, which is the source's behaviour and not mine to change.
+- **Real sound design.** The audio layer and placeholder sounds are in; they
+  are stand-ins, and `docs/SOUND_GUIDE.md` is the brief for replacing them,
+  exactly as `docs/ART_GUIDE.md` is for the art.
 
-Save/resume and keyboard navigation were both on this list and are now done —
-see below.
+Save/resume, keyboard navigation, key rebinding, sound and the unlock
+mechanism were all on this list and are now done — see below.
 
 ## Keyboard and gamepad
 
@@ -135,6 +132,75 @@ focused (stub `focus_first` out and 16 screens fail; with it, none do), and
 that pushing a `ui_accept` at the viewport on the reading screen actually lays
 a card — driving the real routing rather than calling the handler directly,
 since the routing was as much in doubt as the handler.
+
+### Rebinding
+
+Settings → CONTROLS lists five actions and rebinds any of them. `ui_accept` and
+`ui_cancel` are Godot built-ins rather than actions this project declares —
+deliberately, since `Button` responds to `ui_accept` natively and redefining it
+would risk desyncing real Buttons from panel rows — but `InputMap` treats a
+built-in like any other action, so they are on the list, being the two a player
+is most likely to want moved.
+
+Only an action's **keyboard** event is replaced; its gamepad button is left
+alone, so a rebind never quietly costs a controller player their button.
+Settings captures each action's shipped keyboard events at startup, because
+applying an override erases them from the InputMap and "reset to default" would
+otherwise have nothing to put back.
+
+## Sound
+
+`master_volume` and `muted` drove the real AudioServer master bus with nothing
+on it. There is now an `Audio.gd` autoload with nine named moments
+(`Audio.EVENTS`), a moddable `sounds` registry, and placeholder audio so the
+bus carries something.
+
+The sounds that ship are **placeholders** — synthesized by
+`tests/gen_sounds.py`, marked `"status": "placeholder"`, and meant to be
+replaced. This mirrors the art pipeline deliberately: `docs/SOUND_GUIDE.md` is
+the composer's brief the way `docs/ART_GUIDE.md` is the artist's, and
+`tests/test_audio.gd` asserts that `Audio.EVENTS` and `sounds.json` cover
+exactly the same keys, so a renamed moment cannot silently stop making a noise.
+
+Sounds fire from the **UI**, not from `Run.gd`, for the same layering reason
+`Run.gd` emits translation keys rather than prose. `Reading.gd` already holds
+`_justDrawn`/`_justDiscarded` snapshots for its animations, so audio and motion
+read the same source and cannot disagree.
+
+### A latent bug this uncovered
+
+`Art.gd` resolved textures with `ResourceLoader.exists()` + `load()`, which
+only works for assets **the editor has imported**. Art delivered later and
+dropped into `assets/art/` has no `.import` file; art a mod ships in
+`user://mods/` never can, since the importer only covers `res://` assets known
+at export time. So the art pipeline worked for exactly the case that was never
+going to be the interesting one — and `test_art.gd` could not see it, because
+its delivered-art check skips itself while every asset is still `"missing"`,
+which is always, until the artist delivers.
+
+Both loaders now decode from bytes (`Image.load()` for art; a small RIFF/WAVE
+reader plus Godot's runtime OGG/MP3 loaders for audio), and `test_art.gd`
+writes its own un-imported file to `user://` to pin it down without needing any
+committed art.
+
+## Unlocks
+
+Every reader carries an `unlock` field, ported faithfully and then read by
+nothing — inert scaffolding. `Profile.gd` (cross-run stats at
+`user://profile.cfg`, distinct from `Save.gd`'s run in progress) now evaluates
+it, and the sign-select screen greys out a locked reader and says what it wants
+rather than hiding it.
+
+**No progression is invented for the base game.** All 13 base readers keep
+`unlock: null`, and `tests/test_profile.gd` asserts it, so making the mechanism
+work cannot quietly become a design change. The example pack ships a locked
+reader so the feature is exercised rather than merely present. If a base reader
+should ever be locked the obvious candidate is Serpentarius — "You were never
+on the wheel" — but that is the author's call, not a porting one.
+
+A `runs_started` stat was written and then dropped: there is no unambiguous
+screen transition for it, it would have needed persistence calls inside
+`Run.gd` to be honest, and no unlock condition wanted it.
 
 ## Save and resume
 
@@ -285,6 +351,8 @@ words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
   single source of truth per `HANDOFF.md`.
 - `autoload/Run.gd` — the run/turn state machine.
 - `autoload/Save.gd` — run persistence and content re-resolution on load.
+- `autoload/Profile.gd` — what persists between runs, and unlock conditions.
+- `autoload/Audio.gd` — named game moments; see `docs/SOUND_GUIDE.md`.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
 - `autoload/Workshop.gd` — the Steam Workshop stub; see `docs/STEAM_WORKSHOP.md`.

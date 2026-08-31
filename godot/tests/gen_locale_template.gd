@@ -198,6 +198,13 @@ func _ui_strings() -> Array[String]:
 		"MOTION", "Animation speed", "off",
 		"GAMEPLAY", "Energy per reading", "Hand size",
 		"CONTENT", "Load example mods",
+		"No content errors.", "Mods loaded: %s pack(s). %s",
+		"CONTROLS", "DEFAULT", "press a key…",
+		"The whole game is playable from the keyboard or a gamepad: Tab and the arrow keys move between things, and Confirm activates whatever is highlighted.",
+		"Only the keyboard key is changed — an action keeps its gamepad button either way.",
+		"Confirm / play a card", "Back / close", "Read it", "Show your deck", "Show your marks",
+		# unlocks (sign-select)
+		"LOCKED —", "Finish a run as %s", "Reach %s of %s", "Finish two runs",
 		"LANGUAGE", "Language",
 		"BACK", "RESET TO DEFAULTS",
 		# library
@@ -228,7 +235,7 @@ func _ui_strings() -> Array[String]:
 		"ONE OF THEM WENT HOME AS THEY CAME", "THREE NIGHTS, AND THE KNOCKING STOPS",
 		"Restored", "Deck", "Centimes left", "SKIP", "%s cards",
 		# library extras
-		"CHANGED", "● marks a card you've changed",
+		"CHANGED", "● marks a card you've changed", "from %s",
 		"Pierces denial", "Once per sitter", "Restores faith, not composure",
 		"Counts as every element", "Reads as their element",
 		"Counts as your current element", "No element (basic decency)",

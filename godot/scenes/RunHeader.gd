@@ -46,6 +46,23 @@ static func build(host: Node) -> Control:
 	return bar
 
 
+## The header's chips as keyboard/gamepad shortcuts. Called by each in-run
+## screen from its own _unhandled_input rather than handled here, because
+## RunHeader is a static factory returning a plain Control — there is no node
+## of its own to receive input on, and inventing one just to hold a script
+## would be more machinery than three delegating lines.
+##
+## Returns true if it consumed the event, so the caller can mark it handled.
+static func handle_shortcut(event: InputEvent, host: Node) -> bool:
+	if event.is_action_pressed("parlour_deck"):
+		_show_deck(host)
+		return true
+	if event.is_action_pressed("parlour_marks"):
+		_show_marks(host)
+		return true
+	return false
+
+
 static func _stat(caption: String, value: String, color: Color, tip: String) -> Control:
 	var row := UIKit.hbox(5)
 	row.tooltip_text = tip

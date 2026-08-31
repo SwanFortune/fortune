@@ -226,6 +226,14 @@ func _rebuild_editor() -> void:
 		"  ·  " + I18n.t("CHANGED") if CardEdits.has_edit(_selected_pool, c["n"]) else "",
 	], 11, UIKit.GOLD if CardEdits.has_edit(_selected_pool, c["n"]) else UIKit.DIM))
 
+	# Which pack this card came from, when it is not the base game's. The stamp
+	# is put on by ModLoader; showing it here answers the question a player with
+	# several packs installed actually has — "where did this card come from, and
+	# who last changed it?" — which used to need reading JSON by hand.
+	var pack := str(c.get("_pack", ""))
+	if pack != "" and pack != "parlour.base":
+		_editor_box.add_child(UIKit.block(I18n.t("from %s") % pack, 11, UIKit.GOLD))
+
 	# Live preview: exactly the text a player sees, regenerated from the
 	# current field values rather than stored separately.
 	var preview := UIKit.block(UIKit.card_text(c), 13, UIKit.INK)

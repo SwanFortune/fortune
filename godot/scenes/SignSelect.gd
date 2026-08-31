@@ -22,13 +22,21 @@ func _ready() -> void:
 	for i in Content.readers.size():
 		var r: Dictionary = Content.readers[i]
 		var el_c := UIKit.el_color(r["el"])
+		# A reader may be locked behind a condition (readers.json's `unlock`).
+		# No base reader is; a pack can be. A locked one is shown rather than
+		# hidden, with what it wants — a reader you cannot see is not a goal.
+		var locked: bool = Profile.reader_locked(r)
 		var lines := [
-			["%s — %s" % [I18n.reader_field(r, "name"), I18n.reader_field(r, "sign")], 16, UIKit.INK],
+			["%s — %s" % [I18n.reader_field(r, "name"), I18n.reader_field(r, "sign")], 16,
+				UIKit.DIM if locked else UIKit.INK],
 			[I18n.reader_field(r, "line"), 12, UIKit.DIM],
-			["%s  %s" % [UIKit.el_glyph(r["el"]), I18n.reader_field(r, "rule")], 12, el_c],
-			["Starts with: %s" % ", ".join(r.get("deck", [])), 11, UIKit.DIM],
+			["%s  %s" % [UIKit.el_glyph(r["el"]), I18n.reader_field(r, "rule")], 12,
+				UIKit.DIM if locked else el_c],
+			["%s %s" % [I18n.t("Starts with:"), ", ".join(r.get("deck", []))], 11, UIKit.DIM],
 		]
-		list.add_child(UIKit.panel_button(lines, _pick.bind(i)))
+		if locked:
+			lines.append(["%s %s" % [I18n.t("LOCKED —"), Profile.unlock_text(r.get("unlock", null))], 12, UIKit.GOLD])
+		list.add_child(UIKit.panel_button(lines, _pick.bind(i), not locked))
 	UIKit.focus_first(self)
 
 

@@ -75,6 +75,10 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 
 
 func _take(i: int) -> void:
+	# Only when it actually costs something — a free reward is not a purchase,
+	# and playing the coin sound for one would be a small lie.
+	if int(Run.state["pick"].get("opts", [])[i].get("cost", 0)) > 0:
+		Audio.play("coin")
 	Run.take_pick(i)
 	Nav.goto_for_state()
 
@@ -82,3 +86,8 @@ func _take(i: int) -> void:
 func _skip() -> void:
 	Run.skip_pick()
 	Nav.goto_for_state()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if RunHeader.handle_shortcut(event, self):
+		get_viewport().set_input_as_handled()

@@ -25,6 +25,7 @@ func _initialize() -> void:
 	_test_missing_art_is_null_not_error()
 	_test_delivered_art_loads()
 	_test_every_manifest_id_is_resolvable()
+	_test_unimported_file_loads()
 
 	if failures.is_empty():
 		print("ALL PASS — art status: ", art.status_summary())
@@ -85,6 +86,36 @@ func _test_delivered_art_loads() -> void:
 		check(art.sitter_texture(perrot) != null, "sitter/mme-perrot is marked delivered so it should load")
 
 
+## The loader has to read a file the editor has never imported.
+##
+## This is the case that actually matters and the one nothing was covering:
+## art delivered after the fact and dropped into assets/art/, or shipped by a
+## mod in user://mods/, has no .import file and no converted resource under
+## .godot/imported/ — and a mod's never can, since the import pipeline only
+## covers res:// assets known at export time. Art.gd used ResourceLoader.exists()
+## + load(), which works for exactly the art that has been through the editor
+## and nothing else. The delivered-art check above cannot catch that, because
+## it skips entirely while every asset is still "missing" — which is always,
+## until the artist delivers.
+##
+## Writes its own file to user:// and cleans up, so it needs no committed art.
+func _test_unimported_file_loads() -> void:
+	var path := "user://_test_unimported.png"
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.4, 0.2, 0.6))
+	check(img.save_png(path) == OK, "could not write the test image")
+
+	var tex = art._load_texture(path)
+	check(tex != null, "a file the editor never imported must still load")
+	if tex != null:
+		check(tex.get_width() == 8 and tex.get_height() == 8,
+			"loaded texture should be 8x8, got %dx%d" % [tex.get_width(), tex.get_height()])
+
+	check(art._load_texture("user://_definitely_not_here.png") == null,
+		"a missing file should be null, not an error")
+	DirAccess.remove_absolute(path)
+
+
 ## Every id the manifest lists must be resolvable without throwing, whatever
 ## its status — this is the "the game runs at any point during production"
 ## guarantee, checked across all 80-odd assets rather than a sample.
@@ -97,9 +128,25 @@ func _test_every_manifest_id_is_resolvable() -> void:
 
 	# And the ids the game derives at runtime must match manifest ids, or
 	# nothing would ever resolve even once art exists.
+	#
+	# BASE CONTENT ONLY. This manifest belongs to the base pack, and every merged
+	# record is stamped with the pack that defined it (ModLoader.PACK_FIELD) — so
+	# a missing entry for a mod's record means "a mod added content", not "the
+	# base game lost a card". Those are opposite conclusions from the same
+	# symptom, and without the stamp this check could only ever reach the wrong
+	# one. A mod that wants art ships its own manifest.
 	for c in content.cards_minor:
-		check(art.manifest.has(art.card_id(c)), "manifest missing id for card %s (%s)" % [c["n"], art.card_id(c)])
+		if _is_base(c):
+			check(art.manifest.has(art.card_id(c)), "manifest missing id for card %s (%s)" % [c["n"], art.card_id(c)])
 	for s in content.sitters:
-		check(art.manifest.has(art.sitter_id(s)), "manifest missing id for sitter %s" % s["name"])
+		if _is_base(s):
+			check(art.manifest.has(art.sitter_id(s)), "manifest missing id for sitter %s" % s["name"])
 	for r in content.readers:
-		check(art.manifest.has(art.reader_id(r)), "manifest missing id for reader %s" % r["k"])
+		if _is_base(r):
+			check(art.manifest.has(art.reader_id(r)), "manifest missing id for reader %s" % r["k"])
+
+
+## A record with no pack stamp is treated as base, so this errs towards
+## checking too much rather than towards silently checking nothing.
+func _is_base(rec: Dictionary) -> bool:
+	return str(rec.get("_pack", "parlour.base")) == "parlour.base"
