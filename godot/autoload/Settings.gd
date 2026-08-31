@@ -38,6 +38,11 @@ const DEFS := {
 	"locale": ["en"],
 	# content
 	"load_example_mods": [true],
+	# ids of mod packs the player switched off in the Mods screen. The base
+	# pack is not listed here and cannot be disabled — without it there is no
+	# game to mod. Stored as ids rather than paths so a pack keeps its setting
+	# when it moves (a manual install later subscribed to on the Workshop, say).
+	"disabled_mods": [[]],
 }
 
 var _values: Dictionary = {}

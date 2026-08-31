@@ -96,10 +96,55 @@ func _initialize() -> void:
 		run.after_res()
 	)
 
+	await _visit_standalone()
 	_test_settings_return_path()
 
 	print("SCENE SWEEP DONE")
 	quit(0)
+
+
+## The menus are not reachable from Run.state's "screen" field — they are
+## screens, not run states — so the sweep above never built them and their
+## _ready() went unchecked. That matters most for the main menu, which now has
+## real branching in it (a resumable save, no save, an unreadable one) and for
+## the mods screen, which reads pack metadata that only exists after a load.
+func _visit_standalone() -> void:
+	var save: Node = root.get_node("Save")
+
+	save.clear()
+	await _visit_scene("main menu (no save)", "res://scenes/MainMenu.tscn")
+
+	# With a save present the menu grows a CONTINUE entry and a line describing
+	# the run, which reaches into Content for the reader's name.
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	save._write()
+	await _visit_scene("main menu (resumable save)", "res://scenes/MainMenu.tscn")
+
+	# An unreadable save takes the third branch: the menu says so rather than
+	# silently offering nothing.
+	var f := FileAccess.open(save.PATH, FileAccess.WRITE)
+	f.store_string("not a variant")
+	f.close()
+	print("--- the next ERROR line is expected: a deliberately corrupt save ---")
+	await _visit_scene("main menu (unreadable save)", "res://scenes/MainMenu.tscn")
+	save.clear()
+
+	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
+	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
+	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+func _visit_scene(label: String, scene_path: String) -> void:
+	print("--- BEGIN ", label, " ---")
+	var packed: PackedScene = load(scene_path)
+	var instance: Node = packed.instantiate()
+	root.add_child(instance)
+	await process_frame
+	instance.queue_free()
+	await process_frame
+	print("--- END ", label, " (", scene_path, ") ---")
 
 
 ## The in-run SETTINGS chip has to remember which screen to come back to,

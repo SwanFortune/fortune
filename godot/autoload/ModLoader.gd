@@ -44,31 +44,77 @@ const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns"]
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]
 
+## The base game's own pack. Forced first, never disabled.
+const BASE_DIR := "res://data/base"
+
 var errors: Array[String] = []
 
 ## Whether to scan res://mods_example/. Set by Content from the player
 ## setting of the same name; user://mods/ and Workshop items always load.
 var load_example_mods: bool = true
 
+## Pack ids the player switched off in the Mods screen. The base pack ignores
+## this list — a game with no base content is not a state worth reaching.
+var disabled_ids: Array = []
+
+## What discovery found, in load order, whether or not it was loaded:
+## {id, name, version, description, priority, path, source, enabled, base,
+##  categories, records}. Populated by build_registries(); this used to be
+## thrown away, which is why nothing could tell the player which packs were
+## live, in what order, or which of them was responsible for an error.
+var packs: Array[Dictionary] = []
+
 
 ## Runs discovery + load + merge and returns the final registries dict,
 ## keyed by category name ("signs", "cards_minor", "fx", ...).
 func build_registries() -> Dictionary:
 	var registries: Dictionary = {}
+	packs = []
 	for pack_dir in discover_pack_dirs():
 		var manifest := _load_manifest(pack_dir)
 		if manifest.is_empty():
 			continue
-		_load_pack_into(pack_dir, manifest, registries)
+		var is_base: bool = pack_dir == BASE_DIR
+		var id: String = str(manifest.get("id", pack_dir))
+		var enabled: bool = is_base or not disabled_ids.has(id)
+		var rec := {
+			"id": id,
+			"name": str(manifest.get("name", id)),
+			"version": str(manifest.get("version", "")),
+			"description": str(manifest.get("description", "")),
+			"priority": int(manifest.get("priority", 0)),
+			"path": pack_dir,
+			"source": _source_of(pack_dir),
+			"base": is_base,
+			"enabled": enabled,
+			"categories": [],
+			"records": 0,
+		}
+		packs.append(rec)
+		if enabled:
+			_load_pack_into(pack_dir, manifest, registries, rec)
 	return registries
+
+
+## Which of the four discovery roots a pack came from, for the Mods screen —
+## a player needs to tell "shipped with the game" from "I dropped this in"
+## from "Steam installed this", because that decides where to go to remove it.
+func _source_of(pack_dir: String) -> String:
+	if pack_dir == BASE_DIR:
+		return "base"
+	if pack_dir.begins_with("res://mods_example"):
+		return "example"
+	if pack_dir.begins_with("user://mods"):
+		return "user"
+	return "workshop"
 
 
 ## Returns pack directories in load order (base first, then example/user/workshop
 ## packs sorted by ascending priority).
 func discover_pack_dirs() -> Array[String]:
 	var dirs: Array[String] = []
-	if DirAccess.dir_exists_absolute("res://data/base"):
-		dirs.append("res://data/base")
+	if DirAccess.dir_exists_absolute(BASE_DIR):
+		dirs.append(BASE_DIR)
 
 	var extra: Array[Dictionary] = []  # {path, priority}
 	if load_example_mods:
@@ -122,7 +168,7 @@ func _load_manifest(pack_dir: String) -> Dictionary:
 	return parsed
 
 
-func _load_pack_into(pack_dir: String, manifest: Dictionary, registries: Dictionary) -> void:
+func _load_pack_into(pack_dir: String, manifest: Dictionary, registries: Dictionary, rec: Dictionary) -> void:
 	var files: Array = manifest.get("files", [])
 	for filename in files:
 		var path: String = pack_dir.path_join(str(filename))
@@ -133,7 +179,7 @@ func _load_pack_into(pack_dir: String, manifest: Dictionary, registries: Diction
 		if typeof(data) != TYPE_DICTIONARY:
 			errors.append("%s did not parse to a JSON object" % path)
 			continue
-		_merge_file(data, registries, manifest.get("id", pack_dir))
+		_merge_file(data, registries, manifest.get("id", pack_dir), rec)
 
 
 func _read_json(path: String):
@@ -155,7 +201,7 @@ func _read_json(path: String):
 ## the registry it merges into, so name it after the category you're
 ## extending, not after your mod. Unrecognised keys (or ones starting with
 ## "_", used for author comments) are ignored rather than merged blind.
-func _merge_file(data: Dictionary, registries: Dictionary, pack_id: String) -> void:
+func _merge_file(data: Dictionary, registries: Dictionary, pack_id: String, rec: Dictionary = {}) -> void:
 	for raw_key in data.keys():
 		if raw_key.begins_with("_"):
 			continue
@@ -163,6 +209,11 @@ func _merge_file(data: Dictionary, registries: Dictionary, pack_id: String) -> v
 			errors.append("%s: unrecognised top-level key \"%s\" ignored" % [pack_id, raw_key])
 			continue
 		_merge_category(raw_key, data[raw_key], registries)
+		if not rec.is_empty():
+			if not rec["categories"].has(raw_key):
+				rec["categories"].append(raw_key)
+			var value = data[raw_key]
+			rec["records"] += value.size() if typeof(value) in [TYPE_ARRAY, TYPE_DICTIONARY] else 1
 
 
 func _is_known_category(category: String) -> bool:

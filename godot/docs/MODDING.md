@@ -7,6 +7,20 @@ pipeline a mod uses. There is no special-cased "built-in content" code path;
 `Content.gd` and `ModLoader.gd` don't know or care whether a given record came
 from the base game or a mod.
 
+## The Mods screen
+
+Main menu → **MODS**. It is the front door to all of this and the first place
+to look when a pack is not doing what you expect. It shows every pack
+discovery found — **in load order**, which is the thing that decides who wins
+a conflict — with its id, version, where it came from, its priority, how many
+records it contributed and to which registries, and its path on disk. Any pack
+except the base one can be switched off from there without deleting it; the
+choice is stored in the `disabled_mods` setting, keyed by pack id, so it
+survives the pack moving. **Load errors are printed on that screen in full**,
+which is worth knowing because they used to exist only in the console.
+
+The base pack cannot be switched off. There would be no game left to mod.
+
 ## Where mods live
 
 - `res://mods_example/<your_mod>/` — bundled example/dev mods, loaded only
@@ -167,5 +181,19 @@ much bigger commitment than this vertical slice takes on. See
 
 `ModLoader` collects problems (missing `mod.json`, a listed file that doesn't
 exist, invalid JSON, an unrecognised top-level key) into `Content.load_errors`
-rather than crashing the game — check that array (or the console, since
-they're also pushed as warnings) if your mod doesn't seem to be doing anything.
+rather than crashing the game. **Read them on the Mods screen** — they are also
+pushed as warnings to the console, but needing a terminal to find out why your
+mod does nothing is not a reasonable thing to ask of anyone.
+
+A pack that reports an error is still loaded; only the record or file that
+caused it is skipped. So "my mod half works" is a normal symptom of one bad
+JSON file among several, and the Mods screen will name it.
+
+## Mods and a run in progress
+
+Saved runs store cards by name and readers/signs by key, not as frozen copies,
+so a pack you change or retune reaches a run already in progress rather than
+being shut out of it (see `autoload/Save.gd`). The flip side: a card whose pack
+you switch off **disappears from the deck of a saved run**, and is reported as
+dropped when that run is loaded. Switching a pack off mid-run is therefore
+safe, but not free — expect the deck to be shorter afterwards.

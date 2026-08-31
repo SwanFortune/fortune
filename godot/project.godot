@@ -17,6 +17,7 @@ Art="*res://autoload/Art.gd"
 I18n="*res://autoload/I18n.gd"
 Rules="*res://autoload/Rules.gd"
 Run="*res://autoload/Run.gd"
+Save="*res://autoload/Save.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
 

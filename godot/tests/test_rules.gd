@@ -18,6 +18,7 @@ extends SceneTree
 const TESTS := [
 	"_test_content_loaded",
 	"_test_mod_pack_merged",
+	"_test_pack_can_be_disabled",
 	"_test_simulate_basic_line",
 	"_test_simulate_shield_denial",
 	"_test_simulate_wall_growth",
@@ -90,6 +91,38 @@ func _test_mod_pack_merged() -> void:
 	check(content.has_card("Warm The Cup"), "example mod's new card should have merged in")
 	check(content.has_card("Pour The Tea"), "merging a mod pack should not drop base cards")
 	done("_test_mod_pack_merged")
+
+
+## The Mods screen's one real power: switching a pack off has to actually
+## unload its records, and switching it back on has to bring them back. The
+## base pack is exempt — there is no game left without it — so that is checked
+## too rather than left to trust.
+func _test_pack_can_be_disabled() -> void:
+	var settings: Node = root.get_node("Settings")
+	var restore: Array = Array(settings.get_value("disabled_mods")).duplicate()
+
+	check(content.has_card("Warm The Cup"), "precondition: the example pack's card should be loaded")
+	var base_records: int = content.cards_minor.size()
+
+	settings.set_value("disabled_mods", ["example.a_new_card"])
+	content.reload()
+	check(not content.has_card("Warm The Cup"), "a disabled pack's card should be gone")
+	check(content.has_card("Pour The Tea"), "disabling a mod must not touch base content")
+	check(content.cards_minor.size() == base_records - 1,
+		"exactly the disabled pack's records should go, got %d vs %d" % [content.cards_minor.size(), base_records - 1])
+	for p in content.packs:
+		if str(p.get("id", "")) == "example.a_new_card":
+			check(not bool(p["enabled"]), "the pack should still be listed, marked off")
+
+	# The base pack ignores the list entirely.
+	settings.set_value("disabled_mods", ["parlour.base"])
+	content.reload()
+	check(content.has_card("Pour The Tea"), "the base pack must not be disableable")
+
+	settings.set_value("disabled_mods", restore)
+	content.reload()
+	check(content.has_card("Warm The Cup"), "re-enabling should bring the pack back")
+	done("_test_pack_can_be_disabled")
 
 
 func _mk_run_ctx(reader_key: String, marks: Array = []) -> Dictionary:

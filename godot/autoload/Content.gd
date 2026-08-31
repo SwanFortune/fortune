@@ -11,6 +11,8 @@ extends Node
 
 var registries: Dictionary = {}
 var load_errors: Array[String] = []
+## Every pack discovery found, in load order, loaded or not. See ModLoader.packs.
+var packs: Array[Dictionary] = []
 
 var elements: Dictionary
 var ring: Array
@@ -53,8 +55,10 @@ func _ready() -> void:
 func reload() -> void:
 	var loader := ModLoader.new()
 	loader.load_example_mods = bool(Settings.get_value("load_example_mods"))
+	loader.disabled_ids = Array(Settings.get_value("disabled_mods"))
 	registries = loader.build_registries()
 	load_errors = loader.errors
+	packs = loader.packs
 	for e in load_errors:
 		push_warning("[Content] " + e)
 

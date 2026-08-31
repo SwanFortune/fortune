@@ -96,12 +96,68 @@ The user asked for best judgment on these, flagged rather than silently made:
   `tests/test_content_audit.gd`.
 - **Full Steam Workshop / Steamworks integration** — see `docs/STEAM_WORKSHOP.md`.
 - **Meta-progression** (persistent unlocks across runs) — never implemented
-  in the source either; nothing to port.
-- **Controller support and save/resume mid-run.** (A settings menu and
-  localization now exist — see `scenes/SettingsMenu.gd` and
-  `docs/LOCALIZATION.md`.) Save/resume is the more significant of the two
-  gaps for a roguelike: a run currently lives only in memory and is lost if
-  the game closes.
+  in the source either; nothing to port. Note that every reader carries an
+  `unlock: null` field that nothing reads, so the *scaffolding* is ported and
+  inert: all 13 readers are available from the first launch.
+- **Controller and keyboard navigation.** Escape closes the Settings, Library
+  and Mods screens; everything else is mouse-only. No focus traversal, no
+  gamepad, no keyboard shortcut for laying a card.
+- **Sound.** `master_volume` and `muted` drive the real AudioServer master bus
+  (deliberately — see `autoload/Settings.gd`), but the game ships no audio
+  files, so both are honest wiring with nothing to carry.
+
+Save/resume WAS on this list and is now done — see below.
+
+## Save and resume
+
+A run used to live only in memory: closing the game on night 2 threw away
+everything. `autoload/Save.gd` now writes `Run.state` to `user://save.dat` on
+every state change (coalesced to at most once a frame, plus a flush on the way
+out), and the main menu grows a CONTINUE entry describing what it would resume
+into. Two decisions in there are worth knowing about:
+
+**store_var, not JSON.** `Run.state` is a plain Dictionary and JSON is the
+obvious reach, but JSON has no integer type — every `hp`, `coin` and `denial`
+would come back a float, and the places that render a number with `str()`
+rather than `int()` would start showing "5.0". `store_var` round-trips Godot's
+types exactly. `allow_objects` is false in both directions: a save file is a
+file on disk that can be edited or swapped, and object deserialization would
+let one execute code.
+
+**The whole state is written verbatim; content is re-resolved on load.**
+Writing it wholesale means a field added to a run later cannot be silently
+dropped by a serializer nobody remembered to update. But `state` is full of
+*copies* of content records, and restoring those verbatim would freeze the run
+against the content as it stood when it started — a card retuned in the
+Library, or a mod pack updated, would never reach the deck the player is
+holding, and a deck could go on containing cards that exist nowhere. So on
+load every content-derived record is looked up again by its stable identity (a
+card by name, a reader or sign by key) and replaced with the current version,
+keeping only what is genuinely per-run: a card's `uid`, a sitter's scaled
+`max`/`denial`/`turns`, an elite's `twist`. A card that no longer resolves is
+dropped and counted rather than kept as a husk.
+
+A save is cleared rather than written whenever the screen is not a run in
+progress ("sign" before one starts, "over" after one ends), so CONTINUE can
+never drop a player into a finished run. `tests/test_save.gd` covers the
+round trip mid-fight, the int-vs-float trap, re-resolution, a dropped card, a
+corrupt file and a version-skewed one.
+
+## The Mods screen
+
+`ModLoader`, `CardEdits` and `Workshop` all ran with no interface at all: a
+player could not see which packs were loaded, in what order, or which one
+caused an error — errors were *counted* on the main menu but the messages went
+to `push_warning`, so reading them meant launching from a terminal. Main menu →
+MODS now lists every pack discovery found, in load order, with source,
+priority, record counts and path; any pack but the base one can be switched off
+(stored in the `disabled_mods` setting, keyed by pack id); load messages are
+shown in full; and the Workshop section says plainly that it is not connected
+rather than offering an inert button.
+
+To make that possible `ModLoader` now *records* what it discovered
+(`ModLoader.packs`, surfaced as `Content.packs`) instead of throwing the
+manifests away after merging.
 
 ## Balance: Taurus and Virgo
 
@@ -198,6 +254,7 @@ words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
   single source of truth per `HANDOFF.md`.
 - `autoload/Run.gd` — the run/turn state machine.
+- `autoload/Save.gd` — run persistence and content re-resolution on load.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
 - `autoload/Workshop.gd` — the Steam Workshop stub; see `docs/STEAM_WORKSHOP.md`.

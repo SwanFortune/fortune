@@ -115,6 +115,24 @@ French strings only; the English strings will never see them.
 This is a real design decision rather than a mechanical translation, which is
 another reason the prose strings are left for a human.
 
+### Plurals — a known limitation
+
+There is no plural-forms system. Strings that carry a count use the "(s)"
+dodge — "%s record(s) in %s", "%s problem(s)", "%d card(s) changed" — which is
+ugly but never *wrong* in either language, and the French translations follow
+the same convention.
+
+This is fine for English and French and will not stay fine forever: languages
+with more than two plural categories (Polish, Russian, Arabic) cannot be served
+by it at all. If one of those is ever added, the honest fix is a real plural
+selector (a key per category, chosen by count) rather than more parentheses —
+and the place to put it is `I18n.t()`, alongside `fill()`, since both are
+"post-process the looked-up string" steps.
+
+Watch for this when translating: a French string that inflects a noun or a past
+participle after a number ("1 entrées", "1 cartes trouvées") is a bug, not a
+style choice. Prefer a form that does not inflect.
+
 ## Adding a language
 
 1. Add it to `LOCALES` in `autoload/I18n.gd` (e.g. `"es": "Español"`).

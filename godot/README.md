@@ -3,7 +3,9 @@
 A Godot 4 (GDScript) port of `project/Parlour v23.dc.html`, the Claude Design
 prototype in this repo's `project/` folder. Architected for mod support and
 Steam Workshop distribution; see `docs/MODDING.md` and
-`docs/STEAM_WORKSHOP.md`. Read `docs/PORTING_NOTES.md` first — it lists
+`docs/STEAM_WORKSHOP.md`, and the in-game Mods screen (main menu → MODS) which
+lists every loaded pack in load order, lets any of them but the base pack be
+switched off, and shows load errors in full. Read `docs/PORTING_NOTES.md` first — it lists
 exactly what's ported, what's a deliberate judgment call, and what's out of
 scope for this pass.
 
@@ -35,14 +37,22 @@ godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check 
 godot --headless --path godot -s tests/test_art.gd             # art manifest -> texture pipeline
 godot --headless --path godot -s tests/test_library.gd         # Library edits -> mod pack -> live content
 godot --headless --path godot -s tests/test_i18n.gd            # localization + fallback
+godot --headless --path godot -s tests/test_save.gd            # save/resume round-trip
 ```
 
-All seven should print `ALL PASS` / `SCENE SWEEP DONE` with no `ERROR` lines.
+All eight should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+`ERROR` line each, immediately after a `--- the next ERROR line is expected`
+marker: they feed `get_var()` a deliberately corrupt save to check it is
+refused rather than half-restored. Any `ERROR` line *without* that marker
+above it is a real one.
 
-There's also a balance report (not pass/fail — read it, see `docs/PORTING_NOTES.md`'s "Balance: a first read"):
+There's also a balance report (not pass/fail — read it, see
+`docs/PORTING_NOTES.md`'s "Balance: Taurus and Virgo"):
 
 ```
-godot --headless --path godot -s tests/balance_sim.gd -- 600   # 600 sampled fights, ~1-2s
+godot --headless --path godot -s tests/balance_sim.gd -- 6500              # the whole field
+godot --headless --path godot -s tests/balance_sim.gd -- 1300 sign=taurus  # one cell, properly sampled
+godot --headless --path godot -s tests/balance_sim.gd -- 6500 night=2 step=6
 ```
 
 And a dev-only screenshot tool, for anyone doing further UI work without an
@@ -51,7 +61,8 @@ rendering via Mesa/llvmpipe, not a mock):
 
 ```
 xvfb-run -a godot --path godot -s tests/screenshot.gd -- read out.png
-# scenario is one of: sign, gift, map, read, read_laid, win, reward, over
+# scenario is one of: sign, gift, map, read, read_taurus, read_laid, marks,
+#   win, reward, over, menu, menu_saved, mods, settings, library
 ```
 
 ## For the artist

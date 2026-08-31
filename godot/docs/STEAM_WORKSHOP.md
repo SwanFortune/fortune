@@ -51,6 +51,16 @@ already in the right shape.
    Neither is started. `Workshop.publish_pack()` exists as a named stub for
    the former so the call site is obvious once someone picks this up.
 
+## What the player sees today
+
+The Mods screen (main menu → MODS) has a Steam Workshop section. With
+`Workshop.is_available` false — which is always, in this build — it says so in
+a sentence and points here, rather than showing a subscribe or publish button
+that would do nothing. When the stub is replaced with real Steamworks calls,
+that section grows a REFRESH SUBSCRIPTIONS button and subscribed packs appear
+in the same list as every other pack, labelled "Steam Workshop" as their
+source. That is already written and is behind the `is_available` check.
+
 ## What does *not* need to change
 
 `ModLoader.gd` already calls `Workshop.get_installed_item_paths()` and

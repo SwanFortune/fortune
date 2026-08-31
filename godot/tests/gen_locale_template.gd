@@ -170,8 +170,26 @@ func _put(src: Dictionary, key: String, value) -> void:
 func _ui_strings() -> Array[String]:
 	return [
 		# main menu
-		"PARLOUR", "BEGIN A READING", "LIBRARY", "SETTINGS", "QUIT",
+		"PARLOUR", "BEGIN A READING", "LIBRARY", "MODS", "SETTINGS", "QUIT",
 		"a fortune-teller's ledger, in card form",
+		"CONTINUE", "THIS ENDS THE RUN IN PROGRESS — BEGIN ANYWAY",
+		"night %s, knock %s · %s · %s faith",
+		"Could not read your saved run.", "content warning(s) — see MODS.",
+		# mods screen
+		"Packs load in the order below. A later pack wins where two define the same card, sign or reader.",
+		"LOADED PACKS", "LOAD MESSAGES", "WHERE TO PUT A MOD", "STEAM WORKSHOP",
+		"No packs found at all — even the base game is missing.",
+		"priority %s", "%s record(s) in %s",
+		"Switched off — nothing from this pack is loaded.",
+		"The game's own content. Always loaded, always first.",
+		"TURN OFF", "TURN ON", "RELOAD CONTENT",
+		"shipped with the game", "bundled example", "your mods folder", "Steam Workshop",
+		"Everything loaded cleanly.",
+		"%s problem(s). A pack that reports one is still loaded — only the offending record is skipped.",
+		"One folder per pack, each with a mod.json. Turn a pack off above rather than deleting it if you only want it gone for a while.",
+		"Your own Library changes are pack \"%s\" above — %s card(s).",
+		"Connected. Subscribed packs appear in the list above.", "REFRESH SUBSCRIPTIONS",
+		"Not connected. Workshop needs a Steam App ID and the GodotSteam extension, neither of which this build has — see docs/STEAM_WORKSHOP.md. Until then, share a pack by sharing its folder.",
 		# settings
 		"DISPLAY", "Fullscreen", "Toggle between windowed and fullscreen.",
 		"Interface scale", "Scales the whole interface. Useful on very large or very small displays.",

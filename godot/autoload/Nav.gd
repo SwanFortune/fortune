@@ -57,6 +57,10 @@ func goto_library() -> void:
 	_goto("res://scenes/Library.tscn")
 
 
+func goto_mods() -> void:
+	_goto("res://scenes/ModsScreen.tscn")
+
+
 func goto_main_menu() -> void:
 	_goto("res://scenes/MainMenu.tscn")
 

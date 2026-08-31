@@ -53,9 +53,17 @@ func _initialize() -> void:
 		"menu": "res://scenes/MainMenu.tscn",
 		"settings": "res://scenes/SettingsMenu.tscn",
 		"library": "res://scenes/Library.tscn",
+		"mods": "res://scenes/ModsScreen.tscn",
+		"menu_saved": "res://scenes/MainMenu.tscn",
 	}
 	var scene_path: String
 	if STANDALONE.has(setup_name):
+		# "menu_saved" is the main menu with a resumable run behind it, which is
+		# a different screen (CONTINUE plus a line describing the run) and the
+		# only way to see that branch.
+		if setup_name == "menu_saved":
+			_setup("map")
+			root.get_node("Save")._write()
 		scene_path = STANDALONE[setup_name]
 	else:
 		_setup(setup_name)
