@@ -36,11 +36,20 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			var q: Dictionary = o["quirk"]
 			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
 			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
-			lines.append(["%s · sign %s (%s) · %s" % [I18n.sitter_field(s, "role"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
+			lines.append(["%s · %s %s (%s) · %s" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
+			lines.append([I18n.sign_rule(q, s), 11, UIKit.DIM])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
 			var job: Dictionary = Content.get_job(s["role"])
 			if job.get("t", "") != "":
-				lines.append([I18n.job_text(s["role"], job), 11, UIKit.GOLD])
+				lines.append([I18n.fill(I18n.job_text(s["role"], job), str(s.get("p", "they"))), 11, UIKit.GOLD])
+			# An elite's twist changes composure, denial, readings or hand size,
+			# and until now was applied silently — the option said "ELITE" and
+			# nothing about what that elite actually does. The source shows this
+			# line on the same card (~line 593), so the field was ported but
+			# never read by anything.
+			var tw: Dictionary = s.get("twist", {})
+			if tw.get("t", "") != "":
+				lines.append([I18n.fill(I18n.twist_text(tw), str(s.get("p", "they"))), 11, UIKit.RED])
 			lines.append([I18n.sitter_field(s, "brings"), 12, UIKit.DIM])
 		"break":
 			var rest: Dictionary = o["rest"]

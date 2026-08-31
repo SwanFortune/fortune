@@ -31,6 +31,8 @@ func _initialize() -> void:
 	_test_untranslated_falls_back_to_english()
 	_test_locale_rides_the_mod_pipeline()
 	_test_template_covers_runtime_ids()
+	_test_pronoun_tokens_are_filled()
+	_test_no_unfilled_tokens_anywhere()
 
 	settings.set_value("locale", restore)
 	i18n.reload()
@@ -121,3 +123,44 @@ func _test_template_covers_runtime_ids() -> void:
 		if not src.has("sign/%s/rule" % sg["k"]):
 			missing.append("sign/" + str(sg["k"]))
 	check(missing.is_empty(), "template is missing ids: %s" % ", ".join(missing.slice(0, 8)))
+
+
+## fill()/PRON, which the first porting pass missed entirely: sign rules are
+## written with {S}/{es}/{o} tokens and were being shown to the player raw.
+func _test_pronoun_tokens_are_filled() -> void:
+	# Pin the locale: the tests above leave it on "fr", and with French pronoun
+	# words now translated but the sentences around them not, the lookup would
+	# correctly return "Elle needs it to be a performance" — right behaviour for
+	# a half-finished locale, wrong thing to assert English agreement against.
+	settings.set_value("locale", "en")
+	i18n.reload()
+	var leo: Dictionary = content.get_sign("leo")
+	var she := {"p": "she"}
+	var they := {"p": "they"}
+	var s_she: String = i18n.sign_rule(leo, she)
+	var s_they: String = i18n.sign_rule(leo, they)
+	check(s_she.begins_with("She needs it"), "she/singular agreement, got '%s'" % s_she)
+	check(s_they.begins_with("They need it"), "they/plural agreement, got '%s'" % s_they)
+
+	# A sitter with no pronoun field at all must not fall through to raw tokens.
+	check(not i18n.sign_rule(leo, {}).contains("{"), "a sitter with no pronoun should still fill")
+
+	# An unknown token stays visible rather than silently eating the sentence.
+	check(i18n.fill("a {nosuchtoken} b", "she") == "a {nosuchtoken} b", "unknown tokens should be left alone")
+	check(i18n.fill("no tokens here", "she") == "no tokens here", "token-free text should pass through")
+
+
+## Nothing the player can be shown should still contain a {token}. This is the
+## check that would have caught the missing fill() in the first place, so it
+## covers every token-bearing field rather than just the one that was noticed.
+func _test_no_unfilled_tokens_anywhere() -> void:
+	for pronoun in ["she", "he", "they"]:
+		for sg in content.signs:
+			var out: String = i18n.fill(str(sg.get("rule", "")), pronoun)
+			check(not out.contains("{"), "sign %s leaves a raw token for '%s': %s" % [sg.get("k", ""), pronoun, out])
+		for tw in content.elite_twists:
+			var out2: String = i18n.fill(str(tw.get("t", "")), pronoun)
+			check(not out2.contains("{"), "twist %s leaves a raw token for '%s': %s" % [tw.get("tag", ""), pronoun, out2])
+		for role in content.jobs:
+			var out3: String = i18n.fill(str(content.jobs[role].get("t", "")), pronoun)
+			check(not out3.contains("{"), "job %s leaves a raw token for '%s': %s" % [role, pronoun, out3])

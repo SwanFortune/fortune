@@ -349,7 +349,7 @@ func resolve_read(sim: Dictionary) -> void:
 
 	if f.get("job", {}).get("fx", "") == "coin3":
 		f["coin"] = int(f["coin"]) + 3
-	f["denial"] = int(f["denial"]) + int(f["denialUp"])
+	f["denial"] = Rules.next_wall(f, sim)
 
 	if int(f["turn"]) >= int(f["turns"]):
 		lose(f, "left")

@@ -1,0 +1,8 @@
+{
+  "_comment": "Ported from PRON in Parlour v23.dc.html (line ~1156). Sign rules and a few sitter lines are written with {tokens} — see signs.json — that are filled in at DISPLAY time from the sitter's own \"p\" field, so one sentence reads correctly for he/she/they sitters without three copies of it. I18n.fill() does the substitution; an unknown token is left alone rather than blanked, so a typo shows up as {typo} instead of vanishing. A mod adds a pronoun set by adding a key here and using it as a sitter's \"p\". Note the verb-agreement tokens ({is}/{es}/{has}/{do}/{goes}): 'they' takes plural agreement, which is why the sentences are written as \"{S} need{es} it\" rather than hardcoding the -s.",
+  "pronouns": {
+    "she":  { "S": "She",  "s": "she",  "O": "Her",  "o": "her",  "P": "Her",   "p": "her",   "R": "Herself",  "r": "herself",  "es": "s", "is": "is",  "has": "has",  "do": "does", "goes": "goes" },
+    "he":   { "S": "He",   "s": "he",   "O": "Him",  "o": "him",  "P": "His",   "p": "his",   "R": "Himself",  "r": "himself",  "es": "s", "is": "is",  "has": "has",  "do": "does", "goes": "goes" },
+    "they": { "S": "They", "s": "they", "O": "Them", "o": "them", "P": "Their", "p": "their", "R": "Themself", "r": "themself", "es": "",  "is": "are", "has": "have", "do": "do",   "goes": "go" }
+  }
+}

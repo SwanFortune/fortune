@@ -7,11 +7,21 @@
 ## a real game session since none of this runs during actual play.
 ##
 ## Run with:
-##   godot --headless --path godot -s tests/balance_sim.gd [n]
+##   godot --headless --path godot -s tests/balance_sim.gd -- [n] [filters]
 ## n = number of randomized fights to sample (default 400). Each fight pairs
-## a reader (cycled through all 13) against a random sitter scaled to
-## night=1/step=3 (matches the source's own baseline — "measures how the
-## start of a night sits, not the whole run") and a random sign quirk.
+## a reader (cycled through all 13) against a random sitter and a random sign
+## quirk, scaled to night=1/step=3 by default (the source's own baseline —
+## "measures how the start of a night sits, not the whole run").
+##
+## Filters, any combination:
+##   sign=<key> / reader=<key>   pin one axis. A whole-field sweep gives ~n/13
+##                               samples per cell, which is too few to tell a
+##                               real shift from noise; pin the cell you are
+##                               tuning and give it the whole n.
+##   night=<n> / step=<n>        measure at a different point in the run.
+##
+##   ... -- 1300 sign=taurus          every reader against the hardest sign
+##   ... -- 6500 night=2 step=6       the whole field, late in the last night
 ##
 ## Reads as a report, not a pass/fail test: the source's own guidance
 ## (printed at the bottom) is under ~35% win rate is close to unwinnable,
@@ -25,6 +35,21 @@ var content: Node
 var rules: Node
 var run: Node
 
+## Optional filters (sign=<key> / reader=<key>). A whole-field sweep is noisy
+## per cell — 2000 fights spread over 13 readers x 12 signs is ~150 samples
+## each, which is not enough to tell a real 5-point shift from noise. Pinning
+## one axis puts every fight in the cell you are actually tuning.
+var only_sign := ""
+var only_reader := ""
+
+## Where in a run to measure. The source's own baseline is night 1 / step 3 —
+## "measures how the start of a night sits, not the whole run" — and at that
+## point several readers simply never lose, which says more about the opening
+## difficulty than about those readers. Pass night=/step= to sample a later,
+## harder point and see the field actually separate.
+var at_night := 1
+var at_step := 3
+
 
 func _initialize() -> void:
 	content = root.get_node("Content")
@@ -34,8 +59,29 @@ func _initialize() -> void:
 
 	var n := 400
 	var args := OS.get_cmdline_user_args()
-	if args.size() > 0 and args[0].is_valid_int():
-		n = int(args[0])
+	for a in args:
+		if a.is_valid_int():
+			n = int(a)
+		elif a.begins_with("sign="):
+			only_sign = a.substr(5).to_lower()
+		elif a.begins_with("reader="):
+			only_reader = a.substr(7).to_lower()
+		elif a.begins_with("night="):
+			at_night = int(a.substr(6))
+		elif a.begins_with("step="):
+			at_step = int(a.substr(5))
+		else:
+			printerr("unknown argument \"%s\" — expected a count, sign=<key>, reader=<key>, night=<n> or step=<n>" % a)
+			quit(1)
+			return
+	if only_sign != "" and content.get_sign(only_sign).is_empty():
+		printerr("no such sign key: %s" % only_sign)
+		quit(1)
+		return
+	if only_reader != "" and content.get_reader(only_reader).is_empty():
+		printerr("no such reader key: %s" % only_reader)
+		quit(1)
+		return
 
 	var t0 := Time.get_ticks_msec()
 	var rows := sim_sweep(n)
@@ -47,7 +93,12 @@ func _initialize() -> void:
 			wins += 1
 	var overall := float(wins) / rows.size()
 
-	print("=== Parlour balance sweep: %d fights in %dms ===" % [n, ms])
+	var scope := ", night %d step %d" % [at_night, at_step]
+	if only_reader != "":
+		scope += ", reader=%s" % only_reader
+	if only_sign != "":
+		scope += ", sign=%s" % only_sign
+	print("=== Parlour balance sweep: %d fights in %dms%s ===" % [n, ms, scope])
 	print("OVERALL WIN RATE: %.1f%%  (rule of thumb: <35%% ~unwinnable, >85%% asks nothing of you)" % (overall * 100.0))
 	print("")
 	_print_group("BY READER", sim_group(rows, "reader"))
@@ -155,7 +206,7 @@ func sim_fight(reader: Dictionary, sitter: Dictionary, quirk: Dictionary) -> Dic
 		f["cross"] = []
 		if int(f["hp"]) >= int(f["max"]):
 			return {"win": true, "readings": readings, "hp": f["hp"], "max": f["max"]}
-		f["denial"] = int(f["denial"]) + int(f["denialUp"])
+		f["denial"] = rules.next_wall(f, sim)
 		if int(f["turn"]) >= int(f["turns"]):
 			return {"win": false, "readings": readings, "hp": f["hp"], "max": f["max"]}
 		f["turn"] = int(f["turn"]) + 1
@@ -168,9 +219,9 @@ func sim_sweep(n: int) -> Array:
 	var sitters: Array = content.sitters
 	var signs: Array = content.signs
 	for i in n:
-		var r: Dictionary = readers[i % readers.size()]
-		var s: Dictionary = run.scale_sitter(run.pick_rand(sitters), 1, 3)
-		var q: Dictionary = run.pick_rand(signs)
+		var r: Dictionary = content.get_reader(only_reader) if only_reader != "" else readers[i % readers.size()]
+		var s: Dictionary = run.scale_sitter(run.pick_rand(sitters), at_night, at_step)
+		var q: Dictionary = content.get_sign(only_sign) if only_sign != "" else run.pick_rand(signs)
 		var res: Dictionary = sim_fight(r, s.duplicate(true), q)
 		var max_hp: int = res["max"]
 		rows.append({

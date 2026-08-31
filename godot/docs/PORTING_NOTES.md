@@ -103,34 +103,95 @@ The user asked for best judgment on these, flagged rather than silently made:
   gaps for a roguelike: a run currently lives only in memory and is lost if
   the game closes.
 
-## Balance: a first read
+## Balance: Taurus and Virgo
 
 `tests/balance_sim.gd` ports `simFight()`/`simSweep()`/`simGroup()` — the
 source's own greedy-auto-player difficulty check — and runs clean against the
-ported content. A 600-fight sample (each fight: one of the 13 readers vs. a
-random sitter scaled to night=1/step=3, matching the source's own baseline)
-came back:
+ported content. Two outliers came out of it, and both have now been changed;
+this section records what was measured, what was changed, and what is still
+open, because these are the only places the port deliberately departs from the
+source's *rules* rather than its structure.
 
-- **83.8% overall win rate** — right at the edge of the source's own "over
-  85% asks nothing of you" guideline. Consistent with the source's own
-  admission that this measures night-1 difficulty, not a full 3-night run,
-  and that the numbers were still being actively tuned at handoff time (see
-  above) — not a claim that the port is under- or over-tuned, just that it's
-  reproducing the same "still loose" state the source was in.
-- **Taurus (sign) stands out low at 32%** — right at "close to unwinnable."
-  Its denial (`shield`, a numeric wall that thickens every reading) is the
-  only sign with a persistent stacking wall from reading 1, which the greedy
-  bot handles worse than the purely-behavioral signs.
-- **Virgo (reader) stands out high at 100%** — its passive (`white`: cards
-  with no element restore +3) stacks unusually well with the 7 always-neutral
-  basic cards every reader starts with.
+**Correcting an earlier note.** A first 600-fight pass reported "Taurus (sign)
+32%" and "Virgo (reader) 100%, stands out high". The Taurus reading held up;
+the Virgo one did not. At 6500 fights, Virgo is at the top of a five-reader
+cluster (Virgo 100%, Aries 99.8%, Serpentarius 99.4%, Leo 99.2%, Cancer 99.0%)
+rather than a lone outlier, and *four signs* sit at ~100%, not just one. The
+smaller sample also conflated the Virgo reader with the Virgo sign, which are
+unrelated mechanics. Treat any single cell below n≈300 as noise; run-to-run
+variance at n=1300 measured ~3.5 points.
 
-Worth a look before any real balance pass, but not something this port
-changed unilaterally — these are exactly the kind of numbers `docs/MODDING.md`'s
-`cards_minor`-by-`n`-override mechanism exists to let someone patch without
-touching engine code. Re-run with `godot --headless --path godot -s
-tests/balance_sim.gd -- <n>` (n = sample size, default 400) any time the
-content changes.
+### Taurus (the sign) — 42% → 60%
+
+Taurus is the only sign whose denial is a numeric **wall**: it starts at the
+sitter's full denial and, in the source, is charged again in full every reading
+while thickening without a ceiling.
+
+Pinning the sign and sweeping all 13 readers against it showed the real
+problem, which is not that it was hard but *what kind* of hard it was: win
+rates ran from **18% (Gemini) to 100% (Virgo)** against the same sign. A flat
+amount taken off the top of every reading turns any reading that lands under
+the wall into exactly zero progress, so what decides the matchup is a reader's
+*worst* reading rather than their average — which punishes precisely the
+readers whose identity is building a combo, and rewards the ones with a small
+reliable flat bonus. It was also a one-way spiral: falling behind thickened the
+wall, which made falling further behind certain.
+
+The wall now **drains** — whatever it absorbs is gone from it — and thickens 3
+again after every reading, up to a ceiling of twice the sitter's base denial.
+Same fiction (a cold shoulder you have to wear down), but a weak reading still
+chips at it, so the sign is a buffer to break through against its own regrowth
+instead of a toll. Measured after: Taurus **59.5%**, still comfortably the
+hardest sign (next is Cancer at 73.6%), with the reader spread narrowed to
+42–100%.
+
+Both the drain and the ceiling live in the new `denial_wall` registry in
+`fx.json`, and the growth rate stays in `denial_shield`, so this is retunable
+(and mod-overridable) without touching engine code. An fx with no `denial_wall`
+entry keeps the source's exact behaviour, which is what Pisces (`tide`) does.
+
+### Virgo (the reader) — a design fix, not a win-rate fix
+
+Virgo's passive (`white`) paid +3 to every elementless card. All seven basics
+every reader starts with are elementless, so it was the only reader bonus that
+was **unconditional** — no element to match, no ordering, no chain — on 7 of
+the opening 10 cards. Those cards also dodge four of the twelve denials
+(`norepeat`, `deadel`, `halfown`, and the sitter-element check all test
+`el != ""`). It is now capped at the first two elementless cards per reading,
+which puts it in the same family as Aries's "your first card restores +2" and
+Cancer's "your last card restores +3". The cap is `fx.white.cap`; 0 restores
+the source's behaviour.
+
+Be clear about what this did and did not do: capping it moved Virgo from 3.28
+to 3.70 average readings and **left the win rate at 100%**. Capping to 1 only
+reached 98%. The ceiling is not Virgo — it is the difficulty of night 1 / step
+3, which is what the source's baseline measures. Re-measured at night 2 /
+step 6 the field separates properly with no 100% anywhere:
+
+    reader:  Scorpio 26.0% … Virgo 97.2%       (overall 65.3%)
+    sign:    Cancer 35.8%, Taurus 38.1% … Gemini 90.7%
+
+So the remaining questions are the *opening* difficulty curve, four signs that
+ask almost nothing early (Libra `halfown`, Virgo `norepeat`, Capricorn
+`deadel`, Gemini `steal` — each of which can be a complete no-op against a deck
+that happens not to care), and Scorpio the reader at 26% late. Those are design
+calls on content, not port fidelity, and are left alone deliberately.
+
+Re-measure with `godot --headless --path godot -s tests/balance_sim.gd -- <n>
+[sign=<key>] [reader=<key>] [night=<n>] [step=<n>]`. Pin an axis when tuning
+one cell — a whole-field sweep gives ~n/13 samples per reader and is too noisy
+to read a real shift off.
+
+### fill()/PRON — a missed port, not a balance question
+
+Separately: sign rules are written with `{S}`/`{es}`/`{o}` pronoun tokens meant
+to be substituted from the sitter's own pronoun at display time (source `PRON`
+~1156, `fill()` ~1187). Nothing did the substituting, so every sign rule was
+shown to the player raw — "{S} need{es} it to be a performance." The table is
+now `data/base/pronouns.json` (a normal, moddable registry) and `I18n.fill()`
+does the substitution *after* translation, so a locale supplies its own pronoun
+words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
+`{token}` unfilled for any pronoun.
 
 ## Where to look
 

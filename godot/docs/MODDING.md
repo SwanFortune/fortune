@@ -10,7 +10,8 @@ from the base game or a mod.
 ## Where mods live
 
 - `res://mods_example/<your_mod>/` — bundled example/dev mods, loaded only
-  when `Content.LOAD_EXAMPLE_MODS` is `true` (see `autoload/Content.gd`).
+  when the **Load example mods** setting is on (Settings → Content; stored as
+  `load_example_mods`, read by `ModLoader` via `Content.reload()`).
   Useful for testing a mod during development of the game itself.
 - `user://mods/<your_mod>/` — where a player's installed mods actually live.
   This directory is created automatically on first run. On desktop this
@@ -80,6 +81,8 @@ each record is merged by:
 | `ring`, `next`, `opp`, `neighbors` | array/object | (whole-value override) | `elements.json` |
 | `fx` | object | (whole-object merge) | `fx.json` |
 | `denial_shield` | object | (whole-value override) | `fx.json` |
+| `denial_wall` | object | (whole-object merge) | `fx.json` |
+| `pronouns` | object | (whole-object merge) | `pronouns.json` |
 | `card_effects` | array | `k` | `card_effects.json` |
 | `signs` | array | `k` | `signs.json` |
 | `jobs` | object | (whole-object merge) | `jobs.json` |
@@ -102,6 +105,41 @@ balance-patch mod overrides an existing card's numbers without touching the
 base game's files. If the id is new, your record is appended. This is exactly
 how `ModLoader._merge_array_by_key()` works; read it if you want the precise
 mechanics.
+
+### Two registries that are not in the original
+
+`denial_wall` and `pronouns` were added during the port; see
+`docs/PORTING_NOTES.md`.
+
+`denial_wall` sits alongside `denial_shield` and governs the two signs whose
+denial is a numeric wall. `denial_shield` says how much a wall thickens by each
+reading; `denial_wall` says whether it is worn down in between, and how far it
+may go:
+
+```json
+"denial_shield": { "shield": 3, "tide": 4 },
+"denial_wall": {
+  "shield": { "drain": true,  "cap": 2 },
+  "tide":   { "drain": false, "cap": 0 }
+}
+```
+
+- `drain` — whatever the wall absorbed this reading is gone from it, so it is a
+  buffer to break through rather than a toll charged again every reading.
+- `cap` — a multiple of the sitter's base denial the wall may never exceed;
+  `0` means no ceiling.
+
+Because it merges key-by-key, retuning one sign takes three lines and leaves
+the other alone. An fx with **no** entry here behaves as
+`{drain: false, cap: 0}`, which is the original's behaviour — so a new wall fx
+needs an entry only if it wants these rules.
+
+`pronouns` backs the `{S}`/`{es}`/`{o}` tokens that sign rules, job traits and
+elite twists are written with, substituted from each sitter's `p` field at
+display time. Add a key here and you can use it as a sitter's `p`. The
+verb-agreement tokens (`is`/`es`/`has`/`do`/`goes`) exist so one sentence reads
+correctly for both singular and plural pronouns — write `"{S} need{es} it"`,
+not `"She needs it"`.
 
 ## Card and record schema
 

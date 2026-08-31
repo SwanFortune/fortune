@@ -8,7 +8,8 @@
 ##
 ## Packs are discovered from, in this order:
 ##   1. res://data/base/                — the base game, forced first (priority ignored, always 0)
-##   2. res://mods_example/*/           — bundled example/dev mods (see Content.LOAD_EXAMPLE_MODS)
+##   2. res://mods_example/*/           — bundled example/dev mods (only when the
+##                                        'load_example_mods' setting is on; see load_example_mods below)
 ##   3. user://mods/*/                  — mods the player dropped in manually
 ##   4. Workshop.get_installed_item_paths() — Steam Workshop items, once wired up (currently empty; see Workshop.gd)
 ##
@@ -38,7 +39,7 @@ const ARRAY_KEY_FIELDS := {
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
-const DICT_CATEGORIES := ["elements", "fx", "jobs"]
+const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]

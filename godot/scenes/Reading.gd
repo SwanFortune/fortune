@@ -36,7 +36,7 @@ func _ready() -> void:
 	var header_text := UIKit.vbox(4)
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_text.add_child(UIKit.block("%s · %s   %s" % [I18n.sitter_field(s, "name"), I18n.sitter_field(s, "role"), UIKit.el_tag(s["el"])], 18, UIKit.INK))
-	header_text.add_child(UIKit.block("sign %s — %s: %s" % [I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_field(q, "rule")], 12, UIKit.DIM))
+	header_text.add_child(UIKit.block("%s %s — %s: %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_rule(q, s)], 12, UIKit.DIM))
 	header.add_child(header_text)
 	v.add_child(header)
 	v.add_child(UIKit.stat_row(I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, I18n.t(UIKit.KEYS["composure"])))

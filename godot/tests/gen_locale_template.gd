@@ -111,6 +111,14 @@ func _collect_sources() -> Dictionary:
 		_put(src, sid + "/n", sg.get("n", ""))
 		_put(src, sid + "/dn", sg.get("dn", ""))
 		_put(src, sid + "/rule", sg.get("rule", ""))
+	# Pronoun words. A locale needs its own set (il/elle/iel and whatever verb
+	# agreement it takes) — these are substituted into sign rules at display
+	# time by I18n.fill(), so leaving them in English would put English words
+	# inside otherwise-translated sentences.
+	for pk in content.pronouns:
+		var table: Dictionary = content.pronouns[pk]
+		for token in table:
+			_put(src, "pronoun/" + pk + "/" + token, table[token])
 	for role in content.jobs:
 		_put(src, "job/" + art.slug(role) + "/t", content.jobs[role].get("t", ""))
 		_put(src, "job/" + art.slug(role) + "/role", role)

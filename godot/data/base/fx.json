@@ -5,7 +5,7 @@
     "closer":    { "on": "trait", "t": "Whatever you speak last restores +3." },
     "steady":    { "on": "trait", "t": "Chaining the same element restores +2." },
     "switch2":   { "on": "trait", "t": "Changing element restores +2." },
-    "white":     { "on": "trait", "t": "Cards with no element restore +3." },
+    "white":     { "on": "trait", "t": "The first two cards with no element restore +3.", "cap": 2 },
     "hand":      { "on": "trait", "t": "One more card in hand." },
     "energy":    { "on": "trait", "t": "One more energy every reading." },
     "turn":      { "on": "trait", "t": "Every sitter stays one reading longer." },
@@ -18,7 +18,7 @@
     "mutefirst": { "on": "sign",  "t": "The first card of every reading restores nothing." },
     "minthree":  { "on": "sign",  "t": "A reading of fewer than three cards restores nothing at all." },
     "lasthalf":  { "on": "sign",  "t": "Whatever you speak last restores half." },
-    "shield":    { "on": "sign",  "t": "A wall holds off the first points of every reading, and it thickens 2 each time." },
+    "shield":    { "on": "sign",  "t": "A wall holds off the first points of every reading. Whatever it holds off is worn away, but it thickens 3 again after every one." },
     "norepeat":  { "on": "sign",  "t": "A sign already spoken in this reading restores nothing the second time." },
     "deadel":    { "on": "sign",  "t": "One element restores nothing at their table.", "needsEl": true },
     "steal":     { "on": "sign",  "t": "One card leaves your hand at random before every reading." },
@@ -38,5 +38,10 @@
     "closer3":   { "on": "job",   "t": "Whatever closes the sentence restores +3." },
     "tax2":      { "on": "job",   "t": "One card fewer in every hand." }
   },
-  "denial_shield": { "shield": 2, "tide": 4 }
+  "denial_shield": { "shield": 3, "tide": 4 },
+  "_denial_wall_comment": "NOT in the source — added during the port, see docs/PORTING_NOTES.md 'Taurus and Virgo'. denial_shield says how much a wall thickens by each reading; this says whether it is worn down in the meantime, and how far it may go. 'drain': true means whatever the wall absorbed this reading is gone from it, so a wall is a buffer to break through rather than a toll charged again every reading. 'cap' is a multiple of the sitter's base denial the wall may never exceed (0 = no ceiling). An fx absent from this table behaves as {drain: false, cap: 0} — the source's behaviour — so a mod adding its own wall fx needs no entry here unless it wants these rules.",
+  "denial_wall": {
+    "shield": { "drain": true,  "cap": 2 },
+    "tide":   { "drain": false, "cap": 0 }
+  }
 }

@@ -8,7 +8,7 @@
     { "k": "sagittarius", "n": "SAGITTARIUS", "el": "fire",  "dn": "THE INTERRUPTION",
       "rule": "{S} interrupt{es} with a story of {p} own. Whatever you speak last restores half.", "fx": "lasthalf" },
     { "k": "taurus",      "n": "TAURUS",      "el": "earth", "dn": "THE COLD SHOULDER",
-      "rule": "Nothing reaches {o} cold. A wall holds off the first points of every reading, and it thickens 2 each time.", "fx": "shield" },
+      "rule": "Nothing reaches {o} cold. A wall holds off the first points of every reading — what it holds off wears the wall away, but it thickens 3 again after every one.", "fx": "shield" },
     { "k": "virgo",       "n": "VIRGO",       "el": "earth", "dn": "THE CORRECTION",
       "rule": "{S} correct{es} you back into shape. A sign already spoken in this reading restores nothing the second time.", "fx": "norepeat" },
     { "k": "capricorn",   "n": "CAPRICORN",   "el": "earth", "dn": "THE DISBELIEF",

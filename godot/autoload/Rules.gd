@@ -97,8 +97,8 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 		"rows": [], "gross": 0, "pierced": 0, "absorbed": 0, "applied": 0, "bank": 0, "over": 0,
 		"hpAfter": fight.get("hp", 0), "extraTurns": 0, "coin": 0, "halveNote": null,
 		"denial": max(0, fight.get("denial", 0) - pierce_trait),
-		"shieldNext": fight.get("denial", 0) + fight.get("denialUp", 0),
 	}
+	blank["shieldNext"] = next_wall(fight, blank)
 	if laid.is_empty():
 		return blank
 
@@ -112,6 +112,13 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 	var said: Array = []
 	var job: Dictionary = fight.get("job", {})
 	var no_bonus: bool = quirk.get("fx", "") == "nobonus"
+	# How many elementless cards may still take the "white" reader bonus this
+	# reading. NOT a straight port: the source pays it on every one, which made
+	# the seven elementless basics an unconditional +3 each and Virgo the only
+	# reader whose bonus asks nothing of the player (docs/PORTING_NOTES.md).
+	# 0 or absent in fx.json restores the source's uncapped behaviour.
+	var white_cap: int = int(Content.fx.get("white", {}).get("cap", 0))
+	var white_used := 0
 
 	var carried := ""
 	for n in laid.size():
@@ -168,8 +175,9 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 				if x != c and el_of(run_ctx, fight, x) == el:
 					count2 += 1
 			b += count2
-		if c.get("neutral", false) and has(run_ctx, "white"):
+		if c.get("neutral", false) and has(run_ctx, "white") and (white_cap <= 0 or white_used < white_cap):
 			b += 3
+			white_used += 1
 		if el != "" and el == fight.get("el", ""):
 			b += 2
 
@@ -249,11 +257,46 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 	var hp_after: int = min(max_hp, fight.get("hp", 0) + applied)
 	var over: int = max(0, fight.get("hp", 0) + applied - max_hp)
 
-	return {
+	var out := {
 		"rows": rows, "gross": gross, "pierced": pierced, "denial": denial, "absorbed": absorbed,
 		"applied": applied, "bank": bank, "over": over, "hpAfter": hp_after, "extraTurns": extra_turns,
-		"coin": coin, "halveNote": halve_note, "shieldNext": denial + fight.get("denialUp", 0),
+		"coin": coin, "halveNote": halve_note,
 	}
+	out["shieldNext"] = next_wall(fight, out)
+	return out
+
+
+## The one place that decides what a sitter's denial wall becomes after a
+## reading. Run.resolve_read() and tests/balance_sim.gd both call this rather
+## than doing the arithmetic themselves, and simulate() reports its answer as
+## `shieldNext` so the UI's preview of next reading's wall can never disagree
+## with what actually happens.
+##
+## NOT a straight port. In the source a wall is a toll charged again in full
+## every reading and growing without a ceiling, which made Taurus both the
+## hardest sign by a wide margin and, worse, the one that punished the combo
+## readers specifically: a flat amount taken off the top of each reading turns
+## every below-the-wall reading into exactly zero progress, so what matters is
+## a reader's WORST reading, not their average. Measured, that put Gemini at
+## 18% and Aries at 93% against the same sign. Here the wall drains: what it
+## absorbs is gone from it, so a weak reading still chips away and the sign
+## becomes a buffer to break through against its own regrowth. Both the drain
+## and the ceiling come from the `denial_wall` registry, so this stays a data
+## question rather than a code one, and an fx with no entry there keeps the
+## source's behaviour exactly.
+func next_wall(fight: Dictionary, sim: Dictionary) -> int:
+	var wall: int = fight.get("denial", 0)
+	var up: int = fight.get("denialUp", 0)
+	if up == 0 and wall == 0:
+		return 0
+	var rule: Dictionary = Content.denial_wall.get(fight.get("quirk", {}).get("fx", ""), {})
+	if bool(rule.get("drain", false)):
+		wall = max(0, wall - int(sim.get("absorbed", 0)))
+	wall += up
+	var cap: int = int(rule.get("cap", 0))
+	if cap > 0:
+		wall = min(wall, int(fight.get("sitter", {}).get("denial", 0)) * cap)
+	return wall
 
 
 ## Mirrors fxAudit() (~1114): cross-checks every fx key referenced by a

@@ -36,8 +36,15 @@ func _initialize() -> void:
 	var out_path := args[1] if args.size() > 1 else "/tmp/screenshot.png"
 	var settle: float = float(args[2]) if args.size() > 2 else 1.2
 	# Optional 4th arg: locale to render in, for checking a translation.
+	# Settings are persisted to user://settings.cfg, so setting this used to
+	# leave the locale changed for every later run of the game and the tools —
+	# which is exactly how a later English screenshot came back in French.
+	# Put it back before quitting.
+	var restore_locale := ""
 	if args.size() > 3:
-		root.get_node("Settings").set_value("locale", args[3])
+		var settings: Node = root.get_node("Settings")
+		restore_locale = str(settings.get_value("locale"))
+		settings.set_value("locale", args[3])
 		root.get_node("I18n").reload()
 
 	# Standalone screens aren't reachable from Run.state's "screen" field —
@@ -85,6 +92,8 @@ func _initialize() -> void:
 	var img := root.get_viewport().get_texture().get_image()
 	img.save_png(out_path)
 	print("saved ", out_path, " (", scene_path, ", settled ", settle, "s)")
+	if restore_locale != "":
+		root.get_node("Settings").set_value("locale", restore_locale)
 	quit(0)
 
 
@@ -136,6 +145,16 @@ func _setup(name: String) -> void:
 			run.choose(sitter_idx)
 			if OS.get_environment("PARLOUR_DEBUG_SIZES") == "1":
 				print("after choose, screen=", run.state["screen"], " f=", run.state["f"])
+		"read_taurus":
+			# The one sign with a denial WALL, so the reading screen's wall
+			# readout and its "what it becomes next reading" preview have
+			# something to show. Every other sign leaves both at zero, which is
+			# why the plain "read" setup can't be used to check them.
+			_setup("read")
+			var f: Dictionary = run.state["f"]
+			f["quirk"] = content.get_sign("taurus")
+			f["denial"] = int(f["sitter"]["denial"])
+			f["denialUp"] = int(content.denial_shield.get("shield", 0))
 		"marks":
 			# Grant a couple of marks so the "what's on your hands" overlay has
 			# something to show — they're otherwise only reachable by winning

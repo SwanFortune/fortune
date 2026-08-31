@@ -23,7 +23,7 @@
       "unlock": null, "deck": ["Give Them One Instruction", "Make Them Promise A Date"] },
     { "k": "virgo", "planet": "MERCURY", "sign": "VIRGO", "el": "earth", "name": "The Maiden", "fx": "white",
       "line": "You are more bottom-up than top-down. That means strong basics.",
-      "rule": "Earth restores +1, and cards with no element restore +3.",
+      "rule": "Earth restores +1, and the first two cards with no element restore +3.",
       "unlock": null, "deck": ["Look At Their Hands", "Check The Date"] },
     { "k": "libra", "planet": "VENUS", "sign": "LIBRA", "el": "air", "name": "The Scales", "fx": "switch2",
       "line": "You never let them linger on something for too long. You might have trouble picking.",

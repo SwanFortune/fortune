@@ -107,6 +107,52 @@ func sign_field(sign: Dictionary, field: String) -> String:
 	return content("sign/" + str(sign.get("k", "")), field, str(sign.get(field, "")))
 
 
+## Port of fill()/PRON (Parlour v23.dc.html ~1156 and ~1187), which was missed
+## in the first pass: sign rules are written with {S}/{es}/{o}/... tokens meant
+## to be filled from the sitter's own pronoun at display time, and with nothing
+## doing the filling every sign read "{S} need{es} it to be a performance."
+## on screen.
+##
+## Substitution happens AFTER translation on purpose. The tokens are part of the
+## sentence, so a translated rule carries its own — and a translated pronoun
+## table (see pronoun_field) supplies the words, letting a locale decline them
+## its own way instead of being handed finished English.
+##
+## An unrecognised token is left as-is rather than dropped, so a typo shows up
+## as a visible {typo} instead of silently eating part of a sentence.
+func fill(text: String, pronoun_key: String) -> String:
+	if not text.contains("{"):
+		return text
+	var table: Dictionary = Content.pronouns.get(pronoun_key, Content.pronouns.get("they", {}))
+	var re := RegEx.create_from_string("\\{(\\w+)\\}")
+	var out := ""
+	var at := 0
+	for m in re.search_all(text):
+		var token: String = m.get_string(1)
+		if not table.has(token):
+			continue
+		out += text.substr(at, m.get_start() - at) + pronoun_field(pronoun_key, token, str(table[token]))
+		at = m.get_end()
+	return out + text.substr(at)
+
+
+## One pronoun word, translatable like any other content string so a locale can
+## supply e.g. il/elle/iel and its own verb agreement.
+func pronoun_field(pronoun_key: String, token: String, fallback: String) -> String:
+	return content("pronoun/" + pronoun_key, token, fallback)
+
+
+## The common case: a sign's rule, with the tokens filled from the sitter it is
+## being shown against. Callers that have both records should use this rather
+## than sign_field(sign, "rule").
+func sign_rule(sign: Dictionary, sitter: Dictionary) -> String:
+	return fill(sign_field(sign, "rule"), str(sitter.get("p", "they")))
+
+
+func twist_text(twist: Dictionary) -> String:
+	return content("twist/" + Art.slug(str(twist.get("tag", ""))), "t", str(twist.get("t", "")))
+
+
 func job_text(role: String, job: Dictionary) -> String:
 	return content("job/" + Art.slug(role), "t", str(job.get("t", "")))
 

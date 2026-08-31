@@ -63,7 +63,7 @@ Re-run the generator whenever content or UI strings change. It:
 
 ## Current French status
 
-Roughly 190 of 442 keys are filled: all UI chrome, all card names, sign names
+Roughly 265 of 533 keys are filled: all UI chrome, all card names, sign names
 and denial names, element labels, and reader names. **Deliberately left
 empty** is the long-form prose — card flavor lines, sitter dialogue
 (`brings`/`win`/`fail`), reader `line`/`rule`, and sign `rule` text.
@@ -78,24 +78,42 @@ person who wrote the English, writing them fresh in French.
 The mechanical half — which is what has to be *correct* rather than *good* —
 is done.
 
-### One thing to watch when translating prose
+### Pronoun tokens
 
-Sitter- and sign-facing lines contain **pronoun tokens** the game substitutes
-per character: `{S}`/`{s}` (they/them subject, capitalized or not), `{p}`
-(their), `{o}` (them), `{es}` (verb-ending "s"), `{is}`, `{has}`, `{do}`,
-`{goes}`. For example:
+Sign rules, job traits and elite twists contain **pronoun tokens** the game
+substitutes from each sitter's own pronoun at display time, so one sentence
+reads correctly for a he, she or they sitter:
 
 ```
 "{S} {is} already ahead of you. The first card of every reading restores nothing."
+   →  "He is already ahead of you. …"   /   "They are already ahead of you. …"
 ```
 
-French agreement doesn't map onto that English scheme cleanly (gender rather
-than number drives most of it). When you get to those lines, it's worth
-deciding whether to extend the token set in `PRON` (ported from the source
-prototype, referenced in `Run.gd`/data files) with gendered French forms
-rather than trying to force the English tokens to work. That's a real design
-decision, not a mechanical translation, which is another reason those strings
-are left for a human.
+The words come from `data/base/pronouns.json`, and `I18n.fill()` substitutes
+them **after** translation — so a locale supplies its own pronoun words, under
+the `pronoun/<key>/<token>` ids, and they show up in the generated template
+like any other string. An unrecognised token is left visible as `{token}`
+rather than dropped, so a typo is obvious instead of silently eating half a
+sentence.
+
+For French, the eight *pronoun* tokens (`S`/`s`, `O`/`o`, `P`/`p`, `R`/`r`)
+are filled in: elle/il/iel and the reflexives. **The five verb-agreement
+tokens are deliberately left empty** — `{is}`, `{es}`, `{has}`, `{do}`,
+`{goes}` encode English singular-vs-plural agreement and have no French
+equivalent, and `{P}`/`{p}` is a further trap: French possessives agree with
+the *noun*, not the possessor, so son/sa is the same word regardless of who is
+being talked about.
+
+The practical consequence for whoever writes the French: **write French
+sentences that don't rely on the verb tokens.** Conjugate directly and let the
+sentence carry the pronoun — "Iel est déjà en avance sur vous" rather than
+trying to reconstruct "{S} {is}". If you do want gendered agreement on
+adjectives, the clean way is to add French-specific tokens to
+`pronouns.json` (it's an ordinary moddable registry) and use them in the
+French strings only; the English strings will never see them.
+
+This is a real design decision rather than a mechanical translation, which is
+another reason the prose strings are left for a human.
 
 ## Adding a language
 
