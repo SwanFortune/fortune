@@ -80,6 +80,7 @@ func _ready() -> void:
 
 	_rebuild_list()
 	_rebuild_editor()
+	UIKit.focus_first(self)
 
 
 # ── filters ─────────────────────────────────────────────────────────────

@@ -14,6 +14,9 @@ const PANEL := Color(0.13, 0.12, 0.14)
 const INK := Color(0.92, 0.9, 0.84)
 const DIM := Color(0.92, 0.9, 0.84, 0.55)
 const GOLD := Color(0.83, 0.69, 0.22)
+## The keyboard/gamepad focus ring. Distinct from GOLD so a focused row is
+## still tellable apart from a row that is merely gold-accented.
+const FOCUS := Color(0.45, 0.78, 0.95)
 
 ## Ported from KEYS in Parlour v23.dc.html (~line 1131) — the words on a card
 ## that mean something exact. The source's object literal defines "once"
@@ -146,6 +149,83 @@ static func margin(px: int = 24) -> MarginContainer:
 	return m
 
 
+## Makes a PanelContainer row respond to the mouse AND to the keyboard/gamepad.
+##
+## panel_button() and card_face() each had their own verbatim copy of this
+## block, and both copies handled only InputEventMouseButton — so every card in
+## hand, every sitter on the map and every reward was mouse-only. Buttons made
+## with button() were always keyboard-reachable (Godot's Button is focusable and
+## works out its own focus neighbours from the layout); these rows, being
+## PanelContainers, were not focusable at all, which left keyboard and gamepad
+## players able to reach the menus and nothing else.
+##
+## `style` is mutated in place rather than swapped, because that is how the
+## hover highlight already worked — a StyleBoxFlat handed to
+## add_theme_stylebox_override stays live, so changing a property on it
+## redraws the node.
+static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Callable, enabled: bool) -> void:
+	if not enabled:
+		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrap.focus_mode = Control.FOCUS_NONE
+		return
+
+	# Captured before anything changes them, so leaving hover or focus restores
+	# whatever the caller set up rather than a hardcoded guess. card_face()
+	# gives its border the card's element colour; panel_button() has no border
+	# at all until one is focused.
+	var base_bg: Color = style.bg_color
+	var base_border: Color = style.border_color
+	var base_width: int = style.border_width_left
+
+	wrap.mouse_filter = Control.MOUSE_FILTER_STOP
+	wrap.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	wrap.focus_mode = Control.FOCUS_ALL
+
+	wrap.mouse_entered.connect(func(): style.bg_color = base_bg.lightened(0.12))
+	wrap.mouse_exited.connect(func(): style.bg_color = base_bg)
+	wrap.focus_entered.connect(func():
+		style.border_color = FOCUS
+		style.set_border_width_all(maxi(base_width, 2))
+	)
+	wrap.focus_exited.connect(func():
+		style.border_color = base_border
+		style.set_border_width_all(base_width)
+	)
+	wrap.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			# Clicking moves focus too, so a player who starts with the mouse and
+			# switches to the keyboard carries on from where they clicked rather
+			# than from wherever focus happened to be left.
+			wrap.grab_focus()
+			on_pressed.call()
+			wrap.accept_event()
+		elif event.is_action_pressed("ui_accept"):
+			on_pressed.call()
+			wrap.accept_event()
+	)
+
+
+## Puts keyboard focus on the first thing in `root` that can take it, so the
+## first Tab or D-pad press does something visible instead of nothing. Deferred
+## because grab_focus() needs the node to be in the tree with its visibility
+## resolved, which is not yet true while a screen's _ready() is still running.
+## Returns nothing; screens call it and forget.
+static func focus_first(root: Node) -> void:
+	(func(): _focus_first_now(root)).call_deferred()
+
+
+static func _focus_first_now(node: Node) -> bool:
+	if node is Control:
+		var c: Control = node
+		if c.focus_mode == Control.FOCUS_ALL and c.is_visible_in_tree() and not c.is_queued_for_deletion():
+			c.grab_focus()
+			return true
+	for child in node.get_children():
+		if _focus_first_now(child):
+			return true
+	return false
+
+
 ## A clickable multi-line row — used for every card/reader/sitter/reward
 ## option in the game. Deliberately built on PanelContainer + gui_input
 ## rather than Button: Button is a plain Control, not a Container, so a rich
@@ -168,17 +248,7 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 	style.corner_radius_bottom_right = 3
 	wrap.add_theme_stylebox_override("panel", style)
 
-	if enabled:
-		wrap.mouse_filter = Control.MOUSE_FILTER_STOP
-		wrap.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		wrap.gui_input.connect(func(event: InputEvent):
-			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				on_pressed.call()
-		)
-		wrap.mouse_entered.connect(func(): style.bg_color = PANEL.lightened(0.12))
-		wrap.mouse_exited.connect(func(): style.bg_color = PANEL)
-	else:
-		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	make_interactive(wrap, style, on_pressed, enabled)
 
 	var v := vbox(2)
 	for entry in lines:
@@ -549,17 +619,7 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 		style.set(c4, 5)
 	wrap.add_theme_stylebox_override("panel", style)
 
-	if enabled:
-		wrap.mouse_filter = Control.MOUSE_FILTER_STOP
-		wrap.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		wrap.gui_input.connect(func(event: InputEvent):
-			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				on_pressed.call()
-		)
-		wrap.mouse_entered.connect(func(): style.bg_color = PANEL.lightened(0.12))
-		wrap.mouse_exited.connect(func(): style.bg_color = PANEL)
-	else:
-		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	make_interactive(wrap, style, on_pressed, enabled)
 
 	var v := vbox(4)
 	var top := hbox(0)

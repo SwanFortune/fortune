@@ -6,6 +6,13 @@ extends Control
 ## is exactly the kind of thing a confirmation exists for.
 var _begin_armed := false
 
+## How many cards the last CONTINUE could not resolve — cards from a pack that
+## has since been switched off or removed. Save.restore() has always counted
+## these, and nothing was reading the count, so a deck could quietly come back
+## shorter than it went in. CONTINUE now stops on the first press to say so,
+## and resumes on the second.
+var _dropped := 0
+
 var _root: Control
 
 
@@ -30,8 +37,13 @@ func _build() -> void:
 
 	var saved: Dictionary = Save.peek()
 	if not saved.is_empty():
-		v.add_child(UIKit.button(I18n.t("CONTINUE"), _continue))
+		v.add_child(UIKit.button(
+			I18n.t("RESUME ANYWAY") if _dropped > 0 else I18n.t("CONTINUE"), _continue))
 		v.add_child(UIKit.block(_saved_line(saved), 11, UIKit.DIM))
+		if _dropped > 0:
+			v.add_child(UIKit.block(I18n.t(
+				"%s card(s) in this run came from content you no longer have and have been removed from the deck."
+			) % _dropped, 11, UIKit.RED))
 	elif Save.last_error != "":
 		# A save that exists but cannot be read is worth saying out loud: the
 		# alternative is a player whose run silently evaporates.
@@ -50,6 +62,7 @@ func _build() -> void:
 	if not Content.load_errors.is_empty():
 		v.add_child(UIKit.block(
 			"%d %s" % [Content.load_errors.size(), I18n.t("content warning(s) — see MODS.")], 12, UIKit.RED))
+	UIKit.focus_first(self)
 
 
 func _begin_label() -> String:
@@ -70,6 +83,14 @@ func _continue() -> void:
 	var res: Dictionary = Save.restore()
 	if not res.get("ok", false):
 		_begin_armed = false
+		_dropped = 0
+		_build()
+		return
+	# A run that came back short is worth stopping for once. Losing cards out of
+	# a deck silently is the sort of thing a player would later report as the
+	# game cheating them.
+	if int(res.get("dropped", 0)) > 0 and _dropped == 0:
+		_dropped = int(res["dropped"])
 		_build()
 		return
 	Nav.goto_for_state()

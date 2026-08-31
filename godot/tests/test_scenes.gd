@@ -97,6 +97,7 @@ func _initialize() -> void:
 	)
 
 	await _visit_standalone()
+	await _test_keyboard_can_play()
 	_test_settings_return_path()
 
 	print("SCENE SWEEP DONE")
@@ -142,9 +143,77 @@ func _visit_scene(label: String, scene_path: String) -> void:
 	var instance: Node = packed.instantiate()
 	root.add_child(instance)
 	await process_frame
+	# focus_first() defers a frame, so give it one more before looking.
+	await process_frame
+	_check_focus(label, instance)
 	instance.queue_free()
 	await process_frame
 	print("--- END ", label, " (", scene_path, ") ---")
+
+
+## Focus being placed is only half of it: the focused thing has to actually do
+## something when activated. Cards and map options are PanelContainers, not
+## Buttons, so nothing about that is free — it is the ui_accept branch in
+## UIKit.make_interactive(), and without it a keyboard player could tab around
+## a hand of cards and never play one.
+##
+## Drives the real path (a key event pushed at the viewport, routed by Godot to
+## whatever holds focus) rather than calling the handler directly, since what is
+## in doubt is the routing as much as the handler.
+func _test_keyboard_can_play() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for i in run.state["options"].size():
+		if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+			run.choose(i)
+			break
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+
+	var laid_before: int = run.state["f"]["cross"].size()
+	var focused: Control = instance.get_viewport().gui_get_focus_owner()
+	if focused == null:
+		printerr("FAIL: the reading screen focused nothing, so ui_accept has nowhere to land")
+	else:
+		var press := InputEventAction.new()
+		press.action = "ui_accept"
+		press.pressed = true
+		instance.get_viewport().push_input(press)
+		await process_frame
+		var laid_after: int = run.state["f"]["cross"].size()
+		if laid_after <= laid_before:
+			printerr("FAIL: ui_accept on a focused card laid nothing (%d -> %d) — the hand is mouse-only" % [laid_before, laid_after])
+		else:
+			print("--- keyboard can lay a card (%d -> %d) ---" % [laid_before, laid_after])
+
+	instance.queue_free()
+	await process_frame
+
+
+## Every screen has to leave keyboard focus somewhere, or the first Tab or
+## D-pad press does nothing and a player without a mouse is simply stuck. This
+## is cheap to assert and easy to lose: focus_first() takes the first focusable
+## Control it finds, so a screen whose interactive rows stop being focusable —
+## which is exactly what every card and every map option was until now — fails
+## to place it and nothing else notices.
+##
+## Screens with genuinely no interactive controls would be exempt, listed by
+## name rather than waved through by a null check, so that adding a button to
+## one and forgetting to focus it still fails here. There are none today.
+const NO_CONTROLS: Array[String] = []
+
+
+func _check_focus(label: String, instance: Node) -> void:
+	var focused: Control = instance.get_viewport().gui_get_focus_owner()
+	if focused == null:
+		if not NO_CONTROLS.has(label):
+			printerr("FAIL: %s left nothing focused — keyboard and gamepad players cannot start here" % label)
+	elif not instance.is_ancestor_of(focused):
+		printerr("FAIL: %s focused a node outside itself (%s)" % [label, focused])
 
 
 ## The in-run SETTINGS chip has to remember which screen to come back to,
@@ -173,6 +242,9 @@ func _visit(label: String, setup: Callable) -> void:
 	var instance: Node = packed.instantiate()
 	root.add_child(instance)
 	await process_frame
+	# focus_first() defers a frame, so give it one more before looking.
+	await process_frame
+	_check_focus(label, instance)
 	instance.queue_free()
 	await process_frame
 	print("--- END ", label, " (", scene_path, ") ---")

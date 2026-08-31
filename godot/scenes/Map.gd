@@ -26,6 +26,9 @@ func _ready() -> void:
 	var opts: Array = st["options"]
 	for i in opts.size():
 		list.add_child(_opt_button(opts[i], i))
+	# The night's options, not the run header above them — the header is chrome,
+	# and landing on its DECK chip would make the first key press do nothing useful.
+	UIKit.focus_first(list)
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:

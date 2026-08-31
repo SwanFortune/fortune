@@ -97,6 +97,9 @@ func _ready() -> void:
 		if just_drawn.has(c["uid"]):
 			UIKit.animate_in(face, deal_index * 0.06)
 			deal_index += 1
+	# The hand, not the run header above it. See Map.gd. Falls back to the whole
+	# screen when the hand is empty, so READ IT is still reachable.
+	UIKit.focus_first(fan if fan.get_child_count() > 0 else self)
 
 
 func _lay(card_uid: String) -> void:

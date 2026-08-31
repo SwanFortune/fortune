@@ -172,7 +172,8 @@ func _ui_strings() -> Array[String]:
 		# main menu
 		"PARLOUR", "BEGIN A READING", "LIBRARY", "MODS", "SETTINGS", "QUIT",
 		"a fortune-teller's ledger, in card form",
-		"CONTINUE", "THIS ENDS THE RUN IN PROGRESS — BEGIN ANYWAY",
+		"CONTINUE", "THIS ENDS THE RUN IN PROGRESS — BEGIN ANYWAY", "RESUME ANYWAY",
+		"%s card(s) in this run came from content you no longer have and have been removed from the deck.",
 		"night %s, knock %s · %s · %s faith",
 		"Could not read your saved run.", "content warning(s) — see MODS.",
 		# mods screen

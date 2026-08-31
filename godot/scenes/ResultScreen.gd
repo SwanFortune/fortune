@@ -33,6 +33,7 @@ func _ready() -> void:
 		v.add_child(row)
 
 	v.add_child(UIKit.button(UIKit.tr_line(res.get("cta")), _continue))
+	UIKit.focus_first(self)
 
 
 func _continue() -> void:

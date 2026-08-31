@@ -51,6 +51,7 @@ func _build() -> void:
 	actions.add_child(UIKit.button(I18n.t("BACK"), _back))
 	actions.add_child(UIKit.button(I18n.t("RELOAD CONTENT"), _reload))
 	outer.add_child(actions)
+	UIKit.focus_first(self)
 
 
 # ── the pack list ───────────────────────────────────────────────────────

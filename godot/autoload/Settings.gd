@@ -58,7 +58,13 @@ func get_value(key: String):
 	if not DEFS.has(key):
 		push_error("[Settings] unknown setting '%s'" % key)
 		return null
-	return _values.get(key, DEFS[key][0])
+	var value = _values.get(key, DEFS[key][0])
+	# Arrays are handed out by reference, and one of these defaults lives inside
+	# a `const` — so a caller that appended to what it got back would corrupt the
+	# default for every later reader, in a way no test would obviously catch.
+	# Copy on the way out; callers are then free to mutate what they hold and
+	# pass it to set_value().
+	return value.duplicate() if typeof(value) == TYPE_ARRAY else value
 
 
 func set_value(key: String, value) -> void:

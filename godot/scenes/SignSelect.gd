@@ -29,6 +29,7 @@ func _ready() -> void:
 			["Starts with: %s" % ", ".join(r.get("deck", [])), 11, UIKit.DIM],
 		]
 		list.add_child(UIKit.panel_button(lines, _pick.bind(i)))
+	UIKit.focus_first(self)
 
 
 func _pick(i: int) -> void:

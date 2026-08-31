@@ -27,6 +27,7 @@ func _ready() -> void:
 		v.add_child(row)
 
 	v.add_child(UIKit.button(I18n.t("BEGIN AGAIN"), _restart))
+	UIKit.focus_first(self)
 
 
 func _restart() -> void:

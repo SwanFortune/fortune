@@ -34,6 +34,8 @@ func _ready() -> void:
 
 	if pick.get("skippable", false):
 		v.add_child(UIKit.button(I18n.t(str(pick.get("skipLabel", "SKIP"))), _skip))
+	# The offers, not the run header above them. See Map.gd.
+	UIKit.focus_first(list)
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:

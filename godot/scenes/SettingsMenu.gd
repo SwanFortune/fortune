@@ -85,6 +85,7 @@ func _ready() -> void:
 	actions.add_child(UIKit.button(I18n.t("BACK"), _back))
 	actions.add_child(UIKit.button(I18n.t("RESET TO DEFAULTS"), _reset))
 	v.add_child(actions)
+	UIKit.focus_first(self)
 
 
 ## Switching locale rebuilds this screen so its own labels change with it —

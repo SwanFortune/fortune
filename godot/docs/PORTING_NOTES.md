@@ -99,14 +99,42 @@ The user asked for best judgment on these, flagged rather than silently made:
   in the source either; nothing to port. Note that every reader carries an
   `unlock: null` field that nothing reads, so the *scaffolding* is ported and
   inert: all 13 readers are available from the first launch.
-- **Controller and keyboard navigation.** Escape closes the Settings, Library
-  and Mods screens; everything else is mouse-only. No focus traversal, no
-  gamepad, no keyboard shortcut for laying a card.
+- **Key rebinding**, and any on-screen hint that keyboard/gamepad play exists.
+  Navigation itself now works — see below.
 - **Sound.** `master_volume` and `muted` drive the real AudioServer master bus
   (deliberately — see `autoload/Settings.gd`), but the game ships no audio
   files, so both are honest wiring with nothing to carry.
 
-Save/resume WAS on this list and is now done — see below.
+Save/resume and keyboard navigation were both on this list and are now done —
+see below.
+
+## Keyboard and gamepad
+
+Buttons made with `UIKit.button()` were always reachable — Godot's `Button` is
+focusable and works out its own focus neighbours from the layout. But every
+*interesting* control in the game is a `UIKit.panel_button()` or a
+`UIKit.card_face()`, and those are `PanelContainer`s, built that way for layout
+reasons (see `panel_button`'s comment). A PanelContainer is not focusable and
+handles no input of its own, so cards, map options, rewards, shop offers and
+the Library's card list were **mouse-only**: a keyboard or gamepad player could
+reach the menus and nothing else.
+
+Both had a verbatim copy of the same click/hover block, each handling only
+`InputEventMouseButton`. That is now one `UIKit.make_interactive()`, which also
+sets `focus_mode`, draws a focus ring (`UIKit.FOCUS`, deliberately a different
+colour from `GOLD` so a focused row is tellable from a merely gold-accented
+one), and handles `ui_accept`.
+
+Each screen then calls `UIKit.focus_first()` so the first key press does
+something. The in-run screens pass their *content* container rather than
+themselves — otherwise focus lands on the run header's DECK chip, which is
+chrome, and the first press does nothing useful.
+
+`tests/test_scenes.gd` asserts both halves: that every screen leaves something
+focused (stub `focus_first` out and 16 screens fail; with it, none do), and
+that pushing a `ui_accept` at the viewport on the reading screen actually lays
+a card — driving the real routing rather than calling the handler directly,
+since the routing was as much in doubt as the handler.
 
 ## Save and resume
 
@@ -135,7 +163,9 @@ load every content-derived record is looked up again by its stable identity (a
 card by name, a reader or sign by key) and replaced with the current version,
 keeping only what is genuinely per-run: a card's `uid`, a sitter's scaled
 `max`/`denial`/`turns`, an elite's `twist`. A card that no longer resolves is
-dropped and counted rather than kept as a husk.
+dropped and counted rather than kept as a husk — and the main menu stops on the
+first CONTINUE to say how many went, rather than handing back a quietly shorter
+deck.
 
 A save is cleared rather than written whenever the screen is not a run in
 progress ("sign" before one starts, "over" after one ends), so CONTINUE can
