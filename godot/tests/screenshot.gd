@@ -105,14 +105,39 @@ func _initialize() -> void:
 	quit(0)
 
 
+## Activates whatever matches `needle`, by its visible text.
+##
+## Real Buttons are easy. The rows built by UIKit.panel_button()/card_face()
+## are not Buttons at all — they are PanelContainers holding Labels, which is
+## every card in hand, every sitter on the map, every reward and every row in
+## the Library. So the tool could not click on ANY of the game's actual
+## choices, only its chrome, which made screenshotting anything that needs a
+## selection first impossible. Those rows now get a synthetic click through the
+## same gui_input path a real mouse takes.
 func _press_button(n: Node, needle: String) -> bool:
 	if n is Button and str(n.text).contains(needle):
 		n.emit_signal("pressed")
+		return true
+	if n is PanelContainer and (n as Control).focus_mode == Control.FOCUS_ALL and _text_of(n).contains(needle):
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = true
+		(n as Control).gui_input.emit(click)
 		return true
 	for child in n.get_children():
 		if _press_button(child, needle):
 			return true
 	return false
+
+
+## Every Label under `n`, joined — what a person would read on that row.
+func _text_of(n: Node) -> String:
+	var parts: Array[String] = []
+	if n is Label:
+		parts.append((n as Label).text)
+	for child in n.get_children():
+		parts.append(_text_of(child))
+	return " ".join(parts)
 
 
 func _debug_sizes(n: Node, depth: int = 0) -> void:

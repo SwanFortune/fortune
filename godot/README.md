@@ -41,9 +41,10 @@ godot --headless --path godot -s tests/test_save.gd            # save/resume rou
 godot --headless --path godot -s tests/test_settings.gd        # key rebinding + setting hygiene
 godot --headless --path godot -s tests/test_audio.gd           # sound registry + runtime loader
 godot --headless --path godot -s tests/test_profile.gd         # cross-run stats + reader unlocks
+godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
 ```
 
-All eleven should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All twelve should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker

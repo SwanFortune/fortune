@@ -215,6 +215,7 @@ func _ui_strings() -> Array[String]:
 		"Energy cost", "Base restore", "Element", "None",
 		"REVERT THIS CARD", "REVERT ALL CARDS",
 		"Set a value to 0 to remove that effect from the card entirely.",
+		"The usual amount for this effect.",
 		# run screens
 		"CHOOSE YOUR SIGN", "Every reader is a sign, an element, and a starting deck of ten.",
 		"Starts with:", "Who knocks tonight?", "NIGHT", "KNOCK",

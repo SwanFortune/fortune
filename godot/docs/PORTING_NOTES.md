@@ -183,6 +183,35 @@ reader plus Godot's runtime OGG/MP3 loaders for audio), and `test_art.gd`
 writes its own un-imported file to `user://` to pin it down without needing any
 committed art.
 
+## Inert data, and a guard against more of it
+
+The same bug happened four times on this port, and every time it was found by
+accident: `Content.LOAD_EXAMPLE_MODS` (a constant nothing consulted, so the
+setting it documented did not exist), every reader's `unlock` field, an elite's
+`twist.t` sentence, and the `{S}`/`{es}` pronoun tokens. They share a shape —
+data faithfully ported, plausible-looking, and inert. Nothing errors, nothing
+looks wrong in a screenshot, no test fails; the feature simply is not there.
+
+A grep finds them, so `tests/test_dead_content.gd` now does the grep on every
+run: it collects every key across every record in every registry and fails on
+any that appears in no `.gd` file, unless it is listed in `KNOWN` with a reason
+(`dynamic` — read by variable; `dead` — genuinely unread, named so it stays
+visible). It is a grep and says so in its own header: it proves a key is
+mentioned, not that it is used correctly, so it under-reports. It does not
+over-report, which is the direction that matters.
+
+Running it turned up two more:
+
+- **`card_effects`' `d`** — each effect's typical amount (draw 1, coin 3,
+  next 4, solo 6). Nothing read it, so the Library's effect editor started every
+  field at 0 and "give this card the solo bonus" was six clicks on a spin box.
+  Now a one-click button per row.
+- **`guard: 3`** on *Let Them Say The Worst Of It* — and this one is dead in
+  the **prototype** too: it sits on that one card and appears in no scoring code
+  on either side of the port. An abandoned mechanic, not a porting miss. Left in
+  place (deleting it would discard the author's intention) and listed in `KNOWN`
+  as dead (implementing it would be inventing a rule nobody wrote).
+
 ## Unlocks
 
 Every reader carries an `unlock` field, ported faithfully and then read by

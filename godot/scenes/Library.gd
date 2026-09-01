@@ -340,6 +340,17 @@ func _effect_row(c: Dictionary, e: Dictionary) -> Control:
 	spin.value_changed.connect(func(v: float): _apply(field, null if int(v) == 0 else int(v)))
 	row.add_child(spin)
 
+	# The registry's own suggested amount for this effect (card_effects' "d":
+	# draw 1, coin 3, next 4, solo 6...). It was ported and then read by
+	# nothing, which left every effect starting at 0 — turning "give this card
+	# the solo bonus" into six clicks on a spin box. One button instead.
+	var typical := int(e.get("d", 0))
+	if typical > 0 and int(c.get(field, 0)) != typical:
+		var use := UIKit.button(str(typical), func(): _apply(field, typical))
+		use.tooltip_text = I18n.t("The usual amount for this effect.")
+		use.custom_minimum_size = Vector2(52, 28)
+		row.add_child(use)
+
 	var hint := UIKit.label("%s %s %s" % [e.get("pre", ""), "N", e.get("post", "")], 11, UIKit.DIM)
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(hint)
