@@ -27,7 +27,9 @@ unzip godot.zip && chmod +x Godot_v4.3-stable_linux.x86_64
 
 ## Tests
 
-No display needed:
+No display needed, and no setup step — a fresh `git clone` runs green as-is
+(that is deliberate and checked; see `docs/PORTING_NOTES.md`, "The project did
+not work from a fresh clone"):
 
 ```
 godot --headless --path godot -s tests/test_rules.gd          # scoring engine vs hand-traced cases

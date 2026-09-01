@@ -5,6 +5,13 @@
 ## Reachable from the main menu, and from anywhere via Esc (see Nav).
 extends Control
 
+## Loaded by path, not by `class_name`. A class_name global is only declared
+## once Godot has written .godot/global_script_class_cache.cfg — a cache the
+## EDITOR generates, correctly gitignored — so on a fresh clone the bare name
+## does not resolve, this script fails to compile, and the scene instantiates
+## with no script at all. See autoload/Content.gd's header for the full story.
+const UIKit := preload("res://scenes/UIKit.gd")
+
 var _return_scene: String = "res://scenes/MainMenu.tscn"
 
 
