@@ -1,0 +1,6 @@
+Git does not track empty directories, so this file keeps assets/art/card/
+present in a fresh clone. docs/ART_GUIDE.md and assets/art/README.md both
+tell the artist to drop files in here by name; without it, the folder they
+were told to use would not exist until someone made it.
+
+Delete this once there is real art in here.
