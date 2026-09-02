@@ -11,19 +11,25 @@ scope for this pass.
 
 ## Running it
 
-Open `godot/` as a project in the Godot 4.3 editor and run it, or headless:
+Open `godot/` as a project in the **Godot 4.7** editor and run it, or headless:
 
 ```
 godot --headless --path godot          # boots to the main menu
 ```
 
-No Godot install locally? A portable Linux build is enough:
+Godot is a single portable executable — no installer, no dependencies.
+Download the **standard** build (not .NET/mono; this is pure GDScript) from
+<https://godotengine.org/download>, or:
 
 ```
-curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
-unzip godot.zip && chmod +x Godot_v4.3-stable_linux.x86_64
-./Godot_v4.3-stable_linux.x86_64 --path godot
+curl -sSL -o godot.zip https://github.com/godotengine/godot/releases/download/4.7-stable/Godot_v4.7-stable_linux.x86_64.zip
+unzip godot.zip && chmod +x Godot_v4.7-stable_linux.x86_64
+./Godot_v4.7-stable_linux.x86_64 --path godot
 ```
+
+The full suite is verified on **4.3 and 4.7**, so anything in between should be
+fine. Moving between them is not cosmetic — see `docs/PORTING_NOTES.md`, "One
+engine version hid a bug for the whole port".
 
 ## Tests
 

@@ -212,6 +212,36 @@ port — see `Nav.gd`'s header for the other two, which were the same shape in
 `git clone` + run the suite is now part of what "green" means. It is the only
 way this class of thing shows up.
 
+## One engine version hid a bug for the whole port
+
+The project targeted Godot 4.3 for no better reason than that 4.3 was the
+binary available while it was being written. Retargeting to 4.7 turned out not
+to be housekeeping: it exposed a bug that had been there since the first
+commit.
+
+JSON has no integer type, so Godot parses `"cost": 1` as `1.0`. The codebase
+treats these as ints throughout — `int()` in scoring, `str()` on a card face —
+and that appeared to work, because **Godot 4.3 renders an integral float as
+"1"**. Godot 4.7 renders it as `"1.0"`. Under 4.7 every card in the game showed
+a cost of "1.0" and a restore of "+5.0".
+
+Nothing errored. All thirteen test files passed on 4.7 — none of them assert on
+rendered card text. It took a screenshot under the new engine to see it, which
+is the third time in this port that a visual check caught what the logic tests
+structurally could not.
+
+Fixed at the boundary rather than at the display sites: `ModLoader` now
+converts whole-looking numbers to ints as JSON is read, so "a number that looks
+whole IS an int" holds for base content and every mod at once, which is what
+the code always assumed. Genuinely fractional values (an elite's `maxMul`, a
+sound's `pitch_jitter`) are left alone. `tests/test_content_audit.gd` walks
+every registry and fails on any whole number still stored as a float, so the
+check travels to whatever engine anyone runs it on rather than depending on one
+version's formatting.
+
+The suite is now run against **both 4.3 and 4.7** before a version claim is
+made in the README.
+
 ## A soft-lock, found by playing whole runs
 
 Every test covered a slice. `test_run.gd` drives one encounter to resolution
