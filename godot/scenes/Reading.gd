@@ -85,7 +85,12 @@ func _ready() -> void:
 				# a reading, "new" and "only" are the same card either way).
 				UIKit.animate_in(chip)
 
-	v.add_child(UIKit.button(I18n.t("READ IT"), _read_it))
+	# Greyed while a play is still available and nothing is laid — the source
+	# does this (`cannotRead`) and the port had inherited only the silent
+	# early-return, so the button looked live and did nothing.
+	var read_btn := UIKit.button(I18n.t("READ IT"), _read_it)
+	read_btn.disabled = not Run.can_read()
+	v.add_child(read_btn)
 
 	var hand_label := UIKit.label(I18n.t("YOUR HAND — hover a card for its full text"), 12, UIKit.DIM)
 	v.add_child(hand_label)

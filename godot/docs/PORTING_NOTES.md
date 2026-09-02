@@ -212,6 +212,38 @@ port — see `Nav.gd`'s header for the other two, which were the same shape in
 `git clone` + run the suite is now part of what "green" means. It is the only
 way this class of thing shows up.
 
+## A soft-lock, found by playing whole runs
+
+Every test covered a slice. `test_run.gd` drives one encounter to resolution
+and stops; `test_scenes.gd` builds each screen against a state handed to it.
+Nothing ever played a **whole run**, so night rollover, the boss, the shop,
+elite twists, burning a card and `end_run()` had never happened in sequence —
+and a state machine's bugs are exactly the ones that only appear in sequence.
+
+`tests/test_soak.gd` now plays complete runs (40 by default), checking
+invariants after every action rather than at the end: coin/faith/mended never
+negative, the deck never emptied by burning, the screen always one Nav can
+route, composure never past its maximum, and the run always terminating at
+"over". It found one real bug immediately.
+
+**READ IT could leave the game stuck.** `read_it()` returns early on an empty
+line, faithfully copying the prototype (`readIt` does the same, and greys the
+button out via `cannotRead`). But if nothing in hand is affordable *and*
+nothing is laid, there is no legal action left at all — the reading cannot
+resolve, the turn cannot advance, and the only way out is abandoning the run.
+
+Two things were wrong. The port had inherited the *guard* but not the
+*affordance*: the button looked live and silently did nothing, where the
+prototype greys it. And the deadlock is real in both — the soak reaches it 7
+times in 60 runs at `start_energy=1`, which is a supported setting, so it is
+not theoretical.
+
+`Run.can_read()` now keeps the misclick protection while a play is still
+available and lifts it when there is none. Reading an empty line then costs a
+reading and scores nothing: a bad move, but a legal one, and always better than
+a stuck game. The soak asserts the way out actually advances the reading —
+stub the fix back out and it fails rather than looping.
+
 ## Inert data, and a guard against more of it
 
 The same bug happened four times on this port, and every time it was found by

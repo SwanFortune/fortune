@@ -34,6 +34,7 @@ not work from a fresh clone"):
 ```
 godot --headless --path godot -s tests/test_rules.gd          # scoring engine vs hand-traced cases
 godot --headless --path godot -s tests/test_run.gd             # state machine, plays random full encounters
+godot --headless --path godot -s tests/test_soak.gd            # plays complete runs, checks invariants throughout
 godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
 godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check (the AUDIT tab equivalent)
 godot --headless --path godot -s tests/test_art.gd             # art manifest -> texture pipeline
@@ -46,7 +47,7 @@ godot --headless --path godot -s tests/test_profile.gd         # cross-run stats
 godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
 ```
 
-All twelve should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All thirteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker

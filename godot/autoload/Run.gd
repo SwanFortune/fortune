@@ -329,11 +329,35 @@ func lay_card(card_uid: String) -> void:
 ## Resolves the laid line via Rules.simulate() and applies the result. The
 ## source animates this card-by-card (tick()); this port applies it
 ## immediately — see docs/PORTING_NOTES.md for why that's fine for this pass.
+## Whether READ IT should do anything.
+##
+## The prototype's rule is "not with an empty line" (readIt returns early, and
+## the button is greyed out via `cannotRead`). That protects against throwing a
+## reading away by misclicking — but it also DEADLOCKS: if nothing in hand is
+## affordable and nothing is laid, there is no legal action left and the run
+## cannot continue. tests/test_soak.gd reaches that state 7 times in 60 runs at
+## start_energy=1, which is a supported setting, so it is not theoretical.
+##
+## So: keep the protection while the player still has a play available, and
+## lift it when they genuinely have none. Reading an empty line then costs a
+## reading and scores nothing — a bad move, but a legal one, and always
+## better than a stuck game.
+func can_read() -> bool:
+	var f: Dictionary = state.get("f", {})
+	if f.is_empty():
+		return false
+	if not f["cross"].is_empty():
+		return true
+	for c in f["hand"]:
+		if int(c.get("cost", 0)) <= int(f["energy"]):
+			return false   # you can still play something — play it
+	return true
+
+
 func read_it() -> void:
-	var f: Dictionary = state["f"]
-	if f.is_empty() or f["cross"].is_empty():
+	if not can_read():
 		return
-	var sim := Rules.simulate(run_ctx(), f)
+	var sim := Rules.simulate(run_ctx(), state["f"])
 	resolve_read(sim)
 
 
