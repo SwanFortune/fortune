@@ -239,8 +239,12 @@ every registry and fails on any whole number still stored as a float, so the
 check travels to whatever engine anyone runs it on rather than depending on one
 version's formatting.
 
-The suite is now run against **both 4.3 and 4.7** before a version claim is
-made in the README.
+4.7 is now the only version tested. Running the suite against both for a while
+was worth it — it is how the above was caught in the first place — but keeping
+a superseded engine green is upkeep the project is not being paid for, and the
+guard that matters survived the retarget: `test_content_audit.gd` fails on a
+whole number stored as a float regardless of how the engine renders it, so this
+class of bug is caught by an assertion now rather than by owning two binaries.
 
 ## A soft-lock, found by playing whole runs
 

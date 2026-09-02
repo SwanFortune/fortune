@@ -27,9 +27,10 @@ unzip godot.zip && chmod +x Godot_v4.7-stable_linux.x86_64
 ./Godot_v4.7-stable_linux.x86_64 --path godot
 ```
 
-The full suite is verified on **4.3 and 4.7**, so anything in between should be
-fine. Moving between them is not cosmetic — see `docs/PORTING_NOTES.md`, "One
-engine version hid a bug for the whole port".
+The suite is verified on **4.7**, which is what the project targets. Older
+engines are no longer tested against — moving between versions is not cosmetic
+here, see `docs/PORTING_NOTES.md`, "One engine version hid a bug for the whole
+port".
 
 ## Tests
 
