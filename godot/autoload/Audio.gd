@@ -40,6 +40,13 @@ const EVENTS := {
 ## row, so one player would cut off four of them.
 const VOICES := 8
 
+## Which moments play on the "UI" bus; everything else plays on "SFX". The
+## split is what makes the two volume sliders worth having — a keyboard player
+## hears ui_move on every single focus change, and being able to turn that down
+## without losing the game's sounds is the point. An event missing from here
+## goes to SFX, the right default for a sound a mod added.
+const UI_EVENTS := ["ui_move", "ui_press"]
+
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
 var _cache: Dictionary = {}
@@ -48,7 +55,6 @@ var _cache: Dictionary = {}
 func _ready() -> void:
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
-		p.bus = "Master"
 		add_child(p)
 		_players.append(p)
 
@@ -73,6 +79,9 @@ func play(event: String) -> void:
 		return
 	var p := _players[_next]
 	_next = (_next + 1) % _players.size()
+	# Set per play, not once per player: voices are reused round-robin, so a
+	# voice has to carry the bus of whatever it is playing right now.
+	p.bus = "UI" if UI_EVENTS.has(event) else "SFX"
 	p.stream = stream
 	p.volume_db = float(rec.get("gain_db", 0.0))
 	var jitter := float(rec.get("pitch_jitter", 0.0))

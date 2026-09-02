@@ -10,7 +10,11 @@
 ##   - an unknown event, and a registered sound whose file is missing, are both
 ##     silence rather than an error — the same contract Art.gd has for missing
 ##     art, and the reason the game is playable with no audio at all;
-##   - the sounds registry rides the mod pipeline like every other category.
+##   - the sounds registry rides the mod pipeline like every other category;
+##   - each moment plays on the bus its volume slider drives. Three sliders are
+##     only worth having if the sounds are actually split between them, and a
+##     sound on the wrong bus is exactly the kind of thing nobody notices until
+##     someone turns a slider down and the wrong things go quiet.
 extends SceneTree
 
 const TESTS := [
@@ -18,6 +22,7 @@ const TESTS := [
 	"_test_every_sound_resolves",
 	"_test_missing_and_unknown_are_silent",
 	"_test_registry_is_moddable",
+	"_test_events_reach_the_right_bus",
 ]
 
 var failures: Array[String] = []
@@ -110,3 +115,19 @@ func _test_registry_is_moddable() -> void:
 	check(bare != null, "a bare filename should resolve under assets/audio/")
 	audio.reload()
 	done("_test_registry_is_moddable")
+
+
+## Interface moments on the UI bus, everything else on SFX. Played for real
+## (under the dummy driver) and the voice inspected, rather than reading
+## UI_EVENTS back at itself — the question is what play() does, not what the
+## table says.
+func _test_events_reach_the_right_bus() -> void:
+	for event in audio.EVENTS:
+		audio.play(event)
+		# play() advances _next after using a voice, so the one it just used is
+		# the previous index.
+		var voice: AudioStreamPlayer = audio._players[(audio._next - 1 + audio.VOICES) % audio.VOICES]
+		var want := "UI" if audio.UI_EVENTS.has(event) else "SFX"
+		check(voice.bus == want, "'%s' should play on %s, played on %s" % [event, want, voice.bus])
+		check(AudioServer.get_bus_index(voice.bus) >= 0, "bus '%s' should exist" % voice.bus)
+	done("_test_events_reach_the_right_bus")

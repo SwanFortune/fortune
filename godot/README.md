@@ -102,6 +102,26 @@ way a mod's own art or audio can work at all.
 python3 tests/gen_sounds.py                                  # regenerate the placeholders
 ```
 
+## Settings
+
+Main menu → SETTINGS. A category rail (GAMEPLAY, VIDEO, AUDIO, INTERFACE,
+CONTROLS, LANGUAGE, CONTENT) with the chosen category's rows beside it;
+everything takes effect the moment you change it, with no Apply button.
+
+The rule the screen is built around is that **every setting does something
+real**. That is as much about what is missing as what is there: no music
+slider, because there is no music; no screen-shake toggle, because nothing
+shakes; no gamepad-rumble row, because nothing rumbles. Those are the rows a
+settings menu grows by imitation, and each would be a control that lies.
+`tests/test_settings.gd` asserts the pairing in both directions — no setting
+the screen cannot reach, no row naming a setting that does not exist.
+
+Two of them are worth calling out because they are accessibility features
+rather than preferences: **Text size** enlarges the words (and the cards with
+them) without magnifying the layout, and **High contrast** swaps the whole
+palette for a black-and-white one. The game's usual dim greys are a deliberate
+look and a genuine problem for some people.
+
 ## The Minitel
 
 Main menu → MINITEL. Dial **3615**, four letters, ENVOI. It is the game's

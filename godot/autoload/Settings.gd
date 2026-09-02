@@ -5,12 +5,20 @@
 ## Run reads the gameplay knobs while starting a fight — both during their own
 ## _ready(), so this has to be ready first.
 ##
-## Every setting here does something real. There is deliberately no setting
-## that only looks like it works: `master_volume` drives the actual
-## AudioServer master bus (the game ships no sound yet, so it is silent
-## either way, but the wiring is genuine and needs no revisiting when audio
-## lands), and `animation_scale` genuinely scales the UIKit tweens including
-## an explicit 0 = off path.
+## EVERY SETTING HERE DOES SOMETHING REAL, and that is the rule the file is
+## built around rather than a nice property it happens to have. The volumes
+## drive actual AudioServer buses, `animation_scale` genuinely scales the UIKit
+## tweens including an explicit 0 = off path, `max_fps` is Engine.max_fps.
+##
+## The rule is what the settings screen does NOT have as much as what it does.
+## No music slider, because there is no music for it to move. No screen-shake
+## toggle, because nothing shakes. No gamepad-vibration row, because nothing
+## rumbles. Those are the four rows a settings menu grows by imitation, and
+## every one of them would be a control that lies to the player.
+##
+## tests/test_settings.gd asserts the pairing in both directions: no key here
+## that the screen cannot reach, and no key the screen reaches that is not
+## here.
 extends Node
 
 signal changed(key: String)
@@ -23,14 +31,44 @@ const SECTION := "parlour"
 ## set() rejects anything not listed, so a typo'd key fails loudly at the
 ## call site instead of silently persisting a value nothing ever reads.
 const DEFS := {
-	# display
-	"fullscreen": [false],
+	# ── video ────────────────────────────────────────────────────────────
+	# One of WINDOW_MODES. Replaces the old `fullscreen` bool, which could not
+	# express borderless — see _migrate_legacy() for what happens to a
+	# settings.cfg written before this existed.
+	"window_mode": ["windowed"],
+	# "WxH", one of RESOLUTIONS. Windowed only: in either fullscreen mode the
+	# window is the screen and setting a size does nothing, so the row is
+	# disabled there rather than lying.
+	"resolution": ["1280x720"],
+	# One of VSYNC_MODES.
+	"vsync": ["on"],
+	# 0 = unlimited. Engine.max_fps, so it caps the whole main loop.
+	"max_fps": [0, 0, 240],
 	"ui_scale": [1.0, 0.75, 1.5],
-	# audio (real AudioServer wiring; no sounds ship yet)
+	# ── audio ────────────────────────────────────────────────────────────
+	# Three real AudioServer buses: SFX and UI feed Master. The split is what
+	# lets someone keep the game's sounds and silence the click-on-every-focus,
+	# which is the one sound a keyboard player hears constantly.
+	#
+	# There is NO music slider, deliberately. The game has no music, and a
+	# slider that moves a bus nothing plays through is exactly the dead control
+	# this file's header refuses. It gets one the day there is music.
 	"master_volume": [0.8, 0.0, 1.0],
+	"sfx_volume": [0.9, 0.0, 1.0],
+	"ui_volume": [0.7, 0.0, 1.0],
 	"muted": [false],
-	# accessibility / feel
+	# ── interface / accessibility ────────────────────────────────────────
 	"animation_scale": [1.0, 0.0, 2.0],
+	# Multiplies every font size UIKit hands out, and the card face with them
+	# so the text still fits. Separate from ui_scale, which magnifies the whole
+	# interface including the gaps: this makes the WORDS bigger at the same
+	# layout, which is what someone who can read the game fine but not its
+	# 11px captions actually wants.
+	"text_scale": [1.0, 0.85, 1.3],
+	# Raises the contrast of the whole palette — see UIKit.apply_palette().
+	# The dim greys this game is written in are a deliberate look and a real
+	# problem for anyone who cannot pick them off the background.
+	"high_contrast": [false],
 	# gameplay — the two knobs the prototype exposed as props (its cfg())
 	"start_energy": [3, 1, 8],
 	"hand_size": [5, 3, 10],
@@ -48,6 +86,47 @@ const DEFS := {
 	# when it moves (a manual install later subscribed to on the Workshop, say).
 	"disabled_mods": [[]],
 }
+
+## How the settings screen groups these, and — as far as
+## tests/test_settings.gd is concerned — the CONTRACT between the two. `keys`
+## is not documentation: the test asserts that every key in DEFS appears in
+## exactly one section here, and that no section names a key DEFS does not
+## have. A setting nobody can reach is as dead as a setting that does nothing,
+## and it fails silently in exactly the same way.
+##
+## It lives here rather than in scenes/SettingsMenu.gd because that file
+## preloads UIKit, which refers to four autoloads and so cannot be compiled by
+## a `godot -s` tool — the test could not have read it there.
+const SECTIONS := [
+	{"id": "gameplay", "title": "GAMEPLAY", "keys": ["start_energy", "hand_size"]},
+	{"id": "video", "title": "VIDEO", "keys": ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]},
+	{"id": "audio", "title": "AUDIO", "keys": ["master_volume", "sfx_volume", "ui_volume", "muted"]},
+	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast"]},
+	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds"]},
+	{"id": "language", "title": "LANGUAGE", "keys": ["locale"]},
+	{"id": "content", "title": "CONTENT", "keys": ["load_example_mods", "disabled_mods"]},
+]
+
+## Window modes, in the order the settings screen offers them. `borderless` is
+## a windowed window at screen size with no chrome — the "fullscreen windowed"
+## most games list, and the one that alt-tabs cleanly.
+const WINDOW_MODES := ["windowed", "borderless", "fullscreen"]
+
+## Vsync modes. `adaptive` tears rather than dropping to half rate when a frame
+## is missed; it is offered because on some drivers it is the only one that
+## feels right, not because most people should pick it.
+const VSYNC_MODES := ["off", "on", "adaptive"]
+
+## Offered window sizes. Anything larger than the player's screen is filtered
+## out at display time rather than removed here, so the list does not depend on
+## the machine that happens to be running the tests.
+const RESOLUTIONS := ["1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440"]
+
+## Audio buses this game creates at startup, each feeding Master. There is no
+## default_bus_layout.tres in the project: building them here keeps the
+## routing next to the volumes that drive it, and means a fresh clone has no
+## binary resource to be out of step with this file.
+const BUSES := ["SFX", "UI"]
 
 ## The actions offered for rebinding, in the order the settings screen lists
 ## them. ui_accept and ui_cancel are Godot built-ins rather than actions this
@@ -72,7 +151,12 @@ var _values: Dictionary = {}
 
 func _ready() -> void:
 	_remember_default_keys()
+	_make_buses()
 	load_from_disk()
+	_apply_all()
+
+
+func _apply_all() -> void:
 	_apply_display()
 	_apply_audio()
 	_apply_input()
@@ -104,21 +188,21 @@ func set_value(key: String, value) -> void:
 		return
 	_values[key] = value
 	save_to_disk()
-	if key in ["fullscreen", "ui_scale"]:
+	if key in ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]:
 		_apply_display()
-	elif key in ["master_volume", "muted"]:
+	elif key in ["master_volume", "sfx_volume", "ui_volume", "muted"]:
 		_apply_audio()
 	elif key == "keybinds":
 		_apply_input()
+	# text_scale and high_contrast need no apply call — UIKit reads them on the
+	# next screen build. See _apply_look()'s comment.
 	changed.emit(key)
 
 
 func reset_to_defaults() -> void:
 	_values.clear()
 	save_to_disk()
-	_apply_display()
-	_apply_audio()
-	_apply_input()
+	_apply_all()
 	changed.emit("")
 
 
@@ -205,6 +289,34 @@ func load_from_disk() -> void:
 			# the default rather than propagating a wrong type into the game.
 			if typeof(raw) == typeof(DEFS[key][0]):
 				_values[key] = raw
+	_migrate_legacy(cfg)
+	_validate_choices()
+
+
+## Settings files outlive the code that wrote them. `fullscreen` was a bool
+## until window_mode replaced it; without this, anyone who had turned
+## fullscreen on would silently be put back in a window on next launch and
+## have to find the setting again. Dropped keys are left in the file rather
+## than rewritten out — harmless, and it means downgrading still works.
+func _migrate_legacy(cfg: ConfigFile) -> void:
+	if not _values.has("window_mode") and cfg.has_section_key(SECTION, "fullscreen"):
+		if bool(cfg.get_value(SECTION, "fullscreen")):
+			_values["window_mode"] = "fullscreen"
+
+
+## A choice-valued setting whose stored value is not one of the choices would
+## fall through every match and land on an arbitrary branch. Cheaper to refuse
+## it on load than to make each apply function defensive.
+func _validate_choices() -> void:
+	for pair in [["window_mode", WINDOW_MODES], ["vsync", VSYNC_MODES], ["resolution", RESOLUTIONS]]:
+		var key: String = pair[0]
+		if _values.has(key) and not pair[1].has(_values[key]):
+			push_warning("[Settings] '%s' had an unknown value %s; using the default." % [key, _values[key]])
+			_values.erase(key)
+	# locale is deliberately not checked here: Settings is the FIRST autoload
+	# (see this file's header), so the I18n node does not exist yet at load
+	# time. I18n.current() already falls back to English for a code it does not
+	# know, which is the same outcome one step later.
 
 
 func save_to_disk() -> void:
@@ -214,27 +326,118 @@ func save_to_disk() -> void:
 	cfg.save(PATH)
 
 
+## The one setting group that can fail on the machine rather than in the code:
+## a display server may refuse a mode, and headless has none at all. Every call
+## here is guarded and none of them is load-bearing for the game running.
 func _apply_display() -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	var want_fs: bool = bool(get_value("fullscreen"))
-	var mode := DisplayServer.window_get_mode()
-	var is_fs := mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
-	if want_fs != is_fs:
-		DisplayServer.window_set_mode(
-			DisplayServer.WINDOW_MODE_FULLSCREEN if want_fs else DisplayServer.WINDOW_MODE_WINDOWED
-		)
+	# ui_scale is a Viewport property, not a DisplayServer one, so it applies
+	# under headless too — and test_scenes builds real screens headless, so it
+	# has to be set before the early return, not after it.
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		tree.root.content_scale_factor = float(get_value("ui_scale"))
+	if DisplayServer.get_name() == "headless":
+		return
+
+	var mode := str(get_value("window_mode"))
+	DisplayServer.window_set_mode(
+		DisplayServer.WINDOW_MODE_FULLSCREEN if mode == "fullscreen" else DisplayServer.WINDOW_MODE_WINDOWED
+	)
+	# Borderless is a windowed window with its chrome off, so the flag has to be
+	# set for "borderless" and CLEARED for the other two — otherwise switching
+	# back to windowed leaves a title bar missing with no way to get it back.
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, mode == "borderless")
+	if mode == "borderless":
+		DisplayServer.window_set_size(DisplayServer.screen_get_size())
+		DisplayServer.window_set_position(Vector2i.ZERO)
+	elif mode == "windowed":
+		var size := _resolution_size()
+		DisplayServer.window_set_size(size)
+		# Re-centre, or a window that just grew can end up mostly off-screen
+		# with its close button somewhere the mouse cannot reach.
+		var screen := DisplayServer.screen_get_size()
+		if screen.x > 0 and screen.y > 0:
+			DisplayServer.window_set_position((screen - size) / 2 + DisplayServer.screen_get_position())
+
+	match str(get_value("vsync")):
+		"off": DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+		"adaptive": DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ADAPTIVE)
+		_: DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+
+	Engine.max_fps = int(get_value("max_fps"))
+
+
+## The stored "WxH" as a size, clamped to the screen so a resolution carried
+## over from a bigger monitor cannot open a window nobody can reach.
+func _resolution_size() -> Vector2i:
+	var parts := str(get_value("resolution")).split("x")
+	var size := Vector2i(1280, 720)
+	if parts.size() == 2 and parts[0].is_valid_int() and parts[1].is_valid_int():
+		size = Vector2i(int(parts[0]), int(parts[1]))
+	var screen := DisplayServer.screen_get_size()
+	if screen.x > 0 and screen.y > 0:
+		size = size.min(screen)
+	return size
+
+
+## Resolutions that fit on this machine's screen. The settings screen offers
+## these rather than the full list, so nobody can pick a window larger than
+## their monitor and lose the one that was working.
+func available_resolutions() -> Array:
+	var screen := DisplayServer.screen_get_size()
+	var out: Array = []
+	for r in RESOLUTIONS:
+		var parts := str(r).split("x")
+		if screen.x <= 0 or (int(parts[0]) <= screen.x and int(parts[1]) <= screen.y):
+			out.append(r)
+	# Never hand back nothing: on a very small screen the smallest entry is
+	# still a better answer than an empty dropdown.
+	return out if not out.is_empty() else [RESOLUTIONS[0]]
+
+
+## Creates the SFX and UI buses if they are not already there. Idempotent, so
+## reset_to_defaults() and a reload cannot end up with two of each.
+func _make_buses() -> void:
+	for name in BUSES:
+		if AudioServer.get_bus_index(name) >= 0:
+			continue
+		AudioServer.add_bus()
+		var i := AudioServer.bus_count - 1
+		AudioServer.set_bus_name(i, name)
+		AudioServer.set_bus_send(i, "Master")
 
 
 func _apply_audio() -> void:
-	var bus := AudioServer.get_bus_index("Master")
+	_set_bus("Master", float(get_value("master_volume")), bool(get_value("muted")))
+	_set_bus("SFX", float(get_value("sfx_volume")), false)
+	_set_bus("UI", float(get_value("ui_volume")), false)
+
+
+func _set_bus(name: String, linear: float, mute: bool) -> void:
+	var bus := AudioServer.get_bus_index(name)
 	if bus < 0:
 		return
-	AudioServer.set_bus_mute(bus, bool(get_value("muted")))
-	var vol: float = float(get_value("master_volume"))
+	AudioServer.set_bus_mute(bus, mute)
 	# linear_to_db(0) is -inf, which AudioServer takes but which reads badly
 	# in logs; clamp the floor to a silent-but-finite -60dB instead.
-	AudioServer.set_bus_volume_db(bus, -60.0 if vol <= 0.001 else linear_to_db(vol))
+	AudioServer.set_bus_volume_db(bus, -60.0 if linear <= 0.001 else linear_to_db(linear))
+
+
+## The look settings (`text_scale`, `high_contrast`) have NO apply function
+## here, and that is deliberate — UIKit pulls them instead, in root_control(),
+## at the top of every screen build.
+##
+## Pushing them was the obvious design and it did not work. Settings is the
+## FIRST autoload (see this file's header), so at the moment its _ready() runs
+## the I18n, Content, Rules and Art autoloads do not exist yet — and UIKit
+## refers to all four. `preload("res://scenes/UIKit.gd")` from here therefore
+## compiled to nothing ("Identifier not found: I18n") and every call on it
+## failed at runtime, silently, in exactly the way autoload/Nav.gd's header
+## describes for the third time.
+##
+## Deferring the push would have fixed the compile and left an ordering
+## hazard: the main scene is built before the first deferred call flushes, so
+## the opening screen would have used an unscaled palette. A pull needs no
+## ordering guarantee at all — by the time any screen builds, everything
+## exists. tests/test_scenes.gd asserts a built screen actually reflects the
+## setting, since that is the half a headless Settings test cannot see.

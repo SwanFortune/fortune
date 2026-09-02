@@ -9,14 +9,65 @@
 class_name UIKit
 extends RefCounted
 
-const BG := Color(0.08, 0.07, 0.09)
-const PANEL := Color(0.13, 0.12, 0.14)
-const INK := Color(0.92, 0.9, 0.84)
-const DIM := Color(0.92, 0.9, 0.84, 0.55)
-const GOLD := Color(0.83, 0.69, 0.22)
+## The palette. `static var`, not `const`, so the high-contrast setting can
+## swap it — every call site still reads `UIKit.INK` unchanged, which is the
+## whole reason for doing it this way rather than threading a theme through
+## forty constructors. Written only by apply_palette(), from Settings.
+##
+## Both palettes are defined below in NORMAL and HIGH; these are the live
+## values, and they start as NORMAL so a screen built before Settings has run
+## (the tools, a test that never touches Settings) still has real colours.
+static var BG := Color(0.08, 0.07, 0.09)
+static var PANEL := Color(0.13, 0.12, 0.14)
+static var INK := Color(0.92, 0.9, 0.84)
+static var DIM := Color(0.92, 0.9, 0.84, 0.55)
+static var GOLD := Color(0.83, 0.69, 0.22)
 ## The keyboard/gamepad focus ring. Distinct from GOLD so a focused row is
 ## still tellable apart from a row that is merely gold-accented.
-const FOCUS := Color(0.45, 0.78, 0.95)
+static var FOCUS := Color(0.45, 0.78, 0.95)
+
+## Multiplies every font size handed out by label()/block(), and the card face
+## with them so the words still fit inside it. Driven by Settings.text_scale.
+static var text_scale := 1.0
+
+## The game's own look: warm off-white on near-black, with a lot of the
+## secondary text carried at 55% alpha. That reads as a parlour at night and is
+## genuinely hard to see for anyone who cannot pick low-contrast greys off a
+## dark ground.
+const NORMAL := {
+	"bg": Color(0.08, 0.07, 0.09),
+	"panel": Color(0.13, 0.12, 0.14),
+	"ink": Color(0.92, 0.9, 0.84),
+	"dim": Color(0.92, 0.9, 0.84, 0.55),
+	"gold": Color(0.83, 0.69, 0.22),
+	"focus": Color(0.45, 0.78, 0.95),
+}
+
+## High contrast. Not a filter over the above — a second set of chosen values.
+## The ground goes to true black, the ink to true white, DIM keeps its role as
+## "secondary" but at 85% rather than 55%, panels separate further from the
+## ground, and gold and the focus ring are both brightened so they stay
+## distinguishable from ink now that ink is white.
+const HIGH := {
+	"bg": Color(0.0, 0.0, 0.0),
+	"panel": Color(0.18, 0.17, 0.2),
+	"ink": Color(1.0, 1.0, 1.0),
+	"dim": Color(1.0, 1.0, 1.0, 0.85),
+	"gold": Color(1.0, 0.84, 0.31),
+	"focus": Color(0.42, 0.85, 1.0),
+}
+
+
+## Points the live palette at one of the two sets. Called by Settings whenever
+## `high_contrast` changes, and once at startup.
+static func apply_palette(high: bool) -> void:
+	var p: Dictionary = HIGH if high else NORMAL
+	BG = p["bg"]
+	PANEL = p["panel"]
+	INK = p["ink"]
+	DIM = p["dim"]
+	GOLD = p["gold"]
+	FOCUS = p["focus"]
 
 ## Ported from KEYS in Parlour v23.dc.html (~line 1131) — the words on a card
 ## that mean something exact. The source's object literal defines "once"
@@ -62,7 +113,23 @@ const GREEN := Color(0.56, 0.75, 0.45)
 const RED := Color(0.82, 0.42, 0.38)
 
 
+## Every screen starts by calling this, which makes it the one hook that is
+## guaranteed to run before anything is built and after every autoload exists —
+## so it is where the look settings are read. See Settings._apply_look()'s
+## comment for why they are pulled here rather than pushed from there.
+static func refresh_look() -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var settings := tree.root.get_node_or_null("Settings")
+	if settings == null:
+		return   # a tool running without the autoloads: keep the defaults
+	apply_palette(bool(settings.get_value("high_contrast")))
+	text_scale = float(settings.get_value("text_scale"))
+
+
 static func root_control() -> Control:
+	refresh_look()
 	var c := Control.new()
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	var bg := ColorRect.new()
@@ -81,7 +148,10 @@ static func root_control() -> Control:
 static func label(text: String, size: int = 16, color: Color = INK) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	# The one place font sizes are set, which is what makes text_scale a
+	# one-line feature instead of forty. maxi(...,1) because a 9px tag at the
+	# bottom of the range must not round to zero and vanish.
+	l.add_theme_font_size_override("font_size", maxi(int(round(size * text_scale)), 1))
 	l.add_theme_color_override("font_color", color)
 	return l
 
@@ -110,9 +180,24 @@ static func block(text: String, size: int = 16, color: Color = INK) -> Label:
 	return l
 
 
+## The default font size of Godot's Button theme. Buttons do not go through
+## label(), so text_scale would otherwise leave every button in the game at
+## 100% while the words around them grew — which looked, at 130%, exactly like
+## a bug.
+const BUTTON_FONT_SIZE := 16
+
+
+## Applies the live text scale and palette to a Control whose text comes from
+## the theme rather than from label() — Button and its subclasses.
+static func style_text(c: Control, base: int = BUTTON_FONT_SIZE) -> void:
+	c.add_theme_font_size_override("font_size", maxi(int(round(base * text_scale)), 1))
+	c.add_theme_color_override("font_color", INK)
+
+
 static func button(text: String, on_pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
+	style_text(b)
 	# Sound goes on here rather than at each of the ~40 call sites, for the same
 	# reason make_interactive() exists: one place to change, and no button that
 	# somebody forgot to wire.
@@ -225,14 +310,41 @@ static func focus_first(root: Node) -> void:
 
 
 static func _focus_first_now(node: Node) -> bool:
+	if going_away(node):
+		return false
 	if node is Control:
 		var c: Control = node
-		if c.focus_mode == Control.FOCUS_ALL and c.is_visible_in_tree() and not c.is_queued_for_deletion():
+		# `disabled` matters as much as visibility: grab_focus() on a disabled
+		# Button is a no-op that reports nothing, so treating it as focusable
+		# ends the search having placed no focus at all. The settings rail
+		# disables its selected entry, which is exactly that case.
+		var usable: bool = not (c is BaseButton and (c as BaseButton).disabled)
+		if c.focus_mode == Control.FOCUS_ALL and c.is_visible_in_tree() and usable:
 			c.grab_focus()
 			return true
 	for child in node.get_children():
 		if _focus_first_now(child):
 			return true
+	return false
+
+
+## True if `node` or ANY ancestor is queued for deletion.
+##
+## is_queued_for_deletion() only reports on the node it is called on, and every
+## screen here rebuilds by calling queue_free() on its single root child — so
+## the doomed subtree's Buttons each answered "no", stayed in the tree until
+## the end of the frame, and were the first thing the focus walk found. Focus
+## was placed on a node that then vanished, leaving the rebuilt screen with
+## nothing focused and a keyboard player stuck.
+##
+## It only showed up on a REBUILD, which most screens never do — the settings
+## screen's category rail rebuilds on every click, which is how it surfaced.
+static func going_away(node: Node) -> bool:
+	var n := node
+	while n != null:
+		if n.is_queued_for_deletion():
+			return true
+		n = n.get_parent()
 	return false
 
 
@@ -313,18 +425,76 @@ static func dur(seconds: float) -> float:
 	return seconds / maxf(Settings.animation_scale(), 0.01)
 
 
+## The width of the caption column every settings row starts with. Scales with
+## text_scale, or a 30% larger caption is clipped by a column sized for 100%.
+static func caption_width() -> float:
+	return 190.0 * text_scale
+
+
+## A labelled row: caption on the left at a fixed width, `control` after it.
+## The three setting_* helpers below all start this way; having it once means a
+## row cannot drift out of alignment with its neighbours.
+static func setting_row(caption: String, help: String) -> HBoxContainer:
+	var row := hbox(12)
+	row.tooltip_text = help
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	var cap := label(caption, 13, INK)
+	cap.custom_minimum_size.x = caption_width()
+	row.add_child(cap)
+	return row
+
+
+## The explanatory text that sits to the right of a settings control.
+##
+## block(), not label(): a non-wrapping Label reports its full text width as
+## its MINIMUM, so an HBoxContainer holding one is forced at least that wide —
+## which pushed the row past the window and clipped the sentence, since the
+## enclosing ScrollContainer has horizontal scrolling off. A wrapping Label
+## with EXPAND_FILL takes whatever is left after the caption and the control
+## and wraps inside it. See block()'s own doc comment for the other half of
+## this trap.
+static func _inline_help(text: String) -> Label:
+	var l := block(text, 11, DIM)
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	return l
+
+
+## A labelled dropdown bound to one string-valued Settings key. `values` are
+## what gets stored; `labels` are what the player reads, already translated.
+## `enabled` false greys the row out — used for a setting that is real but
+## inapplicable right now (window size, in fullscreen), which is honest in a
+## way that hiding the row would not be: it stays where the player remembers it.
+static func setting_choice(key: String, caption: String, help: String, values: Array,
+		labels: Array, enabled: bool = true, on_changed: Callable = Callable()) -> Control:
+	var row := setting_row(caption, help)
+	var opt := OptionButton.new()
+	opt.disabled = not enabled
+	var current = Settings.get_value(key)
+	var selected := 0
+	for i in values.size():
+		opt.add_item(str(labels[i]) if i < labels.size() else str(values[i]))
+		opt.set_item_metadata(i, values[i])
+		if values[i] == current:
+			selected = i
+	opt.select(selected)
+	style_text(opt, 14)
+	opt.custom_minimum_size.x = 200
+	opt.item_selected.connect(func(idx: int):
+		Settings.set_value(key, opt.get_item_metadata(idx))
+		if on_changed.is_valid():
+			on_changed.call()
+	)
+	row.add_child(opt)
+	row.add_child(_inline_help(help))
+	return row
+
+
 ## A labelled slider row bound to one numeric Settings key. `fmt` turns the
 ## raw value into its readout ("80%", "1.2x", "3"); pass `whole` for keys
 ## whose value must stay an integer.
 static func setting_slider(key: String, caption: String, help: String, fmt: Callable, whole: bool = false) -> Control:
 	var def: Array = Settings.DEFS[key]
-	var row := hbox(12)
-	row.tooltip_text = help
-	row.mouse_filter = Control.MOUSE_FILTER_PASS
-
-	var cap := label(caption, 13, INK)
-	cap.custom_minimum_size.x = 190
-	row.add_child(cap)
+	var row := setting_row(caption, help)
 
 	var slider := HSlider.new()
 	slider.min_value = float(def[1])
@@ -339,6 +509,12 @@ static func setting_slider(key: String, caption: String, help: String, fmt: Call
 	readout.custom_minimum_size.x = 70
 	row.add_child(readout)
 
+	# Sliders carry their explanation inline like the choice and toggle rows do,
+	# rather than only in a tooltip: a pane where two row shapes explain
+	# themselves and the third only does so on hover reads as unfinished, and a
+	# tooltip is unreachable to a player on a gamepad.
+	row.add_child(_inline_help(help))
+
 	slider.value_changed.connect(func(v: float):
 		Settings.set_value(key, int(round(v)) if whole else v)
 		readout.text = str(fmt.call(Settings.get_value(key)))
@@ -350,21 +526,13 @@ static func setting_slider(key: String, caption: String, help: String, fmt: Call
 ## after the setting is stored, for keys that need extra work (e.g. reloading
 ## content when the mod toggle flips).
 static func setting_toggle(key: String, caption: String, help: String, on_toggled: Callable = Callable()) -> Control:
-	var row := hbox(12)
-	row.tooltip_text = help
-	row.mouse_filter = Control.MOUSE_FILTER_PASS
-
-	var cap := label(caption, 13, INK)
-	cap.custom_minimum_size.x = 190
-	row.add_child(cap)
+	var row := setting_row(caption, help)
 
 	var box := CheckButton.new()
 	box.button_pressed = bool(Settings.get_value(key))
 	row.add_child(box)
 
-	var help_l := label(help, 11, DIM)
-	help_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(help_l)
+	row.add_child(_inline_help(help))
 
 	box.toggled.connect(func(pressed: bool):
 		Settings.set_value(key, pressed)
@@ -599,6 +767,14 @@ static func card_text(c: Dictionary) -> String:
 
 const CARD_FACE_SIZE := Vector2(122, 158)
 
+
+## The card face at the current text scale. A fixed 122x158 with 30% larger
+## type in it clips the name, so the card grows with the words — checked
+## visually at both ends of the range, which is the only way this kind of thing
+## is ever actually checked.
+static func card_face_size() -> Vector2:
+	return CARD_FACE_SIZE * lerpf(1.0, text_scale, 0.8)
+
 ## A fixed-size card face for the hand fan — cost top-left, base restore
 ## top-right, name centered, element-colored border; the full mechanic text,
 ## flavor, and keyword glossary all move into the hover tooltip since there's
@@ -609,7 +785,7 @@ const CARD_FACE_SIZE := Vector2(122, 158)
 ## choice benefits from full text visible, a hand fan does not.
 static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true) -> Control:
 	var wrap := PanelContainer.new()
-	wrap.custom_minimum_size = CARD_FACE_SIZE
+	wrap.custom_minimum_size = card_face_size()
 	var el = c.get("el")
 	var el_c: Color = el_color(el) if el != null and el != "" else DIM
 	var tip_lines: Array = [card_text(c)]

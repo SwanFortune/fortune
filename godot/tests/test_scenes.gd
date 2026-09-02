@@ -135,8 +135,110 @@ func _visit_standalone() -> void:
 	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
 	await _visit_scene("minitel", "res://scenes/MinitelScreen.tscn")
 	await _test_minitel_screen_dials()
+	await _test_every_settings_section_builds()
+	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+## The settings screen shows one section at a time, so the sweep above only
+## ever built the first. Every other pane's construction went unchecked — and a
+## pane is exactly where a bad theme override or a null deref lives.
+##
+## Each section is reached the way a player reaches it: one instance, then
+## _select() for each category in turn. That matters — driving it by setting
+## _section before the first build would have missed the bug this test found,
+## which only happens on a REBUILD (see UIKit.going_away()).
+func _test_every_settings_section_builds() -> void:
+	var settings: Node = root.get_node("Settings")
+	var instance: Node = load("res://scenes/SettingsMenu.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	for i in settings.SECTIONS.size():
+		instance._select(i)
+		await process_frame
+		await process_frame
+		_check_focus("settings/" + str(settings.SECTIONS[i]["id"]), instance)
+	instance.queue_free()
+	await process_frame
+
+	# The rail path above always focuses the freshly built pane. The OTHER
+	# rebuild path — a control that rebuilds the whole screen in place, which
+	# is what RESET THIS SECTION, the window-mode dropdown, the high-contrast
+	# toggle and the language picker all do — focuses the screen from the top,
+	# and that is where focus was being lost: the walk found the doomed
+	# subtree's first button (queue_free() flags only the root it was called
+	# on) and then, once past that, the rail's DISABLED selected entry, on
+	# which grab_focus() does nothing at all. Both are checked here because
+	# both silently produce the same symptom.
+	instance = load("res://scenes/SettingsMenu.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	instance._reset_section()
+	await process_frame
+	await process_frame
+	_check_focus("settings after an in-place rebuild", instance)
+	instance.queue_free()
+	await process_frame
+	print("--- all %d settings sections build and keep focus ---" % settings.SECTIONS.size())
+
+
+## text_scale and high_contrast are read by UIKit, which a headless Settings
+## test cannot even load (UIKit refers to four autoloads, so `godot -s` cannot
+## compile it — see Settings._apply_look()'s comment). So the assertion that
+## they actually reach the interface has to live here, where real scenes are
+## built. Without it the pull could quietly stop happening and every screen
+## would just carry on at 100%.
+func _test_look_settings_reach_a_built_screen() -> void:
+	var settings: Node = root.get_node("Settings")
+	var restore_scale = settings.get_value("text_scale")
+	var restore_hc = settings.get_value("high_contrast")
+
+	var plain := await _sample_label(1.0, false)
+	var big := await _sample_label(1.3, true)
+
+	if plain.is_empty() or big.is_empty():
+		printerr("FAIL: could not find a Label to measure on the main menu")
+	else:
+		if int(big["size"]) <= int(plain["size"]):
+			printerr("FAIL: text_scale 1.3 did not enlarge the interface (%d -> %d px)" % [plain["size"], big["size"]])
+		else:
+			print("--- text_scale reaches the screen (%d -> %d px) ---" % [plain["size"], big["size"]])
+		if big["color"] == plain["color"]:
+			printerr("FAIL: high_contrast did not change the palette (both %s)" % plain["color"])
+		else:
+			print("--- high_contrast reaches the screen (%s -> %s) ---" % [plain["color"], big["color"]])
+
+	settings.set_value("text_scale", restore_scale)
+	settings.set_value("high_contrast", restore_hc)
+
+
+## Builds the main menu under the given look settings and reports the first
+## Label's font size and colour.
+func _sample_label(scale: float, high_contrast: bool) -> Dictionary:
+	var settings: Node = root.get_node("Settings")
+	settings.set_value("text_scale", scale)
+	settings.set_value("high_contrast", high_contrast)
+	var instance: Node = load("res://scenes/MainMenu.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	var found := _first_label(instance)
+	var out := {}
+	if found != null:
+		out = {"size": found.get_theme_font_size("font_size"), "color": found.get_theme_color("font_color")}
+	instance.queue_free()
+	await process_frame
+	return out
+
+
+func _first_label(node: Node) -> Label:
+	if node is Label and not (node as Label).text.is_empty():
+		return node
+	for child in node.get_children():
+		var found := _first_label(child)
+		if found != null:
+			return found
+	return null
 
 
 ## The Minitel screen's own wiring. test_minitel.gd drives the autoload
@@ -261,6 +363,12 @@ func _check_focus(label: String, instance: Node) -> void:
 			printerr("FAIL: %s left nothing focused — keyboard and gamepad players cannot start here" % label)
 	elif not instance.is_ancestor_of(focused):
 		printerr("FAIL: %s focused a node outside itself (%s)" % [label, focused])
+	elif focused is BaseButton and (focused as BaseButton).disabled:
+		# Godot places focus on a disabled Button quite happily, so "something
+		# is focused" is not enough — a player pressing Confirm on arrival would
+		# get nothing and have no way to know why. The settings rail disables
+		# its selected entry, which put it first in line for focus.
+		printerr("FAIL: %s focused a DISABLED control (%s) — pressing Confirm there does nothing" % [label, focused])
 
 
 ## The in-run SETTINGS chip has to remember which screen to come back to,

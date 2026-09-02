@@ -501,6 +501,56 @@ would have printed its first line four times over; invisible in English, where
 every lookup misses and falls back. Both are guarded in
 `tests/test_minitel.gd`.
 
+## Settings, and the four rows that are not there
+
+The settings screen grew from one scrolling column into a category rail when it
+passed twenty rows. The layout is unremarkable; two decisions underneath it are
+not.
+
+**Every setting does something real, and the absences are the evidence.** There
+is no music slider (there is no music), no screen-shake toggle (nothing
+shakes), no gamepad-rumble row (nothing rumbles). Those are exactly the four
+rows a settings menu accumulates by imitating other settings menus, and each
+one would be the first control in this game that lies to the player. What did
+get built is what could be wired: window mode, resolution, vsync and an fps cap
+are real DisplayServer and Engine calls; the three volumes drive three real
+AudioServer buses created at startup; text size and high contrast are read by
+UIKit on every screen build. `tests/test_settings.gd` asserts DEFS and the
+screen's section list cover each other exactly, so a setting can no longer be
+added and then left unreachable — which is precisely what happened to the
+`unlock` field for most of this port.
+
+**The look settings are PULLED by UIKit, not pushed by Settings.** The obvious
+design — Settings pushes `text_scale` and the palette into UIKit whenever they
+change — does not work here, and the way it fails is the one this document
+keeps recording. Settings is the first autoload, so when its `_ready()` runs,
+I18n, Content, Rules and Art do not exist yet; UIKit refers to all four, so
+`preload("res://scenes/UIKit.gd")` from Settings compiled to nothing
+("Identifier not found: I18n") and every call on it failed silently. Deferring
+the push would have fixed the compile and left an ordering hazard, since the
+main scene is built before the first deferred call flushes. UIKit reading the
+settings itself, at the top of `root_control()`, needs no ordering guarantee at
+all. `tests/test_scenes.gd` asserts a built screen actually reflects both
+settings, because a headless Settings test cannot load UIKit to check.
+
+### A focus bug that only a rebuild could show
+
+Building the rail surfaced a real bug in `UIKit.focus_first()` that had been
+there since it was written. Screens rebuild by calling `queue_free()` on their
+single root child and adding a new one; `is_queued_for_deletion()` reports only
+on the node it is called on, so every Button inside that doomed subtree
+answered "no", stayed in the tree until the end of the frame, and was the first
+thing the focus walk found. Focus landed on a node that then vanished, and the
+rebuilt screen had nothing focused — a keyboard or gamepad player was stuck.
+
+It needed a screen that rebuilds itself in place to show up, and until the
+settings rail there was not one. `UIKit.going_away()` now walks the ancestor
+chain. A second, smaller version of the same problem sat next to it: Godot
+places focus on a *disabled* Button quite happily, so the rail's disabled
+"you are here" entry absorbed the focus and pressing Confirm on arrival did
+nothing. `test_scenes.gd` now fails on both, and both were confirmed by
+stubbing the fix and watching the test go red.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
@@ -509,6 +559,8 @@ every lookup misses and falls back. Both are guarded in
 - `autoload/Save.gd` — run persistence and content re-resolution on load.
 - `autoload/Profile.gd` — what persists between runs, and unlock conditions.
 - `autoload/Minitel.gd` — the 3615 secret-code channel; see `docs/MINITEL.md`.
+- `autoload/Settings.gd` — every player setting, what it applies to, and the
+  section list the settings screen renders.
 - `autoload/Audio.gd` — named game moments; see `docs/SOUND_GUIDE.md`.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
