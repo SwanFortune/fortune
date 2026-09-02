@@ -61,6 +61,10 @@ func goto_mods() -> void:
 	_goto("res://scenes/ModsScreen.tscn")
 
 
+func goto_minitel() -> void:
+	_goto("res://scenes/MinitelScreen.tscn")
+
+
 func goto_main_menu() -> void:
 	_goto("res://scenes/MainMenu.tscn")
 

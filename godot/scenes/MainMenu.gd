@@ -58,6 +58,10 @@ func _build() -> void:
 
 	v.add_child(UIKit.button(_begin_label(), _begin))
 	v.add_child(UIKit.button(I18n.t("LIBRARY"), func(): Nav.goto_library()))
+	# Always shown, never teased. A hidden entry that appears once you already
+	# know a code is a worse secret than an ordinary-looking machine that
+	# happens to answer to four letters.
+	v.add_child(UIKit.button(I18n.t("MINITEL"), func(): Nav.goto_minitel()))
 	v.add_child(UIKit.button(I18n.t("MODS"), func(): Nav.goto_mods()))
 	v.add_child(UIKit.button(I18n.t("SETTINGS"), func(): Nav.goto_settings()))
 	v.add_child(UIKit.button(I18n.t("QUIT"), _quit))

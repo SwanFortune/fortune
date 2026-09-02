@@ -133,8 +133,55 @@ func _visit_standalone() -> void:
 	save.clear()
 
 	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
+	await _visit_scene("minitel", "res://scenes/MinitelScreen.tscn")
+	await _test_minitel_screen_dials()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+## The Minitel screen's own wiring. test_minitel.gd drives the autoload
+## directly and so would pass with an ENVOI button connected to nothing —
+## which is precisely the shape of bug a screen this thin can have. Presses
+## the real button and checks the code came out the other end.
+func _test_minitel_screen_dials() -> void:
+	var profile: Node = root.get_node("Profile")
+	var minitel: Node = root.get_node("Minitel")
+	var before: Array = minitel.entered()
+
+	var instance: Node = load("res://scenes/MinitelScreen.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+
+	instance._prefix_field.text = "3615"
+	instance._code_field.text = "oeil"
+	# I18n by get_node(), not by its global name: this script is compiled by
+	# `godot -s` BEFORE the autoloads are registered, so the bare identifier
+	# does not resolve here. Same trap as autoload/Nav.gd's header describes.
+	var envoi := _find_button(instance, root.get_node("I18n").t("ENVOI"))
+	if envoi == null:
+		printerr("FAIL: the minitel screen has no ENVOI button")
+	else:
+		envoi.pressed.emit()
+		await process_frame
+		if not minitel.entered().has("OEIL"):
+			printerr("FAIL: pressing ENVOI did not dial — the screen is not wired to Minitel.submit()")
+		else:
+			print("--- minitel screen dials (%s) ---" % [minitel.entered()])
+
+	instance.queue_free()
+	await process_frame
+	profile.set_stat("codes_entered", before)
+
+
+func _find_button(node: Node, text: String) -> Button:
+	if node is Button and (node as Button).text == text:
+		return node
+	for child in node.get_children():
+		var found := _find_button(child, text)
+		if found != null:
+			return found
+	return null
 
 
 func _visit_scene(label: String, scene_path: String) -> void:

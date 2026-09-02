@@ -465,6 +465,38 @@ does the substitution *after* translation, so a locale supplies its own pronoun
 words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
 `{token}` unfilled for any pronoun.
 
+## The Minitel — an addition, not a port
+
+Nothing in `Parlour v23.dc.html` has a Minitel in it. This is the one feature
+in the project that is invented rather than ported, and it is recorded here so
+nobody later mistakes it for something the prototype had.
+
+It exists because the port grew two things the prototype did not have — a
+profile that persists between runs, and an `unlock` field that finally does
+something — and neither had a way for the player to *reach* them. A code you
+type on a period-correct terminal is a way in that costs one screen.
+
+What was deliberately NOT built:
+
+- **A general effect language.** Three named levers (`grants`, `arms`, and the
+  bare fact of having dialled) instead. Each can be validated by name; a DSL
+  cannot, and the recurring failure this document keeps recording is content
+  that loads clean and silently does nothing. `docs/MINITEL.md` has the
+  argument at length.
+- **Real content.** Two demonstrator codes ship, marked as such in their own
+  `_note` fields, so the levers are exercised by the tests on real records.
+  The codes worth finding are the author's to write.
+- **A progress counter.** "3 of 8 services found" is a checklist, not a secret,
+  and there is no honest total once a mod can add codes.
+
+Two things fell out of building it that are worth naming. `Profile.unlock_text`
+derived "Finish a run as %s" from any `includes` condition, which became wrong
+the moment a second list stat existed — it now branches on the stat. And a
+code's `screen` array keyed every line under one id, so a *translated* service
+would have printed its first line four times over; invisible in English, where
+every lookup misses and falls back. Both are guarded in
+`tests/test_minitel.gd`.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
@@ -472,6 +504,7 @@ words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
 - `autoload/Run.gd` — the run/turn state machine.
 - `autoload/Save.gd` — run persistence and content re-resolution on load.
 - `autoload/Profile.gd` — what persists between runs, and unlock conditions.
+- `autoload/Minitel.gd` — the 3615 secret-code channel; see `docs/MINITEL.md`.
 - `autoload/Audio.gd` — named game moments; see `docs/SOUND_GUIDE.md`.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
@@ -484,6 +517,8 @@ words. `tests/test_i18n.gd` now asserts no sign, job or elite twist can leave a
   `tests/test_run.gd` (state machine, plays random full encounters),
   `tests/test_scenes.gd` (instantiates every screen against every game state),
   `tests/test_content_audit.gd` (fx cross-check, the AUDIT tab equivalent),
+  `tests/test_minitel.gd` (the 3615 code channel, incl. the guarantee that a
+  secret event cannot be met without its code),
   `tests/test_art.gd` (art manifest -> texture pipeline, incl. the
   "runs fine with zero art delivered" guarantee),
   `tests/balance_sim.gd -- <n>` (difficulty report, the BALANCE tab equivalent),

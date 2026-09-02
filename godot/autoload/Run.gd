@@ -166,8 +166,26 @@ func make_options(night: int, step: int, seen: Array) -> Array:
 	if step >= 1 and randf() < 0.45:
 		opts.append({"kind": "break", "rest": Content.shop})
 	if opts.size() < 4 and randf() < 0.55:
-		opts.append({"kind": "break", "rest": pick_rand(Content.events)})
+		opts.append({"kind": "break", "rest": pick_rand(ordinary_events())})
+
+	# A Minitel code can arm a secret event. It is offered rarely and only once
+	# the code has been dialled — armed_events() is empty otherwise, so a player
+	# who has not found the code can never be shown one by accident.
+	var armed: Array = Minitel.armed_events()
+	if not armed.is_empty() and opts.size() < 4 and randf() < 0.2:
+		opts.append({"kind": "break", "rest": pick_rand(armed)})
 	return opts.slice(0, min(4, opts.size()))
+
+
+## Events eligible for the ordinary random pool: everything not flagged
+## `secret`. Without this filter a secret event would simply turn up on its
+## own, and the code that arms it would be pointless.
+func ordinary_events() -> Array:
+	var out: Array = []
+	for e in Content.events:
+		if not bool(e.get("secret", false)):
+			out.append(e)
+	return out if not out.is_empty() else Content.events
 
 
 func elite_of(s: Dictionary, elite: bool) -> Dictionary:

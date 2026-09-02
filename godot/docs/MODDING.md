@@ -98,6 +98,7 @@ each record is merged by:
 | `denial_wall` | object | (whole-object merge) | `fx.json` |
 | `pronouns` | object | (whole-object merge) | `pronouns.json` |
 | `sounds` | object | (whole-object merge) | `sounds.json` |
+| `minitel_codes` | object | (whole-object merge) | `minitel.json` |
 | `card_effects` | array | `k` | `card_effects.json` |
 | `signs` | array | `k` | `signs.json` |
 | `jobs` | object | (whole-object merge) | `jobs.json` |
@@ -183,8 +184,9 @@ the sign-select screen greyed out, with what it wants written underneath:
 ```
 
 `stat` is one of the keys in `Profile.STATS` (`runs_finished`, `best_faith`,
-`total_mended`, `readers_finished`), compared with `at_least` for the numbers
-or `includes` for the list. `text` is what the player is told and is a
+`total_mended`, `readers_finished`, `codes_entered`), compared with `at_least`
+for the numbers or `includes` for the lists — including `codes_entered`, which
+is how a reader is hidden behind a Minitel code (see below). `text` is what the player is told and is a
 translation key like any other UI string; leave it out and a plainer line is
 derived from the condition.
 
@@ -193,6 +195,45 @@ unlocked** — a typo in a pack should not produce a reader nobody can select.
 
 `mods_example/example_mod/readers.json` is a working example. No base reader
 uses this; whether one should is the game author's call.
+
+### Minitel codes
+
+`minitel_codes` is the secret-code channel: the player dials 3615 and four
+letters on the Minitel in the parlour. Your pack adds a code by adding a key —
+four capital letters, no accents, since that is all the terminal accepts:
+
+```json
+{ "minitel_codes": { "LUNE": {
+  "screen": ["SERVICE LUNE — METEO DU CIEL", "", "IL FERA NOIR."],
+  "grants": { "stat": "total_mended", "add": 1 },
+  "arms": "The night the moon was wrong",
+  "repeatable": false
+} } }
+```
+
+- `screen` — what the terminal prints, one string per line; `""` is a blank
+  row. This is prose, so it is translatable, under the ids
+  `minitel/LUNE/screen0`, `screen1`, … (one key per line).
+- `grants` — `{stat, add}`, adding to a **numeric** `Profile.STATS` key.
+- `arms` — the `title` of an event carrying `"secret": true`. A secret event is
+  held out of the ordinary map pool entirely, so it can only ever be met by a
+  player who dialled the code that arms it.
+- `repeatable` — `false` (the default) makes it a one-shot: dialling again
+  re-prints the screen and says so, without applying anything twice.
+
+All three levers are optional. A code with none of them is still worth having:
+simply dialling it is recorded in the `codes_entered` profile stat, so an
+`unlock` condition of `{"stat": "codes_entered", "includes": "LUNE"}` gates a
+reader behind it with no other machinery.
+
+Naming a stat that does not exist, adding to a list stat, or arming an event
+that is not a secret one is **reported** as a warning and does nothing — the
+alternative, a code that quietly has no effect, is the failure mode this port
+keeps trying to design out.
+
+There is no general effect language here on purpose; see `docs/MINITEL.md` for
+why, and for the two demonstrator codes the base game ships (which are meant to
+be replaced, not built on).
 
 ## Card and record schema
 

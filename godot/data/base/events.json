@@ -18,6 +18,14 @@
       "opts": [
         { "kind": "THE REMOVAL OF THINGS", "name": "Burn It", "text": "Take the weakest thing in your deck out of it for good. You do it in the grate yourself.", "reward": { "burn": true } },
         { "kind": "SHUFFLE AND FORGET IT", "name": "Let It Lie", "text": "You put it back in the middle and decide not to think about it any further tonight.", "reward": { "faith": 8 } }
+      ] },
+    { "_note": "DEMONSTRATOR, paired with the OEIL code in minitel.json. `secret` keeps it out of the ordinary random pool; only Minitel.armed_events() can offer it.",
+      "secret": true,
+      "title": "The number nobody answers", "body": "The screen is still on. You did not leave it on.",
+      "head": "THE MINITEL, LATER", "line": "It has been ringing at the other end for some time.",
+      "opts": [
+        { "kind": "LET IT RING", "name": "The Other End", "text": "You sit with it until it stops on its own. Whatever it was, it knows you were there.", "reward": { "faith": 20 } },
+        { "kind": "HANG UP", "name": "Not Tonight", "text": "You put the handset down and unplug the thing at the wall. The evening is quieter and a little poorer.", "reward": { "coin": 8 } }
       ] }
   ]
 }

@@ -1,0 +1,25 @@
+{
+  "_comment": "The Minitel's secret codes: dial 3615, type four letters, press ENVOI. NOT from the source prototype — added during the port as the meta-progression channel; see docs/MINITEL.md. THE TWO CODES BELOW ARE DEMONSTRATORS, not content: they exist so the feature is exercised by the tests rather than merely present, and are meant to be replaced by the author's own. A code may pull three levers, all optional: 'grants' bumps a numeric profile stat ({stat, add}); 'arms' names a `secret: true` event in events.json, making it eligible on the map; and simply having entered it is recorded in the codes_entered profile stat, which any reader's `unlock` condition can already test with {stat: codes_entered, includes: CODE}. 'screen' is what the terminal prints — translatable like any other content prose, under the id minitel/<CODE>. 'repeatable' lets a code be dialled more than once (default false).",
+  "minitel_codes": {
+    "OEIL": {
+      "_note": "DEMONSTRATOR. Shows the `arms` lever: dialling it makes the secret event below reachable on the map.",
+      "screen": [
+        "SERVICE OEIL — ANNUAIRE DES ABSENTS",
+        "",
+        "IL Y A UN NOM QUE VOUS N'AVEZ PAS",
+        "CHERCHE. IL VOUS ATTENDRA UN SOIR."
+      ],
+      "arms": "The number nobody answers"
+    },
+    "SOUS": {
+      "_note": "DEMONSTRATOR. Shows the `grants` lever, writing to a numeric profile stat.",
+      "screen": [
+        "SERVICE SOUS — CAISSE D'EPARGNE",
+        "",
+        "ON A RETROUVE QUELQUE CHOSE A VOTRE",
+        "NOM. CE N'EST PAS GRAND-CHOSE."
+      ],
+      "grants": { "stat": "best_faith", "add": 0 }
+    }
+  }
+}

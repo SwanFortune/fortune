@@ -20,6 +20,7 @@ Rules="*res://autoload/Rules.gd"
 Run="*res://autoload/Run.gd"
 Save="*res://autoload/Save.gd"
 Profile="*res://autoload/Profile.gd"
+Minitel="*res://autoload/Minitel.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
 

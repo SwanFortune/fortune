@@ -31,6 +31,10 @@ const STATS := {
 	# Reader keys that have finished at least one run. Stored as an Array
 	# because ConfigFile has no set type; treated as one.
 	"readers_finished": [],
+	# Minitel codes the player has dialled. An unlock condition can test this
+	# with {stat: "codes_entered", includes: "OEIL"} — which is why the Minitel
+	# needed no progression store of its own. See autoload/Minitel.gd.
+	"codes_entered": [],
 }
 
 var _values: Dictionary = {}
@@ -141,6 +145,12 @@ func unlock_text(unlock) -> String:
 		return I18n.t(str(unlock["text"]))
 	var key := str(unlock.get("stat", ""))
 	if unlock.has("includes"):
+		# The derived wording has to match the stat, not just its shape. Both
+		# list stats are `includes` conditions, and describing a Minitel code as
+		# a reader to finish a run with would send the player somewhere the
+		# condition can never be met.
+		if key == "codes_entered":
+			return I18n.t("Dial 3615 %s") % str(unlock["includes"])
 		return I18n.t("Finish a run as %s") % str(unlock["includes"])
 	return I18n.t("Reach %s of %s") % [unlock.get("at_least", 0), key]
 

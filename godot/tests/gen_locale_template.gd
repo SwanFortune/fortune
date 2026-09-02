@@ -142,6 +142,13 @@ func _collect_sources() -> Dictionary:
 			_put(src, "%s/opt%d/name" % [eid, oi], opt.get("name", ""))
 			_put(src, "%s/opt%d/text" % [eid, oi], opt.get("text", ""))
 			oi += 1
+	# Minitel services. The terminal's fixed chrome is deliberately untranslated
+	# (see Minitel.gd), but what a SERVICE prints is prose an author wrote, and
+	# a mod's terminal may well be set somewhere other than France.
+	for code in content.minitel_codes:
+		var lines: Array = content.minitel_codes[code].get("screen", [])
+		for li in lines.size():
+			_put(src, "minitel/%s/screen%d" % [code, li], lines[li])
 	for tw in content.elite_twists:
 		var tid: String = "twist/" + art.slug(str(tw.get("tag", "")))
 		_put(src, tid + "/tag", tw.get("tag", ""))
@@ -191,6 +198,12 @@ func _ui_strings() -> Array[String]:
 		"Your own Library changes are pack \"%s\" above — %s card(s).",
 		"Connected. Subscribed packs appear in the list above.", "REFRESH SUBSCRIPTIONS",
 		"Not connected. Workshop needs a Steam App ID and the GodotSteam extension, neither of which this build has — see docs/STEAM_WORKSHOP.md. Until then, share a pack by sharing its folder.",
+		# minitel — the chrome around the machine only. What the terminal itself
+		# prints is deliberately untranslated; see Minitel.gd's SAY_* block.
+		"MINITEL", "ENVOI",
+		"It hums on the sideboard where the telephone used to be. Someone left the bill unpaid and it never stopped working.",
+		"You have not dialled anything yet.", "SERVICES YOU HAVE REACHED",
+		"Dial 3615 %s",
 		# settings
 		"DISPLAY", "Fullscreen", "Toggle between windowed and fullscreen.",
 		"Interface scale", "Scales the whole interface. Useful on very large or very small displays.",

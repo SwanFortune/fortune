@@ -54,6 +54,7 @@ func _initialize() -> void:
 		"settings": "res://scenes/SettingsMenu.tscn",
 		"library": "res://scenes/Library.tscn",
 		"mods": "res://scenes/ModsScreen.tscn",
+		"minitel": "res://scenes/MinitelScreen.tscn",
 		"menu_saved": "res://scenes/MainMenu.tscn",
 	}
 	var scene_path: String

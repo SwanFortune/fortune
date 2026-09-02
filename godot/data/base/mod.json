@@ -24,6 +24,7 @@
     "events.json",
     "shop.json",
     "sounds.json",
+    "minitel.json",
     "locale/fr.json"
   ]
 }

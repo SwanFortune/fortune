@@ -101,6 +101,17 @@ way a mod's own art or audio can work at all.
 python3 tests/gen_sounds.py                                  # regenerate the placeholders
 ```
 
+## The Minitel
+
+Main menu → MINITEL. Dial **3615**, four letters, ENVOI. It is the game's
+secret-code channel and the only meta-progression that is not a run — a code
+can arm an event the map otherwise never offers, bump a profile stat, or gate a
+reader behind having dialled it. Codes are data, so a mod ships its own.
+
+This is the one feature here that is an addition rather than a port. Two
+demonstrator codes ship, marked as such, and are meant to be replaced. See
+`docs/MINITEL.md` for the design and `docs/MODDING.md` for the schema.
+
 ## Languages
 
 English plus a partially-filled French locale. Everything translatable lives
@@ -111,11 +122,11 @@ strings fall back to English, so a half-finished locale is playable. See
 ## Layout
 
 ```
-autoload/     Settings, Content, ModLoader, Rules, Run, Nav, Workshop, Art, I18n, CardEdits — see their doc comments
+autoload/     Settings, Content, ModLoader, Rules, Run, Nav, Workshop, Art, I18n, CardEdits, Profile, Save, Audio, Minitel — see their doc comments
 data/base/    the base game's content, as JSON (also the mod-pack schema — see docs/MODDING.md)
 assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
 scenes/       the playable UI (incl. SettingsMenu, Library, and the in-run RunHeader)
 mods_example/ a tiny working example mod, proving the pack format end to end
 tests/        headless tests + dev tools (no editor/display required)
-docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md, LOCALIZATION.md
+docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md, SOUND_GUIDE.md, LOCALIZATION.md, MINITEL.md
 ```

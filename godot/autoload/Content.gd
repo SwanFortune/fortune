@@ -40,6 +40,7 @@ var denial_shield: Dictionary
 var denial_wall: Dictionary
 var pronouns: Dictionary
 var sounds: Dictionary
+var minitel_codes: Dictionary
 var card_effects: Array
 var signs: Array
 var jobs: Dictionary
@@ -89,6 +90,7 @@ func reload() -> void:
 	denial_wall = registries.get("denial_wall", {})
 	pronouns = registries.get("pronouns", {})
 	sounds = registries.get("sounds", {})
+	minitel_codes = registries.get("minitel_codes", {})
 	card_effects = registries.get("card_effects", [])
 	signs = registries.get("signs", [])
 	jobs = registries.get("jobs", {})
