@@ -759,6 +759,33 @@ scan, not a runtime check, because the failure IS at compile time. It found a
 seventh instance the moment it was written — a dead `const UIKit` in `Run.gd`
 that was used by nothing at all.
 
+## The quietest failure in the project: a run that stopped being saved
+
+If `user://` is read-only, or the disk is full, every write fails. `Save` set
+`last_error`, pushed a warning to the console, and told the player nothing at
+all — and the player is mid-run, nowhere near a console. They finished three
+nights, closed the game, and the run was simply gone: no CONTINUE on the menu,
+and no explanation ever, because `last_error` does not survive a relaunch
+either.
+
+Reproduced by putting a DIRECTORY where the save file belongs, which is what a
+full or read-only disk looks like from `FileAccess.open(WRITE)`. The run header
+now carries a red line for as long as writing keeps failing, and clears it the
+moment one succeeds — loud and permanent, but not a modal, because a player
+mid-reading should not have their turn interrupted and must not reach the end
+of the night still believing their progress is being kept.
+
+The same silence covered the other two stores: `Profile.save_to_disk()` and
+`Settings.save_to_disk()` both discarded `ConfigFile.save()`'s return value.
+Smaller stakes — a lost unlock, a setting that resets every launch — and the
+same fix, said once at the main menu, which is where someone would otherwise
+notice their options reverting and have no idea why.
+
+`tests/test_scenes.gd` asserts both by RENDERING THE SCREEN and reading its
+labels, not by testing the flag. The flag was already being set correctly; what
+was missing was anyone showing it, and a test of the flag would have passed
+throughout.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

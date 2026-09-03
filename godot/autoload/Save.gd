@@ -45,6 +45,22 @@ const NOT_A_RUN := ["sign", "over"]
 
 var last_error: String = ""
 
+## True when the LAST attempt to write the run failed, and stays true until one
+## succeeds. Read by RunHeader, which puts a line on screen.
+##
+## Separate from last_error, which also carries READ failures — a save that
+## could not be loaded at startup is a different message, shown in a different
+## place, and mixing them meant a stale one from launch could appear mid-run.
+##
+## This exists because the failure was completely silent. A disk that is full,
+## or a save directory that is read-only, made every write fail; last_error was
+## set, a warning went to the console, and the player — who is in the middle of
+## a run and nowhere near a console — was told nothing at all. They finished
+## three nights, closed the game, and the run was simply gone, with no
+## CONTINUE on the menu and no explanation ever, because last_error does not
+## survive a relaunch either.
+var write_failed := false
+
 var _dirty := false
 
 
@@ -164,6 +180,7 @@ func _write() -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	if f == null:
 		last_error = "could not open %s for writing (%s)" % [PATH, error_string(FileAccess.get_open_error())]
+		write_failed = true
 		push_warning("[Save] " + last_error)
 		return
 	f.store_var({
@@ -172,6 +189,7 @@ func _write() -> void:
 		"state": st,
 	}, false)
 	f.close()
+	write_failed = false
 
 
 func _read() -> Dictionary:

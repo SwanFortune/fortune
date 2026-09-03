@@ -21,7 +21,27 @@ const UIKit := preload("res://scenes/UIKit.gd")
 
 ## `host` is the scene adding the header — used as the parent for the modal
 ## overlays and as the scene to come back to from Settings.
+## Returns the header. When the run cannot be written to disk it returns a
+## column — the warning line above the bar — rather than the bar alone, so
+## every screen that adds a header gets the warning without a change of its
+## own. Callers add whatever comes back; none of them cares which it is.
 static func build(host: Node) -> Control:
+	var bar := _bar(host)
+	if not Save.write_failed:
+		return bar
+	# Loud, permanent, and NOT a modal: a player mid-reading should not have
+	# their turn interrupted, but they must not reach the end of the night
+	# still believing the game is keeping their progress.
+	var col := UIKit.vbox(4)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.add_child(UIKit.block(
+		"%s %s" % [I18n.t("THIS RUN IS NOT BEING SAVED — anything from here is lost if you close the game."), Save.last_error],
+		12, UIKit.RED))
+	col.add_child(bar)
+	return col
+
+
+static func _bar(host: Node) -> Control:
 	var st: Dictionary = Run.state
 	var bar := UIKit.hbox(14)
 	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL

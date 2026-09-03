@@ -146,6 +146,10 @@ const ACTIONS := [
 ## keyboard events, so "reset" would have nothing to put back.
 var _default_keys: Dictionary = {}
 
+## Why the last write to disk failed, or "" if it did not. Read by the main
+## menu — see save_to_disk().
+var last_error: String = ""
+
 var _values: Dictionary = {}
 
 
@@ -343,7 +347,17 @@ func save_to_disk() -> void:
 	var cfg := ConfigFile.new()
 	for key in _values:
 		cfg.set_value(SECTION, key, _values[key])
-	cfg.save(PATH)
+	# The return value is not decoration: if user:// is read-only or the disk is
+	# full this fails, and until now it failed in silence — the same class of
+	# bug as the run that stopped being saved without telling anyone, with
+	# smaller stakes (a lost setting or a lost unlock, not a lost run) and the
+	# same fix. The main menu shows it, once, for whichever of the three failed.
+	var err := cfg.save(PATH)
+	if err != OK:
+		last_error = "could not write %s (%s)" % [PATH, error_string(err)]
+		push_warning("[Settings] " + last_error)
+	else:
+		last_error = ""
 
 
 ## The one setting group that can fail on the machine rather than in the code:

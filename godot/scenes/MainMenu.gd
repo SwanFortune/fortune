@@ -59,6 +59,20 @@ func _build() -> void:
 		# alternative is a player whose run silently evaporates.
 		v.add_child(UIKit.block("%s %s" % [I18n.t("Could not read your saved run."), Save.last_error], 11, UIKit.RED))
 
+	# If user:// cannot be written, NOTHING persists — not the run, not the
+	# settings, not the unlocks — and all three used to fail in silence. The run
+	# says so in its own header while you are playing; this is the same news at
+	# the point where a player would otherwise notice their settings resetting
+	# every launch and have no idea why.
+	var write_problem := ""
+	for pair in [[Settings.last_error, "settings"], [Profile.last_error, "profile"]]:
+		if str(pair[0]) != "":
+			write_problem = str(pair[0])
+	if write_problem != "" or Save.write_failed:
+		v.add_child(UIKit.block(I18n.t(
+			"NOTHING IS BEING SAVED — your run, settings and unlocks will all be lost when you close the game. %s"
+		) % (write_problem if write_problem != "" else Save.last_error), 11, UIKit.RED))
+
 	v.add_child(UIKit.button(_begin_label(), _begin))
 	# Above LIBRARY on purpose: a player who has just arrived needs this more
 	# than they need the card editor, and a rules screen nobody finds is worth

@@ -37,6 +37,10 @@ const STATS := {
 	"codes_entered": [],
 }
 
+## Why the last write to disk failed, or "" if it did not. Read by the main
+## menu — see save_to_disk().
+var last_error: String = ""
+
 var _values: Dictionary = {}
 
 ## The screen we last saw, so a transition can be told from a redraw —
@@ -178,4 +182,14 @@ func save_to_disk() -> void:
 	for key in STATS:
 		if _values.has(key):
 			cfg.set_value(SECTION, key, _values[key])
-	cfg.save(PATH)
+	# The return value is not decoration: if user:// is read-only or the disk is
+	# full this fails, and until now it failed in silence — the same class of
+	# bug as the run that stopped being saved without telling anyone, with
+	# smaller stakes (a lost setting or a lost unlock, not a lost run) and the
+	# same fix. The main menu shows it, once, for whichever of the three failed.
+	var err := cfg.save(PATH)
+	if err != OK:
+		last_error = "could not write %s (%s)" % [PATH, error_string(err)]
+		push_warning("[Profile] " + last_error)
+	else:
+		last_error = ""

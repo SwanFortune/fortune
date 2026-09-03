@@ -138,6 +138,7 @@ func _visit_standalone() -> void:
 	await _visit_scene("how to play", "res://scenes/HowToPlay.tscn")
 	await _visit_scene("credits", "res://scenes/Credits.tscn")
 	_test_the_rules_screen_matches_the_engine()
+	await _test_a_failing_save_is_visible_to_the_player()
 	await _test_the_overlays_are_modal()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
@@ -175,6 +176,105 @@ func _test_the_rules_screen_matches_the_engine() -> void:
 			wrong += 1
 	if wrong == 0:
 		print("--- the rules screen's wheel matches the engine (%d elements) ---" % ring.size())
+
+
+## A run that cannot be written to disk has to SAY SO, on screen, where the
+## player is.
+##
+## This was the quietest failure left in the project. A full disk or a
+## read-only save directory made every write fail; Save set last_error and
+## pushed a console warning, and the player — mid-run, nowhere near a console —
+## was told nothing. They played three nights, closed the game, and the run was
+## gone: no CONTINUE on the menu, and no explanation ever, since last_error
+## does not survive a relaunch.
+##
+## Checked by rendering the real screen and reading the labels, not by testing
+## the flag. The flag was already being set correctly; what was missing was
+## anyone showing it.
+func _test_a_failing_save_is_visible_to_the_player() -> void:
+	var save: Node = root.get_node("Save")
+	save.clear()
+	# A DIRECTORY where the save file belongs: every FileAccess.open(WRITE)
+	# fails, which is what a full or read-only disk looks like from here.
+	DirAccess.make_dir_recursive_absolute(save.PATH)
+
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	print("--- the next WARNING is expected: a deliberately unwritable save ---")
+	save._write()
+	if not save.write_failed:
+		printerr("FAIL: precondition — the write was supposed to fail and did not")
+		DirAccess.remove_absolute(save.PATH)
+		return
+
+	var instance: Node = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var warned := _text_of(instance).contains("NOT BEING SAVED")
+	if not warned:
+		printerr("FAIL: the run cannot be saved and no screen says so — the player loses it silently")
+	else:
+		print("--- an unwritable save is on screen ---")
+	instance.queue_free()
+	await process_frame
+
+	# And it goes away once writing works again, rather than sticking around
+	# and training the player to ignore it.
+	DirAccess.remove_absolute(save.PATH)
+	save._write()
+	if save.write_failed:
+		printerr("FAIL: the warning did not clear after a successful write")
+	else:
+		instance = load("res://scenes/Map.tscn").instantiate()
+		root.add_child(instance)
+		await process_frame
+		if _text_of(instance).contains("NOT BEING SAVED"):
+			printerr("FAIL: the warning is still on screen after a successful write")
+		instance.queue_free()
+		await process_frame
+	save.clear()
+
+	# The same news at the menu, where the OTHER two stores live. If user:// is
+	# unwritable then settings and unlocks are not persisting either, and a
+	# player would otherwise just notice their options resetting every launch
+	# with no idea why.
+	var settings: Node = root.get_node("Settings")
+	var profile: Node = root.get_node("Profile")
+	for path in [settings.PATH, profile.PATH]:
+		DirAccess.remove_absolute(path)
+		DirAccess.make_dir_recursive_absolute(path)
+	print("--- the next two WARNINGs are expected: deliberately unwritable config ---")
+	settings.save_to_disk()
+	profile.save_to_disk()
+	if settings.last_error == "" or profile.last_error == "":
+		printerr("FAIL: a failed config write was not recorded (settings '%s', profile '%s')"
+			% [settings.last_error, profile.last_error])
+	instance = load("res://scenes/MainMenu.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	if not _text_of(instance).contains("NOTHING IS BEING SAVED"):
+		printerr("FAIL: settings and unlocks are not persisting and the menu does not say so")
+	else:
+		print("--- an unwritable user:// is on screen at the menu ---")
+	instance.queue_free()
+	await process_frame
+	for path in [settings.PATH, profile.PATH]:
+		DirAccess.remove_absolute(path)
+	settings.save_to_disk()
+	profile.save_to_disk()
+
+
+## Every Label's text in a built screen, joined — for asserting that something
+## a player must see is actually rendered somewhere.
+func _text_of(node: Node) -> String:
+	var out := ""
+	if node is Label:
+		out += (node as Label).text + "\n"
+	for child in node.get_children():
+		out += _text_of(child)
+	return out
 
 
 ## The deck and marks panels are MODAL — drawn over an in-run screen that is

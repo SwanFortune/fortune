@@ -183,6 +183,8 @@ func _ui_strings() -> Array[String]:
 		"%s card(s) in this run came from content you no longer have and have been removed from the deck.",
 		"night %s, knock %s · %s · %s faith",
 		"Could not read your saved run.", "content warning(s) — see MODS.",
+		"NOTHING IS BEING SAVED — your run, settings and unlocks will all be lost when you close the game. %s",
+		"THIS RUN IS NOT BEING SAVED — anything from here is lost if you close the game.",
 		# mods screen
 		"Packs load in the order below. A later pack wins where two define the same card, sign or reader.",
 		"LOADED PACKS", "LOAD MESSAGES", "WHERE TO PUT A MOD", "STEAM WORKSHOP",
