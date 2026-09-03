@@ -54,13 +54,27 @@ godot --headless --path godot -s tests/test_profile.gd         # cross-run stats
 godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
 godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code channel + secret events
 godot --headless --path godot -s tests/test_modloader.gd       # pack discovery, merge rules, every error path
+godot --headless --path godot -s tests/test_boot.gd            # the game actually starts
 ```
 
-All fifteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All sixteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker
 above it is a real one.
+
+One thing the suite cannot check for you: Godot's own `ERROR` lines on the real
+launch path. Nothing in `tests/` boots the project's main scene — they each
+instantiate a screen directly — and an engine error is not visible to GDScript.
+Run the game for a moment and read the output:
+
+```
+godot --path godot --quit-after 150     # should print no ERROR of its own
+```
+
+That is how a `remove_child()` error that had printed on every launch since the
+first commit was finally noticed. On a machine with no sound card you will see
+ALSA complaints and a V-Sync warning; those are the container, not the game.
 
 There's also a balance report (not pass/fail — read it, see
 `docs/PORTING_NOTES.md`'s "Balance: Taurus and Virgo"):
@@ -141,6 +155,28 @@ reader behind having dialled it. Codes are data, so a mod ships its own.
 This is the one feature here that is an addition rather than a port. Two
 demonstrator codes ship, marked as such, and are meant to be replaced. See
 `docs/MINITEL.md` for the design and `docs/MODDING.md` for the schema.
+
+## Building
+
+Export presets for Linux, Windows and macOS are committed (`export_presets.cfg`
+— see `godot/.gitignore` for why, since the usual Godot ignore file excludes
+it). You need Godot's export templates for your version installed; the editor
+offers to download them, or `godot --headless --export-release` will tell you
+they are missing.
+
+```
+godot --headless --path godot --export-release "Linux" ../build/linux/parlour.x86_64
+```
+
+Builds land in `build/` and are gitignored. `tests/` is excluded from the
+shipped pack; `mods_example/` is not, because the settings screen offers to
+load it.
+
+The Linux build is verified: it exports, and it boots clean under a real
+OpenGL driver. The Windows and macOS presets are written but have not been
+built here — no templates for those targets were exercised, and neither was
+codesigning, which is off on all three. The app icon is a placeholder on the
+same terms as the rest of `assets/art/`.
 
 ## Languages
 

@@ -1,0 +1,3 @@
+# Exported builds. The presets that produce them are committed (see
+# godot/.gitignore); the 71 MB binaries they produce are not.
+build/

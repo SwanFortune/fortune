@@ -670,6 +670,50 @@ screen counts what it is handed, so a modder with one typo was told they had
 four problems. Manifests are now parsed once and cached, and a null parse is
 left to the message that already explained it.
 
+## Nobody could build the game, and nothing tested that it starts
+
+Two gaps that only showed up when the question became "what is missing for a
+playable release" rather than "does this system work".
+
+**There was no export configuration.** Not because it had been forgotten —
+because `export_presets.cfg` is in the standard Godot `.gitignore` (it can hold
+signing keystore paths and passwords), so anyone cloning this repo got a
+project that could be run from source and not built into anything. It is
+committed now, with the reason written into `.gitignore` next to it, and it
+holds no secrets: codesigning is off on all three presets.
+
+**Nothing booted the game.** `tests/test_scenes.gd` instantiates each screen
+directly and drives it, which is the right way to test a screen — and means the
+project's actual main scene, the one path every player takes and the only one
+that runs on launch, had no coverage at all. What that cost: `Boot._ready()`
+called `change_scene_to_file()` synchronously, which frees the current scene
+while the tree is still adding Boot as a child, and Godot printed
+
+    ERROR: Parent node is busy adding/removing children
+
+on **every launch since the first commit**. Harmless, invisible to the suite,
+and found only by exporting a build and running it. `tests/test_boot.gd` now
+asserts the game reaches the main menu, and the README documents the one check
+the suite cannot do for you — engine `ERROR` lines are not visible to GDScript,
+so noticing them means running the game and reading the output.
+
+## The interface did not scale with the window
+
+Godot's default `stretch/mode` is `disabled`: the UI renders at 1:1 pixels
+whatever the window size. Nothing had ever set it, because the whole port was
+developed at the default 1152x648 — so the video settings added a commit
+earlier made things worse rather than better. Going fullscreen on a 1080p
+screen left the same small text stranded in more empty space, and `ui_scale`
+was not a preference but the only thing making a large display usable at all.
+
+`canvas_items` + `expand` now scales the interface with the window and gives
+extra width to more view rather than to bars, which is right for a layout that
+is columns and lists. `ui_scale` multiplies on top, so it goes back to meaning
+"and a bit bigger than that". Checked at 1152x648 and 1920x1080 under Xvfb, and
+asserted on the live Viewport in `tests/test_settings.gd` rather than on the
+project setting, so a stray `content_scale_mode` assignment anywhere would
+still be caught.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
@@ -696,6 +740,8 @@ left to the message that already explained it.
   secret event cannot be met without its code),
   `tests/test_modloader.gd` (pack discovery, the merge rules, and every error
   path, driven with real packs on disk),
+  `tests/test_boot.gd` (the game starts — the main scene had no coverage at
+  all until a build was exported and run),
   `tests/test_art.gd` (art manifest -> texture pipeline, incl. the
   "runs fine with zero art delivered" guarantee),
   `tests/balance_sim.gd -- <n>` (difficulty report, the BALANCE tab equivalent),

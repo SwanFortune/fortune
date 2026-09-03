@@ -6,7 +6,7 @@ config_version=5
 config/name="Parlour"
 run/main_scene="res://scenes/Boot.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
-config/icon=""
+config/icon="res://assets/art/icon.svg"
 
 [autoload]
 
@@ -23,6 +23,26 @@ Profile="*res://autoload/Profile.gd"
 Minitel="*res://autoload/Minitel.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
+
+[display]
+
+; WITHOUT THIS the interface renders at 1:1 pixels whatever the window size, so
+; going fullscreen on a 1080p screen leaves the same tiny text stranded in more
+; empty space — the video settings added in the previous commit actively made
+; the game harder to read, which is the opposite of what a resolution setting
+; is for. Godot's default is stretch/mode "disabled"; nothing had ever set it
+; because the whole port was developed at the default window size.
+;
+; canvas_items scales the UI with the window. "expand" scales by the smaller of
+; the two ratios and gives the extra space on the other axis to more VIEW
+; rather than to bars — right for an interface that is columns and lists, where
+; a wider window should show more, not letterbox.
+;
+; Settings' ui_scale multiplies on top of this (Viewport.content_scale_factor),
+; so it goes back to meaning "and a bit bigger than that" instead of being the
+; only thing that made a big display usable.
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [input]
 

@@ -1,8 +1,27 @@
 # Godot 4 local cache/import artifacts — regenerated on open, not source.
 .godot/
 *.translation
-export_presets.cfg
 
-# Godot re-creates .import sidecars for any art dropped in assets/art/;
-# they're machine-generated, not source.
-assets/art/**/*.import
+# export_presets.cfg IS committed, deliberately — the usual Godot .gitignore
+# excludes it (it can hold signing keystore paths and passwords) and that is why
+# this project had no export configuration at all: nobody could tell whether it
+# had never been written or had merely been ignored, and the game could not be
+# built by anyone who cloned it.
+#
+# Ours holds no secrets: codesigning is off on every preset and there are no
+# keystore paths. If signing is ever set up, move the secret parts to a
+# credentials override rather than re-ignoring this file — the build config
+# belongs with the build.
+
+# Godot re-creates .import sidecars for anything dropped in assets/;
+# they're machine-generated, not source. (The audio ones only appeared the
+# first time an export ran the import pass — same class of file, same call.)
+assets/**/*.import
+
+# .uid sidecars, likewise. Godot 4.4+ suggests committing these; this project
+# does not, because its .tscn files reference scripts by PATH rather than by
+# uid:// (see any scene's ExtResource line), so nothing here depends on them
+# and a fresh clone regenerates them. Keeping them out preserves the property
+# tests/test_boot.gd and the README both rely on: clone, run, green, with no
+# editor-generated file in the way.
+*.uid

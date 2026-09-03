@@ -35,6 +35,7 @@ const TESTS := [
 	"_test_the_buses_exist_and_the_volumes_reach_them",
 	"_test_reset_puts_everything_back",
 	"_test_every_action_has_a_gamepad_button",
+	"_test_the_interface_scales_with_the_window",
 ]
 
 var failures: Array[String] = []
@@ -301,3 +302,32 @@ func _test_every_action_has_a_gamepad_button() -> void:
 			"rebinding '%s' changed its gamepad buttons (%d -> %d)" % [action, before.size(), after.size()])
 		settings.clear_keybind(action)
 	done("_test_every_action_has_a_gamepad_button")
+
+
+## The video settings are only worth having if the interface actually scales
+## with the window, and Godot's default is that it does NOT: stretch mode
+## "disabled" renders the UI at 1:1 pixels whatever size the window is. Nothing
+## had ever set it, because the whole port was developed at the default window
+## size — so going fullscreen on a 1080p screen left the same small text
+## stranded in more empty space, and the resolution setting shipped in the
+## previous commit made the game HARDER to read.
+##
+## Asserted on the live Viewport rather than on the project setting, since that
+## is what actually governs rendering: a stray content_scale_mode assignment
+## anywhere would defeat the config and this catches it either way.
+func _test_the_interface_scales_with_the_window() -> void:
+	var vp := root
+	check(vp.content_scale_mode == Window.CONTENT_SCALE_MODE_CANVAS_ITEMS,
+		"the viewport should scale canvas items with the window, mode is %d" % vp.content_scale_mode)
+	check(vp.content_scale_aspect == Window.CONTENT_SCALE_ASPECT_EXPAND,
+		"a wider window should show more, not letterbox; aspect is %d" % vp.content_scale_aspect)
+	check(vp.content_scale_size.x > 0 and vp.content_scale_size.y > 0,
+		"the base size must be set, got %s" % vp.content_scale_size)
+
+	# ui_scale multiplies on top of that, so it still means "and a bit bigger
+	# than that" rather than being the only thing making a large display usable.
+	settings.set_value("ui_scale", 1.25)
+	check(is_equal_approx(vp.content_scale_factor, 1.25),
+		"ui_scale should drive content_scale_factor, got %s" % vp.content_scale_factor)
+	settings.set_value("ui_scale", settings.default_for("ui_scale"))
+	done("_test_the_interface_scales_with_the_window")
