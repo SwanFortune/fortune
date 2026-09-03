@@ -352,7 +352,15 @@ func save_to_disk() -> void:
 	# bug as the run that stopped being saved without telling anyone, with
 	# smaller stakes (a lost setting or a lost unlock, not a lost run) and the
 	# same fix. The main menu shows it, once, for whichever of the three failed.
-	var err := cfg.save(PATH)
+	# Written to a temporary file and renamed into place, for the same reason
+	# Save.gd does it: a crash partway through a write would otherwise leave a
+	# truncated config, and a truncated config is one ConfigFile.load() refuses
+	# — losing every setting rather than the one being written.
+	var tmp := PATH + ".tmp"
+	var err := cfg.save(tmp)
+	if err == OK:
+		var dir := DirAccess.open("user://")
+		err = dir.rename(tmp.get_file(), PATH.get_file()) if dir != null else FAILED
 	if err != OK:
 		last_error = "could not write %s (%s)" % [PATH, error_string(err)]
 		push_warning("[Settings] " + last_error)

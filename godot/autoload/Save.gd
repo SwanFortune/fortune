@@ -30,6 +30,13 @@ extends Node
 
 const PATH := "user://save.dat"
 
+## Written first, then renamed over PATH. See _write().
+const TMP_PATH := "user://save.dat.tmp"
+
+## The previous good save, kept so a corrupt or truncated one is survivable.
+## See _read() and restore().
+const BACKUP_PATH := "user://save.dat.bak"
+
 ## Bumped when the shape of what is written changes incompatibly. A save from a
 ## future version, or from one whose shape this code can no longer read, is
 ## refused rather than half-restored into a run that then misbehaves.
@@ -60,6 +67,11 @@ var last_error: String = ""
 ## CONTINUE on the menu and no explanation ever, because last_error does not
 ## survive a relaunch either.
 var write_failed := false
+
+## True when the last read fell back to the backup because the current save
+## could not be read. The main menu says so: a player who has silently lost an
+## action or two should hear about it rather than wonder later.
+var restored_from_backup := false
 
 var _dirty := false
 
@@ -134,10 +146,14 @@ func peek() -> Dictionary:
 	}
 
 
+## Removes the save AND its backup and temp file. Clearing only the main one
+## would leave a stale backup that a later corrupt read could resurrect —
+## dropping the player into a run they had already finished or abandoned.
 func clear() -> void:
 	_dirty = false
-	if FileAccess.file_exists(PATH):
-		DirAccess.remove_absolute(PATH)
+	for path in [PATH, BACKUP_PATH, TMP_PATH]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
 
 
 ## Loads the save into Run.state. Returns {ok, dropped, note} — `dropped` counts
@@ -177,9 +193,17 @@ func _write() -> void:
 		# CONTINUE would drop the player back into.
 		clear()
 		return
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	# WRITTEN TO A TEMPORARY FILE AND THEN RENAMED. Writing straight to PATH
+	# means the save is, for the length of the write, a half-written file — and
+	# a crash or a power cut in that window leaves the player with a truncated
+	# save and no run. The window is small and this game writes several times a
+	# minute; small and often is exactly how that lottery gets won.
+	#
+	# A rename within the same directory is atomic on every filesystem this
+	# ships to, so the save on disk is only ever the old one or the new one.
+	var f := FileAccess.open(TMP_PATH, FileAccess.WRITE)
 	if f == null:
-		last_error = "could not open %s for writing (%s)" % [PATH, error_string(FileAccess.get_open_error())]
+		last_error = "could not open %s for writing (%s)" % [TMP_PATH, error_string(FileAccess.get_open_error())]
 		write_failed = true
 		push_warning("[Save] " + last_error)
 		return
@@ -189,16 +213,64 @@ func _write() -> void:
 		"state": st,
 	}, false)
 	f.close()
+
+	# The previous save becomes the backup before the new one takes its place,
+	# so there is always one known-good file behind the current one. Losing a
+	# run to a bad write is bad; losing it with a perfectly good save from ten
+	# seconds ago sitting there unused would be worse.
+	var dir := DirAccess.open("user://")
+	if dir == null:
+		last_error = "could not open user:// to place the save"
+		write_failed = true
+		push_warning("[Save] " + last_error)
+		return
+	if FileAccess.file_exists(PATH):
+		dir.remove(BACKUP_PATH.get_file())
+		dir.rename(PATH.get_file(), BACKUP_PATH.get_file())
+	var err := dir.rename(TMP_PATH.get_file(), PATH.get_file())
+	if err != OK:
+		last_error = "could not put the save in place (%s)" % error_string(err)
+		write_failed = true
+		push_warning("[Save] " + last_error)
+		return
 	write_failed = false
 
 
+## The current save, or the backup if the current one cannot be read.
+##
+## Falling back is the point of keeping a backup at all: refusing a corrupt save
+## while a perfectly good one from ten seconds earlier sits beside it unused
+## would be a worse answer than losing one action. `restored_from_backup` says
+## which was used, so the player can be told they lost a little rather than
+## being silently moved back in time.
+##
+## A VERSION MISMATCH IS NOT A CORRUPTION and does not fall back: a save from a
+## newer build means this one cannot read it, and its backup will be from the
+## same newer build. Trying it would only produce the same refusal twice.
 func _read() -> Dictionary:
 	last_error = ""
-	if not FileAccess.file_exists(PATH):
+	restored_from_backup = false
+	var doc := _read_file(PATH)
+	if not doc.is_empty() or last_error == "" or last_error.begins_with("save is version"):
+		return doc
+
+	var main_error := last_error
+	var backup := _read_file(BACKUP_PATH)
+	if backup.is_empty():
+		last_error = main_error   # the backup is no better; report the real one
 		return {}
-	var f := FileAccess.open(PATH, FileAccess.READ)
+	restored_from_backup = true
+	last_error = ""
+	push_warning("[Save] the save was unreadable (%s); using the backup." % main_error)
+	return backup
+
+
+func _read_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		last_error = "could not open %s (%s)" % [PATH, error_string(FileAccess.get_open_error())]
+		last_error = "could not open %s (%s)" % [path, error_string(FileAccess.get_open_error())]
 		return {}
 	var doc = f.get_var(false)
 	f.close()

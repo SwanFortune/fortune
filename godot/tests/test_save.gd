@@ -15,6 +15,11 @@
 ##     CONTINUE must never drop the player into a finished run;
 ##   - a corrupt or version-skewed file is refused outright rather than
 ##     half-restored;
+##   - the write is ATOMIC: a crash halfway through cannot leave a truncated
+##     save, because the file that gets truncated is a temporary one and the
+##     real save is only ever replaced by a rename;
+##   - a save that IS corrupt falls back to the backup rather than being
+##     refused, and the player is told they may have lost a step;
 ##   - NO ACTION CHANGES THE RUN WITHOUT ARMING A SAVE. Everything above tests
 ##     that a save which was written comes back correctly; none of it tests
 ##     that one gets written in the first place. Autosaving is signal-driven
@@ -42,6 +47,9 @@ const TESTS := [
 	"_test_every_action_marks_the_run_dirty",
 	"_test_a_content_reload_reaches_a_live_run",
 	"_test_quitting_flushes_the_last_action",
+	"_test_the_write_is_atomic",
+	"_test_a_corrupt_save_falls_back_to_the_backup",
+	"_test_clearing_removes_the_backup_too",
 ]
 
 var failures: Array[String] = []
@@ -424,3 +432,92 @@ func _test_quitting_flushes_the_last_action() -> void:
 		"the flushed save should describe the live run, got %s" % [peeked])
 	save.clear()
 	done("_test_quitting_flushes_the_last_action")
+
+
+## Writing straight to the save file means that, for the length of the write,
+## the save IS a half-written file — and this game writes several times a
+## minute, so the window gets sampled often. The write goes to a temporary file
+## and is renamed into place, which no filesystem this ships to can interrupt
+## halfway.
+func _test_the_write_is_atomic() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	save.clear()
+	save._write()
+	check(save.has_save(), "precondition: a save was written")
+
+	# The temporary file must not survive a successful write — a leftover one
+	# would be a half-written file sitting in the save directory for good.
+	check(not FileAccess.file_exists(save.TMP_PATH),
+		"the temporary file should have been renamed away, not left behind")
+
+	# Simulate the crash: a truncated temp file, and the real save untouched.
+	var good := FileAccess.get_file_as_bytes(save.PATH)
+	var f := FileAccess.open(save.TMP_PATH, FileAccess.WRITE)
+	f.store_buffer(good.slice(0, good.size() / 2))
+	f.close()
+	check(FileAccess.get_file_as_bytes(save.PATH) == good,
+		"a half-written temporary file must not have touched the real save")
+	check(not save.peek().is_empty(), "and the real save is still readable")
+	DirAccess.remove_absolute(save.TMP_PATH)
+	save.clear()
+	done("_test_the_write_is_atomic")
+
+
+## The backup earns its place here. Refusing a corrupt save while a good one
+## from ten seconds earlier sits beside it unused would lose a run for no
+## reason; quietly using it without saying so would move the player back in
+## time without telling them.
+func _test_a_corrupt_save_falls_back_to_the_backup() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	save.clear()
+	save._write()          # first write: no backup yet
+	var faith_then := int(run.state.get("faith", 0))
+	run.state["faith"] = faith_then + 40
+	save._write()          # second write: the first becomes the backup
+	check(FileAccess.file_exists(save.BACKUP_PATH), "a second write should leave a backup")
+
+	# Corrupt the current save the way a truncated write would.
+	var f := FileAccess.open(save.PATH, FileAccess.WRITE)
+	f.store_string("not a variant at all")
+	f.close()
+	print("--- the next ERROR and WARNING are expected: a deliberately corrupt save ---")
+	var peeked: Dictionary = save.peek()
+	check(not peeked.is_empty(), "a corrupt save should fall back to the backup, not refuse")
+	check(save.restored_from_backup, "and should say that it did")
+	check(int(peeked.get("faith", -1)) == faith_then,
+		"the backup is the PREVIOUS save, so its faith is the earlier value (%s)" % peeked.get("faith"))
+
+	# A version mismatch is not corruption: the backup is from the same build
+	# and would only produce the same refusal twice.
+	save.clear()
+	save._write()
+	save._write()
+	var doc := {"version": save.VERSION + 99, "saved_at": 0, "state": {"screen": "map"}}
+	var g := FileAccess.open(save.PATH, FileAccess.WRITE)
+	g.store_var(doc, false)
+	g.close()
+	check(save.peek().is_empty(), "a future-version save is refused outright")
+	check(not save.restored_from_backup, "and does not silently fall back to an older run")
+	save.clear()
+	done("_test_a_corrupt_save_falls_back_to_the_backup")
+
+
+## Clearing has to take the backup with it. A stale backup left behind is a run
+## a later corrupt read could resurrect — dropping the player into a night they
+## had already finished or deliberately abandoned.
+func _test_clearing_removes_the_backup_too() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	save._write()
+	save._write()
+	check(FileAccess.file_exists(save.BACKUP_PATH), "precondition: there is a backup")
+	save.clear()
+	for path in [save.PATH, save.BACKUP_PATH, save.TMP_PATH]:
+		check(not FileAccess.file_exists(path), "%s should be gone after clear()" % path)
+	check(save.peek().is_empty(), "and nothing should be resurrectable")
+	done("_test_clearing_removes_the_backup_too")

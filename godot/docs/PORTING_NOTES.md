@@ -812,6 +812,31 @@ every icon and COUNTS THE PIXELS, which is the only check that can tell a
 drawing from a well-formed request that drew nothing; stubbing the `#` back out
 turns thirty assertions red.
 
+## Saves: atomic writes and a rolling backup
+
+Three practices, each answering a specific way a save is lost.
+
+**The write was not atomic.** The run went straight to `save.dat`, which means
+the save WAS a half-written file for the length of every write — and this game
+writes several times a minute, so that window gets sampled often. A crash or a
+power cut in it left a truncated save and no run. It now goes to `save.dat.tmp`
+and is RENAMED into place; a rename within one directory is atomic on every
+filesystem this ships to, so the file on disk is only ever the old save or the
+new one.
+
+**There was nothing to fall back to.** The previous save now becomes
+`save.dat.bak` before the new one replaces it, and a save that cannot be read
+falls back to it — with a line on the menu saying the player may have lost a
+step. Refusing a corrupt save while a good one from ten seconds earlier sat
+beside it unused would have been a worse answer, and using it silently would
+have moved someone back in time without telling them. A VERSION MISMATCH does
+not fall back: a save from a newer build has a backup from that same build, and
+trying it would only produce the same refusal twice. `clear()` takes the backup
+with it, or an abandoned run could be resurrected by a later bad read.
+
+`profile.cfg` and `settings.cfg` are written the same way, for the same reason
+at smaller stakes.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
@@ -825,7 +850,8 @@ turns thirty assertions red.
 - `autoload/Audio.gd` — named game moments; see `docs/SOUND_GUIDE.md`.
 - `autoload/Content.gd` + `autoload/ModLoader.gd` — content loading and the
   mod-pack merge logic; see `docs/MODDING.md`.
-- `autoload/Workshop.gd` — the Steam Workshop stub; see `docs/STEAM_WORKSHOP.md`.
+- `autoload/Workshop.gd` — the Steam Workshop stub; see `docs/STEAM_WORKSHOP.md`,
+  and `docs/STEAM_RELEASE.md` for what a Steam release needs beyond it.
 - `autoload/Art.gd` — resolves art ids to textures, null when undelivered;
   see `docs/ART_GUIDE.md` (artist-facing) and `tests/gen_art_manifest.gd`.
 - `scenes/` — the playable UI.

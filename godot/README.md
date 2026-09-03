@@ -200,6 +200,10 @@ Builds land in `build/` and are gitignored. `tests/` is excluded from the
 shipped pack; `mods_example/` is not, because the settings screen offers to
 load it.
 
+`docs/STEAM_RELEASE.md` covers what a Steam release needs on top of this —
+what is already done, what needs an App ID or a signing identity, and which
+files Steam Cloud should be pointed at.
+
 The Linux build is verified: it exports, and it boots clean under a real
 OpenGL driver. The Windows and macOS presets are written but have not been
 built here — no templates for those targets were exercised, and neither was
@@ -222,5 +226,5 @@ assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
 scenes/       the playable UI (incl. SettingsMenu, Library, and the in-run RunHeader)
 mods_example/ a tiny working example mod, proving the pack format end to end
 tests/        headless tests + dev tools (no editor/display required)
-docs/         MODDING.md, STEAM_WORKSHOP.md, PORTING_NOTES.md, ART_GUIDE.md, SOUND_GUIDE.md, LOCALIZATION.md, MINITEL.md
+docs/         MODDING.md, STEAM_WORKSHOP.md, STEAM_RELEASE.md, PORTING_NOTES.md, ART_GUIDE.md, SOUND_GUIDE.md, LOCALIZATION.md, MINITEL.md
 ```

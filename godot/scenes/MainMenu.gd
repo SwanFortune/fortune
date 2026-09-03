@@ -50,6 +50,13 @@ func _build() -> void:
 		v.add_child(UIKit.button(
 			I18n.t("RESUME ANYWAY") if _dropped > 0 else I18n.t("CONTINUE"), _continue))
 		v.add_child(UIKit.block(_saved_line(saved), 11, UIKit.DIM))
+		if Save.restored_from_backup:
+			# Quietly rolling a player back in time is the kind of thing they
+			# would later describe as the game losing their progress. Saying it
+			# costs one line.
+			v.add_child(UIKit.block(I18n.t(
+				"Your last save could not be read, so this is the one before it — you may have lost a step."
+			), 11, UIKit.GOLD))
 		if _dropped > 0:
 			v.add_child(UIKit.block(I18n.t(
 				"%s card(s) in this run came from content you no longer have and have been removed from the deck."
