@@ -208,14 +208,36 @@ is a placeholder with a clear replacement.
 | Where | What it draws | Replaced by |
 |---|---|---|
 | `scenes/UIKit.gd` — `sitter_portrait()` | A face: an oval, two eyes, a mouth whose curve follows the sitter's mood | A sitter portrait PNG, via the manifest. Already wired: deliver the file and the drawing stops being used. |
-| `scenes/Table.gd` | The parlour — a wooden table, a green cloth, and the reader's two hands holding the fan, with every mark won this run drawn onto them | Nothing yet. See below. |
+| `scenes/Table.gd` | The parlour — a room with a papered wall, a door, a coat on a hook, a floor, a table in perspective with a green cloth on it, a Minitel and a cup of tea standing on it, and the reader's two hands holding the fan with every mark won this run drawn onto them | Nothing yet. See below. |
 | `autoload/Icons.gd` | The element, sign, planet and archetype glyphs, rasterised at runtime from the vector paths in `data/base/icons.json` | These are FINISHED, not placeholders — they came from the design document and are meant to stay. Redraw a path in `icons.json` to change one. |
 
-### The table, the cloth and the hands
+### The room, the table and the hands
 
 `scenes/Table.gd` draws the reading screen's background and the pair of hands
 holding the player's cards. It is geometry — ellipses, tapered capsules, a few
 lines — and it is the piece most obviously waiting for a person.
+
+**Every prop in it is something the game already says.** None were invented to
+fill space:
+
+| Prop | Where it comes from |
+|---|---|
+| The door | Someone knocks on it. A run ends when the knocking stops. |
+| The coat on a hook | TAKE THEIR COAT, a basic card in every deck. |
+| The cup of tea | POUR THE TEA and WARM THE CUP. |
+| The Minitel | The 3615 screen (`docs/MINITEL.md`) dials it. It had never been drawn. |
+| The cloth | SET DOWN THE CLOTH. |
+| The lamplight | LIGHT THE LAMP — drawn as the light it throws, since the framing never shows a ceiling. |
+
+If you add a prop, take it from the card list or the writing the same way. A
+teapot is fine; a crystal ball is a different game.
+
+**Two placement rules the drawing already follows.** The room is BEHIND the
+screen's words, and the reading screen's left third — from the composure bar
+down to the hand label — is solid text in every layout it produces. Props go in
+the gaps (`MINITEL_AT` and `TEACUP_AT` in the file), and everything above the
+horizon is deliberately darker than the table so it is recognised rather than
+read. A prettier wall that makes a sentence hard to read is a bad trade.
 
 **It is not decoration, and whatever replaces it has to keep one thing.** The
 overlay that lists your relics is called YOUR HANDS; the four kinds of mark are

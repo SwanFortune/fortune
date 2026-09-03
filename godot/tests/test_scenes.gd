@@ -141,6 +141,7 @@ func _visit_standalone() -> void:
 	await _test_a_failing_save_is_visible_to_the_player()
 	await _test_the_overlays_are_modal()
 	await _test_the_marks_are_on_the_hands()
+	await _test_the_last_card_floats()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
@@ -356,6 +357,97 @@ func _test_the_marks_are_on_the_hands() -> void:
 			print("--- the marks are on the hands, and the hands are in front of the cards ---")
 	instance.queue_free()
 	await process_frame
+
+
+## THE LAST CARD FLOATS. When the hand is down to one, the card is lifted clear
+## of two open hands rather than clamped between fingertips — which means it
+## leaves the ScrollContainer and the flow container entirely, and a Control
+## outside a container is on its own for two things that a container was doing
+## for it:
+##
+##   - its SIZE. Control.size is clamped up to the combined minimum, and a card's
+##     name is an auto-wrapping Label whose minimum height depends on the width
+##     it has been given — zero, before the first layout pass. The first version
+##     of this came out nearly twice as tall as every other card in the game and
+##     raised nothing;
+##   - being REACHABLE. A floating card that cannot be focused is a hand a
+##     keyboard or gamepad player cannot play, and the run is stuck.
+##
+## And the float itself is only a float if there is a gap: the fingertips have
+## to stop BELOW the card. That is checked against Table.finger_geometry(), the
+## same geometry the drawing reads, in both directions — open hands clear the
+## card, closed hands cross it.
+func _test_the_last_card_floats() -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var TableScript := load("res://scenes/Table.gd")
+	var ReadingScript := load("res://scenes/Reading.gd")
+	var UIKitScript := load("res://scenes/UIKit.gd")
+
+	const COUNTS := [1, 5]
+	for count: int in COUNTS:
+		run.state = run.fresh()
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		if f["hand"].size() < count:
+			printerr("FAIL: precondition — wanted %d cards in hand, dealt %d" % [count, f["hand"].size()])
+			continue
+		f["hand"] = f["hand"].slice(0, count)
+		var alone := count == 1
+
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		for i in 4:
+			await process_frame
+
+		var face := _first_focusable_panel(instance)
+		var hands := instance.find_child("Hands", true, false)
+		if face == null or hands == null:
+			printerr("FAIL: with %d card(s) in hand there is no card face (%s) or no hands (%s)"
+				% [count, face, hands])
+			instance.queue_free()
+			await process_frame
+			continue
+
+		var want: Vector2 = UIKitScript.card_face_size()
+		if alone and (absf(face.size.x - want.x) > 1.0 or absf(face.size.y - want.y) > 1.0):
+			printerr("FAIL: the floating card is %s, not the %s every other card is" % [face.size, want])
+		if alone and not face.has_focus():
+			printerr("FAIL: the floating card never took focus — it cannot be played without a mouse")
+
+		# Where the fingertips actually reach, read from the drawing's own
+		# geometry. x is irrelevant to a tip's height, so it is left at zero.
+		var reach: float = ReadingScript.OPEN_REACH if alone else 1.0
+		var base := Vector2(0, hands.global_position.y + hands.size.y)
+		var tip_y := INF
+		for finger in TableScript.finger_geometry(base, hands.size.y, 1.0, reach):
+			tip_y = minf(tip_y, finger[2].y)
+		var card_bottom: float = face.global_position.y + face.size.y
+		if alone and tip_y <= card_bottom:
+			printerr("FAIL: the fingertips reach %.0f and the floating card ends at %.0f — it is being held, not floating"
+				% [tip_y, card_bottom])
+		if not alone and tip_y >= card_bottom:
+			printerr("FAIL: the fingertips stop at %.0f, below the cards at %.0f — the fan is not held by anything"
+				% [tip_y, card_bottom])
+		instance.queue_free()
+		await process_frame
+	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+
+
+## The card faces are PanelContainers that take focus; every other focusable
+## thing on the reading screen is a Button. Nothing else identifies a card.
+func _first_focusable_panel(node: Node) -> Control:
+	if node is PanelContainer and (node as Control).focus_mode == Control.FOCUS_ALL:
+		return node
+	for child in node.get_children():
+		var found := _first_focusable_panel(child)
+		if found != null:
+			return found
+	return null
 
 
 func _first_of_class(node: Node, cls: String) -> Node:

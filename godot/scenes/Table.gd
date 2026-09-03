@@ -33,11 +33,43 @@ const UIKit := preload("res://scenes/UIKit.gd")
 ## The table is warm and clearly wood; the cloth is a deep green that reads as
 ## cloth against it. An earlier pass had both so close in value that the cloth
 ## was invisible — which is the whole reason to draw a table at all.
-const WOOD_DARK := Color(0.155, 0.105, 0.070)
-const WOOD_LIGHT := Color(0.255, 0.175, 0.115)
+const WOOD_DARK := Color(0.128, 0.087, 0.058)
+const WOOD_LIGHT := Color(0.205, 0.141, 0.093)
 const CLOTH := Color(0.075, 0.135, 0.110)
 const CLOTH_EDGE := Color(0.22, 0.30, 0.24)
 const CLOTH_WORN := Color(0.115, 0.185, 0.150)
+
+## The room behind the table. Everything here is DARKER than the table, and
+## deliberately so: the screen's text sits on top of it, and a back wall that
+## competes with the words costs more than it gives. It should be recognised
+## rather than looked at.
+const WALL := Color(0.068, 0.052, 0.046)
+const WALL_STRIPE := Color(0.092, 0.070, 0.059)
+const RAIL := Color(0.115, 0.084, 0.061)
+const DOOR := Color(0.098, 0.070, 0.050)
+const DOOR_PANEL := Color(0.074, 0.052, 0.037)
+const DOOR_EDGE := Color(0.140, 0.102, 0.072)
+const BRASS := Color(0.40, 0.31, 0.15)
+const COAT := Color(0.082, 0.078, 0.096)
+const FLOOR := Color(0.052, 0.041, 0.036)
+const FLOOR_SEAM := Color(0.028, 0.022, 0.019)
+
+## The Minitel, which the game already has a whole screen for (3615 codes, see
+## autoload/Minitel.gd) and which had never once been drawn. Beige plastic, a
+## small green phosphor screen, a keyboard folded down in front.
+const MINITEL_BODY := Color(0.200, 0.180, 0.148)
+const MINITEL_SHADE := Color(0.130, 0.116, 0.095)
+const MINITEL_DARK := Color(0.085, 0.075, 0.062)
+const MINITEL_SCREEN := Color(0.045, 0.075, 0.052)
+const MINITEL_GLOW := Color(0.36, 0.70, 0.41)
+
+## The cup, and the lamplight it sits in. Both come straight out of the card
+## list — WARM THE CUP, LIGHT THE LAMP — so they are the room the writing
+## already described.
+const CHINA := Color(0.52, 0.50, 0.46)
+const CHINA_SHADE := Color(0.33, 0.32, 0.29)
+const TEA := Color(0.32, 0.19, 0.10)
+const LAMPLIGHT := Color(1.0, 0.82, 0.52)
 
 ## Skin, and the line around it. Warm and desaturated — a lamp-lit room, not
 ## daylight.
@@ -73,40 +105,267 @@ static func background() -> Control:
 	return c
 
 
+## Where the far edge of the table meets the room, as a fraction of the height.
+## Everything above this line is the room; everything below is the table you are
+## sitting at.
+const HORIZON := 0.30
+
+
+## The whole room, back to front. Order is the whole trick: the wall, then the
+## things against it, then the table over the bottom of them, then the cloth,
+## then what is standing on the cloth, and last the light and the shadows that
+## tie the three together.
 static func _draw_room(c: Control) -> void:
 	var s := c.size
 	if s.x < 4.0 or s.y < 4.0:
 		return
+	_draw_wall(c, s)
+	_draw_floor(c, s)
+	_draw_door(c, s)
+	_draw_coat(c, s)
+	var cloth := _draw_table(c, s)
+	_draw_minitel(c, s)
+	_draw_teacup(c, s)
+	_draw_light(c, s, cloth)
+	_draw_vignette(c, s)
 
-	# The table: a warm dark ground with a few grain lines running its length.
-	c.draw_rect(Rect2(Vector2.ZERO, s), WOOD_DARK)
-	var grain := 14
-	for i in grain:
-		var t := (float(i) + 0.5) / float(grain)
-		var y := s.y * t
-		var wobble := sin(t * 9.0) * s.y * 0.012
-		c.draw_line(Vector2(0, y + wobble), Vector2(s.x, y - wobble),
-			Color(WOOD_LIGHT, 0.16 + 0.1 * sin(t * 21.0)), 1.0, true)
 
-	# The cloth: inset from the table on every side, so the wood shows as a
-	# border. Rounded, because a cloth thrown over a table has no corners.
-	var inset := Vector2(s.x * 0.035, s.y * 0.05)
-	var cloth := Rect2(inset, s - inset * 2.0)
-	var radius := minf(cloth.size.x, cloth.size.y) * 0.06
-	_rounded(c, cloth, radius, CLOTH)
+## The back wall: striped paper, a picture rail near the top, and a skirting
+## board where it meets the floor. The stripes are what make it read as a room
+## in a house rather than as a dark rectangle.
+static func _draw_wall(c: Control, s: Vector2) -> void:
+	var wall_h := s.y * HORIZON
+	c.draw_rect(Rect2(0, 0, s.x, wall_h), WALL)
+	var pitch := s.x * 0.032
+	var x := pitch * 0.5
+	var i := 0
+	while x < s.x:
+		# Two weights alternating, the way a printed paper has a wide band and a
+		# hairline between them.
+		var wide := i % 2 == 0
+		c.draw_line(Vector2(x, 0), Vector2(x, wall_h),
+			Color(WALL_STRIPE, 0.9 if wide else 0.45), pitch * (0.34 if wide else 0.10), true)
+		x += pitch
+		i += 1
+	# The picture rail, and the skirting under it.
+	var rail_y := wall_h * 0.16
+	c.draw_line(Vector2(0, rail_y), Vector2(s.x, rail_y), Color(RAIL, 0.75), maxf(1.0, s.y * 0.005), true)
+	c.draw_rect(Rect2(0, wall_h - s.y * 0.022, s.x, s.y * 0.022), Color(RAIL, 0.5))
+
+
+## The floor. It is only ever seen in two narrow wedges either side of the
+## table — but without it those wedges are the flat colour of the empty screen
+## behind everything, and the table reads as a shape cut out of a void rather
+## than a piece of furniture standing on something. Boards crowding together
+## toward the wall is the whole of the perspective here.
+static func _draw_floor(c: Control, s: Vector2) -> void:
+	var y := s.y * HORIZON
+	c.draw_rect(Rect2(0, y, s.x, s.y - y), FLOOR)
+	for i in 6:
+		var t := (float(i) + 1.0) / 7.0
+		var by := y + (s.y - y) * pow(t, 1.8)
+		c.draw_line(Vector2(0, by), Vector2(s.x, by), Color(FLOOR_SEAM, 0.55),
+			maxf(1.0, s.y * 0.003), true)
+
+
+## The door. It is the one prop in this room with a job: someone knocks on it,
+## and a run ends when the knocking stops. Closed, panelled, brass knob, hinged
+## on the far side so the knob faces the room.
+static func _draw_door(c: Control, s: Vector2) -> void:
+	var wall_h := s.y * HORIZON
+	var w := s.x * 0.155
+	var left := s.x * 0.615
+	var top := wall_h * 0.10
+	# The architrave is a BORDER, not a filled rectangle behind the leaf. Filled,
+	# it was a pale slab the size of a door sitting directly under the header
+	# text, which is the loudest thing this room could possibly have done.
+	var frame := Rect2(left - w * 0.055, top - wall_h * 0.05, w * 1.11, wall_h - top + wall_h * 0.05)
+	c.draw_rect(frame, Color(DOOR_EDGE, 0.55), false, maxf(1.0, s.y * 0.005))
+	var leaf := Rect2(left, top, w, wall_h - top)
+	c.draw_rect(leaf, DOOR)
+
+	# Two recessed panels, each with a lit top edge so the recess reads.
+	for k in 2:
+		var ph := leaf.size.y * (0.40 if k == 0 else 0.30)
+		var py := leaf.position.y + leaf.size.y * (0.09 if k == 0 else 0.60)
+		var panel := Rect2(leaf.position.x + w * 0.16, py, w * 0.68, ph)
+		c.draw_rect(panel, DOOR_PANEL)
+		c.draw_line(panel.position, panel.position + Vector2(panel.size.x, 0),
+			Color(DOOR_EDGE, 0.45), 1.0, true)
+		c.draw_line(panel.position + Vector2(0, panel.size.y),
+			panel.end, Color(0, 0, 0, 0.35), 1.0, true)
+
+	# The knob, on the room side.
+	var knob := Vector2(leaf.position.x + w * 0.10, leaf.position.y + leaf.size.y * 0.52)
+	c.draw_circle(knob, s.y * 0.011, Color(BRASS, 0.85))
+	c.draw_circle(knob - Vector2(s.y * 0.003, s.y * 0.003), s.y * 0.004, Color(1, 0.92, 0.75, 0.5))
+
+
+## A coat on a hook by the door — TAKE THEIR COAT is the first thing a lot of
+## readings open with, and this is where it goes.
+static func _draw_coat(c: Control, s: Vector2) -> void:
+	var wall_h := s.y * HORIZON
+	var at := Vector2(s.x * 0.855, wall_h * 0.24)
+	c.draw_line(at, at + Vector2(0, s.y * 0.012), Color(BRASS, 0.6), maxf(1.0, s.y * 0.004), true)
+	# Shoulders, then a body that widens and settles — a hung coat, not a person.
+	var body := PackedVector2Array([
+		at + Vector2(0, s.y * 0.014),
+		at + Vector2(s.x * 0.028, s.y * 0.040),
+		at + Vector2(s.x * 0.032, wall_h * 0.74),
+		at + Vector2(-s.x * 0.032, wall_h * 0.74),
+		at + Vector2(-s.x * 0.028, s.y * 0.040),
+	])
+	c.draw_colored_polygon(_soften(body, s.y * 0.016), COAT)
+	c.draw_line(at + Vector2(0, s.y * 0.022), at + Vector2(0, wall_h * 0.70),
+		Color(0, 0, 0, 0.30), maxf(1.0, s.y * 0.004), true)
+
+
+## The table, in perspective: narrow at the far edge, running off both sides at
+## the front. Returns the cloth's outline, which the light and the shadows are
+## measured against.
+static func _draw_table(c: Control, s: Vector2) -> Array:
+	var y := s.y * HORIZON + s.y * 0.02
+	var top := PackedVector2Array([
+		Vector2(s.x * 0.115, y), Vector2(s.x * 0.885, y),
+		Vector2(s.x * 1.06, s.y * 1.02), Vector2(-s.x * 0.06, s.y * 1.02),
+	])
+	c.draw_colored_polygon(top, WOOD_DARK)
+	# The lit far lip, which is what makes it a surface with a thickness rather
+	# than a shape cut out of the wall.
+	c.draw_line(Vector2(s.x * 0.115, y), Vector2(s.x * 0.885, y),
+		Color(WOOD_LIGHT, 0.55), maxf(1.5, s.y * 0.006), true)
+
+	# Grain, running away from the viewer along the perspective.
+	for i in 13:
+		var t := (float(i) + 0.5) / 13.0
+		var a := Vector2(s.x * 0.115, y).lerp(Vector2(s.x * 0.885, y), t)
+		var b := Vector2(-s.x * 0.06, s.y * 1.02).lerp(Vector2(s.x * 1.06, s.y * 1.02), t)
+		c.draw_line(a, b, Color(WOOD_LIGHT, 0.05 + 0.045 * sin(t * 23.0)), 1.0, true)
+
+	# The cloth, following the same perspective and hanging over the front edge.
+	var cloth := PackedVector2Array([
+		Vector2(s.x * 0.165, y + s.y * 0.045), Vector2(s.x * 0.835, y + s.y * 0.045),
+		Vector2(s.x * 1.01, s.y * 0.99), Vector2(-s.x * 0.01, s.y * 0.99),
+	])
+	var soft := _soften(cloth, s.y * 0.07)
+	c.draw_colored_polygon(soft, CLOTH)
 
 	# A worn lighter patch in the middle, where a lifetime of hands has rubbed
-	# the pile flat. Elliptical and very soft — it should be felt, not noticed.
-	var mid := cloth.position + cloth.size * 0.5
+	# the pile flat. Very soft — it should be felt, not noticed.
+	var mid := Vector2(s.x * 0.5, s.y * 0.66)
 	for i in range(6, 0, -1):
 		var f := float(i) / 6.0
-		c.draw_circle(mid, cloth.size.x * 0.34 * f, Color(CLOTH_WORN, 0.055))
+		c.draw_circle(mid, s.x * 0.30 * f, Color(CLOTH_WORN, 0.05))
 
-	# The cloth's own edge, a shade lighter than its face.
-	_rounded_outline(c, cloth, radius, CLOTH_EDGE, 2.0)
+	var edge := soft.duplicate()
+	edge.append(edge[0])
+	c.draw_polyline(edge, CLOTH_EDGE, 2.0, true)
+	return [soft, mid]
 
-	# Vignette: four soft bands darkening the outside, which puts the eye in
-	# the middle of the table where the cards are.
+
+## The Minitel, on the table at the reader's right: body, screen, keyboard. It
+## is the same machine the 3615 screen dials, and the room is where it lives.
+static func _draw_minitel(c: Control, s: Vector2) -> void:
+	var u := s.y * 0.30            # the whole thing is about this tall
+	var at := s * MINITEL_AT       # the front-bottom of it
+	# What it stands in. Without a shadow it floats, and a Minitel floating a
+	# centimetre above a tablecloth is the one thing nobody has seen.
+	_blob(c, at + Vector2(0, u * 0.02), u * 0.52, u * 0.10, Color(0, 0, 0, 0.32))
+
+	# The keyboard slab, nearest the viewer.
+	var kb := PackedVector2Array([
+		at + Vector2(-u * 0.42, -u * 0.10), at + Vector2(u * 0.42, -u * 0.10),
+		at + Vector2(u * 0.46, 0.0), at + Vector2(-u * 0.46, 0.0),
+	])
+	c.draw_colored_polygon(kb, MINITEL_SHADE)
+	c.draw_colored_polygon(_shift(kb, Vector2(0, -u * 0.035)), MINITEL_BODY)
+	# Keys, as a grid of small dark marks. Four rows is enough to read.
+	for row in 4:
+		for col in 9:
+			var k := at + Vector2((float(col) - 4.0) * u * 0.088,
+				-u * 0.055 - float(row) * u * 0.028)
+			c.draw_rect(Rect2(k - Vector2(u * 0.026, u * 0.010),
+				Vector2(u * 0.052, u * 0.019)), Color(MINITEL_DARK, 0.75))
+
+	# The body, standing up behind the keyboard.
+	var body_bottom := at.y - u * 0.17
+	var body := PackedVector2Array([
+		Vector2(at.x - u * 0.36, body_bottom - u * 0.62),
+		Vector2(at.x + u * 0.36, body_bottom - u * 0.62),
+		Vector2(at.x + u * 0.40, body_bottom),
+		Vector2(at.x - u * 0.40, body_bottom),
+	])
+	c.draw_colored_polygon(_soften(body, u * 0.05), MINITEL_SHADE)
+	c.draw_colored_polygon(_soften(_shift(body, Vector2(-u * 0.012, -u * 0.014)), u * 0.05), MINITEL_BODY)
+
+	# The screen: recessed, dark, with the phosphor still warm in it.
+	var screen := Rect2(at.x - u * 0.28, body_bottom - u * 0.55, u * 0.56, u * 0.40)
+	c.draw_rect(screen.grow(u * 0.018), MINITEL_DARK)
+	c.draw_rect(screen, MINITEL_SCREEN)
+	for i in range(4, 0, -1):
+		var f := float(i) / 4.0
+		c.draw_rect(screen.grow(-u * 0.02 + u * 0.05 * (1.0 - f)), Color(MINITEL_GLOW, 0.030))
+	# A few lines of text on it. Not words — at this size words would be noise;
+	# what reads is that something is written there.
+	const SCREEN_LINES := [0.72, 0.50, 0.84, 0.34]
+	for line in SCREEN_LINES.size():
+		var ly := screen.position.y + u * 0.062 + float(line) * u * 0.075
+		var lw: float = screen.size.x * SCREEN_LINES[line]
+		c.draw_line(Vector2(screen.position.x + u * 0.045, ly),
+			Vector2(screen.position.x + u * 0.045 + lw, ly), Color(MINITEL_GLOW, 0.40),
+			maxf(1.0, u * 0.016), true)
+
+
+## Where the props stand. They are BEHIND the screen's words, so where they go
+## is not a taste question: it is which parts of the table the reading screen
+## leaves empty. The left third from the bars down to the hand label is solid
+## text, and a cup sitting in the middle of "YOUR HAND — hover a card" is worse
+## than no cup. These two spots are clear in every layout the screen produces.
+const MINITEL_AT := Vector2(0.875, 0.535)
+const TEACUP_AT := Vector2(0.635, 0.435)
+
+
+## A cup of tea, going cold on the far side of the table where the sitter left
+## it. POUR THE TEA and WARM THE CUP are both cards; this is the cup they mean.
+static func _draw_teacup(c: Control, s: Vector2) -> void:
+	var u := s.y * 0.085
+	var at := s * TEACUP_AT
+
+	# Saucer, then the shadow it sits in.
+	c.draw_circle(at + Vector2(u * 0.06, u * 0.05), u * 0.62, Color(0, 0, 0, 0.28))
+	_blob(c, at, u * 0.60, u * 0.24, CHINA_SHADE)
+	_blob(c, at - Vector2(0, u * 0.03), u * 0.54, u * 0.20, CHINA)
+
+	# The cup: a body tapering down onto the saucer, an ellipse of tea on top.
+	var rim := at - Vector2(0, u * 0.44)
+	var body := PackedVector2Array([
+		rim + Vector2(-u * 0.34, 0), rim + Vector2(u * 0.34, 0),
+		at + Vector2(u * 0.24, -u * 0.06), at + Vector2(-u * 0.24, -u * 0.06),
+	])
+	c.draw_colored_polygon(_soften(body, u * 0.07), CHINA_SHADE)
+	c.draw_colored_polygon(_soften(_shift(body, Vector2(-u * 0.03, 0)), u * 0.07), CHINA)
+	# The handle, on the outside.
+	c.draw_arc(rim + Vector2(u * 0.40, u * 0.18), u * 0.17, -PI * 0.55, PI * 0.55,
+		12, CHINA_SHADE, maxf(1.5, u * 0.07), true)
+	_blob(c, rim, u * 0.34, u * 0.12, CHINA_SHADE)
+	_blob(c, rim, u * 0.28, u * 0.09, TEA)
+
+
+## The lamp overhead, as the light it throws rather than as a lamp: a warm pool
+## on the cloth falling off toward the edges of the room. Nothing in the game's
+## framing lets you see the ceiling, and a light you can feel is worth more than
+## a lamp you can point at.
+static func _draw_light(c: Control, s: Vector2, cloth: Array) -> void:
+	var mid: Vector2 = cloth[1]
+	for i in range(9, 0, -1):
+		var f := float(i) / 9.0
+		c.draw_circle(mid - Vector2(0, s.y * 0.06), s.x * 0.42 * f, Color(LAMPLIGHT, 0.012))
+
+
+## Vignette: soft bands darkening the outside, which puts the eye in the middle
+## of the table where the cards are — and, just as usefully, keeps the room from
+## competing with the words printed over it.
+static func _draw_vignette(c: Control, s: Vector2) -> void:
 	var depth := 22
 	for i in depth:
 		var f := float(i) / float(depth)
@@ -138,18 +397,28 @@ static func _draw_room(c: Control) -> void:
 ## to fixed fractions of the screen hold the first at arm's length and the
 ## second by the middle. Return a degenerate span (or pass nothing) to fall back
 ## to those fractions.
-static func hands(marks: Array, span: Callable = Callable()) -> Control:
+##
+## `reach` is how far the fingers extend. 1.0 is a hand holding something: the
+## fingers stretch to the top of the band and close over whatever is drawn
+## there. Below 1.0 they shorten and curl, and the hand OPENS — which is what a
+## pair of hands that has just let go of something looks like, and what the
+## reading screen asks for when a single card is left floating above them.
+static func hands(marks: Array, span: Callable = Callable(), reach: float = 1.0) -> Control:
 	var c := Control.new()
+	# Named so a test can find it. The hands are a layer with no text on them
+	# and no widget in them, so there is nothing else to identify them by.
+	c.name = "Hands"
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	c.custom_minimum_size.y = 110
 	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var held: Array = marks.duplicate()
-	c.draw.connect(func(): _draw_hands(c, held, span))
+	var r := clampf(reach, 0.35, 1.0)
+	c.draw.connect(func(): _draw_hands(c, held, span, r))
 	c.resized.connect(func(): c.queue_redraw())
 	return c
 
 
-static func _draw_hands(c: Control, marks: Array, span: Callable) -> void:
+static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float) -> void:
 	var s := c.size
 	if s.x < 80.0 or s.y < 20.0:
 		return
@@ -181,14 +450,50 @@ static func _draw_hands(c: Control, marks: Array, span: Callable) -> void:
 	# A floor on how close the two can come. A single card is barely wider than
 	# one hand, and following its edges put the two palms together in the middle
 	# of the screen covering the only card in play — praying over it rather than
-	# holding it.
-	half = maxf(half, hand_w * 0.95)
+	# holding it. An OPEN hand needs more room than a closed one, because its
+	# fingers curl inward across the palm, so the floor rises as the reach drops.
+	half = maxf(half, hand_w * (0.95 + (1.0 - reach) * 0.35))
 	# And never off the screen, however wide the fan gets.
 	var at := Vector2(clampf(centre - half, hand_w * 0.45, s.x * 0.5),
 		clampf(centre + half, s.x * 0.5, s.x - hand_w * 0.45))
 
-	_draw_hand(c, Vector2(at.x, s.y), 1.0, left)
-	_draw_hand(c, Vector2(at.y, s.y), -1.0, right)
+	_draw_hand(c, Vector2(at.x, s.y), 1.0, left, reach)
+	_draw_hand(c, Vector2(at.y, s.y), -1.0, right, reach)
+
+
+## The hand's proportions, as fractions of the band height. Four fingers,
+## longest in the middle, each two segments with a bend at the knuckle.
+const PALM_DROP := 0.02          # how far the palm sits below the band's bottom
+const KNUCKLE_Y := -0.19         # where the fingers leave the hand
+const FINGER_LENGTHS := [0.72, 0.86, 0.80, 0.60]
+const FINGER_WIDTHS := [0.048, 0.052, 0.050, 0.043]
+const FINGER_SPREAD := 0.135
+
+
+## Where one hand's four fingers are: [root, knuckle, tip, width] each, in the
+## band's own coordinates, with `base` on its bottom edge and `flip` +1 for the
+## left hand and -1 for the right.
+##
+## Public, and separate from the drawing, for the same reason mark_places() is:
+## a test that asks whether the fingertips clear a floating card has to read the
+## SAME geometry the drawing uses. Re-deriving it in the test would only assert
+## that two copies of a formula agree.
+static func finger_geometry(base: Vector2, h: float, flip: float, reach: float) -> Array:
+	var r := clampf(reach, 0.35, 1.0)
+	var palm := base + Vector2(0, PALM_DROP * h)
+	var out := Vector2(0.12 * flip, -1.0).normalized()
+	# The less a hand reaches, the more it curls. Simply shortening the fingers
+	# gives a hand with stubs on it; shortening AND bending them gives an open
+	# hand, which is what a hand that has just let go of something looks like.
+	var curl := Vector2((0.46 + (1.0 - r) * 1.30) * flip, -1.0).normalized()
+	var fingers: Array = []
+	for i in FINGER_LENGTHS.size():
+		var root := palm + Vector2((float(i) - 1.5) * FINGER_SPREAD * h * flip, KNUCKLE_Y * h)
+		var length: float = float(FINGER_LENGTHS[i]) * h * r
+		var knuckle := root + out * (length * 0.58)
+		fingers.append([root, knuckle, knuckle + curl * (length * 0.42),
+			float(FINGER_WIDTHS[i]) * h])
+	return fingers
 
 
 ## One hand, rooted at `base` (on the bottom edge) and angled inward.
@@ -199,7 +504,7 @@ static func _draw_hands(c: Control, marks: Array, span: Callable) -> void:
 ## the fingertips always land at the same place: a fixed fraction from the top.
 ## The caller positions the band; that alone decides how far up the cards the
 ## fingers reach.
-static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array) -> void:
+static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, reach: float = 1.0) -> void:
 	var h := c.size.y
 
 	# The back of the hand, sitting just above the bottom of the band so that a
@@ -208,25 +513,18 @@ static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array) -> 
 	# visible for the tattoos and scars that go on it to be anywhere at all.
 	# What falls below the band is the wrist, running off the bottom of the
 	# screen, which is where a hand reaching up to hold a fan comes from.
-	var palm := base + Vector2(0, 0.02 * h)
+	var palm := base + Vector2(0, PALM_DROP * h)
 	_blob(c, palm, 0.345 * h, 0.315 * h, SKIN_LINE)
 	_blob(c, palm, 0.330 * h, 0.300 * h, SKIN_SHADE)
 	_blob(c, palm + Vector2(0.01 * h * flip, 0.02 * h), 0.295 * h, 0.260 * h, SKIN)
 
-	# Four fingers, longest in the middle. Each is two segments with a bend at
-	# the knuckle: straight out of the hand, then curling in over the cards.
-	var lengths := [0.72, 0.86, 0.80, 0.60]
-	var widths := [0.048, 0.052, 0.050, 0.043]
+	var fingers := finger_geometry(base, h, flip, reach)
 	var segments: Array = []
-	for i in 4:
-		var spread := (float(i) - 1.5) * 0.135 * h * flip
-		var root := palm + Vector2(spread, -0.19 * h)
-		var length: float = float(lengths[i]) * h
-		var w: float = float(widths[i]) * h
-		var out := Vector2(0.12 * flip, -1.0).normalized()
-		var knuckle := root + out * (length * 0.58)
-		var curl := Vector2(0.46 * flip, -1.0).normalized()
-		var tip := knuckle + curl * (length * 0.42)
+	for finger in fingers:
+		var root: Vector2 = finger[0]
+		var knuckle: Vector2 = finger[1]
+		var tip: Vector2 = finger[2]
+		var w: float = finger[3]
 		segments.append([root, knuckle, w])
 
 		# Dark first, then the shaded skin, then the lit skin inset toward the
@@ -245,7 +543,8 @@ static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array) -> 
 			w * 0.50, w * 0.58, Color(0.85, 0.73, 0.66, 0.75))
 
 		# A crease at the bend, so a finger reads as jointed and not as a peg.
-		var across := Vector2(-out.y, out.x) * (w * 0.70)
+		var along := (knuckle - root).normalized()
+		var across := Vector2(-along.y, along.x) * (w * 0.70)
 		c.draw_line(knuckle - across, knuckle + across, Color(SKIN_LINE, 0.40), maxf(1.0, w * 0.16), true)
 
 		# The tendon running from the knuckle down the back of the hand. Four
@@ -433,29 +732,36 @@ static func _taper(c: Control, from: Vector2, to: Vector2, r0: float, r1: float,
 	c.draw_colored_polygon(pts, col)
 
 
-static func _rounded(c: Control, rect: Rect2, r: float, col: Color) -> void:
-	c.draw_colored_polygon(_rounded_points(rect, r), col)
+## The same polygon with every corner rounded off, using the corner itself as
+## the control point of a quadratic curve between the two edges that meet there.
+##
+## Nothing in this room is a rectangle: the table and the cloth are trapezoids
+## because they are drawn in perspective, and the Minitel's body and the cup are
+## tapered. An earlier rounded-RECTANGLE helper could draw none of them, so this
+## rounds whatever shape it is handed instead.
+static func _soften(points: PackedVector2Array, r: float, steps: int = 5) -> PackedVector2Array:
+	var n := points.size()
+	if n < 3 or r <= 0.0:
+		return points
+	var out := PackedVector2Array()
+	for i in n:
+		var prev := points[(i - 1 + n) % n]
+		var cur := points[i]
+		var next := points[(i + 1) % n]
+		# Never eat more than the edge can spare, or two roundings on a short
+		# edge cross each other and the polygon turns inside out.
+		var a := cur + (prev - cur).normalized() * minf(r, (prev - cur).length() * 0.45)
+		var b := cur + (next - cur).normalized() * minf(r, (next - cur).length() * 0.45)
+		for j in steps + 1:
+			var t := float(j) / float(steps)
+			out.append(a.lerp(cur, t).lerp(cur.lerp(b, t), t))
+	return out
 
 
-static func _rounded_outline(c: Control, rect: Rect2, r: float, col: Color, width: float) -> void:
-	var pts := _rounded_points(rect, r)
-	pts.append(pts[0])
-	c.draw_polyline(pts, col, width, true)
-
-
-static func _rounded_points(rect: Rect2, r: float) -> PackedVector2Array:
-	r = minf(r, minf(rect.size.x, rect.size.y) * 0.5)
-	var pts := PackedVector2Array()
-	var corners := [
-		[rect.position + Vector2(r, r), PI, 1.5 * PI],
-		[rect.position + Vector2(rect.size.x - r, r), 1.5 * PI, TAU],
-		[rect.position + rect.size - Vector2(r, r), 0.0, 0.5 * PI],
-		[rect.position + Vector2(r, rect.size.y - r), 0.5 * PI, PI],
-	]
-	for corner in corners:
-		var centre: Vector2 = corner[0]
-		var steps := 6
-		for i in steps + 1:
-			var a: float = lerpf(corner[1], corner[2], float(i) / float(steps))
-			pts.append(centre + Vector2(cos(a), sin(a)) * r)
-	return pts
+## The same polygon, moved. Used to lay a lit copy of a shape over its shaded
+## one, which is how everything in this room gets an edge without an outline.
+static func _shift(points: PackedVector2Array, by: Vector2) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in points:
+		out.append(p + by)
+	return out

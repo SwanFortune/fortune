@@ -887,6 +887,82 @@ tapered capsules, a few lines — not illustration, on the same terms as the
 sitter portraits. `docs/ART_GUIDE.md` says what an artist replaces and what
 they have to keep.
 
+## The room, and the card that floats in it
+
+The table came first and the rest of the room followed, because a table alone
+still reads as an abstraction: a green shape with cards on it. `scenes/Table.gd`
+now draws the whole parlour — a papered wall with a picture rail and a skirting
+board, a closed panelled door with a brass knob, a coat hung on a hook, a
+floor whose boards crowd together toward the wall, the table in perspective
+with its cloth, and, standing on it, a Minitel and a cup of tea going cold.
+
+**Nothing in it was invented.** Every prop is something the game already says:
+the door is the one someone knocks on and a run ends when the knocking stops;
+the coat is TAKE THEIR COAT; the cup is POUR THE TEA and WARM THE CUP; the
+cloth is SET DOWN THE CLOTH; the light is LIGHT THE LAMP, drawn as the pool it
+throws because the framing never shows a ceiling. The Minitel is the machine
+the 3615 screen has been dialling for the whole port without ever being drawn.
+
+Three things it got wrong first, each worth keeping written down:
+
+**A room drawn at full strength is a room you cannot read text on.** The first
+pass had a lit architrave the size of a door sitting directly under the header
+and wallpaper stripes competing with the sitter's name. Everything above the
+horizon is now deliberately darker than the table, the door frame is a border
+rather than a filled slab, and the props are placed in the gaps the reading
+screen's layout actually leaves (`MINITEL_AT`, `TEACUP_AT`). A prettier wall
+that makes a sentence hard to read is a bad trade.
+
+**The table was a shape cut out of a void.** In perspective it does not reach
+the sides of the screen, and what showed in the two wedges beside it was the
+flat colour of the empty UI background. Drawing a floor first — three lines of
+code — is the difference between furniture standing on something and a
+polygon floating on a colour.
+
+**A rounded-rectangle helper could draw none of it.** Nothing in the room is a
+rectangle: the table and the cloth are trapezoids because they are in
+perspective, the Minitel's body and the cup are tapered. `_soften()` rounds
+whatever polygon it is handed, using each corner as the control point of a
+quadratic curve between the two edges meeting there.
+
+### One card does not get held
+
+When the hand is down to a single card, clamping it between two fingertips the
+way five cards are clamped looked like a mistake — the hands closed on each
+other around one sliver. The last card FLOATS instead: lifted clear of two open
+hands, in its own pool of light, with a shadow where it would be lying if it
+were on the cloth, breathing gently up and down.
+
+Two mechanisms, both worth knowing about:
+
+**The hands open.** `Table.hands()` takes a `reach`. At 1.0 the fingers stretch
+to the top of the band and close over what is drawn there; below it they
+shorten AND curl — shortening alone gives a hand with stubs on it — which is
+what a pair of hands that has just let go looks like. It also raises the floor
+on how close the two hands may come, because an open hand's fingers curl inward
+across its own palm and need more room than a closed one's.
+
+**The card leaves its container**, since a ScrollContainer clips (it would cut
+the halo off at the band's edge and cut the card in half as it bobbed) and a
+Container re-asserts its children's positions every layout pass. That buys the
+freedom to tween `position` — and costs two things the container was doing:
+
+- **Its size.** `Control.size` is clamped up to the combined minimum, and a
+  card's name is an auto-wrapping Label whose minimum HEIGHT depends on the
+  width it has been given — which, before the first layout pass, is zero. So it
+  reported the height of a one-word-per-line column and the card came out
+  nearly twice as tall as every other card in the game, silently. Re-applying
+  the intended size on `minimum_size_changed` is what actually pins it.
+- **Being reachable.** A floating card that cannot take focus is a hand a
+  keyboard or gamepad player cannot play, and the run is stuck.
+
+`tests/test_scenes.gd` checks all three: the floating card is the same size as
+every other card, it takes focus, and the fingertips clear it — the last one
+read from `Table.finger_geometry()`, the same geometry the drawing uses, and
+asserted in BOTH directions, so open hands must clear the card and closed hands
+must cross the fan. Every guard was verified by stubbing the fix and watching
+the test go red.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

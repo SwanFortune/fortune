@@ -34,6 +34,16 @@ const HELD_HEIGHT := 250
 ## a card is covered.
 const HAND_OVERLAP := 42
 
+## The last card in hand floats instead of being held. LIFT is how far above
+## where it would sit; BOB is how far it drifts up and down; OPEN_REACH is what
+## the hands do underneath it — Table.hands() shortens and curls the fingers,
+## which turns two hands closing on a card into two hands that have let go of
+## one. Together they leave a clear gap between the fingertips and the card,
+## which is the whole point: you can see daylight under it.
+const LIFT := 14
+const BOB := 5.0
+const OPEN_REACH := 0.66
+
 
 func _ready() -> void:
 	var f: Dictionary = Run.state["f"]
@@ -131,47 +141,162 @@ func _ready() -> void:
 	held.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	v.add_child(held)
 
-	var scroll := UIKit.scroll()
-	scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	scroll.offset_bottom = CARD_BAND
-	held.add_child(scroll)
-	var fan := HFlowContainer.new()
-	fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Centred, so the hands that hold it are symmetric about the middle of the
-	# table rather than both crowding whichever side the cards happened to
-	# stack up on.
-	fan.alignment = FlowContainer.ALIGNMENT_CENTER
-	fan.add_theme_constant_override("h_separation", 8)
-	fan.add_theme_constant_override("v_separation", 8)
-	scroll.add_child(fan)
+	var just_drawn: Array = f.get("_justDrawn", [])
+	# THE LAST CARD IS NOT HELD IN A FAN. One card between two hands is not a
+	# fan at all, and clamping it between the fingertips the way five cards are
+	# clamped looked like a mistake — the hands closed on each other around a
+	# single sliver. It floats instead: lifted clear of two open hands, in its
+	# own light, breathing. See _lift().
+	var alone: bool = f["hand"].size() == 1
+	var focus_on: Node = self
+	var span: Callable
+	var hand_reach := 1.0
+
+	if alone:
+		var only: Dictionary = f["hand"][0]
+		var face := _lift(held, only, int(only.get("cost", 0)) <= int(f["energy"]))
+		if just_drawn.has(only["uid"]):
+			UIKit.animate_in(face)
+			_deal_sound(0.0)
+		span = _card_span.bind(face, held)
+		hand_reach = OPEN_REACH
+		focus_on = face
+	else:
+		var scroll := UIKit.scroll()
+		scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		scroll.offset_bottom = CARD_BAND
+		held.add_child(scroll)
+		var fan := HFlowContainer.new()
+		fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		# Centred, so the hands that hold it are symmetric about the middle of
+		# the table rather than both crowding whichever side the cards happened
+		# to stack up on.
+		fan.alignment = FlowContainer.ALIGNMENT_CENTER
+		fan.add_theme_constant_override("h_separation", 8)
+		fan.add_theme_constant_override("v_separation", 8)
+		scroll.add_child(fan)
+		var deal_index := 0
+		for c in f["hand"]:
+			var afford := int(c.get("cost", 0)) <= int(f["energy"])
+			var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
+			fan.add_child(face)
+			if just_drawn.has(c["uid"]):
+				UIKit.animate_in(face, deal_index * 0.06)
+				_deal_sound(deal_index * 0.06)
+				deal_index += 1
+		span = _fan_span.bind(fan, held)
+		if fan.get_child_count() > 0:
+			focus_on = fan
 
 	# The hands are rooted below the cards and reach UP over them, so the fan
 	# reads as held rather than as floating above a drawing of some fingers.
 	# Added AFTER the cards on purpose: the fingertips have to be in FRONT of
 	# their lower edge. Behind them, they are a picture of hands near a fan.
-	var hands := Table.hands(Run.state.get("marks", []), _fan_span.bind(fan, held))
+	var hands := Table.hands(Run.state.get("marks", []), span, hand_reach)
 	hands.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	hands.offset_top = CARD_BAND - HAND_OVERLAP
 	hands.offset_bottom = HELD_HEIGHT
 	held.add_child(hands)
-	# The fan is laid out by a container, so its width settles a frame after it
-	# is built and again whenever the window changes. Without this the hands are
-	# drawn once against whatever the fan measured first — which, on the frame
-	# the screen is built, is nothing at all.
-	fan.sort_children.connect(func(): hands.queue_redraw())
-	var just_drawn: Array = f.get("_justDrawn", [])
-	var deal_index := 0
-	for c in f["hand"]:
-		var afford := int(c.get("cost", 0)) <= int(f["energy"])
-		var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
-		fan.add_child(face)
-		if just_drawn.has(c["uid"]):
-			UIKit.animate_in(face, deal_index * 0.06)
-			_deal_sound(deal_index * 0.06)
-			deal_index += 1
+	# The cards are laid out by a container, so their width settles a frame
+	# after they are built and again whenever the window changes. Without this
+	# the hands are drawn once against whatever was measured first — which, on
+	# the frame the screen is built, is nothing at all.
+	held.resized.connect(func(): hands.queue_redraw())
+	for child in held.get_children():
+		if child is Container:
+			(child as Container).sort_children.connect(func(): hands.queue_redraw())
+
 	# The hand, not the run header above it. See Map.gd. Falls back to the whole
 	# screen when the hand is empty, so READ IT is still reachable.
-	UIKit.focus_first(fan if fan.get_child_count() > 0 else self)
+	UIKit.focus_first(focus_on)
+
+
+## One card, alone, floating between two open hands instead of clamped in them.
+##
+## It is a plain Control rather than the usual ScrollContainer + flow: a single
+## card never needs scrolling, and a ScrollContainer CLIPS, which would cut the
+## halo off at the band's edge and cut the card in half as it bobs above it.
+## Outside a container the card also owns its own `position`, so it can be
+## tweened without a layout pass snapping it back — which is exactly why the
+## fan's cards are animated with modulate and scale and never with position.
+##
+## Returns the card face, so the caller can focus it and measure it.
+func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
+	var band := Control.new()
+	band.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	band.offset_bottom = CARD_BAND
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	held.add_child(band)
+
+	var face := UIKit.card_face(card, _lay.bind(card["uid"]), afford)
+	var face_size := UIKit.card_face_size()
+
+	# The light it hangs in, and the shadow it casts on the cloth below. Both
+	# stay put while the card bobs: they are the lamp and the table, and neither
+	# of those moves. A halo that rose and fell with the card would read as a
+	# sticker attached to it.
+	var glow := Control.new()
+	glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.draw.connect(func(): _draw_lift(glow, face_size))
+	glow.resized.connect(func(): glow.queue_redraw())
+	band.add_child(glow)
+	band.add_child(face)
+
+	face.position.y = roundf((CARD_BAND - face_size.y) * 0.5) - LIFT
+	var settle := func() -> void:
+		if face.size != face_size:
+			face.size = face_size
+		face.position.x = roundf((band.size.x - face_size.x) * 0.5)
+	band.resized.connect(settle)
+	# Outside a container a card does NOT simply keep the size it is given.
+	# Control.size is clamped up to the combined minimum, and the card's name is
+	# an auto-wrapping Label whose minimum HEIGHT depends on the width it has
+	# been given — which, before the first layout pass, is zero. So it reports
+	# the height of a one-word-per-line column and the card comes out nearly
+	# twice as tall as every other card in the game. Re-applying the intended
+	# size whenever the minimum changes is what actually pins it; the y is left
+	# alone because the bob tween owns it.
+	face.minimum_size_changed.connect(settle)
+	settle.call()
+	settle.call_deferred()
+
+	# And it breathes. Position is safe to drive here for the reason in the
+	# docstring; UIKit.dur() folds in the animation-speed setting, and motion_off
+	# leaves it hanging perfectly still rather than removing the lift.
+	if not UIKit.motion_off():
+		var rest := face.position.y
+		var t := UIKit.bound_tween(face)
+		t.set_loops()
+		t.tween_property(face, "position:y", rest - BOB, UIKit.dur(2.1)) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		t.tween_property(face, "position:y", rest + BOB, UIKit.dur(2.1)) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	return face
+
+
+## The pool of light behind a lifted card, and its shadow on the cloth.
+func _draw_lift(c: Control, face_size: Vector2) -> void:
+	if c.size.x < 4.0:
+		return
+	var mid := Vector2(c.size.x * 0.5, roundf((CARD_BAND - face_size.y) * 0.5) - LIFT + face_size.y * 0.5)
+	for i in range(10, 0, -1):
+		var f := float(i) / 10.0
+		c.draw_circle(mid, face_size.x * 1.15 * f, Color(UIKit.GOLD, 0.016))
+	# The shadow sits where the card WOULD be if it were lying on the cloth,
+	# which is what says it is not.
+	var floor_y := mid.y + LIFT + face_size.y * 0.42
+	for i in range(5, 0, -1):
+		var f := float(i) / 5.0
+		_shadow(c, Vector2(mid.x, floor_y), face_size.x * 0.46 * f, face_size.y * 0.09 * f)
+
+
+static func _shadow(c: Control, at: Vector2, rx: float, ry: float) -> void:
+	var pts := PackedVector2Array()
+	for i in 24:
+		var a := float(i) / 24.0 * TAU
+		pts.append(at + Vector2(cos(a) * rx, sin(a) * ry))
+	c.draw_colored_polygon(pts, Color(0, 0, 0, 0.055))
 
 
 ## Where the fan actually starts and stops, in the coordinates of the hands
@@ -182,11 +307,22 @@ func _ready() -> void:
 ## the container has not measured — and Table.hands() falls back to fixed
 ## fractions of the screen rather than drawing two hands on top of each other.
 func _fan_span(fan: Control, origin: Control) -> Vector2:
-	if fan.get_child_count() == 0 or not is_instance_valid(origin):
+	return _span_of(fan.get_children(), origin)
+
+
+## The same, for the single lifted card, which has no container around it to
+## enumerate. Passing its `band` instead would measure the full-width glow
+## behind it and set the hands at the edges of the screen.
+func _card_span(face: Control, origin: Control) -> Vector2:
+	return _span_of([face], origin)
+
+
+func _span_of(cards: Array, origin: Control) -> Vector2:
+	if cards.is_empty() or not is_instance_valid(origin):
 		return Vector2.ZERO
 	var left := INF
 	var right := -INF
-	for child in fan.get_children():
+	for child in cards:
 		if child is Control:
 			var r: Control = child
 			left = minf(left, r.global_position.x)
