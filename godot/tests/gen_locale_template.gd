@@ -242,7 +242,7 @@ func _ui_strings() -> Array[String]:
 		# settings — controls
 		"DEFAULT", "press a key…",
 		"The whole game is playable from the keyboard or a gamepad: Tab and the arrow keys move between things, and Confirm activates whatever is highlighted.",
-		"Only the keyboard key is changed — an action keeps its gamepad button either way.",
+		"The gamepad button on the right is shown, not editable: only the keyboard key is rebindable, so changing one never costs you a controller button.",
 		"Confirm / play a card", "Back / close", "Read it", "Show your deck", "Show your marks",
 		# unlocks (sign-select)
 		"LOCKED —", "Finish a run as %s", "Reach %s of %s", "Finish two runs",

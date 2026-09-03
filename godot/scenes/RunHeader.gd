@@ -60,7 +60,22 @@ static func build(host: Node) -> Control:
 ## would be more machinery than three delegating lines.
 ##
 ## Returns true if it consumed the event, so the caller can mark it handled.
+##
+## WHILE AN OVERLAY IS OPEN THIS SWALLOWS EVERYTHING. That is the point, and it
+## was missing: the overlay is a modal panel drawn over the screen, but the
+## screen underneath kept its own keyboard handling, so pressing D twice opened
+## a second deck on top of the first, Escape closed nothing, and the reading's
+## own READ IT shortcut still fired at a board the player could not see.
 static func handle_shortcut(event: InputEvent, host: Node) -> bool:
+	var open := open_overlay(host)
+	if open != null:
+		if event.is_action_pressed("ui_cancel") or event.is_action_pressed("parlour_deck") \
+				or event.is_action_pressed("parlour_marks"):
+			_close(open)
+		# Swallowed either way: an in-run shortcut must not reach the screen
+		# behind a modal. Focus navigation (ui_left, Tab, ...) is routed by the
+		# viewport before _unhandled_input and is unaffected.
+		return true
 	if event.is_action_pressed("parlour_deck"):
 		_show_deck(host)
 		return true
@@ -68,6 +83,20 @@ static func handle_shortcut(event: InputEvent, host: Node) -> bool:
 		_show_marks(host)
 		return true
 	return false
+
+
+## Nodes in this group are the modal layers built by _overlay(). A group rather
+## than a static variable, because RunHeader is a stateless factory and a static
+## would outlive the scene it referred to.
+const OVERLAY_GROUP := "run_overlay"
+
+
+## The overlay currently open over `host`, or null.
+static func open_overlay(host: Node) -> Node:
+	for child in host.get_children():
+		if child.is_in_group(OVERLAY_GROUP) and not child.is_queued_for_deletion():
+			return child
+	return null
 
 
 static func _stat(caption: String, value: String, color: Color, tip: String) -> Control:
@@ -94,8 +123,15 @@ static func _chip(text: String, on_pressed: Callable) -> Control:
 ## screen underneath is untouched and simply revealed again on close.
 static func _overlay(host: Node, title: String, build_body: Callable) -> void:
 	var layer := Control.new()
+	layer.add_to_group(OVERLAY_GROUP)
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
 	layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Remembered so closing puts the highlight back where the player left it.
+	# Without this, coming out of the deck left focus on whatever the overlay
+	# had taken it from — in practice nowhere, since the overlay is freed.
+	var came_from: Control = host.get_viewport().gui_get_focus_owner()
+	if came_from != null:
+		layer.set_meta("came_from", came_from)
 
 	var scrim := ColorRect.new()
 	scrim.color = Color(0, 0, 0, 0.66)
@@ -120,12 +156,24 @@ static func _overlay(host: Node, title: String, build_body: Callable) -> void:
 	var t := UIKit.block(title, 20, UIKit.GOLD)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(t)
-	head.add_child(UIKit.button(I18n.t("CLOSE"), func(): layer.queue_free()))
+	head.add_child(UIKit.button(I18n.t("CLOSE"), func(): _close(layer)))
 	v.add_child(head)
 
 	build_body.call(v)
 	host.add_child(layer)
 	UIKit.animate_in(panel)
+	# Focus moves INTO the overlay. It did not, and the consequence was worse
+	# than a dead highlight: focus stayed on the card behind the scrim, so a
+	# keyboard or gamepad player who opened their deck and pressed Confirm
+	# played a card they could not see.
+	UIKit.focus_first(layer)
+
+
+static func _close(layer: Node) -> void:
+	var came_from = layer.get_meta("came_from", null)
+	layer.queue_free()
+	if came_from is Control and is_instance_valid(came_from) and not UIKit.going_away(came_from):
+		came_from.grab_focus()
 
 
 ## The deck, grouped by card so a deck with four copies of one card reads as

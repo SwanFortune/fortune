@@ -254,6 +254,26 @@ func key_label(action: String) -> String:
 	return "—"
 
 
+## The gamepad button bound to `action`, as something to show a player, or ""
+## if it has none. Shown beside the key in the controls pane: the screen
+## already promised that rebinding a key leaves the pad button alone, and a
+## promise about a button nobody can see is not much of one.
+##
+## The name comes from Godot's own as_text(), trimmed to the part that is
+## useful — it renders "Joypad Button 0 (Bottom Action, Sony Cross, Xbox A,
+## Nintendo B)", and the parenthesised list is the half that tells a player
+## anything.
+func pad_label(action: String) -> String:
+	if not InputMap.has_action(action):
+		return ""
+	for e in InputMap.action_get_events(action):
+		if e is InputEventJoypadButton:
+			var text := e.as_text()
+			var open := text.find("(")
+			return text.substr(open + 1, text.rfind(")") - open - 1) if open >= 0 else text
+	return ""
+
+
 func set_keybind(action: String, keycode: int) -> void:
 	var binds: Dictionary = get_value("keybinds")
 	binds[action] = keycode

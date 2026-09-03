@@ -122,6 +122,13 @@ them) without magnifying the layout, and **High contrast** swaps the whole
 palette for a black-and-white one. The game's usual dim greys are a deliberate
 look and a genuine problem for some people.
 
+### Gamepad
+
+Fully playable on a controller: the stick or D-pad moves the highlight, A
+confirms, B goes back, X reads, and the shoulder buttons open your deck and
+your marks. Rebinding in SETTINGS → CONTROLS changes the keyboard key only, so
+it never costs you a pad button; each action's button is shown beside its key.
+
 ## The Minitel
 
 Main menu → MINITEL. Dial **3615**, four letters, ENVOI. It is the game's

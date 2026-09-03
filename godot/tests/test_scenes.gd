@@ -135,10 +135,102 @@ func _visit_standalone() -> void:
 	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
 	await _visit_scene("minitel", "res://scenes/MinitelScreen.tscn")
 	await _test_minitel_screen_dials()
+	await _test_the_overlays_are_modal()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+## The deck and marks panels are MODAL — drawn over an in-run screen that is
+## still live underneath. Everything that makes a modal a modal was missing,
+## and each failure was silent:
+##   - focus stayed on the card behind the scrim, so a keyboard or gamepad
+##     player who opened their deck and pressed Confirm played a card they
+##     could not see. That is worse than a dead highlight;
+##   - pressing D again opened a SECOND deck on top of the first;
+##   - Escape closed nothing;
+##   - the reading's own READ IT shortcut still fired underneath.
+## Driven through RunHeader.handle_shortcut(), which is the same entry point
+## the in-run screens call from their _unhandled_input.
+func _test_the_overlays_are_modal() -> void:
+	# load() at call time, NOT preload(). preload() resolves while this test
+	# script is being compiled, which is before `godot -s` has registered the
+	# autoloads — and RunHeader refers to Run, UIKit and I18n. Preloading it
+	# here did not merely fail locally: it left RunHeader.gd compiled to
+	# nothing for the whole process, so every in-run screen lost its header and
+	# six unrelated cases in this file started failing. Fifth time this trap has
+	# been hit in this port; see autoload/Content.gd's header.
+	var RunHeaderScript := load("res://scenes/RunHeader.gd")
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for i in run.state["options"].size():
+		if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+			run.choose(i)
+			break
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var before: Control = instance.get_viewport().gui_get_focus_owner()
+	if before == null:
+		printerr("FAIL: precondition — the reading screen focused nothing to begin with")
+		instance.queue_free()
+		await process_frame
+		return
+
+	var deck := InputEventAction.new()
+	deck.action = "parlour_deck"
+	deck.pressed = true
+
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	await process_frame
+	var layer: Node = RunHeaderScript.open_overlay(instance)
+	var inside: Control = instance.get_viewport().gui_get_focus_owner()
+	if layer == null:
+		printerr("FAIL: the deck shortcut opened no overlay")
+	elif inside == null or not layer.is_ancestor_of(inside):
+		printerr("FAIL: opening the deck left focus outside it (%s) — Confirm would act on the hidden screen" % inside)
+	else:
+		print("--- the deck overlay takes focus ---")
+
+	# An in-run shortcut must not reach the screen behind a modal.
+	var read := InputEventAction.new()
+	read.action = "parlour_read"
+	read.pressed = true
+	if not RunHeaderScript.handle_shortcut(read, instance):
+		printerr("FAIL: READ IT was not swallowed while an overlay was open")
+
+	# A second press closes rather than stacking, and puts focus back.
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	await process_frame
+	if RunHeaderScript.open_overlay(instance) != null:
+		printerr("FAIL: pressing the deck shortcut twice stacked a second overlay")
+	elif instance.get_viewport().gui_get_focus_owner() != before:
+		printerr("FAIL: closing the deck did not put focus back where it came from")
+	else:
+		print("--- closing it restores focus ---")
+
+	# And so does ui_cancel.
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	var cancel := InputEventAction.new()
+	cancel.action = "ui_cancel"
+	cancel.pressed = true
+	RunHeaderScript.handle_shortcut(cancel, instance)
+	await process_frame
+	await process_frame
+	if RunHeaderScript.open_overlay(instance) != null:
+		printerr("FAIL: ui_cancel did not close the overlay")
+	else:
+		print("--- ui_cancel closes it ---")
+
+	instance.queue_free()
+	await process_frame
 
 
 ## The settings screen shows one section at a time, so the sweep above only

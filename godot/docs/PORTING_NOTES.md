@@ -551,6 +551,60 @@ places focus on a *disabled* Button quite happily, so the rail's disabled
 nothing. `test_scenes.gd` now fails on both, and both were confirmed by
 stubbing the fix and watching the test go red.
 
+## The gamepad claim was not true
+
+The controls pane told the player, in as many words, that the whole game is
+playable on a gamepad and that rebinding a key leaves the pad button alone.
+Neither sentence was true as the project loaded.
+
+`parlour_deck` and `parlour_marks` had no joypad event at all — so there was no
+button to keep, and a controller player could not open their deck or their
+marks. Worse, and this is the one that matters: **`ui_accept` and `ui_cancel`
+had none either**. A pad could move the highlight around every screen in the
+game and never confirm anything.
+
+The reason it stayed invisible is worth recording. `ui_left`, `ui_right`,
+`ui_up` and `ui_down` DO arrive with their D-pad and stick events, so
+navigation worked perfectly — which is exactly the half you notice. The comment
+in `project.godot` asserting that the built-ins "already carry sensible
+defaults on keyboard and gamepad" was written on the strength of that and was
+half right. The existing test spot-checked `parlour_read`, which happened to be
+the one action that did have a button.
+
+`ui_accept` and `ui_cancel` are now declared explicitly with their keyboard
+defaults plus A and B; the two overlay actions got the shoulder buttons.
+`tests/test_settings.gd` fails if any action a player needs is left without a
+joypad event, and the controls pane now SHOWS each pad button beside its key —
+a promise about a button nobody can see is not much of a promise.
+
+## The deck and marks panels were not modal
+
+They are drawn over an in-run screen that is still live underneath, and every
+single thing that makes a modal a modal was missing. Each failure was silent:
+
+- focus stayed on the card behind the scrim, so a keyboard or gamepad player
+  who opened their deck and pressed Confirm played a card they could not see —
+  worse than a dead highlight, because something happens;
+- pressing D again opened a second deck on top of the first;
+- Escape closed nothing;
+- the reading's own READ IT shortcut still fired at the board underneath.
+
+`RunHeader.handle_shortcut()` now swallows everything while an overlay is open,
+the overlay takes focus when it opens and gives it back when it closes, and the
+shortcut that opened it closes it. All four are asserted in
+`tests/test_scenes.gd` and each was confirmed by stubbing the fix.
+
+### The `preload` trap, for the fifth time
+
+Writing that test hit the same wall this document keeps describing, in its
+worst form yet. `preload("res://scenes/RunHeader.gd")` inside the test script
+resolves while the test is being COMPILED — before `godot -s` has registered
+the autoloads — and RunHeader refers to `Run`, `UIKit` and `I18n`. It did not
+merely fail locally: RunHeader stayed compiled to nothing for the whole
+process, so every in-run screen lost its header and six unrelated cases in the
+same file started failing. `load()` at call time is the fix, as it was the
+other four times.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

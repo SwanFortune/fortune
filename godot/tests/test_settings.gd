@@ -17,7 +17,10 @@
 ##   - a choice-valued setting cannot be left holding a value that is not one
 ##     of its choices — including one carried over from an older build, which
 ##     is what the fullscreen -> window_mode migration is about;
-##   - the SFX and UI buses are real, and the sliders move them.
+##   - the SFX and UI buses are real, and the sliders move them;
+##   - EVERY rebindable action has a gamepad button. The settings screen tells
+##     the player "an action keeps its gamepad button either way", and for two
+##     of the five that sentence was simply false — they had none to keep.
 extends SceneTree
 
 const TESTS := [
@@ -31,6 +34,7 @@ const TESTS := [
 	"_test_legacy_fullscreen_migrates",
 	"_test_the_buses_exist_and_the_volumes_reach_them",
 	"_test_reset_puts_everything_back",
+	"_test_every_action_has_a_gamepad_button",
 ]
 
 var failures: Array[String] = []
@@ -259,3 +263,41 @@ func _test_reset_puts_everything_back() -> void:
 		check(settings.get_value(key) == settings.default_for(key),
 			"'%s' should be back to its default, got %s" % [key, settings.get_value(key)])
 	done("_test_reset_puts_everything_back")
+
+
+## The controls pane says, in as many words, that the game is playable on a
+## gamepad and that rebinding a key leaves the pad button alone. Both sentences
+## are now checkable, and both were false: parlour_deck and parlour_marks
+## shipped with no joypad event at all, and — worse — so did ui_accept and
+## ui_cancel, so a pad could move the highlight around every screen in the game
+## and never confirm anything. ui_left and ui_down DO arrive with their D-pad
+## and stick events, which is exactly what made the gap invisible.
+func _test_every_action_has_a_gamepad_button() -> void:
+	for entry in settings.ACTIONS:
+		var action: String = entry[0]
+		var pads := 0
+		for e in InputMap.action_get_events(action):
+			if e is InputEventJoypadButton or e is InputEventJoypadMotion:
+				pads += 1
+		check(pads > 0, "'%s' (%s) has no gamepad button — it cannot be used on a controller" % [action, entry[1]])
+
+	# Moving the highlight has to work too, or the buttons above have nothing
+	# to be pressed on.
+	for action in ["ui_left", "ui_right", "ui_up", "ui_down"]:
+		var pads := 0
+		for e in InputMap.action_get_events(action):
+			if e is InputEventJoypadButton or e is InputEventJoypadMotion:
+				pads += 1
+		check(pads > 0, "'%s' has no gamepad event — focus cannot be moved with a controller" % action)
+
+	# And a rebind must still leave them alone, for every action rather than
+	# only the one this file used to spot-check.
+	for entry in settings.ACTIONS:
+		var action: String = entry[0]
+		var before: Array = InputMap.action_get_events(action).filter(func(e): return e is InputEventJoypadButton)
+		settings.set_keybind(action, KEY_F12)
+		var after: Array = InputMap.action_get_events(action).filter(func(e): return e is InputEventJoypadButton)
+		check(after.size() == before.size(),
+			"rebinding '%s' changed its gamepad buttons (%d -> %d)" % [action, before.size(), after.size()])
+		settings.clear_keybind(action)
+	done("_test_every_action_has_a_gamepad_button")

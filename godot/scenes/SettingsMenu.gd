@@ -202,7 +202,7 @@ func _pane_controls(v: VBoxContainer) -> void:
 	for entry in Settings.ACTIONS:
 		v.add_child(_keybind_row(entry[0], entry[1]))
 	v.add_child(UIKit.block(I18n.t(
-		"Only the keyboard key is changed — an action keeps its gamepad button either way."
+		"The gamepad button on the right is shown, not editable: only the keyboard key is rebindable, so changing one never costs you a controller button."
 	), 11, UIKit.DIM))
 
 
@@ -301,6 +301,13 @@ func _keybind_row(action: String, caption: String) -> Control:
 	)
 	reset.custom_minimum_size = Vector2(100, 32)
 	row.add_child(reset)
+
+	# The pad button, shown and not editable. Only the keyboard binding is
+	# rebindable (a rebind must never cost a controller player their button),
+	# so showing this as a control would promise an edit that is not offered —
+	# it is a label, next to the key it sits alongside on the same action.
+	var pad := Settings.pad_label(action)
+	row.add_child(UIKit.label(pad if pad != "" else "—", 11, UIKit.DIM))
 	return row
 
 
