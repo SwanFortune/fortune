@@ -1,0 +1,530 @@
+{
+  "_comment": "The prototype's own vector icons, path data verbatim from Parlour v23.dc.html (EL_ART ~line 979, SIGN_ART, PLANET_ART, ARCH). The port had been showing the fallback text glyphs the source uses only when art is unavailable — the drawn icons were never carried over. Each entry is a list of SVG primitives; autoload/Icons.gd wraps them in a 24x24 viewBox and rasterises them at whatever size and colour is asked for, so they stay crisp at any scale and no import step is involved (the same runtime-loading rule as art and audio, which is what lets a mod ship its own). Stroke width, viewBox and the badge proportions around them are the source's: see Icons.gd. Archetype colours are the source's oklch() values converted to sRGB hex once (Godot's Color() cannot parse oklch); the original string is kept beside each as color_source.",
+  "icons": {
+    "element": {
+      "fire": [
+        {
+          "tag": "path",
+          "d": "M13 2.5c.6 3.4 4.8 5 4.8 9.4A5.8 5.8 0 0 1 6.2 12c0-2.6 1.6-3.9 2-6.2 1.3 1.2 1.9 2.6 1.8 4.2 1.1-1.6 1.6-4.1 3-7.5z"
+        },
+        {
+          "tag": "path",
+          "d": "M12 21c-1.9 0-3.1-1.3-3.1-2.9 0-1.7 1.5-2.5 2-4.4 1.4 1.1 4.2 2.2 4.2 4.4C15.1 19.7 13.9 21 12 21z"
+        }
+      ],
+      "water": [
+        {
+          "tag": "path",
+          "d": "M12 3.5c3.6 5 5.8 7.6 5.8 10.4a5.8 5.8 0 0 1-11.6 0C6.2 11.1 8.4 8.5 12 3.5z"
+        }
+      ],
+      "air": [
+        {
+          "tag": "path",
+          "d": "M4 9.5h8.2a2.8 2.8 0 1 0-2.8-2.9"
+        },
+        {
+          "tag": "path",
+          "d": "M4 14.5h11a2.8 2.8 0 1 1-2.8 2.9"
+        }
+      ],
+      "earth": [
+        {
+          "tag": "path",
+          "d": "M12 3.2 20.4 8v8L12 20.8 3.6 16V8z"
+        },
+        {
+          "tag": "path",
+          "d": "M12 11.6 20.4 8"
+        },
+        {
+          "tag": "path",
+          "d": "M12 11.6 3.6 8"
+        },
+        {
+          "tag": "path",
+          "d": "M12 11.6v9.2"
+        }
+      ]
+    },
+    "sign": {
+      "aries": [
+        {
+          "tag": "path",
+          "d": "M12 20.5V9.5"
+        },
+        {
+          "tag": "path",
+          "d": "M12 9.5C12 6 9.8 3.5 7 3.5 4.6 3.5 3 5.4 3 7.8c0 1.2.4 2.3 1.1 3.1"
+        },
+        {
+          "tag": "path",
+          "d": "M12 9.5C12 6 14.2 3.5 17 3.5c2.4 0 4 1.9 4 4.3 0 1.2-.4 2.3-1.1 3.1"
+        }
+      ],
+      "taurus": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "15",
+          "r": "5"
+        },
+        {
+          "tag": "path",
+          "d": "M5.5 4c1.5 3 3.8 4.5 6.5 4.5S17 7 18.5 4"
+        }
+      ],
+      "gemini": [
+        {
+          "tag": "path",
+          "d": "M6 4.5h12"
+        },
+        {
+          "tag": "path",
+          "d": "M6 19.5h12"
+        },
+        {
+          "tag": "path",
+          "d": "M9.5 5v14"
+        },
+        {
+          "tag": "path",
+          "d": "M14.5 5v14"
+        }
+      ],
+      "cancer": [
+        {
+          "tag": "path",
+          "d": "M4.5 10.2c2.6-2.8 8.4-3.4 12.4-1.4"
+        },
+        {
+          "tag": "circle",
+          "cx": "18.6",
+          "cy": "9.4",
+          "r": "2.6"
+        },
+        {
+          "tag": "path",
+          "d": "M19.5 13.8c-2.6 2.8-8.4 3.4-12.4 1.4"
+        },
+        {
+          "tag": "circle",
+          "cx": "5.4",
+          "cy": "14.6",
+          "r": "2.6"
+        }
+      ],
+      "leo": [
+        {
+          "tag": "circle",
+          "cx": "8.5",
+          "cy": "13",
+          "r": "3.6"
+        },
+        {
+          "tag": "path",
+          "d": "M11.6 11c-.6-3 .4-5.6 2.4-6.4 2-.8 3.6.6 3.6 2.5 0 2-1.4 3.2-1.4 5.4 0 2 1 3.4 2.8 4"
+        }
+      ],
+      "virgo": [
+        {
+          "tag": "path",
+          "d": "M5 6.5v10"
+        },
+        {
+          "tag": "path",
+          "d": "M5 8c0-1.2.9-2 2-2s2 .8 2 2v8.5"
+        },
+        {
+          "tag": "path",
+          "d": "M9 8c0-1.2.9-2 2-2s2 .8 2 2v8.5"
+        },
+        {
+          "tag": "path",
+          "d": "M13 8c0-1.2 1-2 2.2-2 1.6 0 2.6 1.4 2.6 4 0 3.4-1.6 6-4.4 7.5"
+        },
+        {
+          "tag": "path",
+          "d": "M13.6 13.5c2.6 1 4.4 3 5 5.5"
+        }
+      ],
+      "libra": [
+        {
+          "tag": "path",
+          "d": "M3 19.5h18"
+        },
+        {
+          "tag": "path",
+          "d": "M3 14.5h5.4"
+        },
+        {
+          "tag": "path",
+          "d": "M15.6 14.5H21"
+        },
+        {
+          "tag": "path",
+          "d": "M8.4 14.5a3.9 3.9 0 0 1 7.2 0"
+        }
+      ],
+      "scorpio": [
+        {
+          "tag": "path",
+          "d": "M3 18.5V9.6"
+        },
+        {
+          "tag": "path",
+          "d": "M3 9.6c0-1.5 1-2.6 2.4-2.6s2.4 1.1 2.4 2.6v8.9"
+        },
+        {
+          "tag": "path",
+          "d": "M7.8 9.6c0-1.5 1-2.6 2.4-2.6s2.4 1.1 2.4 2.6v8.9"
+        },
+        {
+          "tag": "path",
+          "d": "M12.6 9.6c0-1.5 1-2.6 2.4-2.6s2.4 1.1 2.4 2.6v6.2l3.6 3.7"
+        },
+        {
+          "tag": "path",
+          "d": "M21 19.5h-3.2"
+        },
+        {
+          "tag": "path",
+          "d": "M21 19.5v-3.2"
+        }
+      ],
+      "sagittarius": [
+        {
+          "tag": "path",
+          "d": "M5 19L19 5"
+        },
+        {
+          "tag": "path",
+          "d": "M13 5h6v6"
+        },
+        {
+          "tag": "path",
+          "d": "M8.5 11.5l4 4"
+        }
+      ],
+      "capricorn": [
+        {
+          "tag": "path",
+          "d": "M3.5 7c1.7 0 2.8 1.3 2.8 3.2v7.3"
+        },
+        {
+          "tag": "path",
+          "d": "M6.3 10.2c0-2.1 1.4-3.2 2.9-3.2 1.6 0 2.7 1.3 2.7 3.2v6.9"
+        },
+        {
+          "tag": "path",
+          "d": "M11.9 17.1c1.6-2.4 4.2-2.6 5.7-1 1.6 1.7 1.1 4.6-1.2 5.4-2 .7-3.6-.5-3.6-2.2 0-1.6 1.3-2.6 2.9-2.4"
+        }
+      ],
+      "aquarius": [
+        {
+          "tag": "path",
+          "d": "M3.5 10l3.5-2.6L10.5 10l3.5-2.6L17.5 10l3-2.4"
+        },
+        {
+          "tag": "path",
+          "d": "M3.5 16l3.5-2.6L10.5 16l3.5-2.6L17.5 16l3-2.4"
+        }
+      ],
+      "pisces": [
+        {
+          "tag": "path",
+          "d": "M7 4c-3 3.5-3 12.5 0 16"
+        },
+        {
+          "tag": "path",
+          "d": "M17 4c3 3.5 3 12.5 0 16"
+        },
+        {
+          "tag": "path",
+          "d": "M4 12h16"
+        }
+      ],
+      "serpentarius": [
+        {
+          "tag": "path",
+          "d": "M4 15c2.5-6 6-8 9-6.5 2.6 1.3 2 4.6-.8 4.6-2 0-3-1.4-3-3C9.2 6.6 12 4 16 4c2.2 0 3.6.9 4 2"
+        },
+        {
+          "tag": "path",
+          "d": "M6.5 19.5c4-1 8.5-1 12.5.5"
+        }
+      ]
+    },
+    "planet": {
+      "MARS": [
+        {
+          "tag": "circle",
+          "cx": "10",
+          "cy": "14",
+          "r": "5"
+        },
+        {
+          "tag": "path",
+          "d": "M14 10l6-6"
+        },
+        {
+          "tag": "path",
+          "d": "M15 4h5v5"
+        }
+      ],
+      "VENUS": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "8.5",
+          "r": "4.6"
+        },
+        {
+          "tag": "path",
+          "d": "M12 13v7.5"
+        },
+        {
+          "tag": "path",
+          "d": "M8.5 17.5h7"
+        }
+      ],
+      "MERCURY": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "11",
+          "r": "4.2"
+        },
+        {
+          "tag": "path",
+          "d": "M12 15.2v5.3"
+        },
+        {
+          "tag": "path",
+          "d": "M9,18.5h6"
+        },
+        {
+          "tag": "path",
+          "d": "M8.4 4.2c.4 2 1.8 3 3.6 3s3.2-1 3.6-3"
+        }
+      ],
+      "MOON": [
+        {
+          "tag": "path",
+          "d": "M15.5 3.5a9 9 0 1 0 0 17 10.5 10.5 0 0 1 0-17z"
+        }
+      ],
+      "SUN": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "12",
+          "r": "7.5"
+        },
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "12",
+          "r": "1.6",
+          "fill": "currentColor"
+        }
+      ],
+      "PLUTO": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "19",
+          "r": "2"
+        },
+        {
+          "tag": "path",
+          "d": "M12 17V9"
+        },
+        {
+          "tag": "path",
+          "d": "M6.5 9.5a5.5 5.5 0 0 1 11 0"
+        },
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "7.5",
+          "r": "2.6"
+        }
+      ],
+      "JUPITER": [
+        {
+          "tag": "path",
+          "d": "M5 5.5c2.6-1.6 5 0 5 3v9"
+        },
+        {
+          "tag": "path",
+          "d": "M4.5 17.5h11"
+        },
+        {
+          "tag": "path",
+          "d": "M15.5 4v13.5"
+        }
+      ],
+      "SATURN": [
+        {
+          "tag": "path",
+          "d": "M5 5.5h6"
+        },
+        {
+          "tag": "path",
+          "d": "M8 4v9"
+        },
+        {
+          "tag": "path",
+          "d": "M8 13c3-2.5 6-1.6 7 1 1 2.6-.6 5.4-3.4 5.4"
+        }
+      ],
+      "URANUS": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "17.5",
+          "r": "3"
+        },
+        {
+          "tag": "path",
+          "d": "M12 14.5V4"
+        },
+        {
+          "tag": "path",
+          "d": "M7 6.5v5"
+        },
+        {
+          "tag": "path",
+          "d": "M17 6.5v5"
+        },
+        {
+          "tag": "path",
+          "d": "M7 9h10"
+        }
+      ],
+      "NEPTUNE": [
+        {
+          "tag": "path",
+          "d": "M12 4v16.5"
+        },
+        {
+          "tag": "path",
+          "d": "M8.5 19.5h7"
+        },
+        {
+          "tag": "path",
+          "d": "M5 6.5v4a7 7 0 0 0 14 0v-4"
+        }
+      ],
+      "CHIRON": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "7.5",
+          "r": "3.4"
+        },
+        {
+          "tag": "path",
+          "d": "M12 11v9.5"
+        },
+        {
+          "tag": "path",
+          "d": "M12 20.5l-4-3.2 4-3.2"
+        }
+      ]
+    }
+  },
+  "archetypes": {
+    "digging": {
+      "color": "#eeae7b",
+      "text": "Scratch below the surface.",
+      "art": [
+        {
+          "tag": "path",
+          "d": "M6 6v12"
+        },
+        {
+          "tag": "path",
+          "d": "M12 6v12"
+        },
+        {
+          "tag": "path",
+          "d": "M18 6v12"
+        }
+      ],
+      "_color_source": "oklch(0.80 0.10 60)"
+    },
+    "switch": {
+      "color": "#76be86",
+      "text": "Change the subject.",
+      "art": [
+        {
+          "tag": "path",
+          "d": "M4 9h13l-3-3"
+        },
+        {
+          "tag": "path",
+          "d": "M20 15H7l3 3"
+        }
+      ],
+      "_color_source": "oklch(0.74 0.11 150)"
+    },
+    "pinpoint": {
+      "color": "#c0abe9",
+      "text": "Some words hit right there.",
+      "art": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "12",
+          "r": "7"
+        },
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "12",
+          "r": "1.6",
+          "fill": "currentColor"
+        }
+      ],
+      "_color_source": "oklch(0.78 0.09 300)"
+    },
+    "channel": {
+      "color": "#eec469",
+      "text": "Find the strength within.",
+      "art": [
+        {
+          "tag": "path",
+          "d": "M12 4v11"
+        },
+        {
+          "tag": "path",
+          "d": "M8 11l4 4 4-4"
+        },
+        {
+          "tag": "path",
+          "d": "M5 20h14"
+        }
+      ],
+      "_color_source": "oklch(0.84 0.12 85)"
+    },
+    "timing": {
+      "color": "#f594c3",
+      "text": "Proper syntax goes a long way.",
+      "art": [
+        {
+          "tag": "circle",
+          "cx": "12",
+          "cy": "12",
+          "r": "7.5"
+        },
+        {
+          "tag": "path",
+          "d": "M12 8v4.5l3 2"
+        }
+      ],
+      "_color_source": "oklch(0.78 0.13 350)"
+    }
+  }
+}

@@ -41,13 +41,14 @@ func _ready() -> void:
 
 func _opt_button(o: Dictionary, i: int) -> Control:
 	var lines: Array = []
+	var leading: Control = null
 	match o["kind"]:
 		"sitter", "elite", "boss":
 			var s: Dictionary = o["sitter"]
 			var q: Dictionary = o["quirk"]
 			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
 			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
-			lines.append(["%s · %s %s (%s) · %s" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), UIKit.el_tag(s["el"])], 12, UIKit.el_color(s["el"])])
+			lines.append(["%s · %s %s (%s)" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn")], 12, UIKit.el_color(s["el"])])
 			lines.append([I18n.sign_rule(q, s), 11, UIKit.DIM])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
 			var job: Dictionary = Content.get_job(s["role"])
@@ -62,6 +63,11 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			if tw.get("t", "") != "":
 				lines.append([I18n.fill(I18n.twist_text(tw), str(s.get("p", "they"))), 11, UIKit.RED])
 			lines.append([I18n.sitter_field(s, "brings"), 12, UIKit.DIM])
+			# Sitters wear the same sigil as readers do: their SIGN, drawn in
+			# their element's colour. Those two facts — which denial you are up
+			# against and which cards are worth more — are the whole of the
+			# decision this screen asks for, and they were a line of small text.
+			leading = _sigil(str(q.get("k", "")), str(s.get("el", "")))
 		"break":
 			var rest: Dictionary = o["rest"]
 			if rest.get("kind", "") == "SHOP":
@@ -71,7 +77,23 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 				lines.append([rest.get("head", "EVENT"), 13, UIKit.GOLD])
 				lines.append([rest.get("title", ""), 17, UIKit.INK])
 				lines.append([rest.get("line", ""), 12, UIKit.DIM])
-	return UIKit.panel_button(lines, _choose.bind(i))
+	return UIKit.panel_button(lines, _choose.bind(i), true, "", leading)
+
+
+## A sitter's sigil: their sign, in their element's colour — the same drawing
+## the sign-select screen puts beside a reader, so the two read as one system.
+func _sigil(sign_key: String, el: String) -> Control:
+	var tint: Color = UIKit.el_color(el) if el != "" else UIKit.GOLD
+	var col := UIKit.vbox(4)
+	col.custom_minimum_size.x = 46
+	var badge := UIKit.icon_badge("sign", sign_key, 42, tint)
+	if badge != null:
+		col.add_child(badge)
+	var el_b := UIKit.el_badge(el, 20)
+	if el_b != null:
+		el_b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		col.add_child(el_b)
+	return col
 
 
 func _choose(i: int) -> void:

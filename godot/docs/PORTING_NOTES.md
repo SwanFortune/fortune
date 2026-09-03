@@ -786,6 +786,32 @@ labels, not by testing the flag. The flag was already being set correctly; what
 was missing was anyone showing it, and a test of the flag would have passed
 throughout.
 
+## A whole visual system had not been carried over
+
+The prototype draws real line art for every element, every zodiac sign, every
+ruling planet and every card archetype — `EL_ART`, `SIGN_ART`, `PLANET_ART` and
+`ARCH`, about thirty pieces of it. This port had been showing △▽◇□ instead,
+which are the CHARACTER FALLBACK the source itself uses only when its own art
+is unavailable. The icons were in the design the whole time and nobody had
+looked for them.
+
+They are now `data/base/icons.json`, path data verbatim, rasterised by
+`autoload/Icons.gd` through `Image.load_svg_from_string()`. Nothing in this
+project parses SVG: the paths go straight to Godot's renderer, which means they
+stay exactly as authored (arcs and all), each icon is rasterised at the pixel
+size it will actually be drawn at — so it is crisp under `text_scale` and
+`ui_scale`, where a fixed-size PNG would go soft — and there is no import step,
+so icons ride the ordinary content pipeline and a mod can ship its own.
+
+**The bug that came with it is the interesting part.** `Color.to_html()` returns
+bare hex digits; SVG requires a leading `#`; and an invalid colour in SVG is not
+an error — the stroke simply renders as nothing. Every badge came out as an
+empty tinted square, and the probe that was supposed to catch it missed because
+it used a hardcoded `"#d4b038"` literal. `tests/test_icons.gd` now rasterises
+every icon and COUNTS THE PIXELS, which is the only check that can tell a
+drawing from a well-formed request that drew nothing; stubbing the `#` back out
+turns thirty assertions red.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

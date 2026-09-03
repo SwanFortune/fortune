@@ -37,14 +37,38 @@ func _ready() -> void:
 			["%s — %s" % [I18n.reader_field(r, "name"), I18n.reader_field(r, "sign")], 16,
 				UIKit.DIM if locked else UIKit.INK],
 			[I18n.reader_field(r, "line"), 12, UIKit.DIM],
-			["%s  %s" % [UIKit.el_glyph(r["el"]), I18n.reader_field(r, "rule")], 12,
-				UIKit.DIM if locked else el_c],
+			[I18n.reader_field(r, "rule"), 12, UIKit.DIM if locked else el_c],
 			["%s %s" % [I18n.t("Starts with:"), ", ".join(r.get("deck", []))], 11, UIKit.DIM],
 		]
 		if locked:
 			lines.append(["%s %s" % [I18n.t("LOCKED —"), Profile.unlock_text(r.get("unlock", null))], 12, UIKit.GOLD])
-		list.add_child(UIKit.panel_button(lines, _pick.bind(i), not locked))
+		list.add_child(UIKit.panel_button(lines, _pick.bind(i), not locked, "", _sigil(r, locked)))
 	UIKit.focus_first(self)
+
+
+## The reader's own sigil: their zodiac sign over their ruling planet, both
+## drawn from the prototype's line art (SIGN_ART / PLANET_ART).
+##
+## The source colours the sign in the reader's element, EXCEPT the thirteenth —
+## Serpentarius is `wild`, belongs to no element, and is drawn in gold. That is
+## a rule in the data (`wild`), not a special case here: any reader a pack marks
+## wild gets the same treatment.
+func _sigil(r: Dictionary, locked: bool) -> Control:
+	var tint: Color = UIKit.GOLD if bool(r.get("wild", false)) else UIKit.el_color(str(r.get("el", "")))
+	if locked:
+		tint = Color(tint, 0.4)
+	var col := UIKit.vbox(4)
+	col.custom_minimum_size.x = 52
+	var sign_badge := UIKit.icon_badge("sign", str(r.get("k", "")), 46, tint)
+	if sign_badge != null:
+		col.add_child(sign_badge)
+	var planet := str(r.get("planet", ""))
+	if planet != "":
+		var p := UIKit.icon_badge("planet", planet, 22, Color(UIKit.INK, 0.55 if not locked else 0.3))
+		if p != null:
+			p.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			col.add_child(p)
+	return col
 
 
 func _pick(i: int) -> void:

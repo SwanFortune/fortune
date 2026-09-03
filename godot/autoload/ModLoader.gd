@@ -39,7 +39,8 @@ const ARRAY_KEY_FIELDS := {
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
-const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes"]
+const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes",
+	"icons", "archetypes"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]

@@ -149,6 +149,10 @@ func _collect_sources() -> Dictionary:
 		var lines: Array = content.minitel_codes[code].get("screen", [])
 		for li in lines.size():
 			_put(src, "minitel/%s/screen%d" % [code, li], lines[li])
+	# The card archetypes' one-line descriptions — the source's own words for
+	# what each family of card is for. Shown in a card's tooltip.
+	for key in content.archetypes:
+		_put(src, "archetype/" + key + "/text", content.archetypes[key].get("text", ""))
 	for tw in content.elite_twists:
 		var tid: String = "twist/" + art.slug(str(tw.get("tag", "")))
 		_put(src, tid + "/tag", tw.get("tag", ""))

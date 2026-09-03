@@ -357,7 +357,12 @@ static func going_away(node: Node) -> bool:
 ## Label fighting for a ~20px column regardless of size flags. PanelContainer
 ## is a real Container top-to-bottom, so width flows down and each Label's
 ## wrapped height correctly flows back up into how tall this row ends up.
-static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = true, tooltip: String = "") -> Control:
+## `leading` is an optional Control placed to the left of the text — the sign
+## icon on a reader row, the element badge on a sitter. It is a Control rather
+## than another line because that is the whole point: these are the drawn icons
+## from the design, not more characters.
+static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = true,
+		tooltip: String = "", leading: Control = null) -> Control:
 	var wrap := PanelContainer.new()
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrap.tooltip_text = tooltip
@@ -378,7 +383,18 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 		var size: int = entry[1] if entry.size() > 1 else 14
 		var color: Color = entry[2] if entry.size() > 2 else INK
 		v.add_child(block(text, size, color))
-	wrap.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	if leading == null:
+		wrap.add_child(v)
+		return wrap
+	var row := hbox(12)
+	# Top-aligned, not centred: the icon belongs beside the row's first line,
+	# and a four-line row would otherwise float it halfway down the panel.
+	leading.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	row.add_child(leading)
+	row.add_child(v)
+	wrap.add_child(row)
 	return wrap
 
 
@@ -707,6 +723,87 @@ static func sitter_portrait_art(el: String, hp_ratio: float, art: Texture2D) -> 
 	return port
 
 
+## A tinted rounded-square badge holding one of the prototype's vector icons —
+## its elIcon()/archIcon(), proportions and all: the icon at 68% of the box, a
+## corner radius of 30%, the ground at 24% of the icon's colour and a hairline
+## border at 52%.
+##
+## Returns null when there is no such icon, so a caller can fall back to the
+## text glyph rather than leaving a hole. Never assume one exists: a mod can
+## add elements without adding art for them.
+static func icon_badge(kind: String, name: String, size: int, color: Color) -> Control:
+	var px := int(round(size * Icons.ICON_FRACTION))
+	var tex := Icons.texture(kind, name, px * 2, color)   # 2x, for a crisp downscale
+	if tex == null:
+		return null
+
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(size, size)
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color, Icons.BADGE_FILL_ALPHA)
+	style.border_color = Color(color, Icons.BADGE_BORDER_ALPHA)
+	style.set_border_width_all(1)
+	var r := int(round(size * Icons.RADIUS_FRACTION))
+	for corner in ["corner_radius_top_left", "corner_radius_top_right",
+			"corner_radius_bottom_left", "corner_radius_bottom_right"]:
+		style.set(corner, r)
+	style.set_content_margin_all(int(round((size - px) * 0.5)))
+	box.add_theme_stylebox_override("panel", style)
+
+	var img := TextureRect.new()
+	img.texture = tex
+	img.custom_minimum_size = Vector2(px, px)
+	img.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	img.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	img.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(img)
+	return box
+
+
+## The badge for a card's archetype, in the archetype's own colour. Null when
+## the card has none — twenty-two of the base cards are plain.
+static func archetype_badge(key: String, size: int = 16) -> Control:
+	if key == "":
+		return null
+	var rec: Dictionary = Content.archetypes.get(key, {})
+	if rec.is_empty():
+		return null
+	return icon_badge("archetype", key, size, Color(str(rec.get("color", "#eae4d7"))))
+
+
+## What an archetype means, for a card's tooltip — the source's own one-line
+## description of each family.
+static func archetype_text(key: String) -> String:
+	var rec: Dictionary = Content.archetypes.get(key, {})
+	if rec.is_empty():
+		return ""
+	return "%s — %s" % [key.to_upper(), I18n.content("archetype/" + key, "text", str(rec.get("text", "")))]
+
+
+## The badge for an element, in the element's own colour.
+static func el_badge(el: String, size: int = 18) -> Control:
+	if el == null or str(el) == "":
+		return null
+	return icon_badge("element", str(el), size, el_color(str(el)))
+
+
+## An element badge followed by its name, as a row — the Control counterpart of
+## el_tag(), which stays for the places that genuinely need a String (tooltips,
+## and text built by Run.gd). Falls back to el_tag() when there is no icon.
+static func el_row(el: String, size: int = 16, color: Color = INK) -> Control:
+	var row := hbox(6)
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	var badge := el_badge(el, size)
+	if badge != null:
+		row.add_child(badge)
+		row.add_child(label(I18n.element_field(str(el), "label"), size - 3, color))
+	else:
+		row.add_child(label(el_tag(str(el)), size - 3, color))
+	return row
+
+
 static func el_color(el: String) -> Color:
 	var elements: Dictionary = Content.elements
 	var hex: String = elements.get(el, {}).get("color", "#EAE4D7")
@@ -732,6 +829,9 @@ static func el_tag(el: String) -> String:
 	return "%s %s" % [el_glyph(el), I18n.element_field(el, "label")]
 
 
+## The card's name, with its element glyph in front. Still used where a card
+## has to be a STRING — deck lists, rewards, the Library — but NOT on the card
+## face any more: that carries the drawn badge instead (see card_face()).
 static func card_summary(c: Dictionary) -> String:
 	var bits: Array = []
 	var el = c.get("el")
@@ -789,6 +889,9 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 	var el = c.get("el")
 	var el_c: Color = el_color(el) if el != null and el != "" else DIM
 	var tip_lines: Array = [card_text(c)]
+	var arch_tip := archetype_text(str(c.get("a", "")))
+	if arch_tip != "":
+		tip_lines.append(arch_tip)
 	if I18n.card_flavor(c) != "":
 		tip_lines.append(I18n.card_flavor(c))
 	var kw := card_keyword_tooltip(c)
@@ -815,6 +918,18 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 	restore_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	top.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(cost_l)
+	# The element badge sits between cost and restore, which is the only spare
+	# room on a card this size. The border already carries the element's colour;
+	# the badge is what tells a player WHICH element without reading the name.
+	var face_badge := el_badge(el, int(round(17 * text_scale))) if el != null and str(el) != "" else null
+	if face_badge != null:
+		if not enabled:
+			face_badge.modulate = Color(1, 1, 1, 0.45)
+		# Expand-and-centre, so the badge sits in the middle of the top row
+		# rather than crowding the cost: the restore label takes the leftover
+		# otherwise and pushes it left.
+		face_badge.size_flags_horizontal = Control.SIZE_EXPAND | Control.SIZE_SHRINK_CENTER
+		top.add_child(face_badge)
 	top.add_child(restore_l)
 	v.add_child(top)
 
@@ -822,7 +937,7 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 	# it on a scrim (so it stays legible against any illustration); with none,
 	# the name simply centres in the empty band exactly as before.
 	var art := Art.card_texture(c)
-	var name_l := block(card_summary(c), 12, INK if enabled else DIM)
+	var name_l := block(I18n.card_name(c), 12, INK if enabled else DIM)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	if art == null:
 		name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -859,10 +974,23 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 		tags.append(I18n.t("ONCE"))
 	if c.get("pierce", false):
 		tags.append(I18n.t("PIERCE"))
+
+	# The card's ARCHETYPE — the source's five families of card (digging,
+	# switch, pinpoint, channel, timing), each with its own drawn icon and its
+	# own colour. Thirty-four of the fifty-six base cards carry one and the port
+	# had never shown it at all; a player could not see that two cards were the
+	# same kind of move without reading both.
+	var foot := hbox(6)
+	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	var arch_badge := archetype_badge(str(c.get("a", "")), 16)
+	if arch_badge != null:
+		if not enabled:
+			arch_badge.modulate = Color(1, 1, 1, 0.45)
+		foot.add_child(arch_badge)
 	if tags.size() > 0:
-		var tag_l := label(" · ".join(tags), 9, DIM)
-		tag_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		v.add_child(tag_l)
+		foot.add_child(label(" · ".join(tags), 9, DIM))
+	if foot.get_child_count() > 0:
+		v.add_child(foot)
 
 	wrap.add_child(v)
 	return wrap

@@ -55,9 +55,10 @@ godot --headless --path godot -s tests/test_dead_content.gd    # content fields 
 godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code channel + secret events
 godot --headless --path godot -s tests/test_modloader.gd       # pack discovery, merge rules, every error path
 godot --headless --path godot -s tests/test_boot.gd            # the game actually starts
+godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
 ```
 
-All sixteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All seventeen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker
@@ -144,6 +145,19 @@ Fully playable on a controller: the stick or D-pad moves the highlight, A
 confirms, B goes back, X reads, and the shoulder buttons open your deck and
 your marks. Rebinding in SETTINGS → CONTROLS changes the keyboard key only, so
 it never costs you a pad button; each action's button is shown beside its key.
+
+## The icons
+
+Every element, sign and planet is drawn, not spelled. The path data is the
+prototype's own line art (`EL_ART`, `SIGN_ART`, `PLANET_ART` in
+`Parlour v23.dc.html`), carried over verbatim into `data/base/icons.json` and
+rasterised at runtime by `autoload/Icons.gd` — at the exact pixel size and
+colour each place needs, so they stay crisp under `text_scale` and `ui_scale`
+and need no import step. A mod ships its own icons the same way it ships art.
+
+The badge around them is the source's geometry too: the icon at 68% of its box,
+a 30% corner radius, the ground at 24% of the icon's colour and a hairline
+border at 52%.
 
 ## Learning the game
 

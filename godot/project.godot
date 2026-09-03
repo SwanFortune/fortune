@@ -22,6 +22,7 @@ Save="*res://autoload/Save.gd"
 Profile="*res://autoload/Profile.gd"
 Minitel="*res://autoload/Minitel.gd"
 Version="*res://autoload/Version.gd"
+Icons="*res://autoload/Icons.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
 

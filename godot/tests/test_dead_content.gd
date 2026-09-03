@@ -44,6 +44,14 @@ const SELF := "test_dead_content.gd"
 ## "dynamic" — read by variable, so a literal would not appear.
 ## "dead"    — genuinely unread. Kept rather than deleted, and named here so
 ##             it stays visible instead of being rediscovered later.
+## Registries whose dictionary keys are IDS FROM ELSEWHERE rather than field
+## names. `icons` is {kind: {name: art}} — two levels deep, unlike every other
+## dict registry — so its inner keys are element/sign/planet ids, looked up
+## dynamically by whatever is being drawn. Scanning them as though they were
+## fields asks "does the literal 'MERCURY' appear in a .gd file", which it
+## never will and never should.
+const ID_KEYED := ["icons"]
+
 const KNOWN := {
 	# I18n.fill() looks these up as table[token], where token comes from a
 	# regex over the sentence — no literal ever appears.
@@ -228,6 +236,8 @@ func _gather_paths(dir_path: String, out: Array[String]) -> void:
 func _keys_in_content() -> Dictionary:
 	var out: Dictionary = {}
 	for reg in content.registries:
+		if ID_KEYED.has(str(reg)):
+			continue
 		var value = content.registries[reg]
 		var records: Array = []
 		if typeof(value) == TYPE_ARRAY:

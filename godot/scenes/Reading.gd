@@ -43,7 +43,16 @@ func _ready() -> void:
 	header.add_child(UIKit.sitter_portrait(s["el"], hp_ratio, Art.sitter_texture(s)))
 	var header_text := UIKit.vbox(4)
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_text.add_child(UIKit.block("%s · %s   %s" % [I18n.sitter_field(s, "name"), I18n.sitter_field(s, "role"), UIKit.el_tag(s["el"])], 18, UIKit.INK))
+	# The element as its drawn badge rather than a character. The sitter's
+	# element decides what every card in hand is worth against them, so it is
+	# worth a glance rather than a squint.
+	var who := UIKit.hbox(10)
+	who.add_child(UIKit.label("%s · %s" % [I18n.sitter_field(s, "name"), I18n.sitter_field(s, "role")], 18, UIKit.INK))
+	var el_badge := UIKit.el_badge(str(s["el"]), 24)
+	if el_badge != null:
+		who.add_child(el_badge)
+	who.add_child(UIKit.label(I18n.element_field(str(s["el"]), "label"), 14, UIKit.el_color(s["el"])))
+	header_text.add_child(who)
 	header_text.add_child(UIKit.block("%s %s — %s: %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_rule(q, s)], 12, UIKit.DIM))
 	header.add_child(header_text)
 	v.add_child(header)
