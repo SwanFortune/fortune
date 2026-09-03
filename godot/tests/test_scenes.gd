@@ -135,11 +135,46 @@ func _visit_standalone() -> void:
 	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
 	await _visit_scene("minitel", "res://scenes/MinitelScreen.tscn")
 	await _test_minitel_screen_dials()
+	await _visit_scene("how to play", "res://scenes/HowToPlay.tscn")
+	await _visit_scene("credits", "res://scenes/Credits.tscn")
+	_test_the_rules_screen_matches_the_engine()
 	await _test_the_overlays_are_modal()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+## The rules screen explains the element wheel, and a rules screen that
+## explains the game wrongly is worse than none: a player follows it, loses,
+## and concludes the game cheats. It is built from Content.ring rather than
+## from a sentence, and this checks that Content.ring is genuinely what
+## Rules.link_of() walks — the two could only be told apart by asking the
+## engine, which is what this does.
+func _test_the_rules_screen_matches_the_engine() -> void:
+	var rules: Node = root.get_node("Rules")
+	var ring: Array = content.ring
+	if ring.size() < 2:
+		printerr("FAIL: the element ring is too short to check")
+		return
+
+	var ctx := {}
+	var fight := {}
+	var wrong := 0
+	for i in ring.size():
+		var from := str(ring[i])
+		var to := str(ring[(i + 1) % ring.size()])
+		# Following the ring forward is a TURN — the exact claim the screen
+		# makes in its own words.
+		if rules.link_of(ctx, fight, from, {"el": to}) != "turn":
+			printerr("FAIL: the rules screen says %s -> %s is a turn; the engine says '%s'"
+				% [from, to, rules.link_of(ctx, fight, from, {"el": to})])
+			wrong += 1
+		if rules.link_of(ctx, fight, from, {"el": from}) != "same":
+			printerr("FAIL: the rules screen says repeating %s is 'same'; the engine disagrees" % from)
+			wrong += 1
+	if wrong == 0:
+		print("--- the rules screen's wheel matches the engine (%d elements) ---" % ring.size())
 
 
 ## The deck and marks panels are MODAL — drawn over an in-run screen that is

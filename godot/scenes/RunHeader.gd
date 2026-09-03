@@ -47,6 +47,11 @@ static func build(host: Node) -> Control:
 	# discoverable as a thing that fills up rather than appearing from
 	# nowhere the first time an elite drops one.
 	bar.add_child(_chip("%s (%d)" % [I18n.t("MARKS"), marks.size()], func(): _show_marks(host)))
+	# The rules, as an overlay rather than a scene change: a player who needs
+	# to look something up mid-reading should not have to leave the reading,
+	# and the run screens rebuild from Run.state anyway so a trip out and back
+	# would be safe but jarring.
+	bar.add_child(_chip(I18n.t("RULES"), func(): _show_rules(host)))
 	bar.add_child(_chip(I18n.t("SETTINGS"), func():
 		Nav.goto_settings(host.scene_file_path)
 	))
@@ -133,9 +138,17 @@ static func _overlay(host: Node, title: String, build_body: Callable) -> void:
 	if came_from != null:
 		layer.set_meta("came_from", came_from)
 
+	# Clicking outside the panel closes it, the way every modal a player has
+	# ever met does. The scrim was inert, so the only way out with a mouse was
+	# to find the CLOSE button.
 	var scrim := ColorRect.new()
 	scrim.color = Color(0, 0, 0, 0.66)
 	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			_close(layer)
+	)
 	layer.add_child(scrim)
 
 	var m := UIKit.margin(48)
@@ -207,6 +220,25 @@ static func _show_deck(host: Node) -> void:
 			count_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			box.add_child(count_l)
 			fan.add_child(box)
+	)
+
+
+## The same rules the HOW TO PLAY screen shows, from the same function — so
+## what a player reads mid-run cannot drift from what the menu told them.
+static func _show_rules(host: Node) -> void:
+	# load() at call time, not preload(). A local `const preload` still resolves
+	# while THIS file is compiled, and RunHeader is reached by `godot -s` tools
+	# before the autoloads exist — HowToPlay refers to four of them. See
+	# tests/test_dead_content.gd, which now refuses this pattern outright.
+	var HowToPlay = load("res://scenes/HowToPlay.gd")
+	_overlay(host, I18n.t("HOW TO PLAY"), func(v: VBoxContainer):
+		var scroll := UIKit.scroll()
+		scroll.custom_minimum_size = Vector2(0, 420)
+		v.add_child(scroll)
+		var inner := UIKit.vbox(6)
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(inner)
+		HowToPlay.build_into(inner)
 	)
 
 

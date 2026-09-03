@@ -21,6 +21,7 @@ Run="*res://autoload/Run.gd"
 Save="*res://autoload/Save.gd"
 Profile="*res://autoload/Profile.gd"
 Minitel="*res://autoload/Minitel.gd"
+Version="*res://autoload/Version.gd"
 CardEdits="*res://autoload/CardEdits.gd"
 Nav="*res://autoload/Nav.gd"
 

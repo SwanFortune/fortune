@@ -714,6 +714,51 @@ asserted on the live Viewport in `tests/test_settings.gd` rather than on the
 project setting, so a stray `content_scale_mode` assignment anywhere would
 still be caught.
 
+## The game explained itself nowhere
+
+Every explanation in the port lived in a hover tooltip: unreachable on a
+gamepad, invisible to anyone who does not think to hover, gone the moment the
+mouse moves. A player opening it cold had no way to learn what composure is,
+why the ORDER of the cards is the entire game, or what a sign's denial does.
+
+`scenes/HowToPlay.gd` is that screen, and the interesting decision is that it
+is mostly NOT new prose. The glossary is `UIKit.KEYS`, which the author wrote
+and the locale already translates. The elements are `elements.json`. The
+element wheel is drawn from `Content.ring` — the same array `Rules.link_of()`
+walks — and the controls are read off the live InputMap, so a rebind appears
+there immediately. Only the four sections describing the loop are written for
+the screen, and they paraphrase the prototype's own `handoffRules()` ("The
+loop", "Resolving one reading") for a player rather than for a porter.
+
+That is not tidiness. A rules screen that restates the game in its own words is
+wrong the first time a number changes and nothing notices, and a rules screen
+that is wrong is worse than none: a player follows it, loses, and concludes the
+game cheats. `tests/test_scenes.gd` asks the engine whether the wheel the
+screen draws is the wheel it uses.
+
+Two things fell out of building it. A ScrollContainer does not scroll from a
+gamepad — it scrolls on the wheel and on a drag, and otherwise only moves to
+keep a FOCUSED child visible. A screen made of paragraphs has no focusable
+children, so on a controller it showed the first screenful and nothing else,
+which for a rules screen is most of the rules missing. And the modal scrim was
+inert, so the only way out of the deck panel with a mouse was to find CLOSE.
+
+## The preload trap, made into a rule
+
+Six times now a file has been broken by `preload()`ing a script under
+`scenes/`. preload() resolves while the file containing it is COMPILED, and
+anything launched with `godot -s`, plus every autoload, is compiled before the
+autoloads are registered — so preloading a scene script from that position
+compiles it to nothing, silently. The worst case did not even fail locally:
+preloading RunHeader from a test left it compiled to nothing for the whole
+process, and six unrelated cases in that file went red.
+
+`tests/test_dead_content.gd` now refuses the pattern outright: nothing in
+`autoload/` or `tests/` may preload a script under `scenes/`. It is a text
+scan, not a runtime check, because the failure IS at compile time. It found a
+seventh instance the moment it was written — a dead `const UIKit` in `Run.gd`
+that was used by nothing at all.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

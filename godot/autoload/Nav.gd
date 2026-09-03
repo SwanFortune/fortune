@@ -30,6 +30,10 @@ const SCENES := {
 ## scene an argument.
 var settings_return_scene: String = ""
 
+## Same idea for the rules screen, which is reachable from the main menu and
+## (as an overlay) from inside a run.
+var help_return_scene: String = ""
+
 
 func _run() -> Node:
 	return get_node_or_null("/root/Run")
@@ -63,6 +67,11 @@ func goto_mods() -> void:
 
 func goto_minitel() -> void:
 	_goto("res://scenes/MinitelScreen.tscn")
+
+
+func goto_how_to_play(return_scene: String = "") -> void:
+	help_return_scene = return_scene
+	_goto("res://scenes/HowToPlay.tscn")
 
 
 func goto_main_menu() -> void:

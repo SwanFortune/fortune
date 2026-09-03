@@ -40,6 +40,9 @@ func _build() -> void:
 
 	v.add_child(UIKit.block(I18n.t("PARLOUR"), 40, UIKit.GOLD))
 	v.add_child(UIKit.block("a fortune-teller's ledger, in card form — Godot vertical-slice port", 14, UIKit.DIM))
+	# The version, where a player can find it without being asked to. The first
+	# thing a bug report needs is which build it happened on.
+	v.add_child(UIKit.block(Version.full(), 11, UIKit.DIM))
 	v.add_child(Control.new())  # spacer
 
 	var saved: Dictionary = Save.peek()
@@ -57,6 +60,10 @@ func _build() -> void:
 		v.add_child(UIKit.block("%s %s" % [I18n.t("Could not read your saved run."), Save.last_error], 11, UIKit.RED))
 
 	v.add_child(UIKit.button(_begin_label(), _begin))
+	# Above LIBRARY on purpose: a player who has just arrived needs this more
+	# than they need the card editor, and a rules screen nobody finds is worth
+	# about as much as no rules screen.
+	v.add_child(UIKit.button(I18n.t("HOW TO PLAY"), func(): Nav.goto_how_to_play()))
 	v.add_child(UIKit.button(I18n.t("LIBRARY"), func(): Nav.goto_library()))
 	# Always shown, never teased. A hidden entry that appears once you already
 	# know a code is a worse secret than an ordinary-looking machine that

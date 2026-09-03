@@ -1,7 +1,7 @@
 {
   "id": "parlour.base",
   "name": "Parlour — Base Content",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "priority": 0,
   "description": "The core game content ported from Parlour v23.dc.html. Not a mod in the user-facing sense — loaded first, always, and cannot be disabled. Its shape is identical to a real mod pack's shape (see /godot/mods_example/example_mod) so the loading and merge code has exactly one code path for both.",
   "files": [

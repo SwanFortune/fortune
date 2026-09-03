@@ -145,6 +145,20 @@ confirms, B goes back, X reads, and the shoulder buttons open your deck and
 your marks. Rebinding in SETTINGS → CONTROLS changes the keyboard key only, so
 it never costs you a pad button; each action's button is shown beside its key.
 
+## Learning the game
+
+Main menu → HOW TO PLAY, and the RULES chip on any in-run screen (the same
+text, as an overlay, so you never have to leave a reading to look something
+up). CREDITS and the version live behind it.
+
+It is assembled from live data rather than written out again: the glossary is
+the same authored text the card tooltips use, the elements come from
+`elements.json`, the element wheel is drawn from `Content.ring` — the array the
+scoring engine actually walks — and the control list is read off the InputMap,
+so a rebind shows up there at once. `tests/test_scenes.gd` checks the wheel it
+draws against what `Rules.link_of()` really does; a rules screen that explains
+the game wrongly is worse than none.
+
 ## The Minitel
 
 Main menu → MINITEL. Dial **3615**, four letters, ENVOI. It is the game's

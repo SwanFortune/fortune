@@ -86,6 +86,8 @@ func _initialize() -> void:
 			dead.append(key)
 
 	_check_the_readme_lists_every_test()
+	_check_no_autoload_or_test_preloads_a_scene_script()
+	_check_the_version_is_written_down_once()
 
 	if not dead.is_empty():
 		print("  known-dead content fields (see KNOWN): %s" % ", ".join(dead))
@@ -139,6 +141,87 @@ func _spelt(n: int) -> String:
 		"eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
 		"fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
 	return WORDS[n] if n < WORDS.size() else str(n)
+
+
+## The version exists in two places that cannot disagree: autoload/Version.gd,
+## which the menu and the credits read, and data/base/mod.json, which declares
+## the version of the CONTENT the base pack ships. They are different things
+## and could in principle diverge — but not silently, and not by neglect, which
+## is what would happen the first time one was bumped and the other forgotten.
+func _check_the_version_is_written_down_once() -> void:
+	var declared := str(content.registries.get("_version", ""))
+	var manifest := FileAccess.get_file_as_string("res://data/base/mod.json")
+	var parsed = JSON.parse_string(manifest)
+	if typeof(parsed) != TYPE_DICTIONARY:
+		failures.append("data/base/mod.json does not parse")
+		return
+	var in_manifest := str(parsed.get("version", ""))
+	var in_code := str(root.get_node("Version").string())
+	if in_manifest != in_code:
+		failures.append(
+			"the base pack says version %s and Version.gd says %s — bump both or neither"
+			% [in_manifest, in_code])
+
+
+## THE PRELOAD TRAP, made into a rule.
+##
+## Six times in this port, a file has been broken by `preload()`ing a scene
+## script. preload() resolves while the FILE CONTAINING IT is compiled — and
+## anything launched with `godot -s`, or any autoload, is compiled before the
+## autoloads are registered. Every script under scenes/ refers to autoloads
+## (I18n, Content, Settings, Run...), so preloading one from that position
+## compiles it to nothing, silently, and every later call on it fails.
+##
+## The worst case did not even fail locally: preloading RunHeader from a test
+## left RunHeader compiled to nothing for the whole process, so every in-run
+## screen lost its header and six unrelated cases in that file went red.
+##
+## The rule that covers all six: nothing in autoload/ or tests/ may preload a
+## script under scenes/. Use load() at call time, by which point the autoloads
+## exist. Scene scripts preloading each other is fine and is not touched here —
+## they are only ever compiled once the game is running.
+##
+## A text scan, not a runtime check, because the failure IS at compile time:
+## by the time anything could observe it at runtime the damage is done.
+func _check_no_autoload_or_test_preloads_a_scene_script() -> void:
+	for dir_path in ["res://autoload", "res://tests"]:
+		# _gather() collects file CONTENTS, not paths — it exists to build one
+		# big haystack for the dead-key scan. This needs to name the offender,
+		# so it walks for paths of its own.
+		var files: Array[String] = []
+		_gather_paths(dir_path, files)
+		for path in files:
+			var text := FileAccess.get_file_as_string(path)
+			var line_no := 0
+			for line in text.split("\n"):
+				line_no += 1
+				var stripped := line.strip_edges()
+				if stripped.begins_with("#"):
+					continue   # a comment explaining the trap is not the trap
+				if line.contains("preload(\"res://scenes/"):
+					failures.append(
+						"%s:%d preloads a scene script — use load() at call time, or it compiles to nothing when run with `godot -s`"
+						% [path, line_no])
+
+
+## Paths of every .gd under `dir_path`, recursively. Skips this file: it holds
+## the offending string as a literal, and a scanner that trips over its own
+## search term is a scanner nobody trusts.
+func _gather_paths(dir_path: String, out: Array[String]) -> void:
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if d.current_is_dir():
+			if not name.begins_with("."):
+				_gather_paths(full, out)
+		elif name.ends_with(".gd") and name != SELF:
+			out.append(full)
+		name = d.get_next()
+	d.list_dir_end()
 
 
 ## key -> the registries it appears in, across every record of every registry.
