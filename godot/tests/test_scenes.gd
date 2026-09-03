@@ -140,6 +140,7 @@ func _visit_standalone() -> void:
 	_test_the_rules_screen_matches_the_engine()
 	await _test_a_failing_save_is_visible_to_the_player()
 	await _test_the_overlays_are_modal()
+	await _test_the_marks_are_on_the_hands()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
@@ -264,6 +265,107 @@ func _test_a_failing_save_is_visible_to_the_player() -> void:
 		DirAccess.remove_absolute(path)
 	settings.save_to_disk()
 	profile.save_to_disk()
+
+
+## THE MARKS ARE ON THE HANDS, and they have to stay there.
+##
+## The reading screen draws the reader's own hands holding the fan, with every
+## mark won this run drawn onto them — a ring on a finger, ink on the back of
+## the hand, a scar across the knuckles, a boon as a light above. That is the
+## payoff for a screen the game calls YOUR HANDS, and every part of it fails
+## quietly: a mark placed off the control, a mark of a kind nobody draws, a
+## fifth ring on a four-fingered hand, or the whole layer drawn BEHIND the cards
+## it is supposed to be holding. None of those raise anything.
+##
+## Checked as data (Table.mark_places) plus the built screen's node order,
+## because a headless run has no pixels to count.
+func _test_the_marks_are_on_the_hands() -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var TableScript := load("res://scenes/Table.gd")
+
+	# Every kind the content actually ships has to be one this knows how to
+	# draw. An unknown kind is skipped on purpose (a mod's business), so a NEW
+	# BASE KIND would silently be invisible on the hands and nowhere else.
+	var kinds := {}
+	for m in content.marks:
+		kinds[str(m.get("kind", ""))] = true
+	for kind in kinds:
+		if not TableScript.KINDS.has(kind):
+			printerr("FAIL: marks.json has kind '%s' and the hands cannot draw it — it would be invisible" % kind)
+
+	# A hand is four fingers; ask for more of everything than fits on one.
+	var band := 120.0
+	var palm := Vector2(200, band)
+	var fingers: Array = []
+	for i in 4:
+		var root := palm + Vector2((float(i) - 1.5) * 16.0, -0.19 * band)
+		fingers.append([root, root + Vector2(0, -0.5 * band), 6.0])
+
+	var worn: Array = []
+	for kind in TableScript.KINDS:
+		for i in 6:
+			worn.append({"kind": kind, "n": "%s %d" % [kind, i]})
+	var places: Array = TableScript.mark_places(worn, palm, fingers, band, 1.0)
+	if places.size() != worn.size():
+		printerr("FAIL: %d marks went onto the hands and %d came back — %d are invisible"
+			% [worn.size(), places.size(), worn.size() - places.size()])
+
+	# Two marks of one kind must not land on the same spot: stacked exactly, the
+	# player sees one ring and owns two.
+	var seen := {}
+	for p in places:
+		var key := "%s@%d,%d" % [p["kind"], roundi(p["at"].x), roundi(p["at"].y)]
+		if seen.has(key):
+			printerr("FAIL: two %s marks are drawn at the same point — one hides the other" % p["kind"])
+		seen[key] = true
+
+	# And a kind nobody draws draws nothing, rather than a guess.
+	var invented: Array = TableScript.mark_places(
+		[{"kind": "SOMETHING_A_MOD_INVENTED"}], palm, fingers, band, 1.0)
+	if not invented.is_empty():
+		printerr("FAIL: an unknown mark kind was given a place on the hands")
+
+	# The hands have to be drawn IN FRONT of the cards. Behind them they are a
+	# picture of hands near a fan, which is the version this replaced — and the
+	# only thing that decides it is sibling order, which nothing else would
+	# catch if a later edit reordered the two.
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	run.state["marks"] = [content.marks[0]]
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var scroll := _first_of_class(instance, "ScrollContainer")
+	if scroll == null:
+		printerr("FAIL: the reading screen has no card scroller to hold")
+	else:
+		var stack := scroll.get_parent()
+		var hands_i := -1
+		for i in stack.get_child_count():
+			if stack.get_child(i) != scroll:
+				hands_i = i
+		if hands_i < scroll.get_index():
+			printerr("FAIL: the hands are drawn behind the cards, so nothing looks held")
+		else:
+			print("--- the marks are on the hands, and the hands are in front of the cards ---")
+	instance.queue_free()
+	await process_frame
+
+
+func _first_of_class(node: Node, cls: String) -> Node:
+	if node.is_class(cls):
+		return node
+	for child in node.get_children():
+		var found := _first_of_class(child, cls)
+		if found != null:
+			return found
+	return null
 
 
 ## Every Label's text in a built screen, joined — for asserting that something

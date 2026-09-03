@@ -19,12 +19,28 @@ extends Control
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
+
+## The card band, and the whole held area beneath it. The hands start where the
+## cards stop and rise back over them by the difference.
+const CARD_BAND := 176
+const HELD_HEIGHT := 250
+## How far the hands reach back UP over the cards. Without an overlap the fan
+## floats above a drawing of some fingers instead of being held by them.
+##
+## Table.gd draws its fingertips at the very top of the band it is given, so
+## this number alone decides how far up the cards they reach: at 42 they cross
+## the bottom quarter of a card face. Enough to read as held; not so much that
+## a card is covered.
+const HAND_OVERLAP := 42
 
 
 func _ready() -> void:
 	var f: Dictionary = Run.state["f"]
 	var root := UIKit.root_control()
 	add_child(root)
+	# The table and its cloth, behind everything. See scenes/Table.gd.
+	root.add_child(Table.background())
 	var m := UIKit.margin(28)
 	root.add_child(m)
 	var v := UIKit.vbox(10)
@@ -103,14 +119,46 @@ func _ready() -> void:
 
 	var hand_label := UIKit.label(I18n.t("YOUR HAND — hover a card for its full text"), 12, UIKit.DIM)
 	v.add_child(hand_label)
+	# The fan sits on top of the reader's own hands: the cards are HELD, and
+	# every mark won this run is drawn on the fingers holding them. A Control
+	# stacking the two, so the hands are behind and the cards in front.
+	var held := Control.new()
+	held.custom_minimum_size = Vector2(0, HELD_HEIGHT)
+	held.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Exactly its own height, not the leftover: the hands are positioned
+	# relative to this box, and a box that grows with the window would walk
+	# them away from the cards they are supposed to be holding.
+	held.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	v.add_child(held)
+
 	var scroll := UIKit.scroll()
-	v.add_child(scroll)
-	scroll.custom_minimum_size = Vector2(0, 340)
+	scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	scroll.offset_bottom = CARD_BAND
+	held.add_child(scroll)
 	var fan := HFlowContainer.new()
 	fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# Centred, so the hands that hold it are symmetric about the middle of the
+	# table rather than both crowding whichever side the cards happened to
+	# stack up on.
+	fan.alignment = FlowContainer.ALIGNMENT_CENTER
 	fan.add_theme_constant_override("h_separation", 8)
 	fan.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(fan)
+
+	# The hands are rooted below the cards and reach UP over them, so the fan
+	# reads as held rather than as floating above a drawing of some fingers.
+	# Added AFTER the cards on purpose: the fingertips have to be in FRONT of
+	# their lower edge. Behind them, they are a picture of hands near a fan.
+	var hands := Table.hands(Run.state.get("marks", []), _fan_span.bind(fan, held))
+	hands.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	hands.offset_top = CARD_BAND - HAND_OVERLAP
+	hands.offset_bottom = HELD_HEIGHT
+	held.add_child(hands)
+	# The fan is laid out by a container, so its width settles a frame after it
+	# is built and again whenever the window changes. Without this the hands are
+	# drawn once against whatever the fan measured first — which, on the frame
+	# the screen is built, is nothing at all.
+	fan.sort_children.connect(func(): hands.queue_redraw())
 	var just_drawn: Array = f.get("_justDrawn", [])
 	var deal_index := 0
 	for c in f["hand"]:
@@ -124,6 +172,29 @@ func _ready() -> void:
 	# The hand, not the run header above it. See Map.gd. Falls back to the whole
 	# screen when the hand is empty, so READ IT is still reachable.
 	UIKit.focus_first(fan if fan.get_child_count() > 0 else self)
+
+
+## Where the fan actually starts and stops, in the coordinates of the hands
+## drawn under it. `origin` is the box both of them are anchored across, which
+## is how a position measured on the cards becomes one the hands can use.
+##
+## Returns a zero span when there is nothing laid out yet — no cards, or a fan
+## the container has not measured — and Table.hands() falls back to fixed
+## fractions of the screen rather than drawing two hands on top of each other.
+func _fan_span(fan: Control, origin: Control) -> Vector2:
+	if fan.get_child_count() == 0 or not is_instance_valid(origin):
+		return Vector2.ZERO
+	var left := INF
+	var right := -INF
+	for child in fan.get_children():
+		if child is Control:
+			var r: Control = child
+			left = minf(left, r.global_position.x)
+			right = maxf(right, r.global_position.x + r.size.x)
+	if left > right:
+		return Vector2.ZERO
+	var at := origin.global_position.x
+	return Vector2(left - at, right - at)
 
 
 ## One click per card dealt, staggered to match the deal animation. Uses the

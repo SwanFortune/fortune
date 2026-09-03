@@ -197,6 +197,24 @@ func _setup(name: String) -> void:
 			# an elite, which a screenshot can't wait around for.
 			_setup("read")
 			run.state["marks"] = [content.marks[0], content.relics[0]]
+		"read_marked":
+			# One mark of EVERY kind, so the drawing on the hands can actually be
+			# looked at. Table.gd draws a ring, a tattoo, a scar and a boon
+			# differently, and until there is a run carrying all four on screen
+			# at once, three of those four have never been seen.
+			_setup("read")
+			var kinds := ["RING", "TATTOO", "SCAR", "BOON"]
+			var worn: Array = []
+			for kind in kinds:
+				for m in content.marks:
+					if str(m.get("kind", "")) == kind:
+						# Twice each: the second one has to land on a different
+						# finger / a different place, and a bug that stacks them
+						# all on top of each other only shows with two.
+						worn.append(m)
+						worn.append(m)
+						break
+			run.state["marks"] = worn
 		"read_laid":
 			_setup("read")
 			var f: Dictionary = run.state["f"]

@@ -195,3 +195,47 @@ godot --headless --path godot -s tests/gen_art_manifest.gd
 ```
 
 It prints a by-status summary (how many missing / wip / final).
+
+---
+
+## What is drawn in code, and what replaces it
+
+Three things on screen are not in the manifest, because they are not files:
+they are drawn procedurally by the game. They exist so the game looks like a
+game rather than a spreadsheet while the real art is being made, and each one
+is a placeholder with a clear replacement.
+
+| Where | What it draws | Replaced by |
+|---|---|---|
+| `scenes/UIKit.gd` — `sitter_portrait()` | A face: an oval, two eyes, a mouth whose curve follows the sitter's mood | A sitter portrait PNG, via the manifest. Already wired: deliver the file and the drawing stops being used. |
+| `scenes/Table.gd` | The parlour — a wooden table, a green cloth, and the reader's two hands holding the fan, with every mark won this run drawn onto them | Nothing yet. See below. |
+| `autoload/Icons.gd` | The element, sign, planet and archetype glyphs, rasterised at runtime from the vector paths in `data/base/icons.json` | These are FINISHED, not placeholders — they came from the design document and are meant to stay. Redraw a path in `icons.json` to change one. |
+
+### The table, the cloth and the hands
+
+`scenes/Table.gd` draws the reading screen's background and the pair of hands
+holding the player's cards. It is geometry — ellipses, tapered capsules, a few
+lines — and it is the piece most obviously waiting for a person.
+
+**It is not decoration, and whatever replaces it has to keep one thing.** The
+overlay that lists your relics is called YOUR HANDS; the four kinds of mark are
+rings, tattoos, scars and boons. The game has always described them as things
+on the reader's own hands, and for the whole port they were a list on a panel.
+Now a ring you win goes on a finger and stays there for the rest of the run,
+where you can see it while you play. A replacement that is a beautiful painting
+of hands with nothing on them would be a step backwards.
+
+If you want to take it over, the two useful shapes are:
+
+- **A painted background.** One image, roughly 16:9, of a table with a cloth on
+  it, lit from above, dark at the edges. Drop-in: it replaces `background()`
+  and nothing else changes.
+- **Hands.** Harder, because four kinds of mark have to be able to land on
+  them at run time, in any number and any combination. The current version
+  solves that with `Table.mark_places()`, which returns a point per mark; art
+  would need the same — a hand image plus a small table of where a ring on
+  each finger, ink on the back, a scar across the knuckles, and a boon above
+  the hand each go. Talk to whoever is doing the code before starting.
+
+Sizes are all fractions of the space the game gives it, so there is no fixed
+pixel size to match: it is drawn at whatever height the window works out to.

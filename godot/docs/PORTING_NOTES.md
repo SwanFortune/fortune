@@ -837,6 +837,56 @@ with it, or an abandoned run could be resurrected by a later bad read.
 `profile.cfg` and `settings.cfg` are written the same way, for the same reason
 at smaller stakes.
 
+## The game was played on a table, and there was no table
+
+The reading screen was a dark rectangle with widgets on it. The game is a
+fortune-teller sitting at a table in a village front room, dealing cards to
+someone in trouble, and none of that was anywhere on screen — not the room, not
+the table, not the cloth, and not the person doing it.
+
+`scenes/Table.gd` draws all three, procedurally: a warm wooden table, a deep
+green cloth inset from its edges with a worn patch rubbed into the middle, a
+vignette that puts the eye where the cards are, and — the part that matters —
+the reader's own two hands, coming up from the bottom of the screen and holding
+the fan.
+
+**The hands were already in the writing.** The overlay that lists your relics
+is titled YOUR HANDS. The four kinds of mark are RING, TATTOO, SCAR and BOON.
+The game had always described them as things on the reader's hands, and for the
+entire port they had been rows in a panel. They are now on the hands: a ring
+you win goes on a finger and stays there for the rest of the run, ink goes on
+the back of the hand, a scar across the knuckles, and a boon — the one that is
+not a mark on skin — as a small warm light held above the hand, which is why it
+is not drawn as one. The colour of each is its element, or gold when it has
+none.
+
+Four things about it are worth writing down, because each was a wrong version
+first:
+
+**The hands are drawn AFTER the cards.** Behind them they are a picture of
+hands near a fan. In front of them, the fingertips cross the lower edge of the
+cards and the fan is held. That is entirely a matter of sibling order, so
+`tests/test_scenes.gd` asserts it — nothing else would notice a reorder.
+
+**They hold the fan, not the screen.** Nailed to fixed fractions of the window,
+two hands hold a hand of two cards at arm's length and a hand of nine by the
+middle. `Table.hands()` takes a callable that returns the fan's real extent,
+called at DRAW time, which is after layout — so the hands find the cards
+wherever the container put them. The fan is centred for the same reason.
+
+**Every mark has to land somewhere.** `Table.mark_places()` is a pure function
+returning a point per mark, separate from the drawing, so a headless test can
+assert that eight marks produce eight places, that no two land on the same
+point, and that a kind the base game gains but the drawing does not know about
+is caught rather than silently invisible. Rings WRAP around the four fingers
+rather than stopping at the fourth: a fifth ring that is simply not drawn is a
+reward the player was told they had and cannot find.
+
+**And a placeholder is still a placeholder.** It is geometry — ellipses,
+tapered capsules, a few lines — not illustration, on the same terms as the
+sitter portraits. `docs/ART_GUIDE.md` says what an artist replaces and what
+they have to keep.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
