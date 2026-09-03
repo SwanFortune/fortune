@@ -302,9 +302,12 @@ func _apply(field: String, value) -> void:
 	_reload_content()
 
 
+## Editing a card here used to change the registry and leave a run in progress
+## holding the old version of that card, because this reloaded two of the four
+## things that need reloading. They now re-sync themselves; see
+## Content.reloaded.
 func _reload_content() -> void:
 	Content.reload()
-	Art.reload()
 	_refresh_summary()
 	_rebuild_list()
 	_rebuild_editor()

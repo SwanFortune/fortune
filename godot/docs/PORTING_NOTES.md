@@ -605,6 +605,44 @@ process, so every in-run screen lost its header and six unrelated cases in the
 same file started failing. `load()` at call time is the fix, as it was the
 other four times.
 
+## Editing a card did nothing to the run you were in
+
+`Run.state` is full of COPIES of content records — every card in the deck, the
+reader, the sitter's sign. Reloading the registries does not touch them, so
+after a content change a run in progress has to be put through `Save` to be
+re-resolved against the new registries.
+
+The Mods screen knew that and did it. The Library did not. So retuning a card
+in the Library while a run was in progress changed the registry, left the deck
+holding the old numbers, and the player watched their own edit do nothing for
+the rest of the night — with the Library showing the new values the whole time.
+
+The fix is not "add the missing calls to the Library". Four things need
+reloading (Art, Audio, I18n, and the live run), the Library did two, the
+Settings screen did three, and the next screen that reloads content would have
+had to get the list right from scratch. `Content` now emits `reloaded` and each
+subsystem connects to it in its own `_ready()`, in autoload order — so the list
+cannot be got wrong once and copied wrong forever, and every caller is a single
+`Content.reload()`.
+
+## Two things about autosaving that nothing was checking
+
+Persistence had good tests and a blind spot: every one of them wrote the save
+itself and then read it back, so all of them would have passed on a build where
+`Run.state_changed` was never emitted and the game autosaved nothing at all.
+
+`test_save.gd` now plays whole runs and, after every single action, checks that
+a state which actually moved also armed a save — comparing the state's own hash
+before and after, so a Run method that mutates and forgets to emit is caught at
+the action that did it. Deleting one `state_changed.emit()` from `lay_card()`
+turns it red, which is how it was verified.
+
+The second is the quit path. Writes coalesce through a dirty flag to one a
+frame, which is right — `state_changed` fires on every card laid — but it
+leaves a window where the newest action exists only in memory. A player who
+lays a card and immediately closes the window is squarely in it. `_notification`
+already flushed on the way out; nothing checked that it did.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

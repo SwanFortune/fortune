@@ -220,7 +220,7 @@ func _pane_content(v: VBoxContainer) -> void:
 	v.add_child(UIKit.setting_toggle(
 		"load_example_mods", I18n.t("Load example mods"),
 		I18n.t("Loads the bundled demo mod in mods_example/. Your own mods in the user mods folder always load."),
-		func(_p): Content.reload(); Art.reload(); Audio.reload(); _build()))
+		func(_p): Content.reload(); _build()))
 	v.add_child(UIKit.block(I18n.t("Mods loaded: %s pack(s). %s") % [_pack_count(), _errors_line()],
 		11, UIKit.RED if not Content.load_errors.is_empty() else UIKit.DIM))
 	# `disabled_mods` is a real setting with no row of its own: which packs are
@@ -257,8 +257,9 @@ func _language_row() -> Control:
 	UIKit.style_text(opt, 14)
 	opt.custom_minimum_size.x = 200
 	opt.item_selected.connect(func(idx: int):
+		# No I18n.reload() here: I18n already listens to Settings.changed for
+		# the locale key, so calling it would reload the tables twice.
 		Settings.set_value("locale", opt.get_item_metadata(idx))
-		I18n.reload()
 		_build()
 	)
 	row.add_child(opt)
@@ -328,17 +329,12 @@ func _reset_section() -> void:
 		Settings.set_value(key, Settings.default_for(key))
 	if str(Settings.SECTIONS[_section]["id"]) == "content":
 		Content.reload()
-		Art.reload()
-		Audio.reload()
 	_build()
 
 
 func _reset_all() -> void:
 	Settings.reset_to_defaults()
 	Content.reload()
-	Art.reload()
-	Audio.reload()
-	I18n.reload()
 	_build()
 
 

@@ -34,6 +34,8 @@ var _strings: Dictionary = {}
 
 
 func _ready() -> void:
+	# Re-sync whenever content is rebuilt; see Content.reloaded.
+	Content.reloaded.connect(reload)
 	reload()
 	Settings.changed.connect(func(key: String):
 		if key == "locale" or key == "":

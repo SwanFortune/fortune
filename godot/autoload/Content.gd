@@ -25,6 +25,24 @@ const MOD_LOADER := preload("res://autoload/ModLoader.gd")
 ## the constant was documentation, not behaviour. It's now a real player
 ## setting that ModLoader genuinely honours (see reload()).
 
+## Emitted at the end of every reload(). Art, Audio, I18n and Save each connect
+## to it in their own _ready() and re-sync themselves.
+##
+## This used to be the CALLER's job: a screen that reloaded content also had to
+## remember to call Art.reload(), Audio.reload(), I18n.reload() and to put the
+## run in progress through Save so its copies of content records were looked up
+## again. The Mods screen did all of it. The Library did two of the four — so
+## editing a card while a run was in progress changed the registry and left the
+## deck holding the old version, and the player watched their edit do nothing.
+##
+## Fanning out from here instead means the list cannot be got wrong once and
+## then copied wrong forever: each subsystem owns its own response, and a new
+## screen that reloads content gets all of it for free. Connection order is
+## autoload order (see project.godot) — Art, Audio, I18n, then Save — which is
+## the order that matters, since Save's re-resolution reads the registries and
+## the locale that the first three have just refreshed.
+signal reloaded
+
 var registries: Dictionary = {}
 var load_errors: Array[String] = []
 ## Every pack discovery found, in load order, loaded or not. See ModLoader.packs.
@@ -108,6 +126,7 @@ func reload() -> void:
 	shop = registries.get("shop", {})
 
 	_index()
+	reloaded.emit()
 
 
 func _index() -> void:

@@ -198,11 +198,10 @@ func _section(v: VBoxContainer, title: String) -> void:
 ## leave stale card dicts in hand. Reload writes the run out and reads it back,
 ## which puts it through exactly the same re-resolution a restart would.
 func _reload() -> void:
+	# Art, Audio, I18n and the run in progress all re-sync themselves off
+	# Content.reloaded — see its doc comment for why that stopped being the
+	# caller's job to remember.
 	Content.reload()
-	Art.reload()
-	I18n.reload()
-	if Save.has_save():
-		Save.restore()
 	_build()
 
 

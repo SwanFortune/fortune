@@ -53,6 +53,8 @@ var _cache: Dictionary = {}
 
 
 func _ready() -> void:
+	# Re-sync whenever content is rebuilt; see Content.reloaded.
+	Content.reloaded.connect(reload)
 	for i in VOICES:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
@@ -60,8 +62,8 @@ func _ready() -> void:
 
 
 ## Drops every cached stream, so a mod repointing a sound takes effect on the
-## next play rather than at the next launch. Called by Content.reload()'s
-## callers alongside Art.reload().
+## next play rather than at the next launch. Wired to Content.reloaded in
+## _ready(), so no caller has to remember it.
 func reload() -> void:
 	_cache.clear()
 

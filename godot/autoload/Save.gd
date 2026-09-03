@@ -52,6 +52,26 @@ func _ready() -> void:
 	var run := get_node_or_null("/root/Run")
 	if run != null:
 		run.state_changed.connect(_on_state_changed)
+	Content.reloaded.connect(_on_content_reloaded)
+
+
+## Content just changed under a run that is already in progress.
+##
+## `Run.state` is full of COPIES of content records — every card in the deck,
+## the reader, the sitter's sign. Reloading the registries does not touch those
+## copies, so without this a card retuned in the Library or by a mod pack keeps
+## its old numbers for the rest of the run, and the edit appears to do nothing.
+##
+## The re-resolution already exists, in restore(): write the run out and read it
+## back, which is exactly the path a restart would take. Flush first so anything
+## the dirty flag has not yet committed is not rolled back by the read.
+func _on_content_reloaded() -> void:
+	var run := get_node_or_null("/root/Run")
+	if run == null or run.state.is_empty() or str(run.state.get("screen", "")) in NOT_A_RUN:
+		return
+	_dirty = false
+	_write()
+	restore()
 
 
 func _process(_delta: float) -> void:

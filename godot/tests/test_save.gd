@@ -14,7 +14,17 @@
 ##     screen before one starts, the "over" screen after one ends), because
 ##     CONTINUE must never drop the player into a finished run;
 ##   - a corrupt or version-skewed file is refused outright rather than
-##     half-restored.
+##     half-restored;
+##   - NO ACTION CHANGES THE RUN WITHOUT ARMING A SAVE. Everything above tests
+##     that a save which was written comes back correctly; none of it tests
+##     that one gets written in the first place. Autosaving is signal-driven
+##     (Run.state_changed -> a dirty flag -> one write per frame), so a Run
+##     method that mutates state and forgets to emit loses the player that
+##     action silently, and only on a crash or a quit — the worst possible
+##     time to find out;
+##   - A CONTENT RELOAD REACHES THE RUN IN PROGRESS. Everything above is about
+##     a save being read; this is about the live Run.state, which holds copies
+##     of content records and does not update itself.
 ##
 ## Autoloads are fetched via get_node() — see the note at the top of
 ## tests/test_rules.gd for why the bare global names don't resolve here.
@@ -29,6 +39,9 @@ const TESTS := [
 	"_test_no_save_for_a_non_run",
 	"_test_corrupt_save_is_refused",
 	"_test_peek",
+	"_test_every_action_marks_the_run_dirty",
+	"_test_a_content_reload_reaches_a_live_run",
+	"_test_quitting_flushes_the_last_action",
 ]
 
 var failures: Array[String] = []
@@ -248,3 +261,166 @@ func _test_peek() -> void:
 	check(str(p["reader"]) != "", "peek should report which reader")
 	check(int(p["saved_at"]) > 0, "peek should report when it was saved")
 	done("_test_peek")
+
+
+## Plays a whole run and, after EVERY action, checks that a state which
+## actually changed also armed a save.
+##
+## The check is exact rather than approximate: the state's own hash before and
+## after. If it moved, Save._dirty must be true; if it did not move, nothing is
+## claimed either way (a no-op action is allowed to arm a save harmlessly).
+##
+## This is the half of persistence the round-trip tests cannot see. They all
+## write the save themselves — save._write() — and then read it back, so every
+## one of them would pass on a build where state_changed was never emitted at
+## all and the game autosaved nothing.
+func _test_every_action_marks_the_run_dirty() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260903
+	var checked := 0
+
+	for attempt in 3:
+		run.state = run.fresh()
+		_act("pick_reader", func(): run.pick_reader(rng.randi_range(0, content.readers.size() - 1)))
+		var guard := 0
+		while str(run.state.get("screen", "")) != "over" and guard < 900:
+			guard += 1
+			checked += 1
+			if str(run.state.get("screen", "")) == "read" and not run.state.get("res", {}).is_empty():
+				_act("after_res", func(): run.after_res())
+				continue
+			match str(run.state.get("screen", "")):
+				"pick": _drive_pick(rng)
+				"map": _act("choose", func(): run.choose(rng.randi_range(0, run.state["options"].size() - 1)))
+				"read": _drive_read()
+				_: break
+		if not failures.is_empty():
+			break
+
+	check(checked > 200, "the driver should have exercised a few hundred actions, did %d" % checked)
+	save.clear()
+	done("_test_every_action_marks_the_run_dirty")
+
+
+## Runs one action and reports it if the state moved without arming a save.
+func _act(label: String, action: Callable) -> void:
+	save._dirty = false
+	var before: int = run.state.hash()
+	action.call()
+	var after: int = run.state.hash()
+	if before != after and not save._dirty:
+		check(false, "%s changed the run without emitting state_changed — the action would be lost on a crash" % label)
+
+
+func _drive_pick(rng: RandomNumberGenerator) -> void:
+	var pick: Dictionary = run.state["pick"]
+	var opts: Array = pick.get("opts", [])
+	var affordable: Array[int] = []
+	for i in opts.size():
+		if int(opts[i].get("cost", 0)) <= int(run.state["coin"]):
+			affordable.append(i)
+	if affordable.is_empty() or (pick.get("skippable", false) and rng.randf() < 0.3):
+		if pick.get("skippable", false):
+			_act("skip_pick", func(): run.skip_pick())
+		else:
+			run.state["screen"] = "over"
+		return
+	var i: int = affordable[rng.randi_range(0, affordable.size() - 1)]
+	_act("take_pick", func(): run.take_pick(i))
+
+
+func _drive_read() -> void:
+	var f: Dictionary = run.state["f"]
+	var playable: Array = f["hand"].filter(func(c): return int(c.get("cost", 0)) <= int(f["energy"]))
+	if not playable.is_empty():
+		var card_uid: String = playable[0]["uid"]
+		_act("lay_card", func(): run.lay_card(card_uid))
+		return
+	if run.can_read():
+		_act("read_it", func(): run.read_it())
+	else:
+		run.state["screen"] = "over"
+
+
+## Editing a card while a run is in progress has to reach the deck.
+##
+## Run.state holds COPIES of content records, so reloading the registries does
+## not touch them. The Mods screen knew that and put the run through Save to
+## re-resolve it; the Library did not, so a card retuned there changed the
+## registry, left the deck holding the old numbers, and the player watched their
+## edit do nothing for the rest of the night. Both now get it from
+## Content.reloaded, and this is the assertion that keeps it.
+func _test_a_content_reload_reaches_a_live_run() -> void:
+	var edits: Node = root.get_node("CardEdits")
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+
+	var card_name := str(run.state["deck"][0]["n"])
+	var before := int(run.state["deck"][0].get("f", 0))
+	var pool := ""
+	for p in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+		for c in content.registries.get(p, []):
+			if str(c.get("n", "")) == card_name:
+				pool = p
+	check(pool != "", "the starting deck's first card should be in a known pool")
+	if pool == "":
+		done("_test_a_content_reload_reaches_a_live_run")
+		return
+
+	var edited: Dictionary = content.get_card(card_name).duplicate(true)
+	edited.erase("uid")
+	edited["f"] = before + 41
+	edits.set_card(pool, edited)
+	# Exactly what a screen does after an edit, and nothing else — the point is
+	# that this one call is now enough.
+	content.reload()
+
+	check(int(content.get_card(card_name).get("f", 0)) == before + 41,
+		"precondition: the registry should carry the edit")
+	var in_deck := 0
+	for c in run.state["deck"]:
+		if str(c.get("n", "")) == card_name:
+			in_deck = int(c.get("f", 0))
+			break
+	check(in_deck == before + 41,
+		"the edit should have reached the deck in play (%d, expected %d)" % [in_deck, before + 41])
+
+	# The cards keep their run identity through the re-resolution — a deck that
+	# came back with new uids would break the hand, which addresses cards by uid.
+	for c in run.state["deck"]:
+		check(str(c.get("uid", "")) != "", "every card in the re-resolved deck should keep a uid")
+
+	edits.revert_all()
+	content.reload()
+	check(int(run.state["deck"][0].get("f", 0)) == before, "reverting should reach the run too")
+	save.clear()
+	done("_test_a_content_reload_reaches_a_live_run")
+
+
+## The last action before a quit must not be the one that gets lost.
+##
+## Autosaving coalesces through a dirty flag and writes once a frame (see
+## _process), which is right — state_changed fires on every card laid — but it
+## means there is always a window where the newest action is in memory only. A
+## player who lays a card and immediately closes the window is squarely in that
+## window, and it is the least forgivable moment to drop an action.
+func _test_quitting_flushes_the_last_action() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	save.clear()
+	check(not save.has_save(), "precondition: no save on disk")
+
+	save._dirty = true
+	save._notification(Node.NOTIFICATION_EXIT_TREE)
+	check(save.has_save(), "leaving the tree with an unwritten action should flush it to disk")
+
+	# ...and it is the real run, not an empty file. Compared on the reader key
+	# rather than the night: peek() reports night and step 1-BASED for display,
+	# while the state counts them from 0.
+	var peeked: Dictionary = save.peek()
+	check(str(peeked.get("reader", "")) == str(run.state.get("reader", {}).get("k", "")),
+		"the flushed save should describe the live run, got %s" % [peeked])
+	save.clear()
+	done("_test_quitting_flushes_the_last_action")

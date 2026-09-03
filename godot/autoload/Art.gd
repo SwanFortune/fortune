@@ -23,6 +23,8 @@ var _cache: Dictionary = {}
 
 
 func _ready() -> void:
+	# Re-sync whenever content is rebuilt; see Content.reloaded.
+	Content.reloaded.connect(reload)
 	reload()
 
 
