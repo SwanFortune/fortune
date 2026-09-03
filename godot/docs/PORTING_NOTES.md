@@ -643,6 +643,33 @@ leaves a window where the newest action exists only in memory. A player who
 lays a card and immediately closes the window is squarely in it. `_notification`
 already flushed on the way out; nothing checked that it did.
 
+## The mod loader had no test
+
+An odd place for this project to have a hole. Mod support is what the port is
+FOR, `docs/MODDING.md` makes specific promises about merge behaviour, and seven
+distinct error paths had been written in the belief that a real pack would hit
+them one day. None of them had ever run.
+
+`tests/test_modloader.gd` now drives the loader with REAL PACKS written to
+`user://mods/` and read back off the disk, rather than handing the merge
+functions dictionaries. The promises are about files — a manifest that will not
+parse, a listed file that is not there — and a test that skips the filesystem
+cannot make them.
+
+Nine of the ten checks passed on the first run, which is the good news: the
+merge rules and the recovery-from-a-bad-file behaviour were genuinely correct,
+including the load-bearing one — a pack with four broken files still loads its
+good ones.
+
+The tenth found this: **one unparseable `mod.json` produced four error
+messages**. `_read_json` reported the parse failure and `_load_manifest` then
+added "and it is not a JSON object" on top, which is a second message for one
+fault; and `_load_manifest` was called twice per pack, once during discovery
+for the `priority` field and again in the load pass, doubling both. The Mods
+screen counts what it is handed, so a modder with one typo was told they had
+four problems. Manifests are now parsed once and cached, and a null parse is
+left to the message that already explained it.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
@@ -667,6 +694,8 @@ already flushed on the way out; nothing checked that it did.
   `tests/test_content_audit.gd` (fx cross-check, the AUDIT tab equivalent),
   `tests/test_minitel.gd` (the 3615 code channel, incl. the guarantee that a
   secret event cannot be met without its code),
+  `tests/test_modloader.gd` (pack discovery, the merge rules, and every error
+  path, driven with real packs on disk),
   `tests/test_art.gd` (art manifest -> texture pipeline, incl. the
   "runs fine with zero art delivered" guarantee),
   `tests/balance_sim.gd -- <n>` (difficulty report, the BALANCE tab equivalent),

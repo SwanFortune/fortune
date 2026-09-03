@@ -85,6 +85,8 @@ func _initialize() -> void:
 		elif KNOWN[key] == "dead":
 			dead.append(key)
 
+	_check_the_readme_lists_every_test()
+
 	if not dead.is_empty():
 		print("  known-dead content fields (see KNOWN): %s" % ", ".join(dead))
 	if failures.is_empty():
@@ -94,6 +96,49 @@ func _initialize() -> void:
 		for f in failures:
 			printerr("FAIL: ", f)
 		quit(1)
+
+
+## The README's test list is maintained by hand, so it drifts: it said "all
+## thirteen" while fifteen existed, because two tests were added and the README
+## was not. A test nobody knows to run is not much better than one that does not
+## exist — and this file is already the place where "something exists that
+## nothing accounts for" is caught, so the check belongs here.
+##
+## Membership and the count only. The one-line description beside each entry is
+## prose and stays a human's job.
+func _check_the_readme_lists_every_test() -> void:
+	var readme := FileAccess.get_file_as_string("res://README.md")
+	if readme == "":
+		failures.append("README.md is missing or unreadable")
+		return
+
+	var files: Array[String] = []
+	var d := DirAccess.open("res://tests")
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		# gen_* tools, the screenshot tool and the balance report are not
+		# pass/fail tests; the README documents those in their own sections.
+		if name.begins_with("test_") and name.ends_with(".gd"):
+			files.append(name)
+		name = d.get_next()
+	d.list_dir_end()
+	files.sort()
+
+	for f in files:
+		if not readme.contains("tests/" + f):
+			failures.append("tests/%s is not listed in README.md — nobody would know to run it" % f)
+
+	var expected := "All %s should print" % _spelt(files.size())
+	if not readme.contains(expected):
+		failures.append("README.md should say \"%s\" — there are %d test files" % [expected, files.size()])
+
+
+func _spelt(n: int) -> String:
+	const WORDS := ["zero", "one", "two", "three", "four", "five", "six", "seven",
+		"eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+		"fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
+	return WORDS[n] if n < WORDS.size() else str(n)
 
 
 ## key -> the registries it appears in, across every record of every registry.

@@ -52,9 +52,11 @@ godot --headless --path godot -s tests/test_settings.gd        # key rebinding +
 godot --headless --path godot -s tests/test_audio.gd           # sound registry + runtime loader
 godot --headless --path godot -s tests/test_profile.gd         # cross-run stats + reader unlocks
 godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
+godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code channel + secret events
+godot --headless --path godot -s tests/test_modloader.gd       # pack discovery, merge rules, every error path
 ```
 
-All thirteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
+All fifteen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
 `ERROR` line each, immediately after a `--- the next ERROR line is expected`
 marker: they feed `get_var()` a deliberately corrupt save to check it is
 refused rather than half-restored. Any `ERROR` line *without* that marker

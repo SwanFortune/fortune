@@ -269,6 +269,12 @@ A pack that reports an error is still loaded; only the record or file that
 caused it is skipped. So "my mod half works" is a normal symptom of one bad
 JSON file among several, and the Mods screen will name it.
 
+That sentence is asserted rather than intended: `tests/test_modloader.gd`
+builds a pack containing a missing file, an unparseable one, a JSON array where
+an object belongs, an unrecognised top-level key **and** a good file, and
+checks that all four are reported by name and the good one still loads. Run it
+if you change anything in `ModLoader.gd`.
+
 ## Mods and a run in progress
 
 Saved runs store cards by name and readers/signs by key, not as frozen copies,

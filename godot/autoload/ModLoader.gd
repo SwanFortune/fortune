@@ -76,6 +76,7 @@ var packs: Array[Dictionary] = []
 func build_registries() -> Dictionary:
 	var registries: Dictionary = {}
 	packs = []
+	_manifests = {}
 	for pack_dir in discover_pack_dirs():
 		var manifest := _load_manifest(pack_dir)
 		if manifest.is_empty():
@@ -162,12 +163,35 @@ func _ensure_user_mods_dir() -> void:
 	DirAccess.make_dir_recursive_absolute("user://mods")
 
 
+## Manifests read so far, by pack directory. Discovery needs each manifest for
+## its `priority` and the load pass needs it again for everything else, so
+## without this every manifest is parsed twice — and a BROKEN one is reported
+## twice. Combined with _read_json's own message that made a single unparseable
+## mod.json produce four entries in Content.load_errors, and the Mods screen
+## counts what it is handed: one typo, "4 problems".
+var _manifests: Dictionary = {}
+
+
 func _load_manifest(pack_dir: String) -> Dictionary:
+	if _manifests.has(pack_dir):
+		return _manifests[pack_dir]
+	var manifest := _parse_manifest(pack_dir)
+	_manifests[pack_dir] = manifest
+	return manifest
+
+
+func _parse_manifest(pack_dir: String) -> Dictionary:
 	var path := pack_dir.path_join("mod.json")
 	if not FileAccess.file_exists(path):
 		errors.append("pack at %s has no mod.json" % pack_dir)
 		return {}
 	var parsed = _read_json(path)
+	# null means _read_json already said why (unreadable, or unparseable), and
+	# saying "and it is not a JSON object" after that is a second message for
+	# one fault. A parsed-but-wrong-shape manifest — an array, a bare number —
+	# is a different fault and still gets its own line.
+	if parsed == null:
+		return {}
 	if typeof(parsed) != TYPE_DICTIONARY:
 		errors.append("mod.json at %s is not a JSON object" % path)
 		return {}
