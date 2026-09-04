@@ -36,7 +36,22 @@ port".
 
 No display needed, and no setup step — a fresh `git clone` runs green as-is
 (that is deliberate and checked; see `docs/PORTING_NOTES.md`, "The project did
-not work from a fresh clone"):
+not work from a fresh clone").
+
+Run the whole suite with:
+
+```
+tests/run_all.sh                      # from the godot/ directory
+GODOT=/path/to/godot tests/run_all.sh # if the binary is not at ~/bin/godot
+```
+
+It prints one line per file and ends in `ALL GREEN` or `NOT GREEN`, and it is
+the only thing worth believing about whether the suite passes: it checks for
+FAIL lines **and** for `ERROR`/`WARNING` output that is not on a named
+allow-list. Grepping for FAIL alone is how ten freed-capture errors went
+unnoticed for weeks (`docs/PORTING_NOTES.md`, "The lambda captures").
+
+The files, if you want one at a time:
 
 ```
 godot --headless --path godot -s tests/test_rules.gd          # scoring engine vs hand-traced cases
@@ -58,11 +73,13 @@ godot --headless --path godot -s tests/test_boot.gd            # the game actual
 godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
 ```
 
-All seventeen should print `ALL PASS` / `SCENE SWEEP DONE`. Two of them print one
-`ERROR` line each, immediately after a `--- the next ERROR line is expected`
-marker: they feed `get_var()` a deliberately corrupt save to check it is
-refused rather than half-restored. Any `ERROR` line *without* that marker
-above it is a real one.
+All seventeen should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
+also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
+`user://` unwritable, hand the mod loader broken JSON, and name content nothing
+answers to, all to check those paths are refused rather than half-honoured. The
+expected ones are enumerated in `tests/run_all.sh`, each next to the test that
+causes it; anything not on that list is a real error, which is precisely what
+the runner is for.
 
 One thing the suite cannot check for you: Godot's own `ERROR` lines on the real
 launch path. Nothing in `tests/` boots the project's main scene — they each

@@ -76,21 +76,25 @@ func _knock(root: Control) -> void:
 		# motion off should not make the door go quiet.
 		Audio.play("knock")
 		return
+	# THE ROOM BY ITS ID, never by reference, all the way down.
+	#
+	# The rule, established the hard way: a lambda whose OWN OBJECT is freed is
+	# dropped silently by Godot's signal bookkeeping and never runs — which is
+	# fine. A lambda that CAPTURES a freed Node is not: the engine nulls the
+	# capture, logs "Lambda capture at index 0 was freed", and calls the body
+	# anyway, so a guard inside the body is too late. These two knocks, pending
+	# for up to six tenths of a second after a player picks a caller and the map
+	# is torn down, were every one of the ten such errors the suite printed.
+	var id := room.get_instance_id()
+	var rattle := func(v: float) -> void:
+		if is_instance_id_valid(id):
+			Table.set_knock(instance_from_id(id), v)
 	for i in KNOCKS.size():
-		var at: float = KNOCKS[i]
-		UIKit.after(at, func():
-			if not is_instance_valid(room):
+		UIKit.after(KNOCKS[i], func():
+			if not is_instance_id_valid(id):
 				return
 			Audio.play("knock")
-			var t := UIKit.bound_tween(room)
-			# By ID for the same reason as UIKit.pulse(): the map is torn down
-			# the instant a caller is chosen, which can easily be mid-knock, and
-			# a lambda holding a freed capture is an engine-level ERROR raised
-			# before the body runs.
-			var id := room.get_instance_id()
-			var rattle := func(v: float) -> void:
-				if is_instance_id_valid(id):
-					Table.set_knock(instance_from_id(id), v)
+			var t := UIKit.bound_tween(instance_from_id(id))
 			# Sharp in, slower out — a hit, then the door settling back.
 			t.tween_method(rattle, 0.0, 1.0, UIKit.dur(0.03))
 			t.tween_method(rattle, 1.0, 0.0, UIKit.dur(0.22)) \

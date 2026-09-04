@@ -1405,31 +1405,73 @@ the JSON. It proved nothing. The property to break is the READING, so the stub
 that must fail is the screen hard-coding its list, and that is what was
 verified. A test whose stub you cannot name is not a test.
 
-### The lambda captures, honestly
+### The lambda captures, and the rule behind them
 
-There were six `Lambda capture at index 0 was freed` errors printed on every run
-of the suite. They are harmless — Godot nulls the capture and carries on — but
-this project reads its test output by grepping for ERROR, so noise costs
-something.
+There were ten `Lambda capture at index 0 was freed` errors printed on every run
+of the suite. They are harmless in the sense that the game keeps working —
+Godot nulls the capture and carries on — but this project reads its test output
+by grepping for ERROR, so noise costs something. They are **zero now**, and the
+reason they were hard to find is worth writing down, because an earlier version
+of this section said I could not find them and blamed a tween.
 
-Chasing them produced one real improvement and one honest failure.
+The rule, which I had backwards:
 
-The improvement is `UIKit.after()`, which every deferred beat in the game now
-goes through — the deal, the knock, the ledger's pacing. The instructive part is
-what does NOT work: wrapping the callable in a guard lambda,
-`connect(func(): if what.is_valid(): what.call())`, is the obvious defensive
-shape and is exactly wrong. The wrapper CAPTURES the callable, the engine nulls
-a freed capture before the body runs, and the guard never executes — it moves
-the error rather than removing it. Connected straight to the timer, Godot's own
-signal bookkeeping drops the connection when the callable's object goes, and
-nothing fires at all.
+- A lambda whose **own object** is freed is dropped **silently**. Godot's signal
+  bookkeeping severs the connection and the body never runs. No error, no
+  warning, nothing fires.
+- A lambda that **captures** a freed Node is a different animal entirely. The
+  connection survives, the engine nulls the capture, prints
+  `Lambda capture at index N was freed`, and **calls the body anyway**. Which
+  means `if is_instance_valid(room)` inside the body is too late: the error is
+  printed before your first line executes.
 
-The honest failure: **six of them remain and I could not find them.** They are
-not `focus_first`, not `animate_in`, not `pulse`, not the knock, not the reveal,
-and not any timer — each was ruled out by disabling it and re-counting. They
-vanish entirely when animation is off, so a tween is holding something, and the
-engine reports no GDScript location for them. Recorded here rather than
-described as fixed.
+That second half is why disabling suspects one at a time kept exonerating them.
+I was looking for something that should not have run, and the culprit was
+something that ran correctly while holding a corpse.
+
+It was `Map._knock`: the door is knocked three times when the agenda opens, and
+each pending knock's lambda captured `room`, the drawn parlour. Leave the map
+before the third knock lands — which the scene test does on every screen — and
+two captures are stale. Two per teardown, five teardowns, ten errors.
+
+The fix is to capture the **id**, never the node:
+
+```gdscript
+var id := room.get_instance_id()
+var rattle := func(v: float) -> void:
+    if is_instance_id_valid(id):
+        Table.set_knock(instance_from_id(id), v)
+```
+
+An int cannot be freed, so there is nothing to null and nothing to report, and
+`is_instance_id_valid` is the check that actually runs in time. The same shape
+is now used and commented in `UIKit.after()`, `UIKit.focus_first()`,
+`UIKit.pulse()` and `Reading._lift`.
+
+One other thing that does NOT work, recorded because it is the obvious move:
+wrapping the callable in a guard lambda,
+`connect(func(): if what.is_valid(): what.call())`. The wrapper CAPTURES the
+callable, so it converts case one into case two — it moves the error rather than
+removing it. Connect the callable directly and let the engine drop it.
+
+### One command for the suite
+
+There was no runner. Seventeen files were run by hand in a shell loop retyped
+from memory, and "the suite is green" meant "I grepped for FAIL and saw none".
+That is exactly how ten errors sat in the output for weeks: they were never
+FAILs, and Godot reports a null dereference, a bad theme override, a freed
+capture and a malformed scene as engine errors while carrying on.
+
+`tests/run_all.sh` checks both halves — no FAIL lines, and no ERROR/WARNING that
+is not on an explicit allow-list. The allow-list is the part that earns its
+keep: the suite deliberately drives a corrupt save, an unwritable disk, a mod
+with broken JSON and an option naming a card nobody has, so it cannot simply
+demand silence. Every expected line is listed **with the test that causes it**,
+so a new one has to be looked at and either fixed or allowed on purpose.
+
+It was verified against both failure kinds before being trusted: reintroducing
+the freed capture gave `NOT GREEN … 10 unexpected console line(s)`, and a
+planted `printerr("FAIL: …")` gave a red test and `exit=1`.
 
 ## Where to look
 
@@ -1449,7 +1491,10 @@ described as fixed.
 - `autoload/Art.gd` — resolves art ids to textures, null when undelivered;
   see `docs/ART_GUIDE.md` (artist-facing) and `tests/gen_art_manifest.gd`.
 - `scenes/` — the playable UI.
-- `tests/` — headless tests, runnable without a display:
+- `tests/` — headless tests, runnable without a display. Run them all with
+  `tests/run_all.sh` (from `godot/`), which is the only thing that should be
+  believed about whether the suite is green: it checks for FAIL lines AND for
+  unexpected ERROR/WARNING output, against a named allow-list. Individually:
   `godot --headless --path godot -s tests/test_rules.gd` (scoring engine),
   `tests/test_run.gd` (state machine, plays random full encounters),
   `tests/test_scenes.gd` (instantiates every screen against every game state),
