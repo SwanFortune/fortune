@@ -12,11 +12,8 @@
 ## previous frame of this scene, which doesn't exist by the time this runs.
 extends Control
 
-## Loaded by path, not by `class_name`. A class_name global is only declared
-## once Godot has written .godot/global_script_class_cache.cfg — a cache the
-## EDITOR generates, correctly gitignored — so on a fresh clone the bare name
-## does not resolve, this script fails to compile, and the scene instantiates
-## with no script at all. See autoload/Content.gd's header for the full story.
+## Loaded by path, not by `class_name` — a bare name does not resolve on a fresh
+## clone. See autoload/Content.gd's header for why, and never change these back.
 const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
@@ -96,12 +93,37 @@ func _ready() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_child(v)
 
+	# What the cards already on the table would do, worked out once and read by
+	# both the bars and the pace line under them.
+	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f) if not f["cross"].is_empty() else {}
+
+	v.add_child(_the_sitter(f))
+	v.add_child(_the_state(f, sim))
+	_the_notices(f, v)
+	_said_so_far(f, sim, v)
+
+	page.add_child(_the_say())
+	var hand_label := _the_hand_label()
+	page.add_child(hand_label)
+	var held := _the_held()
+	page.add_child(held)
+	var focus_on := _fill_the_hand(f, hand_label, held)
+
+	# The hand, not the run header above it. See Map.gd. Falls back to the whole
+	# screen when there is nothing in the hand to focus — which is not only the
+	# empty hand: once the energy is spent every card is disabled, so a fan full
+	# of cards can hold no focusable control at all. Without the fallback that
+	# left NOTHING on the screen focused, on more than half of all readings, and
+	# a player without a mouse could not reach READ IT to end the turn.
+	UIKit.focus_first(focus_on, self)
+
+
+## WHO IS SITTING THERE: their portrait, their name and job, their element, and
+## the rule their sign imposes on this reading.
+func _the_sitter(f: Dictionary) -> Control:
 	var s: Dictionary = f["sitter"]
 	var q: Dictionary = f["quirk"]
 	var hp_ratio := float(f["hp"]) / float(f["max"]) if int(f["max"]) > 0 else 0.0
-	var prev_hp_ratio := float(f.get("_prevHp", f["hp"])) / float(f["max"]) if int(f["max"]) > 0 else 0.0
-	var energy_ratio := float(f["energy"]) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
-	var prev_energy_ratio := float(f.get("_prevEnergy", f["energy"])) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
 
 	var header := UIKit.hbox(14)
 	header.add_child(UIKit.sitter_portrait(s, hp_ratio, Art.sitter_texture(s)))
@@ -119,12 +141,24 @@ func _ready() -> void:
 	header_text.add_child(who)
 	header_text.add_child(UIKit.block("%s %s — %s: %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_rule(q, s)], 12, UIKit.DIM))
 	header.add_child(header_text)
-	v.add_child(header)
+	return header
+
+
+## WHERE THE READING STANDS: the two bars, the piles, and whether you are on
+## course. Kept together because they are one reading of one number — the pace
+## line is worked out from the same projection the composure bar draws.
+func _the_state(f: Dictionary, sim: Dictionary) -> Control:
+	var v := UIKit.vbox(10)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var hp_ratio := float(f["hp"]) / float(f["max"]) if int(f["max"]) > 0 else 0.0
+	var prev_hp_ratio := float(f.get("_prevHp", f["hp"])) / float(f["max"]) if int(f["max"]) > 0 else 0.0
+	var energy_ratio := float(f["energy"]) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
+	var prev_energy_ratio := float(f.get("_prevEnergy", f["energy"])) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
+
 	# WHAT THE CARDS ON THE TABLE WOULD DO, on the composure bar, before you
 	# commit to them: gold for what would reach them, violet for what their
 	# denial would eat first. Ported from the source's own three-segment bar
 	# (v23 line ~726) — see UIKit.bar().
-	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f) if not f["cross"].is_empty() else {}
 	var room := maxf(0.0, float(f["max"]) - maxf(0.0, float(f["hp"])))
 	var will_land: float = minf(float(sim.get("applied", 0)), room)
 	var will_stop: float = minf(float(sim.get("absorbed", 0)), maxf(0.0, room - will_land))
@@ -160,7 +194,15 @@ func _ready() -> void:
 		v.add_child(pace)
 	elif int(f["hp"]) < int(f["max"]):
 		v.add_child(UIKit.block(I18n.t("This reading is enough."), 11, UIKit.GREEN))
+	return v
 
+
+## The two things that may have happened to your hand before you could start,
+## which the reading has to admit to: a card the sitter's sign took out of it,
+## and whatever the last reading discarded. Added straight into `v` rather than
+## returned, because on an ordinary turn there is nothing to say and an empty
+## container would still take a gap in the column.
+func _the_notices(f: Dictionary, v: Control) -> void:
 	if f.get("taken", null) != null:
 		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
 
@@ -174,6 +216,10 @@ func _ready() -> void:
 			fade.tween_interval(UIKit.dur(0.9))
 			fade.tween_property(disc_label, "modulate:a", 0.0, UIKit.dur(1.2)).set_trans(Tween.TRANS_QUAD)
 
+
+## The line as it stands: every card already laid, each with what it is worth in
+## this reading rather than what is printed on it.
+func _said_so_far(f: Dictionary, sim: Dictionary, v: Control) -> void:
 	v.add_child(UIKit.block(I18n.t("SAID SO FAR"), 12, UIKit.DIM))
 	var cross_box := UIKit.hbox(6)
 	v.add_child(cross_box)
@@ -192,9 +238,13 @@ func _ready() -> void:
 				# a reading, "new" and "only" are the same card either way).
 				UIKit.animate_in(chip)
 
-	# Greyed while a play is still available and nothing is laid — the source
-	# does this (`cannotRead`) and the port had inherited only the silent
-	# early-return, so the button looked live and did nothing.
+
+## READ IT, and TAKE IT BACK beside it when there is something to take back.
+##
+## Greyed while a play is still available and nothing is laid — the source does
+## this (`cannotRead`) and the port had inherited only the silent early-return,
+## so the button looked live and did nothing.
+func _the_say() -> Control:
 	var say := UIKit.hbox(10)
 	var read_btn := UIKit.button(I18n.t("READ IT"), _read_it)
 	read_btn.disabled = not Run.can_read()
@@ -207,23 +257,29 @@ func _ready() -> void:
 		var undo := UIKit.button(I18n.t("TAKE IT BACK"), _unlay)
 		undo.size_flags_horizontal = Control.SIZE_SHRINK_END
 		say.add_child(undo)
-	page.add_child(say)
+	return say
 
-	# A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and
-	# a hover is something a keyboard or a gamepad cannot do — so a player on a
-	# controller could reach every card in the game, play them, and never once
-	# read what any of them did. This line is now live: it shows whichever card
-	# is under the pointer OR has focus, which fixes the hole and is better with
-	# a mouse too, since the text lands in the same place every time instead of
-	# following the cursor around.
+
+## A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and a
+## hover is something a keyboard or a gamepad cannot do — so a player on a
+## controller could reach every card in the game, play them, and never once read
+## what any of them did. This line is live: it shows whichever card is under the
+## pointer OR has focus, which fixes the hole and is better with a mouse too,
+## since the text lands in the same place every time instead of following the
+## cursor around.
+func _the_hand_label() -> Control:
 	var hand_label := UIKit.block(I18n.t("YOUR HAND — the card you are on says what it does here"), 12, UIKit.DIM)
 	# Two lines' worth, held open, so the layout under it does not jump every
 	# time the pointer crosses a card.
 	hand_label.custom_minimum_size.y = 34 * UIKit.text_scale
-	page.add_child(hand_label)
-	# The fan sits on top of the reader's own hands: the cards are HELD, and
-	# every mark won this run is drawn on the fingers holding them. A Control
-	# stacking the two, so the hands are behind and the cards in front.
+	return hand_label
+
+
+## The box the hand lives in. The fan sits on top of the reader's own hands: the
+## cards are HELD, and every mark won this run is drawn on the fingers holding
+## them. A Control stacking the two, so the hands are behind and the cards in
+## front — filled by _fill_the_hand().
+func _the_held() -> Control:
 	var held := Control.new()
 	# THE CARD BAND, not the whole held area. The hands are drawn down to
 	# HELD_HEIGHT and are meant to run off the bottom of the screen — wrists are
@@ -237,8 +293,12 @@ func _ready() -> void:
 	# relative to this box, and a box that grows with the window would walk
 	# them away from the cards they are supposed to be holding.
 	held.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	page.add_child(held)
+	return held
 
+
+## Puts the cards into `held`, draws the hands that hold them, and returns the
+## node focus should be aimed at.
+func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 	var just_drawn: Array = f.get("_justDrawn", [])
 	# THE LAST CARD IS NOT HELD IN A FAN. One card between two hands is not a
 	# fan at all, and clamping it between the fingertips the way five cards are
@@ -340,13 +400,7 @@ func _ready() -> void:
 		if child is Container:
 			(child as Container).sort_children.connect(func(): hands.queue_redraw())
 
-	# The hand, not the run header above it. See Map.gd. Falls back to the whole
-	# screen when there is nothing in the hand to focus — which is not only the
-	# empty hand: once the energy is spent every card is disabled, so a fan full
-	# of cards can hold no focusable control at all. Without the fallback that
-	# left NOTHING on the screen focused, on more than half of all readings, and
-	# a player without a mouse could not reach READ IT to end the turn.
-	UIKit.focus_first(focus_on, self)
+	return focus_on
 
 
 ## Wires a card face to the hand label, so hovering it or focusing it prints
@@ -673,18 +727,13 @@ func _finish_read() -> void:
 	Nav.goto_for_state()
 
 
-## The reading, read out. A ledger that writes itself: one line per card with
-## the link named, then the wall, then what lands.
+## The scrim, the panel and the column the ledger is written into. Separated
+## from the writing of it because it is a different job: this is a modal over a
+## busy screen — a portrait, two bars, a fan of cards, a room — and a ledger
+## written straight onto that was unreadable however dark the scrim got.
 ##
-## Built over the whole screen rather than woven into it, for the same reason
-## the deck overlay is: this screen rebuilds itself from scratch on every
-## action, so anything that has to survive a couple of seconds is safer as one
-## node that owns its own lifetime.
-func _reveal() -> void:
-	var f: Dictionary = Run.state["f"]
-	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f)
-	var rows: Array = sim.get("rows", [])
-
+## Returns the column to add lines to; the overlay is already in the tree.
+func _reveal_stage() -> Control:
 	var over := Control.new()
 	over.name = "Reveal"
 	over.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -710,9 +759,6 @@ func _reveal() -> void:
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	m.add_child(centre)
 
-	# A panel, not bare labels over the screen. The reading screen behind this
-	# is busy — a portrait, two bars, a fan of cards, a room — and a ledger
-	# written straight onto it was unreadable however dark the scrim got.
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.custom_minimum_size.x = REVEAL_WIDTH * UIKit.text_scale
@@ -728,6 +774,21 @@ func _reveal() -> void:
 	var v := UIKit.vbox(8)
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(v)
+	return v
+
+
+## The reading, read out. A ledger that writes itself: one line per card with
+## the link named, then the wall, then what lands.
+##
+## Built over the whole screen rather than woven into it, for the same reason
+## the deck overlay is: this screen rebuilds itself from scratch on every
+## action, so anything that has to survive a couple of seconds is safer as one
+## node that owns its own lifetime.
+func _reveal() -> void:
+	var f: Dictionary = Run.state["f"]
+	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f)
+	var rows: Array = sim.get("rows", [])
+	var v := _reveal_stage()
 
 	v.add_child(UIKit.block(I18n.t("YOU READ IT OUT"), 13, UIKit.DIM))
 	var at := 0.0
