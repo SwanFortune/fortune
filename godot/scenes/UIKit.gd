@@ -635,8 +635,16 @@ static func motion_off() -> bool:
 	return Settings.animation_scale() <= 0.01
 
 
-## A duration scaled by the player's animation-speed setting.
+## A duration at the player's chosen game speed. Bigger speed, shorter duration.
+##
+## ZERO WHEN MOTION IS OFF, not a huge number. Every animation in the game is
+## supposed to check motion_off() and jump to its end state, and today they all
+## do — but dividing by a floor of 0.01 meant that the day one did not, its
+## animation would take a hundred times as long instead of no time at all. An
+## instant setting that makes something slower is the worst possible answer.
 static func dur(seconds: float) -> float:
+	if motion_off():
+		return 0.0
 	return seconds / maxf(Settings.animation_scale(), 0.01)
 
 

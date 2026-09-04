@@ -33,6 +33,7 @@ const TESTS := [
 	"_test_unknown_key_is_refused",
 	"_test_every_setting_is_reachable",
 	"_test_every_setting_moves_something",
+	"_test_the_game_speeds_are_four_and_all_work",
 	"_test_choice_defaults_are_valid_choices",
 	"_test_a_bad_stored_choice_falls_back",
 	"_test_legacy_fullscreen_migrates",
@@ -214,7 +215,7 @@ func _test_every_setting_moves_something() -> void:
 		"sfx_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("SFX"))],
 		"ui_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("UI"))],
 		"muted": [false, true, func(): return AudioServer.is_bus_mute(0)],
-		"animation_scale": [1.0, 0.0, func(): return [UIKit.dur(1.0), UIKit.motion_off()]],
+		"animation_scale": [1.0, 4.0, func(): return [UIKit.dur(1.0), UIKit.motion_off()]],
 		"text_scale": [1.0, 1.3, func(): UIKit.refresh_look(); return UIKit.text_scale],
 		"high_contrast": [false, true, func(): UIKit.refresh_look(); return UIKit.INK],
 		"start_energy": [3, 7, func(): return run.cfg_energy()],
@@ -256,6 +257,43 @@ func _test_every_setting_moves_something() -> void:
 	i18n.reload()
 	content.reload()
 	done("_test_every_setting_moves_something")
+
+
+## FOUR GAME SPEEDS, AND EVERY ONE OF THEM DOES SOMETHING.
+##
+## A speed set is easy to get wrong in a way nothing else notices: a duplicate
+## entry, a value the validator then rejects on the next launch, or an "instant"
+## that is really "a hundred times slower" because dur() divides by a floor
+## instead of short-circuiting.
+func _test_the_game_speeds_are_four_and_all_work() -> void:
+	var UIKit = load("res://scenes/UIKit.gd")
+	var before = settings.get_value("animation_scale")
+
+	check(settings.ANIMATION_SPEEDS.size() == 4,
+		"there should be four game speeds, there are %d" % settings.ANIMATION_SPEEDS.size())
+	var seen := {}
+	var durations := {}
+	for speed in settings.ANIMATION_SPEEDS:
+		check(not seen.has(speed), "game speed %s is listed twice" % speed)
+		seen[speed] = true
+		# Every speed has to survive a round trip through set_value and the
+		# choice validator, or it is an option that silently resets itself.
+		settings.set_value("animation_scale", speed)
+		check(settings.get_value("animation_scale") == speed,
+			"game speed %s did not stick — set_value or _validate_choices refuses it" % speed)
+		durations[speed] = UIKit.dur(1.0)
+
+	# Faster must mean shorter, and instant must mean instant.
+	check(durations[1.0] > durations[2.0] and durations[2.0] > durations[4.0],
+		"the speeds do not order: 1x=%s 2x=%s 4x=%s" % [durations[1.0], durations[2.0], durations[4.0]])
+	settings.set_value("animation_scale", 0.0)
+	check(UIKit.motion_off(), "the instant speed does not read as motion-off")
+	check(UIKit.dur(1.0) == 0.0,
+		"instant gives a duration of %s — an animation that skipped its motion_off() guard would run at that, not instantly"
+			% UIKit.dur(1.0))
+
+	settings.set_value("animation_scale", before)
+	done("_test_the_game_speeds_are_four_and_all_work")
 
 
 func _test_choice_defaults_are_valid_choices() -> void:

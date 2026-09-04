@@ -173,10 +173,11 @@ func _pane_audio(v: VBoxContainer) -> void:
 
 
 func _pane_interface(v: VBoxContainer) -> void:
-	v.add_child(UIKit.setting_slider(
-		"animation_scale", I18n.t("Animation speed"),
-		I18n.t("How fast cards deal, bars fill and values pulse. Set to 0 for no motion at all — the game jumps straight to each end state."),
-		func(x): return I18n.t("off") if float(x) <= 0.01 else "%.2fx" % float(x)))
+	v.add_child(UIKit.setting_choice(
+		"animation_scale", I18n.t("Game speed"),
+		I18n.t("How fast cards deal, bars fill and values pulse. INSTANT skips the motion entirely and jumps to each end state."),
+		Settings.ANIMATION_SPEEDS,
+		[I18n.t("1x"), I18n.t("2x"), I18n.t("4x"), I18n.t("Instant")]))
 	v.add_child(UIKit.setting_slider(
 		"text_scale", I18n.t("Text size"),
 		I18n.t("Makes the words bigger without magnifying the layout around them. Cards grow to match."),

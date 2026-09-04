@@ -25,6 +25,16 @@ const SECTION := "parlour"
 ## the rest. Also the single source of truth for what a valid setting IS —
 ## set() rejects anything not listed, so a typo'd key fails loudly at the
 ## call site instead of silently persisting a value nothing ever reads.
+## The four animation speeds, as multipliers. `dur()` divides by this, so a
+## bigger number is a faster game.
+##
+## 1x, 2x, 4x, and INSTANT rather than Balatro's 0.5/1/2/4. Two reasons: the
+## half-speed step is a control nobody reaches for, and 0 has to stay in the set
+## because it is the reduced-motion path — every animation in the game checks
+## UIKit.motion_off() and jumps to its end state. Folding that into the speed
+## control keeps it to the four asked for instead of needing a fifth row.
+const ANIMATION_SPEEDS := [1.0, 2.0, 4.0, 0.0]
+
 const DEFS := {
 	# ── video ────────────────────────────────────────────────────────────
 	# One of WINDOW_MODES. Replaces the old `fullscreen` bool, which could not
@@ -53,7 +63,10 @@ const DEFS := {
 	"ui_volume": [0.7, 0.0, 1.0],
 	"muted": [false],
 	# ── interface / accessibility ────────────────────────────────────────
-	"animation_scale": [1.0, 0.0, 2.0],
+	# FOUR SPEEDS, not a slider — the shape Balatro uses, and the one that
+	# actually gets used: nobody drags a continuous control to 1.37x. See
+	# ANIMATION_SPEEDS for why the fourth is "instant" rather than 0.5x.
+	"animation_scale": [1.0],
 	# Multiplies every font size UIKit hands out, and the card face with them
 	# so the text still fits. Separate from ui_scale, which magnifies the whole
 	# interface including the gaps: this makes the WORDS bigger at the same
@@ -327,7 +340,8 @@ func _migrate_legacy(cfg: ConfigFile) -> void:
 ## fall through every match and land on an arbitrary branch. Cheaper to refuse
 ## it on load than to make each apply function defensive.
 func _validate_choices() -> void:
-	for pair in [["window_mode", WINDOW_MODES], ["vsync", VSYNC_MODES], ["resolution", RESOLUTIONS]]:
+	for pair in [["window_mode", WINDOW_MODES], ["vsync", VSYNC_MODES], ["resolution", RESOLUTIONS],
+			["animation_scale", ANIMATION_SPEEDS]]:
 		var key: String = pair[0]
 		if _values.has(key) and not pair[1].has(_values[key]):
 			push_warning("[Settings] '%s' had an unknown value %s; using the default." % [key, _values[key]])
