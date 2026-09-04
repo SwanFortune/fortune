@@ -503,7 +503,16 @@ static func after(seconds: float, what: Callable) -> void:
 	tree().create_timer(dur(seconds)).timeout.connect(what)
 
 
-static func focus_first(root: Node) -> void:
+## Puts focus on the first thing inside `root` that can take it.
+##
+## `fallback` is where to look if there is nothing — usually the whole screen,
+## when `root` is the part of it a player would normally start on. It is not a
+## nicety: the reading screen aims focus at the HAND, and a hand every card of
+## which is unaffordable contains no focusable control at all, so with the
+## energy spent NOTHING on the screen had focus. A player with a gamepad was
+## then holding a controller that did nothing — READ IT included — with no way
+## to finish the reading. It happened on better than half of all readings.
+static func focus_first(root: Node, fallback: Node = null) -> void:
 	# The node's ID, not the node. This is deferred by a frame, and a screen torn
 	# down inside that frame — which happens constantly in the scene sweep, and
 	# in the game whenever an action rebuilds the screen immediately — would
@@ -511,10 +520,14 @@ static func focus_first(root: Node) -> void:
 	# engine-level ERROR and nulls out BEFORE the body runs, so the going_away()
 	# guard inside _focus_first_now() could not prevent it.
 	var id := root.get_instance_id()
+	var spare := fallback.get_instance_id() if fallback != null else 0
 	(func():
 		if not is_instance_id_valid(id):
 			return
-		_focus_first_now(instance_from_id(id))
+		if _focus_first_now(instance_from_id(id)):
+			return
+		if spare != 0 and is_instance_id_valid(spare):
+			_focus_first_now(instance_from_id(spare))
 	).call_deferred()
 
 
@@ -1407,8 +1420,20 @@ const CARD_FACE_SIZE := Vector2(122, 158)
 ## type in it clips the name, so the card grows with the words — checked
 ## visually at both ends of the range, which is the only way this kind of thing
 ## is ever actually checked.
+## How much bigger a card is at the current interface size. Less than the text
+## scale itself (four fifths of it): the words inside a card have to grow with
+## the setting, but a card that grew at the full rate would leave no table.
+##
+## A function rather than a number repeated in two files, because everything
+## measured against a card — the band it sits in, the hands that hold it — has
+## to move with it or the fingers grip thin air. That was the bug: the band was
+## a fixed 176 and a card at the top of the range is 196.
+static func card_scale() -> float:
+	return lerpf(1.0, text_scale, 0.8)
+
+
 static func card_face_size() -> Vector2:
-	return CARD_FACE_SIZE * lerpf(1.0, text_scale, 0.8)
+	return CARD_FACE_SIZE * card_scale()
 
 ## A fixed-size card face for the hand fan — cost top-left, base restore
 ## top-right, name centered, element-colored border; the full mechanic text,

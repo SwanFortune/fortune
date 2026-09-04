@@ -27,6 +27,15 @@ func _initialize() -> void:
 	# a guarantee against future reordering.
 	await process_frame
 	content.reload()
+	# What the player's settings looked like before this file touched anything.
+	# Several tests here change text_scale and high_contrast on purpose — they
+	# have to, since the only way to check a look setting reaches the interface
+	# is to build a screen under it — and Settings writes straight to disk, so a
+	# test that forgets to put one back leaves it changed for the game and for
+	# every tool. That is not hypothetical: a text_scale of 1.3 was left behind
+	# once and quietly rendered every screenshot at the wrong size until somebody
+	# noticed the words looked big.
+	var settings_before := _settings_snapshot()
 
 	await _visit("sign", func(): run.state = run.fresh())
 
@@ -99,9 +108,31 @@ func _initialize() -> void:
 	await _visit_standalone()
 	await _test_keyboard_can_play()
 	_test_settings_return_path()
+	_check_settings_put_back(settings_before)
 
 	print("SCENE SWEEP DONE")
 	quit(0)
+
+
+## Every setting this file could have changed, by name and value.
+func _settings_snapshot() -> Dictionary:
+	var settings: Node = root.get_node("Settings")
+	var out := {}
+	for key in settings.DEFS:
+		out[key] = settings.get_value(key)
+	return out
+
+
+func _check_settings_put_back(before: Dictionary) -> void:
+	var settings: Node = root.get_node("Settings")
+	var moved: Array = []
+	for key in before:
+		if settings.get_value(key) != before[key]:
+			moved.append("%s %s -> %s" % [key, before[key], settings.get_value(key)])
+	if moved.is_empty():
+		print("--- the player's settings are as they were found ---")
+		return
+	printerr("FAIL: this test left the player's settings changed on disk: %s" % ", ".join(moved))
 
 
 ## The menus are not reachable from Run.state's "screen" field — they are
@@ -151,6 +182,8 @@ func _visit_standalone() -> void:
 	await _test_an_events_own_words_are_shown()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
+	await _test_the_hand_stays_on_screen()
+	await _test_a_spent_reading_can_still_be_played()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -392,16 +425,27 @@ func _test_the_last_card_floats() -> void:
 
 	const COUNTS := [1, 5]
 	for count: int in COUNTS:
-		run.state = run.fresh()
-		run.pick_reader(0)
-		run.take_pick(0)
-		for o in run.state["options"]:
-			if o["kind"] in ["sitter", "elite"]:
-				run.choose(run.state["options"].find(o))
+		# SEEDED, and it tries a few. An unseeded run.fresh() deals a hand that
+		# some sitters shorten — a quirk that takes a card before the reading
+		# starts is in the base content — so about one run in ten was dealt four
+		# cards and reported a precondition failure that was nothing but the
+		# weather. Seeds make the deal reproducible; trying several means the
+		# test does not depend on one lucky one still being lucky after somebody
+		# edits a card.
+		var f: Dictionary = {}
+		for spin in 8:
+			run.state = run.fresh("floats-%d-%d" % [count, spin])
+			run.pick_reader(0)
+			run.take_pick(0)
+			for o in run.state["options"]:
+				if o["kind"] in ["sitter", "elite"]:
+					run.choose(run.state["options"].find(o))
+					break
+			f = run.state["f"]
+			if not f.is_empty() and f["hand"].size() >= count:
 				break
-		var f: Dictionary = run.state["f"]
-		if f["hand"].size() < count:
-			printerr("FAIL: precondition — wanted %d cards in hand, dealt %d" % [count, f["hand"].size()])
+		if f.is_empty() or f["hand"].size() < count:
+			printerr("FAIL: precondition — wanted %d cards in hand, no seed in eight dealt that many" % count)
 			continue
 		f["hand"] = f["hand"].slice(0, count)
 		var alone := count == 1
@@ -1132,6 +1176,155 @@ func _test_look_settings_reach_a_built_screen() -> void:
 
 	settings.set_value("text_scale", restore_scale)
 	settings.set_value("high_contrast", restore_hc)
+
+
+## THE HAND CANNOT BE PUSHED OFF THE BOTTOM OF THE WINDOW.
+##
+## The reading screen used to be one column: header, sitter, bars, pace, what
+## has been said so far, READ IT, and the hand last. So everything above the
+## hand pushed it down — a long sign rule, a card that slipped out before the
+## reading started, a hint line that wrapped to two — and at the largest
+## interface size, which exists so that people can read the game, it pushed the
+## cards clean off the screen. Measured across forty readings before the fix:
+## fifteen lost the cards entirely, the worst by 261 pixels, with no way to
+## scroll to them. The setting for players who need bigger text made the game
+## unplayable, and nothing in the suite noticed, because nothing failed.
+##
+## Run at BOTH sizes: at 100% the old layout was fine on almost every hand, so
+## a check at the default alone would have gone green over the whole bug.
+##
+## The window has to be set explicitly. A headless SceneTree's root is square
+## (1152x1152), which is not a shape any player has, and it hides the fault
+## completely — this measured zero overflow at that size while the real window
+## was losing a quarter of the screen.
+func _test_the_hand_stays_on_screen() -> void:
+	var settings: Node = root.get_node("Settings")
+	var restore_scale = settings.get_value("text_scale")
+	var restore_hand = settings.get_value("hand_size")
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(1152, 648)
+	# The widest hand the game can deal, which is the case that broke: eight is
+	# the top of the hand-size setting and a reader can add one on top of it. A
+	# seeded sample of ordinary hands would mostly miss it, and a test that does
+	# not contain the shape it is guarding against is decoration.
+	settings.set_value("hand_size", int(settings.DEFS["hand_size"][2]))
+	await process_frame
+
+	for scale: float in [1.0, 1.3]:
+		settings.set_value("text_scale", scale)
+		var worst := 0.0
+		var lost := 0
+		var tried := 0
+		for attempt in 16:
+			# SEEDED, so the twelve-odd readings are the same ones every run. An
+			# unseeded version of this found a real overflow on about one run in
+			# ten and passed on the others, which is a test that reports the
+			# weather. A seed also means a failure can be reproduced by typing it
+			# into the sign screen.
+			run.state = run.fresh("hand-fits-%d" % attempt)
+			run.pick_reader(attempt % content.readers.size())
+			run.take_pick(0)
+			var picked := false
+			for o in run.state["options"]:
+				if o["kind"] in ["sitter", "elite"]:
+					run.choose(run.state["options"].find(o))
+					picked = true
+					break
+			if not picked:
+				continue
+			# The busiest the screen gets: everything affordable already on the
+			# table, which is what the said-so-far row and the hint line grow with.
+			var f: Dictionary = run.state["f"]
+			for c in f["hand"].duplicate():
+				if int(c.get("cost", 0)) <= int(f["energy"]) and f["hand"].size() > 1:
+					run.lay_card(c["uid"])
+
+			var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+			root.add_child(instance)
+			for i in 4:
+				await process_frame
+			tried += 1
+			var bottom := 0.0
+			for node in _all_of(instance, []):
+				if node is PanelContainer and (node as Control).focus_mode == Control.FOCUS_ALL \
+						and node.get_parent() is HFlowContainer:
+					var c: Control = node
+					bottom = maxf(bottom, c.global_position.y + c.size.y)
+			if bottom > 648.0:
+				lost += 1
+				worst = maxf(worst, bottom - 648.0)
+			instance.queue_free()
+			await process_frame
+		if tried == 0:
+			printerr("FAIL: precondition — no reading with a fan was dealt at text_scale %.2f" % scale)
+		elif lost > 0:
+			printerr("FAIL: at text_scale %.2f, %d of %d readings put the hand off the bottom of a 1152x648 window (worst %.0fpx) — those cards cannot be played"
+				% [scale, lost, tried, worst])
+	settings.set_value("text_scale", restore_scale)
+	settings.set_value("hand_size", restore_hand)
+	root.size = restore_size
+	await process_frame
+	print("--- the hand stays on the table at every interface size ---")
+
+
+## A READING WITH NO ENERGY LEFT IS STILL PLAYABLE WITHOUT A MOUSE.
+##
+## The reading screen aims focus at the hand, which is right — that is where a
+## player acts. But once the energy is spent every card in the hand is disabled,
+## and a disabled control cannot take focus, so a fan of five perfectly visible
+## cards contained nothing focusable at all and focus_first quietly placed
+## nothing. Not a card, not READ IT, not the header: NOTHING on the screen had
+## focus, so a player on a keyboard or a gamepad was holding a controller that
+## did nothing and no way to end the turn. It happened on more than half of all
+## readings — measured, not guessed — and it was invisible with a mouse, which
+## is how it survived the whole port.
+##
+## Driven to the actual state rather than faked: cards are laid until the energy
+## really is gone, and then the screen is built from Run.state like any other.
+func _test_a_spent_reading_can_still_be_played() -> void:
+	var checked := 0
+	for attempt in 10:
+		run.state = run.fresh("spent-%d" % attempt)
+		run.pick_reader(attempt % content.readers.size())
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		if f.is_empty():
+			continue
+		# Spend it down. Cards are laid one at a time because laying one changes
+		# what the rest cost against.
+		var spending := true
+		while spending:
+			spending = false
+			for c in run.state["f"]["hand"].duplicate():
+				if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]) and int(c.get("cost", 0)) > 0:
+					run.lay_card(c["uid"])
+					spending = true
+					break
+		f = run.state["f"]
+		if int(f["energy"]) > 0 or f["hand"].is_empty():
+			continue   # not the state under test
+
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		for i in 4:
+			await process_frame
+		checked += 1
+		var focused: Control = instance.get_viewport().gui_get_focus_owner()
+		if focused == null:
+			printerr("FAIL: a reading with %d unaffordable card(s) and no energy left focused nothing — there is no way to reach READ IT without a mouse"
+				% f["hand"].size())
+		elif not instance.is_ancestor_of(focused):
+			printerr("FAIL: focus went outside the reading screen (%s)" % focused)
+		instance.queue_free()
+		await process_frame
+	if checked == 0:
+		printerr("FAIL: precondition — no reading ran out of energy with cards still in hand, so this checked nothing")
+	else:
+		print("--- a reading with the energy spent still has somewhere to put focus (%d checked) ---" % checked)
 
 
 ## Builds the main menu under the given look settings and reports the first

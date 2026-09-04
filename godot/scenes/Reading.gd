@@ -25,6 +25,20 @@ const Table := preload("res://scenes/Table.gd")
 ## cards stop and rise back over them by the difference.
 const CARD_BAND := 176
 const HELD_HEIGHT := 250
+
+## The same two, at the interface size the player has actually chosen.
+##
+## A card grows with that setting (UIKit.card_scale), and these did not: at the
+## top of the range the band stayed 176 pixels while the card in it became 196,
+## so the card overflowed its own band and the fingers drawn to grip its lower
+## edge closed on empty table twenty pixels above it. Everything measured
+## against a card has to move with the card.
+static func _band() -> float:
+	return CARD_BAND * UIKit.card_scale()
+
+
+static func _held() -> float:
+	return HELD_HEIGHT * UIKit.card_scale()
 ## How far the hands reach back UP over the cards. Without an overlap the fan
 ## floats above a drawing of some fingers instead of being held by them.
 ##
@@ -50,11 +64,37 @@ func _ready() -> void:
 	var root := UIKit.root_control()
 	add_child(root)
 	var m := UIKit.margin(28)
+	# No margin along the bottom: the hand is meant to sit on the edge of the
+	# screen with the fingers holding it running off it, which is what makes the
+	# table a table rather than a panel with a gap under it.
+	m.add_theme_constant_override("margin_bottom", 0)
 	root.add_child(m)
-	var v := UIKit.vbox(10)
-	m.add_child(v)
 
-	v.add_child(RunHeader.build(self))
+	# THE THINGS YOU ACT ON ARE NAILED DOWN; THE THINGS YOU READ SCROLL.
+	#
+	# Everything used to be one column, so the hand was pushed down by whatever
+	# happened to be above it — a long sitter rule, a card that slipped out of
+	# your hand, a hint line that wrapped. At the default window that cost about
+	# twenty pixels of drawn fingers. At the largest interface size, which exists
+	# so people can read the game, it put the whole hand off the bottom of the
+	# window: measured across forty readings, fifteen of them lost the cards
+	# entirely, the worst by 261 pixels, with no way to scroll to them.
+	#
+	# So the header, the READ IT row, the hand's own line and the hand itself are
+	# fixed, and the middle — the sitter, the bars, the pace, what has been said
+	# so far — takes whatever room is left and scrolls when there is not enough.
+	# Nothing a player needs to press can be pushed off the screen by prose.
+	var page := UIKit.vbox(10)
+	m.add_child(page)
+
+	page.add_child(RunHeader.build(self))
+
+	var column := UIKit.scroll()
+	column.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(column)
+	var v := UIKit.vbox(10)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_child(v)
 
 	var s: Dictionary = f["sitter"]
 	var q: Dictionary = f["quirk"]
@@ -167,7 +207,7 @@ func _ready() -> void:
 		var undo := UIKit.button(I18n.t("TAKE IT BACK"), _unlay)
 		undo.size_flags_horizontal = Control.SIZE_SHRINK_END
 		say.add_child(undo)
-	v.add_child(say)
+	page.add_child(say)
 
 	# A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and
 	# a hover is something a keyboard or a gamepad cannot do — so a player on a
@@ -180,18 +220,24 @@ func _ready() -> void:
 	# Two lines' worth, held open, so the layout under it does not jump every
 	# time the pointer crosses a card.
 	hand_label.custom_minimum_size.y = 34 * UIKit.text_scale
-	v.add_child(hand_label)
+	page.add_child(hand_label)
 	# The fan sits on top of the reader's own hands: the cards are HELD, and
 	# every mark won this run is drawn on the fingers holding them. A Control
 	# stacking the two, so the hands are behind and the cards in front.
 	var held := Control.new()
-	held.custom_minimum_size = Vector2(0, HELD_HEIGHT)
+	# THE CARD BAND, not the whole held area. The hands are drawn down to
+	# HELD_HEIGHT and are meant to run off the bottom of the screen — wrists are
+	# not interesting — so reserving the full 250 in the column would either push
+	# the cards up off the table's edge or, before the column scrolled, push them
+	# off the screen. What has to fit is the band the cards are in; the rest of
+	# the drawing overflows this box on purpose, and nothing here clips.
+	held.custom_minimum_size = Vector2(0, _band())
 	held.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Exactly its own height, not the leftover: the hands are positioned
 	# relative to this box, and a box that grows with the window would walk
 	# them away from the cards they are supposed to be holding.
 	held.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	v.add_child(held)
+	page.add_child(held)
 
 	var just_drawn: Array = f.get("_justDrawn", [])
 	# THE LAST CARD IS NOT HELD IN A FAN. One card between two hands is not a
@@ -229,7 +275,7 @@ func _ready() -> void:
 		# rect starts `head` pixels higher and the fan is pushed back down by the
 		# same amount, so every card sits exactly where it did — still gripped by
 		# the fingers drawn under it — and only what gets clipped has changed.
-		scroll.offset_bottom = CARD_BAND
+		scroll.offset_bottom = _band()
 		held.add_child(scroll)
 		var headroom := MarginContainer.new()
 		headroom.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -240,7 +286,7 @@ func _ready() -> void:
 		# the table rather than both crowding whichever side the cards happened
 		# to stack up on.
 		fan.alignment = FlowContainer.ALIGNMENT_CENTER
-		fan.add_theme_constant_override("h_separation", 8)
+		fan.add_theme_constant_override("h_separation", FAN_GAP)
 		fan.add_theme_constant_override("v_separation", 8)
 		headroom.add_child(fan)
 		var deal_index := 0
@@ -267,7 +313,9 @@ func _ready() -> void:
 		# without changing its size, so `fan.resized` does not fire a second time
 		# and the first pass — taken before the cards have been laid out at all —
 		# would be the last word.
-		var fit := func() -> void: _fit_headroom(fan, headroom, scroll)
+		var fit := func() -> void:
+			_fit_fan(fan)
+			_fit_headroom(fan, headroom, scroll)
 		for child in fan.get_children():
 			if child is Control:
 				(child as Control).resized.connect(fit)
@@ -280,8 +328,8 @@ func _ready() -> void:
 	# their lower edge. Behind them, they are a picture of hands near a fan.
 	var hands := Table.hands(Run.state.get("marks", []), span, hand_reach)
 	hands.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	hands.offset_top = CARD_BAND - HAND_OVERLAP
-	hands.offset_bottom = HELD_HEIGHT
+	hands.offset_top = _band() - HAND_OVERLAP * UIKit.card_scale()
+	hands.offset_bottom = _held()
 	held.add_child(hands)
 	# The cards are laid out by a container, so their width settles a frame
 	# after they are built and again whenever the window changes. Without this
@@ -293,8 +341,12 @@ func _ready() -> void:
 			(child as Container).sort_children.connect(func(): hands.queue_redraw())
 
 	# The hand, not the run header above it. See Map.gd. Falls back to the whole
-	# screen when the hand is empty, so READ IT is still reachable.
-	UIKit.focus_first(focus_on)
+	# screen when there is nothing in the hand to focus — which is not only the
+	# empty hand: once the energy is spent every card is disabled, so a fan full
+	# of cards can hold no focusable control at all. Without the fallback that
+	# left NOTHING on the screen focused, on more than half of all readings, and
+	# a player without a mouse could not reach READ IT to end the turn.
+	UIKit.focus_first(focus_on, self)
 
 
 ## Wires a card face to the hand label, so hovering it or focusing it prints
@@ -338,6 +390,54 @@ func _inspect(face: Control, into: Label) -> void:
 				into.add_theme_color_override("font_color", UIKit.DIM)
 			_raise(face, 1.0)
 		)
+
+
+## The gap between two cards in a hand that fits on the table, and how much of a
+## card must still show in one that does not.
+##
+## Below about half a card there is nothing left to read but a sliver of the
+## name, so past that point the hand is allowed to wrap after all — which at
+## that width means the window is smaller than the game supports, not that a
+## player has been handed too many cards.
+const FAN_GAP := 8
+const CARD_MIN_SHOWS := 0.5
+
+
+## Makes the hand fit on one row by OVERLAPPING the cards, the way a hand of
+## cards held in two hands actually looks.
+##
+## An HFlowContainer wraps, and the fan is inside a box exactly one card tall, so
+## a hand too wide for the table put its last cards on a second row that is
+## clipped out of sight: present in the layout, reachable only by scrolling a
+## box with no visible scrollbar, and to the player simply missing. Seven cards
+## at the largest interface size is enough to do it — and seven is an ordinary
+## hand, since the hand-size setting goes to eight and a reader can add one.
+##
+## Negative separation is the whole trick. Later children draw over earlier ones,
+## so the cards tuck under each other left to right, and the one under the
+## pointer comes to the front on its own because _raise() puts it there.
+##
+## What that costs, stated plainly: an overlapped card loses its top-RIGHT
+## corner, which is where the restore value is printed. The alternative stacking
+## loses the top-left corner, which is the cost — and a cost you cannot see is a
+## card you cannot tell whether you can play. So the cost stays visible, the
+## restore is a hover away, and this only happens at all on a hand wide enough
+## that the choice exists.
+func _fit_fan(fan: Control) -> void:
+	if not is_instance_valid(fan):
+		return
+	var n := fan.get_child_count()
+	if n < 2 or fan.size.x <= 0.0:
+		return
+	var card_w := UIKit.card_face_size().x
+	var gap := float(FAN_GAP)
+	var need := n * card_w + (n - 1) * gap
+	if need > fan.size.x:
+		gap = (fan.size.x - n * card_w) / float(n - 1)
+		gap = maxf(gap, -card_w * (1.0 - CARD_MIN_SHOWS))
+	var want := int(floor(gap))
+	if fan.get_theme_constant("h_separation") != want:
+		fan.add_theme_constant_override("h_separation", want)
 
 
 ## Opens enough room above the fan for the raised card to grow into, and lifts
@@ -398,7 +498,7 @@ func _raise(face: Control, to: float) -> void:
 func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	var band := Control.new()
 	band.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	band.offset_bottom = CARD_BAND
+	band.offset_bottom = _band()
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	held.add_child(band)
 
@@ -417,7 +517,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	band.add_child(glow)
 	band.add_child(face)
 
-	face.position.y = roundf((CARD_BAND - face_size.y) * 0.5) - LIFT
+	face.position.y = roundf((_band() - face_size.y) * 0.5) - LIFT
 	var settle := func() -> void:
 		# Guarded because this is also called DEFERRED, a frame later, and a
 		# screen torn down inside that frame leaves the lambda holding freed
@@ -460,7 +560,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 func _draw_lift(c: Control, face_size: Vector2) -> void:
 	if c.size.x < 4.0:
 		return
-	var mid := Vector2(c.size.x * 0.5, roundf((CARD_BAND - face_size.y) * 0.5) - LIFT + face_size.y * 0.5)
+	var mid := Vector2(c.size.x * 0.5, roundf((_band() - face_size.y) * 0.5) - LIFT + face_size.y * 0.5)
 	for i in range(10, 0, -1):
 		var f := float(i) / 10.0
 		c.draw_circle(mid, face_size.x * 1.15 * f, Color(UIKit.GOLD, 0.016))
