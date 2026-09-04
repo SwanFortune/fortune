@@ -20,14 +20,22 @@ func _ready() -> void:
 
 	var st: Dictionary = Run.state
 	v.add_child(RunHeader.build(self))
-	v.add_child(UIKit.block("%s %d · %s %d / 8" % [
-		I18n.t("NIGHT"), int(st["night"]) + 1, I18n.t("KNOCK"), int(st["step"]) + 1
-	], 14, UIKit.GOLD))
-	v.add_child(UIKit.block(I18n.t("Who knocks tonight?"), 22, UIKit.INK))
+	v.add_child(UIKit.block("%s %d · %s" % [
+		I18n.t("NIGHT"), int(st["night"]) + 1, I18n.t("Who knocks tonight?")
+	], 20, UIKit.INK))
+
+	# THE AGENDA down the left, the hour's callers on the right. The night is
+	# planned before it starts (Run.make_plan) so it can be READ before it
+	# starts: what is already written in, what is happening now, and the shape
+	# of what is still to come. See _agenda().
+	var page := UIKit.hbox(20)
+	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(page)
+	page.add_child(_agenda(st))
 
 	var scroll := UIKit.scroll()
-	v.add_child(scroll)
-	scroll.custom_minimum_size = Vector2(0, 460)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	page.add_child(scroll)
 	var list := UIKit.vbox(8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
@@ -83,6 +91,120 @@ func _knock(root: Control) -> void:
 		)
 
 
+## The night as a page in an appointment book: eight half-hours down the left,
+## each one either written in, happening now, or still to come.
+##
+## This is the thing the game most obviously did not have. "Who knocks
+## tonight?" was a question asked with no information whatsoever — you could not
+## see that the Mayor was at the end of it, that the apothecary was at half past
+## nine, or that you had two more callers before a night off. Every deckbuilder
+## worth the name shows you the road; this one showed one step of it.
+const AGENDA_WIDTH := 214.0
+
+## What a future hour promises, by what the plan says is on offer. Only the
+## SHAPE — a name would give the night away, and the shape is what a plan is.
+const PROMISE := {
+	"boss": "THE MAYOR",
+	"elite": "someone difficult",
+	"shop": "the apothecary",
+	"event": "an evening off",
+	"secret": "an evening off",
+	"sitter": "a caller",
+}
+
+## One line saying how the deck you are carrying answers to this caller's sign.
+##
+## Counted straight off the deck rather than through Rules, on purpose: this is
+## a plain "how many of these do I own", and the two cards whose element is not
+## fixed until they are played (the chromatics) are counted as what they are —
+## unfixed — rather than guessed at. A screen that guesses is worse than one
+## that says it does not know.
+func _deck_against(q: Dictionary) -> String:
+	var el := str(q.get("el", ""))
+	if el == "":
+		return ""
+	var deck: Array = Run.state.get("deck", [])
+	var match_count := 0
+	var shifting := 0
+	for c in deck:
+		# A chromatic card has `el: null` AND `chroma: true`; a basic has
+		# `el: null` and `neutral: true`. Both read as "no element" if you only
+		# look at `el`, and they are opposites — one answers to every sign and
+		# the other to none — so the flag is what is asked, not the field.
+		if c.get("chroma", false):
+			shifting += 1
+		elif str(c.get("el", "")) == el:
+			match_count += 1
+	var word := I18n.element_field(el, "label")
+	var line := I18n.t("your deck: %d of %d answer to %s") % [match_count, deck.size(), word]
+	if shifting > 0:
+		line += I18n.t(" (+%d that shift)") % shifting
+	# The signs that turn their own element against you. Worth saying here,
+	# because it inverts the number immediately to its left.
+	match str(q.get("fx", "")):
+		"halfown":
+			line += I18n.t(" — and this sign halves them")
+		"deadel":
+			line += I18n.t(" — and this sign kills %s outright") % I18n.element_field(str(q.get("dead", "")), "label")
+	return line
+
+
+func _agenda(st: Dictionary) -> Control:
+	var plan: Array = st.get("plan", [])
+	var log: Array = st.get("log", [])
+	var now: int = int(st.get("step", 0))
+
+	var col := UIKit.vbox(0)
+	col.custom_minimum_size.x = AGENDA_WIDTH * UIKit.text_scale
+	col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	col.add_child(UIKit.block(I18n.t("THE EVENING"), 11, UIKit.GOLD))
+
+	for step in plan.size():
+		var slot: Dictionary = plan[step]
+		var row := UIKit.hbox(8)
+		row.custom_minimum_size.y = 30 * UIKit.text_scale
+		var past: bool = step < now
+		var here: bool = step == now
+		var hour := UIKit.label(str(slot.get("at", "")), 12,
+			UIKit.GOLD if here else (UIKit.DIM if past else Color(UIKit.INK, 0.30)))
+		hour.custom_minimum_size.x = 44 * UIKit.text_scale
+		row.add_child(hour)
+
+		var text := ""
+		var tint := Color(UIKit.INK, 0.30)
+		if past:
+			var done: Dictionary = log[step] if step < log.size() and typeof(log[step]) == TYPE_DICTIONARY else {}
+			text = str(done.get("name", I18n.t("nobody")))
+			# An hour that has happened is not a plan any more, it is a
+			# result — and the whole run is about which of them went home
+			# whole, so that is what the page records.
+			match str(done.get("outcome", "")):
+				"mended":
+					tint = UIKit.GREEN
+				"left":
+					tint = UIKit.RED
+				_:
+					tint = UIKit.DIM
+		elif here:
+			text = I18n.t("now")
+			tint = UIKit.GOLD
+		else:
+			var offers: Array = slot.get("offers", [])
+			# The heaviest thing on offer is what the hour is remembered as: an
+			# hour with the Mayor in it is the Mayor's hour.
+			for key: String in ["boss", "elite", "shop", "secret", "event", "sitter"]:
+				if offers.has(key):
+					text = I18n.t(str(PROMISE[key]))
+					break
+			if offers.has("boss"):
+				tint = UIKit.RED
+		var line := UIKit.label(text, 12, tint)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(line)
+		col.add_child(row)
+	return col
+
+
 func _opt_button(o: Dictionary, i: int) -> Control:
 	var lines: Array = []
 	var leading: Control = null
@@ -95,6 +217,13 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			lines.append(["%s · %s %s (%s)" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn")], 12, UIKit.el_color(s["el"])])
 			lines.append([I18n.sign_rule(q, s), 11, UIKit.DIM])
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
+			# HOW YOUR DECK LINES UP, which is the actual question being asked
+			# and which the screen made you answer from memory. A card whose
+			# element matches the sign's is worth +2 on every single play of it
+			# (Rules.simulate), so "how many of mine are Water" is the one number
+			# that decides whether this caller is easy or a wall — and the deck
+			# is thirty cards down a menu two screens away.
+			lines.append([_deck_against(q), 11, UIKit.el_color(str(q.get("el", "")))])
 			var job: Dictionary = Content.get_job(s["role"])
 			if job.get("t", "") != "":
 				lines.append([I18n.fill(I18n.job_text(s["role"], job), str(s.get("p", "they"))), 11, UIKit.GOLD])

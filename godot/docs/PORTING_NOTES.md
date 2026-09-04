@@ -1275,6 +1275,105 @@ catch it because a denial-wall rule has a `drain` key too, and the lint is a
 grep that cannot tell two meanings of one word apart. That is the
 under-reporting its own header admits to; it is written here instead.
 
+## Eight things other games in the genre do
+
+The port was faithful and the game was legible, and it was still missing most
+of what a player coming from Slay the Spire or Balatro would reach for on
+reflex. Eight of them, in one pass. Four are UI; four changed the run.
+
+### The agenda: the night is planned before it starts
+
+"Who knocks tonight?" was a question asked with **no information whatsoever**.
+You could not see that the Mayor was at the end of the night, that the
+apothecary was at half past nine, or that you had two more callers before an
+evening off. Every deckbuilder worth the name shows you the road; this one
+showed one step of it.
+
+The night is now planned as a whole (`Run.make_plan`) and drawn down the left of
+the map screen as an appointment book: eight half-hours from 20:00 to 23:30,
+each one written in, happening now, or still to come. Past hours carry who came
+and whether they went home whole; future hours carry only the SHAPE — a caller,
+someone difficult, the apothecary, an evening off, THE MAYOR — because a name
+would give the night away and a shape is what a plan is.
+
+**None of the dice changed.** An elite is still possible from the third knock,
+the apothecary from the second, the last hour is still one caller with no way
+out. All that moved is WHEN the rolls happen, and once they happen in advance
+they can be shown in advance.
+
+The plan holds strings and nothing else, on purpose: a plan carrying sitter or
+sign objects would be a third place `Save.gd` has to re-resolve content on load,
+and a stale copy of a sitter is exactly the bug that shows up three nights into
+somebody's run. And `tests/test_run.gd` asserts, for every hour of every night,
+that what the agenda promises is what the hour actually offers — an agenda the
+game then ignores is worse than none, because a player who keeps two centimes
+back for an apothecary that never arrives has been lied to by the interface.
+
+### The seed
+
+Every roll a run makes now comes out of one `RandomNumberGenerator`, so a seed
+IS a run: the same eight hours, the same callers, the same signs, the same
+shuffles. Typed on the sign screen, printed on the end screen.
+
+Two things that would have made it quietly false. `Array.shuffle()` uses
+Godot's global RNG — and it is the single most consequential roll in the game,
+since it is the deck — so shuffling is Fisher-Yates against the run's own
+generator now. And an empty seed box picks its new seed from the GLOBAL
+`randi()`, because `rng` has not been seeded at that moment and asking it would
+hand out the same "random" seed on every launch of the game, forever.
+
+**Honest limit, stated in the code:** a seed reproduces a run FROM THE START. It
+does not survive a reload mid-run, because the generator's position is not
+saved. Saving it would mean writing on every roll for a feature whose value is
+"play this run again", not "prove this save was untampered".
+
+### The ladder
+
+A run is three nights and sixteen knocks, and once you have finished it there
+was nothing further to reach for. Six rungs in `data/base/difficulty.json`,
+cumulative, unlocked by runs FINISHED — won or lost, because losing a run
+teaches you as much. A test asserts the ladder only goes up: a mis-signed number
+in a JSON file is exactly the sort of thing that makes level 4 easier than level
+3, and nothing else would notice.
+
+### The ending is about the people
+
+The run is nine people and which of them went home whole. It ended with a tier
+line and four numbers, which made it the one screen in the game that did not
+know what the game was about.
+
+Every sitter who sits down goes on the run's ledger, and the end screen prints
+them all with **their own closing line** — `win` or `fail` out of
+`sitters.json`, written by the source and never shown after the encounter it
+belonged to. Beside it, two paragraphs from `data/base/endings.json` chosen by
+how many of them left as they came: what becomes of the village, and what
+becomes of you. The village learns that the back room is not a place where
+things get better, and stops coming; a village is a machine for keeping things
+unsaid and you were the one gap in it.
+
+### Four smaller ones
+
+**Take it back.** Laying a card can draw more, refund energy, exhaust itself and
+shuffle the deck — so the undo is a whole-dict snapshot rather than an inverse
+of `lay_card()`, which would have four ways to be subtly wrong about somebody's
+run. Deliberately not in `state`, so it is never saved. You cannot un-say a
+reading; that is the commitment.
+
+**The pace.** "Still to reach: 23, with 6 readings after this one — about 4
+each." Balatro's whole readability is "you need 300"; this is the same sentence
+in this game's words.
+
+**How your deck lines up.** A card whose element matches the caller's sign is
+worth +2 on every play of it, so "how many of mine are Water" is the one number
+that decides whether a caller is easy or a wall — and the deck was thirty cards
+down a menu two screens away. Counted straight off the deck, with the two
+chromatics reported as unfixed rather than guessed at: a screen that guesses is
+worse than one that says it does not know.
+
+**The card under the pointer comes forward.** Scale, not position — a container
+re-asserts its children's positions every layout pass and leaves scale alone —
+with the pivot at the bottom of the card, so growing reads as lifting.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

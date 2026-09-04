@@ -106,6 +106,21 @@ func _ready() -> void:
 	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(denial_row)
 
+	# THE PACE. A reading is six or seven turns against a fixed number, and the
+	# game never said whether you were on course — you found out by running out.
+	# Balatro's whole readability is "you need 300"; this is the same sentence in
+	# this game's words, and it is the difference between a plan and a hope.
+	var still := maxi(0, int(f["max"]) - maxi(0, int(f["hp"])) - int(will_land))
+	var readings_left := maxi(0, int(f["turns"]) - int(f["turn"]) + (0 if will_land > 0.0 else 1))
+	if still > 0:
+		var per := int(ceil(float(still) / float(maxi(1, readings_left))))
+		var pace := UIKit.block(I18n.t("Still to reach: %d, with %d reading(s) after this one — about %d each")
+			% [still, readings_left, per], 11,
+			UIKit.RED if readings_left <= 0 else UIKit.DIM)
+		v.add_child(pace)
+	elif int(f["hp"]) < int(f["max"]):
+		v.add_child(UIKit.block(I18n.t("This reading is enough."), 11, UIKit.GREEN))
+
 	if f.get("taken", null) != null:
 		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
 
@@ -140,9 +155,19 @@ func _ready() -> void:
 	# Greyed while a play is still available and nothing is laid — the source
 	# does this (`cannotRead`) and the port had inherited only the silent
 	# early-return, so the button looked live and did nothing.
+	var say := UIKit.hbox(10)
 	var read_btn := UIKit.button(I18n.t("READ IT"), _read_it)
 	read_btn.disabled = not Run.can_read()
-	v.add_child(read_btn)
+	read_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	say.add_child(read_btn)
+	# TAKE IT BACK, offered only while there is something to take back. A person
+	# who has just said the wrong thing in a room can generally unsay it before
+	# the other one answers; what you cannot undo is the reading itself.
+	if Run.can_unlay():
+		var undo := UIKit.button(I18n.t("TAKE IT BACK"), _unlay)
+		undo.size_flags_horizontal = Control.SIZE_SHRINK_END
+		say.add_child(undo)
+	v.add_child(say)
 
 	# A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and
 	# a hover is something a keyboard or a gamepad cannot do — so a player on a
@@ -258,12 +283,18 @@ func _inspect(face: Control, into: Label) -> void:
 	# capture at index 0 was freed" and then passes null into the body. (There
 	# are six of those already, from elsewhere in the project; these are not
 	# them, and this is how you avoid adding a seventh.)
+	# And it comes forward. Scale is safe to drive here where position is not —
+	# an HFlowContainer re-asserts its children's positions on every layout pass
+	# and leaves scale alone (see UIKit.animate_in) — and the pivot is at the
+	# bottom of the card, so growing reads as lifting off the table.
+	face.pivot_offset = Vector2(UIKit.card_face_size().x * 0.5, UIKit.card_face_size().y)
 	for signal_name: String in ["mouse_entered", "focus_entered"]:
 		face.connect(signal_name, func():
 			if not is_instance_valid(into):
 				return
 			into.text = full
 			into.add_theme_color_override("font_color", UIKit.INK)
+			_raise(face, CARD_LIFT)
 		)
 	for signal_name: String in ["mouse_exited", "focus_exited"]:
 		face.connect(signal_name, func():
@@ -273,7 +304,25 @@ func _inspect(face: Control, into: Label) -> void:
 			if is_instance_valid(into) and into.text == full:
 				into.text = idle
 				into.add_theme_color_override("font_color", UIKit.DIM)
+			_raise(face, 1.0)
 		)
+
+
+## How far the card under the pointer comes off the table.
+const CARD_LIFT := 1.14
+
+## Scales `face` to `to`, and puts it in front of its neighbours while it is up.
+func _raise(face: Control, to: float) -> void:
+	if not is_instance_valid(face):
+		return
+	# In front only while raised: left at a high z_index a card would keep
+	# covering the one beside it after the pointer had gone.
+	face.z_index = 1 if to > 1.0 else 0
+	if UIKit.motion_off():
+		face.scale = Vector2(to, to)
+		return
+	UIKit.bound_tween(face).tween_property(face, "scale", Vector2(to, to), UIKit.dur(0.10)) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 ## One card, alone, floating between two open hands instead of clamped in them.
@@ -433,6 +482,11 @@ const REVEAL_WIDTH := 560.0
 ## Set for the length of the reveal, so a second READ IT (or the shortcut, or a
 ## click) skips to the end rather than resolving the reading twice.
 var _revealing := false
+
+
+func _unlay() -> void:
+	Run.unlay()
+	Nav.goto_for_state()
 
 
 func _read_it() -> void:

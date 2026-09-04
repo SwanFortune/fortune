@@ -44,16 +44,64 @@ func _ready() -> void:
 
 # ── setup ────────────────────────────────────────────────────────────────
 
-func fresh() -> Dictionary:
+## `seed_text` is what the player typed on the sign screen, or "" for a new one.
+## Seeded FIRST, before the deck is built or the night is planned, or the seed
+## would govern everything except the two things a player would notice.
+func fresh(seed_text: String = "", level: int = 0) -> Dictionary:
 	var reader: Dictionary = Content.readers[0]
+	var seed_used := _seed_from(seed_text)
 	var st := {
 		"screen": "sign", "night": 0, "step": 0, "coin": 5, "faith": 0, "mended": 0,
 		"reader": reader, "deck": [], "marks": [], "seen": [], "seq": 0,
 		"serp_el": "", "options": [], "f": {}, "pick": {}, "res": {}, "over": {}, "sel": "",
+		# The night's shape, and what each hour of it turned into. See
+		# make_plan() and the agenda on the map screen.
+		"plan": [], "log": [],
+		"seed": seed_used, "level": level,
+		# Who came, and what became of them. Written by _close_the_hour().
+		"ledger": [],
 	}
+	# level_fx() reads state["level"], and this state is not live yet.
+	var was := state
+	state = st
+	st["coin"] = maxi(0, int(st["coin"]) - int(level_fx().get("coin_sub", 0)))
+	state = was
 	st["deck"] = base_deck(reader)
-	st["options"] = make_options(0, 0, [])
+	state = st
+	st["plan"] = make_plan(0)
+	st["log"] = []
+	st["options"] = make_options(0, 0, [], st["plan"])
 	return st
+
+
+## THE LADDER. Everything the chosen difficulty level does, folded into one
+## dictionary — every level at or below the chosen one, so level 3 carries its
+## own line and the two under it.
+##
+## Cumulative rather than a set of independent presets because that is how a
+## ladder reads: "and also" at each rung, not "instead". See
+## data/base/difficulty.json for the levels and what each key does.
+func level_fx() -> Dictionary:
+	var want: int = int(state.get("level", 0))
+	var out := {}
+	for rung in Content.difficulty:
+		if int(rung.get("n", 0)) > want:
+			continue
+		for key in rung.get("fx", {}):
+			# Later rungs win outright on a key both name (elite_chance), and
+			# add up on the ones that are amounts.
+			if key == "elite_chance":
+				out[key] = float(rung["fx"][key])
+			else:
+				out[key] = int(out.get(key, 0)) + int(rung["fx"][key])
+	return out
+
+
+## Which rungs the player may choose, by how many runs they have finished.
+## A level above the highest they have reached is SHOWN and refused rather than
+## hidden — a ladder you cannot see is not something to climb.
+func level_open(rung: Dictionary) -> bool:
+	return int(Profile.get_stat("runs_finished")) >= int(rung.get("unlock_at", 0))
 
 
 func base_deck(reader: Dictionary) -> Array:
@@ -108,18 +156,60 @@ func build_gift(reader: Dictionary) -> Dictionary:
 
 # ── small helpers ───────────────────────────────────────────────────────
 
+## THE EVENING'S SEED. Every roll a run makes comes out of this one generator,
+## so a seed is a run: the same eight hours, the same callers, the same signs,
+## the same shuffles. Standard in the genre, and the reason it is worth the
+## small refactor is not the leaderboard — it is that "it did this on seed
+## 41822, knock 6" turns an unreproducible bug report into a reproducible one.
+##
+## Every rng.randf()/rng.randi() in this file went through it. The global RNG is left
+## alone, because it is what Audio's pitch jitter uses and a run must not sound
+## different for having been re-seeded.
+##
+## HONEST LIMIT: a seed reproduces a run FROM THE START. It does not survive a
+## reload mid-run — the generator's position is not saved, only the seed — so a
+## resumed run diverges from that point. Saving the position would mean writing
+## it on every roll, and the value here is "play this run again", not "prove
+## this save was untampered".
+var rng := RandomNumberGenerator.new()
+
+
+## Points the generator at `text`, and returns what it settled on. An empty
+## string means "pick one", which is the ordinary case and is what keeps the
+## field on the sign screen a convenience rather than a chore.
+##
+## The fresh seed comes from the GLOBAL randi(), not from rng — rng has not been
+## seeded yet at that moment, so asking it would hand out the same "random" seed
+## on every launch of the game, forever.
+func _seed_from(text: String) -> String:
+	var clean := text.strip_edges()
+	if clean == "":
+		clean = str(randi() % 100000)
+	# hash() over the text, so "grandmother" and "41822" are both usable seeds
+	# and neither is special.
+	rng.seed = clean.hash()
+	return clean
+
+
 func uid() -> String:
 	state["seq"] = int(state.get("seq", 0)) + 1
-	return "c%d%d" % [state["seq"], randi() % 100000]
+	return "c%d%d" % [state["seq"], rng.randi() % 100000]
 
 
 func pick_rand(a: Array):
-	return a[randi() % a.size()]
+	return a[rng.randi() % a.size()]
 
 
+## Fisher-Yates against the run's own generator. Array.shuffle() uses Godot's
+## global RNG, which is exactly the one thing a seeded run must not touch — and
+## it is the single most consequential roll in the game, since it is the deck.
 func shuffle(a: Array) -> Array:
 	var b := a.duplicate()
-	b.shuffle()
+	for i in range(b.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = b[i]
+		b[i] = b[j]
+		b[j] = tmp
 	return b
 
 
@@ -129,15 +219,77 @@ func scale_sitter(s: Dictionary, night: int, step: int) -> Dictionary:
 	var prog := night * 8 + step
 	var k := 1.0 + prog * 0.045
 	var out := s.duplicate(true)
+	var harder := level_fx()
 	out["max"] = int(round(s["max"] * k))
-	out["denial"] = int(s["denial"]) + int(prog / 5)
+	out["denial"] = int(s["denial"]) + int(prog / 5) + int(harder.get("denial_add", 0))
+	# Never below one reading: a level that made an encounter unplayable would
+	# not be a harder game, it would be a broken one.
+	out["turns"] = maxi(1, int(s["turns"]) - int(harder.get("turns_sub", 0)))
 	return out
 
 
-## Ported from makeOptions() (~1825). Nobody knocks twice in one night.
-func make_options(night: int, step: int, seen: Array) -> Array:
-	var is_last := step == 7
-	if night == 2 and is_last:
+## THE EVENING'S HOURS. Eight knocks, half-hourly, from when it gets dark to
+## when a village stops calling on people.
+##
+## Written out rather than computed so they can be edited: this is the one part
+## of the run's shape a player reads as a clock rather than as a number, and
+## "22:30" carries more than "knock 6 of 8".
+const HOURS := ["20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00", "23:30"]
+
+
+## What is on offer at each hour of a night, decided at the START of the night
+## rather than at each knock — which is the whole point.
+##
+## The rolls are the same ones make_options() has always made (an elite is
+## possible from the third knock, the apothecary from the second, and the last
+## hour is one caller with no way out); ALL THAT MOVED IS WHEN THEY HAPPEN. Now
+## that the night is decided in advance, it can be shown in advance, and "who
+## knocks tonight?" stops being a question you answer with no information.
+##
+## Deliberately holds STRINGS AND NOTHING ELSE. A plan carrying sitter or sign
+## objects would be a third place Save.gd has to re-resolve content on load
+## (see its _relive_* helpers), and a stale copy of a sitter is exactly the kind
+## of bug that shows up three nights into somebody's run.
+func make_plan(night: int) -> Array:
+	var plan: Array = []
+	for step in HOURS.size():
+		var is_last := step == 7
+		var offers: Array = []
+		if night == 2 and is_last:
+			offers = ["boss"]
+		elif is_last:
+			offers = ["sitter"]
+		else:
+			offers = ["sitter"]
+			var elite_at: float = float(level_fx().get("elite_chance", 0.55))
+			offers.append("elite" if step >= 2 and rng.randf() < elite_at else "sitter")
+			if step >= 1 and rng.randf() < 0.45:
+				offers.append("shop")
+			if offers.size() < 4 and rng.randf() < 0.55:
+				offers.append("event")
+			# A Minitel code can arm a secret event. Offered rarely and only once
+			# the code has been dialled — armed_events() is empty otherwise, so a
+			# player who has not found the code can never be shown one by
+			# accident. Rolled here so the agenda can promise it and then keep
+			# the promise.
+			if not Minitel.armed_events().is_empty() and offers.size() < 4 and rng.randf() < 0.2:
+				offers.append("secret")
+		plan.append({"at": HOURS[step], "offers": offers})
+	return plan
+
+
+## The actual callers and breaks for one hour, built from that hour's plan.
+## Nobody knocks twice in one night, which is why the pool is filtered by
+## `seen` here rather than when the plan was made — the plan is a shape, and
+## who fills it depends on how the night has gone.
+func make_options(night: int, step: int, seen: Array, plan: Array = []) -> Array:
+	var slot: Dictionary = plan[step] if step < plan.size() else {}
+	var offers: Array = slot.get("offers", [])
+	if offers.is_empty():
+		# No plan (an old save, or a caller that predates one): fall back to the
+		# shape this hour would have had, minus the dice.
+		offers = ["boss"] if night == 2 and step == 7 else (["sitter"] if step == 7 else ["sitter", "sitter"])
+	if offers.has("boss"):
 		return [{"kind": "boss", "sitter": Content.boss.duplicate(true), "quirk": pick_rand(Content.signs)}]
 
 	var pool: Array = []
@@ -151,22 +303,24 @@ func make_options(night: int, step: int, seen: Array) -> Array:
 	var mk = func(s: Dictionary, elite: bool) -> Dictionary:
 		return {"kind": "elite" if elite else "sitter", "sitter": scale_sitter(elite_of(s, elite), night, step), "quirk": pick_rand(Content.signs)}
 
-	var opts: Array = [mk.call(pool[0], false)]
-	if is_last:
-		return opts
-	var second: Dictionary = pool[1] if pool.size() > 1 else pool[0]
-	opts.append(mk.call(second, step >= 2 and randf() < 0.55))
-	if step >= 1 and randf() < 0.45:
-		opts.append({"kind": "break", "rest": Content.shop})
-	if opts.size() < 4 and randf() < 0.55:
-		opts.append({"kind": "break", "rest": pick_rand(ordinary_events())})
-
-	# A Minitel code can arm a secret event. It is offered rarely and only once
-	# the code has been dialled — armed_events() is empty otherwise, so a player
-	# who has not found the code can never be shown one by accident.
-	var armed: Array = Minitel.armed_events()
-	if not armed.is_empty() and opts.size() < 4 and randf() < 0.2:
-		opts.append({"kind": "break", "rest": pick_rand(armed)})
+	var opts: Array = []
+	var next_caller := 0
+	for offer: String in offers:
+		match offer:
+			"sitter", "elite":
+				var who: Dictionary = pool[next_caller % pool.size()]
+				next_caller += 1
+				opts.append(mk.call(who, offer == "elite"))
+			"shop":
+				opts.append({"kind": "break", "rest": Content.shop})
+			"event":
+				opts.append({"kind": "break", "rest": pick_rand(ordinary_events())})
+			"secret":
+				var armed: Array = Minitel.armed_events()
+				# The code can be un-dialled between the plan and the hour only
+				# by a reload onto a different profile; nothing to show then.
+				if not armed.is_empty():
+					opts.append({"kind": "break", "rest": pick_rand(armed)})
 	return opts.slice(0, min(4, opts.size()))
 
 
@@ -210,6 +364,7 @@ func roll_relic():
 
 func choose(i: int) -> void:
 	var o: Dictionary = state["options"][i]
+	_write_in_the_book(o)
 	if o["kind"] != "break":
 		start_fight(o)
 		return
@@ -223,6 +378,53 @@ func choose(i: int) -> void:
 	state_changed.emit()
 
 
+## Fills in this hour on the night's page: who came, or what you did instead.
+## The outcome is written later, by win() or lose() — an hour on the agenda is
+## a name first and a result afterwards, the same order it happens in.
+func _write_in_the_book(o: Dictionary) -> void:
+	var log: Array = state.get("log", [])
+	var step: int = int(state.get("step", 0))
+	while log.size() <= step:
+		log.append({})
+	var kind := str(o.get("kind", ""))
+	if kind == "break":
+		var rest: Dictionary = o.get("rest", {})
+		log[step] = {"kind": "break", "name": str(rest.get("head", rest.get("kind", "")))}
+	else:
+		log[step] = {"kind": kind, "name": str(o.get("sitter", {}).get("name", "")), "outcome": ""}
+	state["log"] = log
+
+
+## How the hour ended. "mended" or "left"; anything else leaves it blank.
+func _close_the_hour(outcome: String) -> void:
+	var log: Array = state.get("log", [])
+	var step: int = int(state.get("step", 0))
+	if step < log.size() and typeof(log[step]) == TYPE_DICTIONARY:
+		log[step]["outcome"] = outcome
+		state["log"] = log
+	# And into the run's own ledger, which outlives the night. This is what the
+	# end of a run is made of: not four numbers, but a list of people and what
+	# became of each of them. See RunOver.
+	var f: Dictionary = state.get("f", {})
+	var sitter: Dictionary = f.get("sitter", {})
+	if sitter.is_empty():
+		return
+	var ledger: Array = state.get("ledger", [])
+	ledger.append({
+		"name": str(sitter.get("name", "")),
+		"role": str(sitter.get("role", "")),
+		"outcome": outcome,
+		"night": int(state.get("night", 0)),
+		"at": str(HOURS[step]) if step < HOURS.size() else "",
+		# The sitter's own two endings, written in sitters.json: what they do if
+		# you get through to them, and what they do if you do not. Carried on the
+		# ledger rather than looked up later, because an entry has to survive a
+		# pack being switched off between the run and the end of it.
+		"said": str(sitter.get("win" if outcome == "mended" else "fail", "")),
+	})
+	state["ledger"] = ledger
+
+
 func build_event(e: Dictionary) -> Dictionary:
 	return {
 		"head": e["head"], "title": e["title"], "kind": "rest", "body": e["line"],
@@ -233,6 +435,9 @@ func build_event(e: Dictionary) -> Dictionary:
 # ── the reading itself ──────────────────────────────────────────────────
 
 func start_fight(o: Dictionary) -> void:
+	# A reading, a new turn and a new sitter all end the window in which the
+	# last card can be taken back.
+	_before_last_card = {}
 	var s: Dictionary = o["sitter"]
 	var q: Dictionary = o["quirk"]
 	var job: Dictionary = Content.get_job(s["role"])
@@ -245,7 +450,7 @@ func start_fight(o: Dictionary) -> void:
 		"turn": 1,
 		"turns": int(s["turns"]) + (1 if has("turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
 		"energyMax": cfg_energy() + (1 if has("energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if q.get("fx", "") == "energydown" else 0),
-		"handMax": cfg_hand() + (1 if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
+		"handMax": maxi(1, cfg_hand() - int(level_fx().get("hand_sub", 0))) + (1 if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
 		"readerEl": state["reader"]["el"], "hand": [], "draw": shuffle(state["deck"].duplicate(true)), "disc": [],
 		"cross": [], "gone": [], "faith": 0, "coin": 0, "energy": 0, "swept": 0, "taken": null,
 	}
@@ -267,6 +472,9 @@ func start_fight(o: Dictionary) -> void:
 ## itself, read once by the UI and not treated as real game state anywhere
 ## in Rules.gd or elsewhere in Run.gd.
 func begin_turn(f: Dictionary) -> void:
+	# A reading, a new turn and a new sitter all end the window in which the
+	# last card can be taken back.
+	_before_last_card = {}
 	if has("serpent") and f["turn"] > 1:
 		var cur: String = state.get("serp_el", "") if state.get("serp_el", "") != "" else state["reader"]["el"]
 		var ring: Array = Content.ring
@@ -288,7 +496,7 @@ func begin_turn(f: Dictionary) -> void:
 	f["taken"] = null
 	var quirk: Dictionary = f.get("quirk", {})
 	if quirk.get("fx", "") == "steal" and not f["hand"].is_empty():
-		var i: int = randi() % int(f["hand"].size())
+		var i: int = rng.randi() % int(f["hand"].size())
 		f["taken"] = f["hand"][i]["n"]
 		f["disc"] = f["disc"] + [f["hand"][i]]
 		f["hand"].remove_at(i)
@@ -310,6 +518,39 @@ func draw_to(f: Dictionary, n: int) -> void:
 ## (f.cross), paying its energy cost. draw/energy card fields resolve
 ## immediately on lay, not at read time — only simulate()'s scoring math is
 ## deferred to READ IT.
+## THE FIGHT AS IT WAS BEFORE THE LAST CARD WENT DOWN.
+##
+## A whole-dict snapshot rather than an inverse of lay_card(): laying a card can
+## draw more, refund energy, exhaust itself and shuffle the deck, and unpicking
+## all of that by hand is four ways to be subtly wrong about somebody's run. A
+## copy is exactly right by construction.
+##
+## Deliberately NOT in `state`, so it is never saved. Undo lasting across a
+## reload would mean Save.gd re-resolving a second whole fight's worth of
+## content on load, for a convenience that is about the last ten seconds.
+var _before_last_card: Dictionary = {}
+
+
+## Whether there is a card to take back. The reading screen asks this to decide
+## whether to offer the button at all.
+func can_unlay() -> bool:
+	return not _before_last_card.is_empty() and not state.get("f", {}).is_empty()
+
+
+## Puts the last card laid back in your hand, with its energy.
+##
+## Every deckbuilder settles this differently and both answers are defensible;
+## this game is a conversation, and a person who has just said the wrong thing
+## in a room can generally take it back before the other one answers. You cannot
+## un-READ a reading — that is the commitment.
+func unlay() -> void:
+	if not can_unlay():
+		return
+	state["f"] = _before_last_card
+	_before_last_card = {}
+	state_changed.emit()
+
+
 func lay_card(card_uid: String) -> void:
 	var f: Dictionary = state["f"]
 	if f.is_empty():
@@ -321,6 +562,8 @@ func lay_card(card_uid: String) -> void:
 			break
 	if c.is_empty() or int(c.get("cost", 0)) > int(f["energy"]):
 		return
+	# Before anything is touched. See _before_last_card.
+	_before_last_card = f.duplicate(true)
 	f["_prevEnergy"] = f["energy"]
 	f["_prevHp"] = f["hp"]  # unchanged by laying a card — avoids replaying a stale hp animation from a prior reading
 	f["_justDiscarded"] = []
@@ -366,6 +609,9 @@ func can_read() -> bool:
 
 
 func read_it() -> void:
+	# A reading, a new turn and a new sitter all end the window in which the
+	# last card can be taken back.
+	_before_last_card = {}
 	if not can_read():
 		return
 	var sim := Rules.simulate(run_ctx(), state["f"])
@@ -412,6 +658,7 @@ func win(f: Dictionary) -> void:
 	state["coin"] = int(state["coin"]) + coin_gain
 	state["faith"] = int(state["faith"]) + faith
 	state["mended"] = int(state["mended"]) + 1
+	_close_the_hour("mended")
 	if relic != null:
 		state["marks"] = state["marks"] + [relic]
 	var sitter: Dictionary = f["sitter"]
@@ -432,6 +679,7 @@ func win(f: Dictionary) -> void:
 
 
 func lose(f: Dictionary, _how: String) -> void:
+	_close_the_hour("left")
 	var sitter: Dictionary = f["sitter"]
 	var faith_kept: int = int(floor(int(f["faith"]) / 2.0))
 	var coin_gain: int = int(f["coin"]) + 3
@@ -468,10 +716,16 @@ func advance() -> void:
 	var night: int = state["night"]
 	var step: int = int(state["step"]) + 1
 	var seen: Array = state["seen"]
+	var plan: Array = state.get("plan", [])
+	var log: Array = state.get("log", [])
 	if step > 7:
 		step = 0
 		night += 1
 		seen = []
+		# A new page in the book: a new night is planned as a whole, and what
+		# happened on the last one stops being on screen.
+		plan = make_plan(night)
+		log = []
 	if night > 2:
 		end_run("done")
 		return
@@ -482,7 +736,9 @@ func advance() -> void:
 	state["night"] = night
 	state["step"] = step
 	state["seen"] = seen
-	state["options"] = make_options(night, step, seen)
+	state["plan"] = plan
+	state["log"] = log
+	state["options"] = make_options(night, step, seen, plan)
 	state_changed.emit()
 
 
@@ -499,16 +755,34 @@ func end_run(why: String) -> void:
 	state["f"] = {}
 	state["pick"] = {}
 	state["res"] = {}
+	# WHAT BECOMES OF THE VILLAGE, and of you, chosen by how many of them left
+	# as they came. The run is about nine people; the screen that ends it used to
+	# be a tier line and four numbers, which is the one place in the game that
+	# did not know what the game was about. See data/base/endings.json.
+	var ledger: Array = state.get("ledger", [])
+	var left_as_they_came := 0
+	for entry in ledger:
+		if str(entry.get("outcome", "")) == "left":
+			left_as_they_came += 1
+	var after: Dictionary = {}
+	for e in Content.endings:
+		if left_as_they_came <= int(e.get("up_to", 0)):
+			after = e
+			break
 	state["over"] = {
-		"head": "ONE OF THEM WENT HOME AS THEY CAME" if why == "failed" else "THREE NIGHTS, AND THE KNOCKING STOPS",
+		"head": str(after.get("head", "THREE NIGHTS, AND THE KNOCKING STOPS")),
 		"title": tier,
 		"body": ["Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice."] if why == "failed"
 			else ["You mended %s of them. What they say about you afterwards is the only score that was ever being kept.", state["mended"]],
+		"village": str(after.get("village", "")),
+		"reader": str(after.get("reader", "")),
+		"ledger": ledger,
 		"lines": [
 			{"left": "Faith", "right": str(score)},
 			{"left": "Restored", "right": str(state["mended"])},
 			{"left": "Deck", "right": ["%s cards", state["deck"].size()]},
 			{"left": "Centimes left", "right": str(state["coin"])},
+			{"left": "The evening", "right": str(state.get("seed", ""))},
 		],
 	}
 	state_changed.emit()
@@ -538,7 +812,7 @@ func weighted(pool: Array):
 	var total := 0
 	for c in pool:
 		total += int(RARW.get(c.get("r", "common"), 1))
-	var roll := randf() * total
+	var roll := rng.randf() * total
 	for c in pool:
 		roll -= float(RARW.get(c.get("r", "common"), 1))
 		if roll <= 0:
@@ -571,11 +845,11 @@ func arcanum(ex: Array):
 
 
 func roll_offer(f: Dictionary, ex: Array):
-	var own := randf() < 0.5
+	var own := rng.randf() < 0.5
 	var neigh: Array = Content.neighbors.get(f["el"], [])
 	var el: String = f["el"] if own else pick_rand(neigh)
-	if own and randf() < 0.35:
-		var signless := randf() < 0.15
+	if own and rng.randf() < 0.35:
+		var signless := rng.randf() < 0.15
 		var arc = arcanum_of(null if signless else el, ex)
 		if arc != null:
 			return {"card": arc, "kind": ("AN ARCANUM WITH NO SIGN" if signless else "AN ARCANUM OF THEIR SIGN") + " · " + arc["num"], "cost": 0}

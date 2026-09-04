@@ -21,6 +21,11 @@ func _initialize() -> void:
 	_test_start_fight_and_play_one_reading()
 	_test_full_encounter_to_resolution()
 	_test_named_cards_and_marks_resolve()
+	_test_the_plan_is_the_night()
+	_test_a_seed_is_a_run()
+	_test_taking_it_back()
+	_test_the_ladder()
+	_test_the_ledger_and_the_ending()
 
 	if failures.is_empty():
 		print("ALL PASS")
@@ -83,6 +88,184 @@ func _test_named_cards_and_marks_resolve() -> void:
 		check(str(deck[-1].get("n", "")) == "Pour The Tea",
 			"the card added was '%s', not the one the option named" % deck[-1].get("n", ""))
 		check(deck[-1].has("uid"), "a card taken by name still needs its own uid")
+
+
+## THE AGENDA HAS TO BE TELLING THE TRUTH.
+##
+## The night is planned before it starts so it can be shown before it starts —
+## and a plan the game then ignores is worse than no plan at all: a player who
+## keeps two centimes back for an apothecary that never turns up has been lied
+## to by the interface, and nothing anywhere would raise a word about it.
+##
+## So: for every hour of every night, what the plan promises and what the hour
+## actually offers have to be the same set of things.
+func _test_the_plan_is_the_night() -> void:
+	for night in 3:
+		var plan: Array = run.make_plan(night)
+		check(plan.size() == run.HOURS.size(),
+			"a night is %d hours and the plan has %d" % [run.HOURS.size(), plan.size()])
+		for step in plan.size():
+			var promised: Array = plan[step].get("offers", [])
+			var got: Array = run.make_options(night, step, [], plan)
+			# The kinds an hour produces, in the plan's own vocabulary.
+			var actual: Array = []
+			for o in got:
+				match str(o.get("kind", "")):
+					"break":
+						var rest: Dictionary = o.get("rest", {})
+						actual.append("shop" if str(rest.get("kind", "")) == "SHOP" else "event")
+					var k:
+						actual.append(k)
+			# "secret" is an event as far as the hour is concerned; the plan
+			# distinguishes them because only one of them needs a code.
+			var want: Array = []
+			for k: String in promised:
+				want.append("event" if k == "secret" else k)
+			want.sort()
+			actual.sort()
+			if want != actual:
+				printerr("FAIL: night %d, %s — the agenda promises %s and the hour offers %s"
+					% [night + 1, plan[step].get("at", "?"), want, actual])
+				return
+	check(true, "every hour offers what the agenda promised")
+
+
+## A SEED IS A RUN. The whole point of showing one is that handing it to
+## somebody else hands them the same three nights; if any roll escapes the run's
+## own generator that stops being true, and it stops being true silently.
+func _test_a_seed_is_a_run() -> void:
+	var shapes: Array = []
+	for i in 3:
+		run.state = run.fresh("grandmother")
+		run.pick_reader(0)
+		shapes.append(_shape_of(run.state))
+	check(shapes[0] == shapes[1] and shapes[1] == shapes[2],
+		"the same seed should deal the same run three times running")
+
+	run.state = run.fresh("a different evening")
+	run.pick_reader(0)
+	check(_shape_of(run.state) != shapes[0], "a different seed should deal a different run")
+	check(str(run.state.get("seed", "")) == "a different evening",
+		"the seed a player typed should be the seed the run records")
+
+	# And an empty seed is a NEW one, not a constant. The generator has not been
+	# seeded at the moment one is chosen, so asking it for the number would hand
+	# out the same "random" seed on every launch of the game, forever.
+	var picked := {}
+	for i in 8:
+		run.state = run.fresh("")
+		picked[str(run.state.get("seed", ""))] = true
+	check(picked.size() > 1, "an empty seed box should not produce the same run every time")
+
+
+## The plan, the deck and who is at the door — enough of a run to tell two
+## apart.
+func _shape_of(st: Dictionary) -> String:
+	var bits: Array = []
+	for slot in st.get("plan", []):
+		bits.append(str(slot.get("offers", [])))
+	for c in st.get("deck", []):
+		bits.append(str(c.get("n", "")))
+	for o in st.get("options", []):
+		bits.append(str(o.get("sitter", {}).get("name", o.get("kind", ""))))
+	return "|".join(bits)
+
+
+## TAKING BACK THE LAST CARD HAS TO PUT EVERYTHING BACK.
+##
+## Laying a card can draw more, refund energy, exhaust itself and shuffle the
+## deck. An undo that unpicks that by hand has four ways to be subtly wrong
+## about somebody's run — a card quietly duplicated, an energy point invented —
+## and every one of them looks fine on screen.
+func _test_taking_it_back() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	check(not run.can_unlay(), "nothing has been laid yet, so there is nothing to take back")
+
+	var before := str(run.state["f"])
+	var laid := false
+	for c in run.state["f"]["hand"].duplicate():
+		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
+			laid = true
+			break
+	if not laid:
+		return  # nothing affordable; a rare deal, not a failure
+	check(run.can_unlay(), "a card has been laid and it should be possible to take it back")
+	run.unlay()
+	check(str(run.state["f"]) == before, "taking a card back should leave the reading exactly as it was")
+	check(not run.can_unlay(), "there is nothing left to take back after taking one back")
+
+	# And a reading closes the window. You cannot un-say a reading.
+	for c in run.state["f"]["hand"].duplicate():
+		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
+			break
+	run.read_it()
+	check(not run.can_unlay(), "a reading has been read; the cards in it are said")
+
+
+## THE LADDER ONLY GOES UP. Every rung is cumulative, so a higher level must
+## never make an encounter easier — which is exactly the kind of thing a
+## mis-signed number in a JSON file does, and which nothing else would catch.
+func _test_the_ladder() -> void:
+	var rungs: Array = content.difficulty
+	check(rungs.size() > 1, "there should be a ladder to climb")
+	var last_denial := -999
+	var last_turns := 999
+	for rung in rungs:
+		run.state = run.fresh("a fixed evening", int(rung.get("n", 0)))
+		var s: Dictionary = run.scale_sitter(content.sitters[0], 0, 0)
+		check(int(s["denial"]) >= last_denial,
+			"level %s should not have a thinner wall than the rung below it" % rung.get("n"))
+		check(int(s["turns"]) <= last_turns,
+			"level %s should not give more readings than the rung below it" % rung.get("n"))
+		check(int(s["turns"]) >= 1, "no level may leave an encounter with no readings in it")
+		last_denial = int(s["denial"])
+		last_turns = int(s["turns"])
+
+	# And the lowest rung changes nothing: level 0 is the game as written.
+	run.state = run.fresh("a fixed evening", 0)
+	check(run.level_fx().is_empty(), "level 0 should be the game exactly as it is")
+
+
+## THE ENDING IS ABOUT THE PEOPLE. Every sitter who sits down goes on the run's
+## ledger with what became of them, and how many of them left as they came is
+## what picks the closing paragraphs. Both are silent when they break: the
+## screen still renders, with an empty list and whichever ending is first.
+func _test_the_ledger_and_the_ending() -> void:
+	check(not content.endings.is_empty(), "there should be endings to reach")
+	var covers := -1
+	for e in content.endings:
+		check(int(e.get("up_to", 0)) > covers, "the endings must be in ascending order of failures")
+		covers = int(e.get("up_to", 0))
+		check(str(e.get("village", "")) != "" and str(e.get("reader", "")) != "",
+			"an ending has to say what became of the village AND of you")
+	check(covers >= 16, "the last ending must cover a run where every single one of them left")
+
+	run.state = run.fresh("a fixed evening")
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var who := str(run.state["f"]["sitter"]["name"])
+	var f: Dictionary = run.state["f"]
+	f["turn"] = f["turns"]
+	f["hp"] = 0
+	run.lose(f, "left")
+	var ledger: Array = run.state.get("ledger", [])
+	check(ledger.size() == 1, "one person sat down and the ledger has %d" % ledger.size())
+	if ledger.size() == 1:
+		check(str(ledger[0].get("name", "")) == who, "the ledger recorded the wrong person")
+		check(str(ledger[0].get("outcome", "")) == "left", "they left as they came and the ledger says otherwise")
+		check(str(ledger[0].get("said", "")) != "", "the ledger should carry their own closing line")
 
 
 func _test_fresh_state() -> void:

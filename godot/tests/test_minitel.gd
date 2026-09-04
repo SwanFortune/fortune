@@ -175,18 +175,28 @@ func _test_secret_events_stay_out_of_the_ordinary_pool() -> void:
 		check(not secret_titles.has(str(e.get("title", ""))),
 			"secret event '%s' is in the ordinary pool — it can turn up without its code" % e.get("title", ""))
 
-	# And it is genuinely offered once armed. Driven through make_options()
-	# rather than armed_events() alone, since the injection is what a player
-	# actually meets.
+	# And it is genuinely offered once armed. Driven through the night's PLAN and
+	# then through make_options(), because that is now the whole path: the roll
+	# that decides an evening has a secret in it happens when the night is
+	# planned (Run.make_plan), and the agenda promises it before the hour
+	# arrives. Asking make_options() on its own — which an earlier version of
+	# this test did — gets the no-plan fallback, which offers two callers and
+	# nothing else, forever.
 	minitel.submit("3615", "OEIL")
 	run.state = run.fresh()
 	run.pick_reader(0)
+	var promised := false
 	var seen := false
 	for _i in 400:
-		# night 0, knock 1, nothing seen: an ordinary map draw, not the boss.
-		for o in run.make_options(0, 1, []):
-			if o.get("kind", "") == "break" and secret_titles.has(str(o.get("rest", {}).get("title", ""))):
-				seen = true
+		var plan: Array = run.make_plan(0)
+		for step in plan.size():
+			if not plan[step].get("offers", []).has("secret"):
+				continue
+			promised = true
+			for o in run.make_options(0, step, [], plan):
+				if o.get("kind", "") == "break" and secret_titles.has(str(o.get("rest", {}).get("title", ""))):
+					seen = true
+	check(promised, "once armed, a night's plan should eventually have a secret hour in it")
 	check(seen, "once armed, the secret event should eventually be offered on the map")
 	done("_test_secret_events_stay_out_of_the_ordinary_pool")
 

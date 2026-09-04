@@ -35,6 +35,12 @@ const ARRAY_KEY_FIELDS := {
 	"elite_twists": "tag",
 	"sitters": "name",
 	"events": "title",
+	# The difficulty ladder, keyed by its level number. A pack can retune one
+	# rung without restating the rest, which is the whole reason these are
+	# merged by an id field rather than replaced wholesale.
+	"difficulty": "n",
+	# The endings, keyed by the failure count they cover.
+	"endings": "up_to",
 }
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather

@@ -23,6 +23,8 @@
     "boss.json",
     "events.json",
     "shop.json",
+    "difficulty.json",
+    "endings.json",
     "sounds.json",
     "icons.json",
     "minitel.json",

@@ -31,6 +31,10 @@ const STATS := {
 	# Reader keys that have finished at least one run. Stored as an Array
 	# because ConfigFile has no set type; treated as one.
 	"readers_finished": [],
+	# The hardest rung of the ladder finished, so the sign screen can open on it
+	# rather than making somebody climb back up by hand every run. See
+	# data/base/difficulty.json.
+	"best_level": 0,
 	# Minitel codes the player has dialled. An unlock condition can test this
 	# with {stat: "codes_entered", includes: "OEIL"} — which is why the Minitel
 	# needed no progression store of its own. See autoload/Minitel.gd.
@@ -105,6 +109,7 @@ func _record_finished_run(st: Dictionary) -> void:
 	set_stat("runs_finished", int(get_stat("runs_finished")) + 1)
 	set_stat("best_faith", maxi(int(get_stat("best_faith")), int(st.get("faith", 0))))
 	set_stat("total_mended", int(get_stat("total_mended")) + int(st.get("mended", 0)))
+	set_stat("best_level", maxi(int(get_stat("best_level")), int(st.get("level", 0))))
 	var key := str(st.get("reader", {}).get("k", ""))
 	if key != "":
 		var done: Array = get_stat("readers_finished")

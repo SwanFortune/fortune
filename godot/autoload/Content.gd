@@ -76,6 +76,10 @@ var sitters: Array
 var boss: Dictionary
 var events: Array
 var shop: Dictionary
+## The difficulty ladder. See data/base/difficulty.json and Run.level_fx().
+var difficulty: Array
+## What becomes of the village, and of you. See data/base/endings.json.
+var endings: Array
 
 # name -> card dict, across every pool, built once after load for O(1) lookup
 # (readers reference their 2 starting cards by name, rewards resolve by name, etc).
@@ -128,6 +132,8 @@ func reload() -> void:
 	boss = registries.get("boss", {})
 	events = registries.get("events", [])
 	shop = registries.get("shop", {})
+	difficulty = registries.get("difficulty", [])
+	endings = registries.get("endings", [])
 
 	_index()
 	reloaded.emit()
