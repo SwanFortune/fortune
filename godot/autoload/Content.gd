@@ -13,11 +13,9 @@ extends Node
 ## every autoload that touches Content fails with it — which is to say the
 ## whole game, before anything has had a chance to report a useful error.
 ##
-## The README tells people to run the headless tests, so "clone and run" is the
-## first thing anyone does; it was broken and only worked here because this
-## container had a cache left over from an earlier editor-less run. preload()
-## resolves by path and needs no registry. This is the third time a bare global
-## name has bitten this port — see Nav.gd's header for the other two.
+## preload() resolves by path and needs no registry, so it works on a clone that
+## has never been opened in the editor — which is how the README tells people to
+## run this. See Nav.gd's header for the same trap in another form.
 const MOD_LOADER := preload("res://autoload/ModLoader.gd")
 
 ## NOTE: this used to be a `const LOAD_EXAMPLE_MODS := true` that nothing
@@ -28,19 +26,14 @@ const MOD_LOADER := preload("res://autoload/ModLoader.gd")
 ## Emitted at the end of every reload(). Art, Audio, I18n and Save each connect
 ## to it in their own _ready() and re-sync themselves.
 ##
-## This used to be the CALLER's job: a screen that reloaded content also had to
-## remember to call Art.reload(), Audio.reload(), I18n.reload() and to put the
-## run in progress through Save so its copies of content records were looked up
-## again. The Mods screen did all of it. The Library did two of the four — so
-## editing a card while a run was in progress changed the registry and left the
-## deck holding the old version, and the player watched their edit do nothing.
+## FANNED OUT FROM HERE, never done by the caller. A screen that reloads content
+## would otherwise have to remember all four by hand, and one that remembered
+## only some left the run in progress holding stale copies of the records it had
+## just edited.
 ##
-## Fanning out from here instead means the list cannot be got wrong once and
-## then copied wrong forever: each subsystem owns its own response, and a new
-## screen that reloads content gets all of it for free. Connection order is
-## autoload order (see project.godot) — Art, Audio, I18n, then Save — which is
-## the order that matters, since Save's re-resolution reads the registries and
-## the locale that the first three have just refreshed.
+## Connection order is autoload order (project.godot): Art, Audio, I18n, then
+## Save — and that order matters, because Save's re-resolution reads the
+## registries and the locale the first three have just refreshed.
 signal reloaded
 
 var registries: Dictionary = {}

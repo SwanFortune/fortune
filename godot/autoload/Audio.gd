@@ -3,9 +3,6 @@
 ## a missing sound is silence rather than an error, and it improves piece by
 ## piece as real audio lands.
 ##
-## Before this existed, `master_volume` and `muted` in Settings drove the real
-## AudioServer master bus with nothing on it — honest wiring carrying nothing.
-##
 ## THE SOUNDS THAT SHIP ARE PLACEHOLDERS. They are synthesized (see
 ## tests/gen_sounds.py) and are meant to be replaced, exactly the way the
 ## procedural card faces are meant to be replaced by the artist's work. Every

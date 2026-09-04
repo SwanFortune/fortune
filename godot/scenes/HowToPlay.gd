@@ -1,11 +1,5 @@
 ## The rules, in one place a player can actually reach.
 ##
-## The game explained itself nowhere. What explanation existed lived in hover
-## tooltips — which are unreachable on a gamepad, invisible to anyone who does
-## not think to hover, and gone the moment you move the mouse. So a player
-## opening this cold had no way to learn what composure is, why the ORDER of
-## the cards is the entire game, or what a sign's denial does to them.
-##
 ## MOST OF THIS IS NOT NEW PROSE. The glossary is `UIKit.KEYS`, which the
 ## author wrote and the locale already translates; the elements come from
 ## elements.json; the controls are read live off the InputMap, so a rebind

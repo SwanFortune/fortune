@@ -231,21 +231,15 @@ func _read_json(path: String):
 	return _whole_numbers_to_ints(result)
 
 
-## JSON has no integer type, so Godot parses every number as a float: a card's
-## `"cost": 1` arrives as 1.0. The whole codebase then treats these as ints —
-## `int(c.get("cost"))` in scoring, `str(c.get("cost"))` on a card face — and
-## that mostly worked, because Godot 4.3's str() printed an integral float as
-## "1".
+## JSON HAS NO INTEGER TYPE, so Godot parses every number as a float: a card's
+## `"cost": 1` arrives as 1.0. The codebase treats these as ints throughout, and
+## str() on an integral float prints "1" on Godot 4.3 and "1.0" on 4.7 — so
+## without this every card reads "1.0" for its cost, with nothing erroring and
+## no test failing.
 ##
-## Godot 4.7 prints it as "1.0". Every card in the game suddenly read "1.0" for
-## its cost and "+5.0" for its restore. Nothing errored and no test failed:
-## the bug had been latent since the first commit, hidden by a formatting
-## detail of one engine version, and only a screenshot under 4.7 showed it.
-##
-## Fixing it at the display sites would be whack-a-mole. Fixing it here makes
-## "a number that looks whole IS an int" true for base content and every mod at
-## once, which is what the code has always assumed. Genuinely fractional values
-## (maxMul 1.35, pitch_jitter 0.05) are left alone.
+## Coerced HERE rather than at the display sites, so "a number that looks whole
+## IS an int" holds for base content and every mod at once. Genuinely fractional
+## values (maxMul 1.35, pitch_jitter 0.05) are left alone.
 func _whole_numbers_to_ints(value):
 	match typeof(value):
 		TYPE_FLOAT:

@@ -1,19 +1,13 @@
 ## Autoload. What persists BETWEEN runs, as opposed to Save.gd's single run in
 ## progress. Small on purpose: a handful of totals at user://profile.cfg.
 ##
-## It exists to make one thing real. Every reader in readers.json carries an
-## `unlock` field, ported faithfully from the prototype — and nothing read it,
-## so all thirteen were available from the first launch and the field was
-## decoration. It is now a condition this evaluates.
+## It is what makes readers.json's `unlock` field real rather than decoration.
 ##
-## NO PROGRESSION IS INVENTED FOR THE BASE GAME. Every base reader still has
-## `unlock: null` and is available immediately, exactly as before; what changed
-## is that the mechanism works, is tested, and is moddable — a pack can lock a
-## reader behind a condition, and the example pack does, so the feature is
-## exercised rather than merely present. Whether any BASE reader should be
-## locked is a design decision for the game's author, not a porting one. (The
-## obvious candidate, if ever: Serpentarius, the thirteenth sign, "You were
-## never on the wheel.")
+## NO PROGRESSION IS INVENTED FOR THE BASE GAME: every base reader carries
+## `unlock: null` and is available immediately. The mechanism works, is tested
+## and is moddable — the example pack locks a reader, so it is exercised — but
+## whether any BASE reader should be locked is the author's decision, not a
+## porting one.
 ##
 ## Stats are recorded by watching Run.state_changed for the transitions that
 ## matter, the same way Save.gd works, so Run.gd stays free of persistence.
@@ -187,11 +181,9 @@ func save_to_disk() -> void:
 	for key in STATS:
 		if _values.has(key):
 			cfg.set_value(SECTION, key, _values[key])
-	# The return value is not decoration: if user:// is read-only or the disk is
-	# full this fails, and until now it failed in silence — the same class of
-	# bug as the run that stopped being saved without telling anyone, with
-	# smaller stakes (a lost setting or a lost unlock, not a lost run) and the
-	# same fix. The main menu shows it, once, for whichever of the three failed.
+	# The return value is not decoration: a read-only user:// or a full disk
+	# fails here, and the main menu shows it once for whichever of the three
+	# config writes failed. Silent, it costs an unlock.
 	# Written to a temporary file and renamed into place, for the same reason
 	# Save.gd does it: a crash partway through a write would otherwise leave a
 	# truncated config, and a truncated config is one ConfigFile.load() refuses

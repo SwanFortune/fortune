@@ -1,11 +1,10 @@
 ## Autoload. The prototype's own vector icons, rasterised at whatever size and
 ## colour is asked for.
 ##
-## The source draws real line art for every element, sign, planet and card
-## archetype (EL_ART, SIGN_ART, PLANET_ART, ARCH in Parlour v23.dc.html). This
-## port had been showing the △▽◇□ TEXT GLYPHS instead — which the source uses
-## only as the character fallback inside its own card art. So a whole visual
-## system existed in the design and none of it had been carried over.
+## The line art for every element, sign, planet and card archetype comes from
+## the source (EL_ART, SIGN_ART, PLANET_ART, ARCH in Parlour v23.dc.html). The
+## △▽◇□ text glyphs are only the character fallback, and only where an icon is
+## missing.
 ##
 ## The path data is in data/base/icons.json, verbatim. Nothing here interprets
 ## it: an icon is wrapped in a 24x24 SVG document and handed to

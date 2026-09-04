@@ -1,12 +1,6 @@
 ## Settings screen. A category rail down the left, the chosen category's rows
 ## on the right, actions along the bottom.
 ##
-## It was one long scroll until it had twenty rows in it, at which point the
-## thing a player actually does here — "find the volume" — meant reading past
-## everything else. The rail is not decoration: it is the only way a settings
-## screen stays findable as it grows, which is why every game with more than a
-## dozen options has one.
-##
 ## Every control is bound directly to a Settings key and takes effect
 ## immediately. There is no Apply button and no staged copy of the values,
 ## because Settings already persists on every change — and because a video

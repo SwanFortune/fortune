@@ -51,17 +51,13 @@ func _ready() -> void:
 	_knock(root)
 
 
-## SOMEBODY KNOCKS. The screen asks "who knocks tonight?", a run is sixteen
-## knocks long, and it ends the night the knocking stops — and in the entire
-## port nothing had ever knocked. Three raps on the door behind the screen: the
-## sound, the leaf jumping in its frame, and more of whoever is out there coming
-## under it each time.
+## Three raps on the door behind the screen: the sound, the leaf jumping in its
+## frame, and more light under it each time. The rhythm accelerates slightly,
+## the way a person's knuckles do.
 ##
-## Nothing waits for it. The options are already there and already focused; a
+## NOTHING WAITS FOR IT. The options are already there and already focused, so a
 ## player can choose during the first knock. An atmosphere beat that takes the
-## game away from you is a beat you resent by the tenth night.
-##
-## The rhythm accelerates slightly, the way a person's knuckles do.
+## game away from you is one you resent by the tenth night.
 const KNOCKS := [0.00, 0.34, 0.60]
 
 func _knock(root: Control) -> void:
@@ -75,13 +71,12 @@ func _knock(root: Control) -> void:
 		return
 	# THE ROOM BY ITS ID, never by reference, all the way down.
 	#
-	# The rule, established the hard way: a lambda whose OWN OBJECT is freed is
-	# dropped silently by Godot's signal bookkeeping and never runs — which is
-	# fine. A lambda that CAPTURES a freed Node is not: the engine nulls the
-	# capture, logs "Lambda capture at index 0 was freed", and calls the body
-	# anyway, so a guard inside the body is too late. These two knocks, pending
-	# for up to six tenths of a second after a player picks a caller and the map
-	# is torn down, were every one of the ten such errors the suite printed.
+	# A lambda whose OWN OBJECT is freed is dropped silently and never runs. A
+	# lambda that CAPTURES a freed Node is not: Godot nulls the capture, logs
+	# "Lambda capture at index 0 was freed", and calls the body ANYWAY — so a
+	# guard inside the body is too late. These knocks stay pending for six
+	# tenths of a second after the map is torn down, which is long enough to
+	# hit it on every single encounter.
 	var id := room.get_instance_id()
 	var rattle := func(v: float) -> void:
 		if is_instance_id_valid(id):
@@ -100,13 +95,11 @@ func _knock(root: Control) -> void:
 
 
 ## The night as a page in an appointment book: eight half-hours down the left,
-## each one either written in, happening now, or still to come.
+## each either written in, happening now, or still to come.
 ##
-## This is the thing the game most obviously did not have. "Who knocks
-## tonight?" was a question asked with no information whatsoever — you could not
-## see that the Mayor was at the end of it, that the apothecary was at half past
-## nine, or that you had two more callers before a night off. Every deckbuilder
-## worth the name shows you the road; this one showed one step of it.
+## PAST hours name who came and how it went; FUTURE hours give the shape only —
+## a name would give the night away. Built from Run.state's plan, which is
+## decided at the start of the night for exactly this reason.
 const AGENDA_WIDTH := 214.0
 
 ## What a future hour promises, by what the plan says is on offer. Only the
@@ -122,11 +115,10 @@ const PROMISE := {
 
 ## One line saying how the deck you are carrying answers to this caller's sign.
 ##
-## Counted straight off the deck rather than through Rules, on purpose: this is
-## a plain "how many of these do I own", and the two cards whose element is not
-## fixed until they are played (the chromatics) are counted as what they are —
-## unfixed — rather than guessed at. A screen that guesses is worse than one
-## that says it does not know.
+## Counted straight off the deck rather than through Rules: this is a plain "how
+## many of these do I own". The chromatics, whose element is not fixed until
+## they are played, are reported as UNFIXED rather than guessed — a screen that
+## guesses is worse than one that says it does not know.
 func _deck_against(q: Dictionary) -> String:
 	var el := str(q.get("el", ""))
 	if el == "":

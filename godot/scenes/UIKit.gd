@@ -1363,6 +1363,16 @@ static func tr_line(value) -> String:
 	return I18n.t(str(value))
 
 
+## What a card costs to say and what it restores before any rule applies — the
+## two numbers printed on its face, as a sentence.
+##
+## One function because it is said in two places that must not drift: the hand
+## card's tooltip and the reward row. It also guarantees a card ALWAYS has
+## something to say, which card_face() relies on — see its tooltip.
+static func card_price(c: Dictionary) -> String:
+	return I18n.t("%s energy · restores %s") % [c.get("cost", 0), c.get("f", 0)]
+
+
 static func card_text(c: Dictionary) -> String:
 	if c.get("custom", false):
 		return c.get("text", "")
@@ -1410,7 +1420,14 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true,
 	wrap.custom_minimum_size = card_face_size()
 	var el = c.get("el")
 	var el_c: Color = el_color(el) if el != null and el != "" else DIM
-	var tip_lines: Array = [card_text(c)]
+	# ALWAYS STARTS WITH THE PRICE, so a card can never have an empty tooltip.
+	# A plain card — no extra rule, no archetype, no flavour, no keyword — has
+	# nothing else to say, and an empty tooltip means the reading screen's hand
+	# label stays blank when that card is focused. That label is the only channel
+	# a keyboard player has for reading a card at all.
+	var tip_lines: Array = [card_price(c)]
+	if card_text(c) != "":
+		tip_lines.append(card_text(c))
 	var arch_tip := archetype_text(str(c.get("a", "")))
 	if arch_tip != "":
 		tip_lines.append(arch_tip)

@@ -109,11 +109,9 @@ func sign_field(sign: Dictionary, field: String) -> String:
 	return content("sign/" + str(sign.get("k", "")), field, str(sign.get(field, "")))
 
 
-## Port of fill()/PRON (Parlour v23.dc.html ~1156 and ~1187), which was missed
-## in the first pass: sign rules are written with {S}/{es}/{o}/... tokens meant
-## to be filled from the sitter's own pronoun at display time, and with nothing
-## doing the filling every sign read "{S} need{es} it to be a performance."
-## on screen.
+## Port of fill()/PRON (Parlour v23.dc.html ~1156 and ~1187). Sign rules are
+## written with {S}/{es}/{o}/... tokens, filled from the sitter's own pronoun at
+## display time — unfilled, a rule reads "{S} need{es} it to be a performance."
 ##
 ## Substitution happens AFTER translation on purpose. The tokens are part of the
 ## sentence, so a translated rule carries its own — and a translated pronoun

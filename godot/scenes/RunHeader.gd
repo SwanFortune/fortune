@@ -1,13 +1,10 @@
-## The persistent run status bar, shown on every in-run screen (map, reading,
-## pick, result). Before this existed the run's own state was scattered and
-## partly invisible: coin/faith were re-rendered slightly differently on two
-## screens, the deck was only ever a number you couldn't inspect, and MARKS
-## AND RELICS WERE SHOWN NOWHERE AT ALL — you could earn a permanent passive
-## off an elite and have no way to find out what it did.
+## The persistent run status bar, on every in-run screen: map, reading, pick,
+## result. One place where the run's own state is rendered, so it cannot drift
+## between screens, and where the deck and the marks are inspectable rather than
+## being a number you cannot open.
 ##
-## Built as a plain static factory rather than a scene so the existing
-## screens (which all build their UI procedurally in _ready) can each add one
-## line and get it, with no .tscn wiring.
+## A static factory rather than a scene, so a screen that builds its UI in
+## _ready() adds one line and gets it, with no .tscn wiring.
 class_name RunHeader
 extends RefCounted
 
@@ -16,12 +13,12 @@ extends RefCounted
 const UIKit := preload("res://scenes/UIKit.gd")
 
 
-## `host` is the scene adding the header — used as the parent for the modal
-## overlays and as the scene to come back to from Settings.
-## Returns the header. When the run cannot be written to disk it returns a
-## column — the warning line above the bar — rather than the bar alone, so
-## every screen that adds a header gets the warning without a change of its
-## own. Callers add whatever comes back; none of them cares which it is.
+## `host` is the scene adding the header — the parent for the modal overlays,
+## and the scene Settings comes back to.
+##
+## Returns the bar, OR a column of the bar under a warning line when the run
+## cannot be written to disk. Callers add whatever comes back without caring
+## which, so every screen with a header inherits the warning.
 static func build(host: Node) -> Control:
 	var bar := _bar(host)
 	if not Save.write_failed:
@@ -51,10 +48,9 @@ static func _bar(host: Node) -> Control:
 	bar.add_child(_stat(I18n.t("Faith"), str(st.get("faith", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["faith"])))
 	bar.add_child(_stat(I18n.t("Centimes"), str(st.get("coin", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["centimes"])))
 	bar.add_child(_stat(I18n.t("Mended"), str(st.get("mended", 0)), UIKit.GREEN, ""))
-	# WHICH RUN THIS IS. You choose a difficulty and a seed on the sign screen
-	# and then nothing said which you were on for the next three nights, so a
-	# player halfway up the ladder could not tell a hard run from an ordinary
-	# one, and a seed handed round was unverifiable at the far end.
+	# WHICH RUN THIS IS — the difficulty and the seed chosen on the sign screen.
+	# Without them a player halfway up the ladder cannot tell a hard run from an
+	# ordinary one, and a seed handed to somebody else is unverifiable.
 	var level := int(st.get("level", 0))
 	if level > 0:
 		var rung: Dictionary = {}
@@ -76,28 +72,21 @@ static func _bar(host: Node) -> Control:
 	bar.add_child(_chip("%s (%d)" % [I18n.t("DECK"), deck.size()], func(): _show_deck(host)))
 
 	var marks: Array = st.get("marks", [])
-	# Reads "MARKS (0)" rather than being hidden when empty, so it's
-	# discoverable as a thing that fills up rather than appearing from
-	# nowhere the first time an elite drops one.
+	# Reads "MARKS (0)" rather than hiding when empty, so it is discoverable as
+	# a thing that fills up rather than appearing from nowhere.
 	bar.add_child(_chip("%s (%d)" % [I18n.t("MARKS"), marks.size()], func(): _show_marks(host)))
-	# The rules, as an overlay rather than a scene change: a player who needs
-	# to look something up mid-reading should not have to leave the reading,
-	# and the run screens rebuild from Run.state anyway so a trip out and back
-	# would be safe but jarring.
+	# An overlay rather than a scene change: looking a rule up mid-reading
+	# should not mean leaving the reading.
 	bar.add_child(_chip(I18n.t("RULES"), func(): _show_rules(host)))
 	bar.add_child(_chip(I18n.t("SETTINGS"), func():
 		Nav.goto_settings(host.scene_file_path)
 	))
-	# THE WAY OUT. Once BEGIN was pressed there was no route back to the main
-	# menu from anywhere in the game: not from the sign screen, not from the map,
-	# not from the ending. SETTINGS returned you to the run it came from, and
-	# everything else led forward. Which meant that after starting a run a player
-	# could not reach the Library, the Minitel, the mods list — or QUIT. The only
-	# way to leave this game was the window's close button.
+	# THE WAY OUT of a run, and the only route back to the Library, the Minitel,
+	# the mods list and QUIT once one has started. See UIKit.WAY_OUT.
 	#
-	# No confirmation, because there is nothing to confirm: the run is written to
-	# disk on the way out and CONTINUE on the menu picks it up mid-reading, cards
-	# in hand and all. That is the whole reason the save keeps the fight.
+	# No confirmation, because there is nothing to confirm: the run is flushed to
+	# disk on the way out and CONTINUE picks it up mid-reading, cards in hand.
+	# That is what the save keeping the fight is for.
 	var way_out := _chip(I18n.t("MENU"), func():
 		Save.flush()
 		Nav.goto_main_menu()
@@ -115,11 +104,10 @@ static func _bar(host: Node) -> Control:
 ##
 ## Returns true if it consumed the event, so the caller can mark it handled.
 ##
-## WHILE AN OVERLAY IS OPEN THIS SWALLOWS EVERYTHING. That is the point, and it
-## was missing: the overlay is a modal panel drawn over the screen, but the
-## screen underneath kept its own keyboard handling, so pressing D twice opened
-## a second deck on top of the first, Escape closed nothing, and the reading's
-## own READ IT shortcut still fired at a board the player could not see.
+## WHILE AN OVERLAY IS OPEN THIS SWALLOWS EVERYTHING, and must: the overlay is
+## a panel drawn over a screen that is still live underneath. Let a key through
+## and D opens a second deck on top of the first, Escape closes nothing, and
+## READ IT fires at a board the player cannot see.
 static func handle_shortcut(event: InputEvent, host: Node) -> bool:
 	var open := open_overlay(host)
 	if open != null:
@@ -167,8 +155,8 @@ static func _chip(text: String, on_pressed: Callable) -> Control:
 	b.text = text
 	b.pressed.connect(on_pressed)
 	b.add_theme_font_size_override("font_size", 11)
-	# The header's chips are the same surface as every other button, at three
-	# fifths of the treatment — they sit above the game and should not shout.
+	# The same surface as every other button at three fifths of the treatment:
+	# these sit above the game and should not shout.
 	UIKit.style_button(b, 0.6)
 	return b
 

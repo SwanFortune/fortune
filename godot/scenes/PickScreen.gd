@@ -60,22 +60,13 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		var el_c: Color = UIKit.el_color(c["el"]) if c.get("el") != null else UIKit.DIM
 		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
 		lines.append([UIKit.card_summary(c), 16, el_c])
-		# WHAT IT COSTS AND WHAT IT RESTORES WERE NOWHERE ON THIS SCREEN. The
-		# rows carried the name, the extra rule and the flavour — and the two
-		# numbers that define a card were not among them, because auto_text()
-		# only describes what a card does BEYOND restoring. So the single most
-		# consequential decision in the game, which card goes into your deck for
-		# the rest of the run, was made without them. A plain card with no extra
-		# rule was worse still: its rules line came out empty, so the row said a
-		# name, a blank, and a line of flavour.
-		#
-		# A line, not the drawn face. The face was tried first and is the nicer
-		# object — it is what the card will look like in the hand — but it is 158
-		# pixels tall, and three of them pushed the third reward below the fold.
-		# A choice screen whose options cannot be seen at once is a worse problem
-		# than the one being fixed.
-		lines.append([I18n.t("%s energy · restores %s") % [
-			c.get("cost", 0), c.get("f", 0)], 12, UIKit.GOLD])
+		# The price, explicitly: auto_text() only describes what a card does
+		# BEYOND restoring, so without this the two numbers that define a card
+		# appear nowhere on the screen where you choose it for the rest of the
+		# run. A LINE, not the drawn face — a face is 158px tall and three of
+		# them push the third option below the fold, and a choice screen whose
+		# options cannot be compared at once is the worse problem.
+		lines.append([UIKit.card_price(c), 12, UIKit.GOLD])
 		lines.append([UIKit.card_text(c), 12, UIKit.INK])
 		if c.get("fl", "") != "":
 			lines.append([c["fl"], 11, UIKit.DIM])
@@ -90,11 +81,9 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		lines.append([I18n.t(str(o.get("name", ""))), 16, UIKit.INK])
 		lines.append([I18n.t(str(o.get("text", ""))), 12, UIKit.DIM])
 
-	# An option that hands over a card or a mark may still have SOMETHING TO SAY
-	# about it — the events written for the port lean on that line ("It smells
-	# like her kitchen and it works, which you resent"). Only the third branch
-	# above printed `text`, so on a card or a mark the option's own words were
-	# silently thrown away and the row read as a shop entry.
+	# An option handing over a card or a mark may still have SOMETHING TO SAY
+	# about it, and the events lean on that line. The branches above print the
+	# card or the mark, not the option, so without this those words are lost.
 	if (o.has("card") or o.has("mark")) and str(o.get("text", "")) != "":
 		lines.append([I18n.t(str(o["text"])), 11, UIKit.DIM])
 
