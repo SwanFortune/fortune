@@ -81,7 +81,26 @@ expected ones are enumerated in `tests/run_all.sh`, each next to the test that
 causes it; anything not on that list is a real error, which is precisely what
 the runner is for.
 
-One thing the suite cannot check for you: Godot's own `ERROR` lines on the real
+### The one the suite cannot do: the exported build
+
+Everything above runs from source. What a player is handed is an export, where
+resources are packed and `tests/*` is filtered out — a file the packer skipped
+is missing only there. `tests/smoke_export.sh` builds the game and then PLAYS
+it: real binary, real window, real keystrokes, menu to sign to gift to map to
+reading, laying a card at the end.
+
+```
+tests/smoke_export.sh              # from godot/ — builds, then plays
+tests/smoke_export.sh --no-build   # use the binary already in build/linux
+```
+
+It fails if the build is not still running at the end, if the console carries
+anything but this container's known complaints, or if **any step leaves the
+screen unchanged** — a key that reaches nothing is what a scene that failed to
+load looks like. Needs `xvfb-run`, `xdotool` and ImageMagick, and it is not part
+of `run_all.sh`: it builds a 74 MB binary and takes a minute.
+
+One thing neither can check for you: Godot's own `ERROR` lines on the real
 launch path. Nothing in `tests/` boots the project's main scene — they each
 instantiate a screen directly — and an engine error is not visible to GDScript.
 Run the game for a moment and read the output:
