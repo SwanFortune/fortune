@@ -1521,6 +1521,49 @@ only way to check the setting reaches the interface, and `Settings` writes
 straight to disk. A 1.3 left behind once rendered every screenshot at the wrong
 size for an hour before the words looked big enough to notice.
 
+### What the prototype has that the port does not
+
+A line-by-line survey against `project/Parlour v23.dc.html`, done late rather
+than early, which is the wrong order but produced one real finding.
+
+**Content is complete.** Every record matches by name, not merely by count:
+7 basics, 2 chromatics, 31 minors, 16 arcana, 13 readers, 6 relics, 13 marks,
+5 elite twists, 9 sitters, 12 signs, and all 36 fx keys — no key in one and not
+the other, in either direction.
+
+**One thing was genuinely missing: the reading was not a sentence.** Every card
+carries an `sp` clause — "pour the tea" beside the name "Pour The Tea" — and
+`sentence()` (v23 ~2131) joins the laid ones into what the reader has actually
+said: *"Ask them to sit, turn the top card and set down the cloth."* The port
+read that field nowhere. It showed card names with their scores, which is the
+same information about a different game: this one is about saying things to a
+person, and it had been reduced to playing cards at a number.
+
+`tests/test_dead_content.gd` should have caught it years earlier and did not,
+for a reason worth keeping: its haystack was the whole of `res://`, so a field
+touched only by `tests/gen_art_manifest.gd` counted as read. A dev tool is not
+the game. Narrowed to `autoload/` and `scenes/`, it flags exactly one field —
+`sp` — which is both the fix and the proof that nothing else is hiding there.
+
+**Three things are vestigial in the PROTOTYPE and correctly absent here.**
+Worth recording so nobody ports them later in good faith:
+
+- `SLOTS`, the four named positions of the cross — BEHIND / OVER / BENEATH /
+  AHEAD OF, each with a Roman numeral and a grid area. Declared in v20, v22 and
+  v23; referenced by none of them. An abandoned spread.
+- `nerve`, a tunable with a default of 30 and a range, plus rest options footed
+  "+10 nerve now, +2 for the rest of the run". Nothing reads the prop and
+  `takePick` has no branch for `rest: 'nerve'` — the footer is a promise the
+  source does not keep. (`rest: 'coin'` IS honoured, and is ported.)
+- `mercy`, returned by `cfg()` and read by nothing.
+
+`guard: 3` was already on this list, in test_dead_content's KNOWN.
+
+**One difference is presentational and deliberate.** The prototype splits a
+sign's rule and a job's text into a first sentence shown as flavour and the
+rest shown as the rule; the port runs them together on one line. All the words
+are present, in the same order.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

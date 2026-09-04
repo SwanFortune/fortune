@@ -268,9 +268,18 @@ func _keys_in_content() -> Dictionary:
 	return out
 
 
+## THE GAME'S OWN SOURCE — autoload/ and scenes/ — and deliberately not tests/
+## or the dev tools under it.
+##
+## A field a generator or a screenshot script touches is not a field the GAME
+## reads, and counting those as readers is how `sp` hid: every card carries the
+## clause it is spoken as, tests/gen_art_manifest.gd copied it into the art
+## manifest, and on that evidence this check called it used for the whole port
+## while the reading screen showed card names and no sentence at all.
 func _all_source() -> String:
 	var parts: Array[String] = []
-	_gather("res://", parts)
+	for dir_path in ["res://autoload", "res://scenes"]:
+		_gather(dir_path + "/", parts)
 	return "\n".join(parts)
 
 

@@ -97,6 +97,15 @@ func card_flavor(card: Dictionary) -> String:
 	return content(Art.card_id(card), "fl", str(card.get("fl", "")))
 
 
+## What a card SOUNDS LIKE when it is said out loud — "pour the tea" against the
+## name "Pour The Tea". Every card carries one; see UIKit.spoken_line().
+##
+## Lowercase and without punctuation on purpose: these are clauses that get
+## joined into one sentence, not titles.
+func card_spoken(card: Dictionary) -> String:
+	return content(Art.card_id(card), "sp", str(card.get("sp", card.get("n", ""))))
+
+
 func sitter_field(sitter: Dictionary, field: String) -> String:
 	return content(Art.sitter_id(sitter), field, str(sitter.get(field, "")))
 

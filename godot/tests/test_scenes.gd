@@ -185,6 +185,7 @@ func _visit_standalone() -> void:
 	await _test_the_hand_stays_on_screen()
 	await _test_a_spent_reading_can_still_be_played()
 	await _test_an_offered_card_shows_its_price()
+	await _test_the_reading_is_a_sentence()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -1406,6 +1407,83 @@ func _test_an_offered_card_shows_its_price() -> void:
 			% [plain.get("n", "?"), cost, restore])
 	else:
 		print("--- a card you are offered says what it costs and what it restores ('%s') ---" % said.strip_edges())
+
+
+## THE READING IS A SENTENCE SOMEBODY SAYS, not a row of card names.
+##
+## Every card carries an `sp` clause — "pour the tea" against the name "Pour The
+## Tea" — and the source composes them into one spoken line (sentence(), v23
+## ~2131). The port read that field nowhere: the screen listed card names with
+## their scores, which is the same information and a different game.
+##
+## Checked against the CONTENT: the clause of each laid card has to be on the
+## screen, in the order it was said. Not against the wording of the join, so
+## rephrasing "and" or translating it does not break this.
+func _test_the_reading_is_a_sentence() -> void:
+	run.state = run.fresh("spoken")
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	if f.is_empty():
+		printerr("FAIL: precondition — no encounter to read")
+		return
+	# Two cards at least, so the joining is exercised rather than just the
+	# single-clause case.
+	var laid := 0
+	for c in f["hand"].duplicate():
+		if laid < 2 and int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
+			laid += 1
+	f = run.state["f"]
+	if f["cross"].size() < 2:
+		printerr("FAIL: precondition — could only lay %d card(s)" % f["cross"].size())
+		return
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	# ONE LABEL carrying every clause, in order. Checking the whole screen would
+	# prove nothing: the per-card chips print card NAMES, and a name lowercased
+	# is usually its own spoken clause — "Stand Up Mid-Sentence" against "stand
+	# up mid-sentence". That version of this test passed with the sentence
+	# deleted. A chip holds one card, so only a real sentence holds two.
+	var i18n_node: Node = root.get_node("I18n")
+	var want: Array[String] = []
+	for c in f["cross"]:
+		var said: String = i18n_node.card_spoken(c).to_lower()
+		if said == "":
+			printerr("FAIL: '%s' has no spoken clause at all" % c.get("n", "?"))
+			return
+		want.append(said)
+
+	var spoken := ""
+	for node in _all_of(instance, []):
+		if node is Label:
+			var text: String = (node as Label).text.to_lower()
+			var at := -1
+			var all_in_order := true
+			for said in want:
+				var found := text.find(said, at + 1)
+				if found <= at:
+					all_in_order = false
+					break
+				at = found
+			if all_in_order:
+				spoken = (node as Label).text
+				break
+	instance.queue_free()
+	await process_frame
+
+	if spoken == "":
+		printerr("FAIL: nothing on the reading says %s as one line — the reading is a list of cards, not a sentence"
+			% str(want))
+		return
+	print("--- the reading reads back as one sentence: \"%s\" ---" % spoken)
 
 
 ## Builds the main menu under the given look settings and reports the first

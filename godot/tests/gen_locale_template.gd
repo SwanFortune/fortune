@@ -299,7 +299,8 @@ func _ui_strings() -> Array[String]:
 		# run screens
 		"CHOOSE YOUR SIGN", "Every reader is a sign, an element, and a starting deck of ten.",
 		"Starts with:", "Who knocks tonight?", "NIGHT", "KNOCK",
-		"YOUR HAND — hover a card for its full text", "SAID SO FAR", "(nothing yet)",
+		"YOUR HAND — hover a card for its full text", "You have not said anything yet.",
+		"{S} {is} looking at your hands.", "and",
 		"READ IT", "Composure", "Energy", "Reading", "Denial wall", "Discarded:",
 		"BEGIN AGAIN", "sign", "cost", "composure", "denial", "readings",
 		"THE APOTHECARY", "ELITE", "THE MAYOR", "ONCE", "PIERCE", "No element",

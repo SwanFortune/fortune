@@ -191,22 +191,26 @@ func _the_notices(f: Dictionary, v: Control) -> void:
 ## The line as it stands: every card already laid, each with what it is worth in
 ## this reading rather than what is printed on it.
 func _said_so_far(f: Dictionary, sim: Dictionary, v: Control) -> void:
-	v.add_child(UIKit.block(I18n.t("SAID SO FAR"), 12, UIKit.DIM))
+	# THE SENTENCE, and the arithmetic under it. What the reader has actually
+	# said to the person across the table is what this game is about; the
+	# per-card totals are only how it scored. Shown even with nothing laid,
+	# where it says what the sitter is doing while they wait — which is why
+	# there is no "SAID SO FAR" caption over it any more. The line says what it
+	# is by being a sentence, and the caption cost a row the scores needed.
+	v.add_child(UIKit.block(UIKit.spoken_line(f["cross"], f["sitter"]), 14, UIKit.INK))
+	if f["cross"].is_empty():
+		return
 	var cross_box := UIKit.hbox(6)
 	v.add_child(cross_box)
-	if f["cross"].is_empty():
-		cross_box.add_child(UIKit.label(I18n.t("(nothing yet)"), 12, UIKit.DIM))
-	else:
-		var preview: Dictionary = sim
-		for i in f["cross"].size():
-			var c: Dictionary = f["cross"][i]
-			var row: Dictionary = preview["rows"][i] if i < preview["rows"].size() else {}
-			var chip := UIKit.label("%s (+%s)" % [UIKit.card_summary(c), row.get("total", "?")], 12, UIKit.GREEN)
-			cross_box.add_child(chip)
-			if i == f["cross"].size() - 1:
-				# Only the just-laid card is new — the rest were already on
-				# screen before this rebuild.
-				UIKit.animate_in(chip)
+	for i in f["cross"].size():
+		var c: Dictionary = f["cross"][i]
+		var row: Dictionary = sim["rows"][i] if i < sim.get("rows", []).size() else {}
+		var chip := UIKit.label("%s (+%s)" % [UIKit.card_summary(c), row.get("total", "?")], 12, UIKit.GREEN)
+		cross_box.add_child(chip)
+		if i == f["cross"].size() - 1:
+			# Only the just-laid card is new — the rest were already on screen
+			# before this rebuild.
+			UIKit.animate_in(chip)
 
 
 ## READ IT, and TAKE IT BACK beside it when there is something to take back.

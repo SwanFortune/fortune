@@ -1334,6 +1334,37 @@ static func el_tag(el: String) -> String:
 
 
 ## The card's name, with its element glyph in front. Still used where a card
+## THE READING AS A SENTENCE — what the reader has actually said to the person
+## across the table, built from each laid card's `sp` clause: "Light the lamp,
+## pour the tea, and ask them why."
+##
+## This is the game's own fiction and the source composes it (sentence(), v23
+## ~2131). Every card carries an `sp` for it. Without it a reading is a row of
+## card names with numbers beside them, which is a different game.
+##
+## `cross` is the laid line in spoken order; `sitter` supplies the pronoun for
+## the empty case, which is the one line here that is not made of card text.
+static func spoken_line(cross: Array, sitter: Dictionary) -> String:
+	var parts: Array[String] = []
+	for c in cross:
+		if c is Dictionary:
+			var said := I18n.card_spoken(c)
+			if said != "":
+				parts.append(said)
+	if parts.is_empty():
+		return "%s %s" % [
+			I18n.t("You have not said anything yet."),
+			I18n.fill(I18n.t("{S} {is} looking at your hands."), str(sitter.get("p", "they"))),
+		]
+	var line := parts[0]
+	if parts.size() > 1:
+		line = "%s %s %s" % [
+			", ".join(parts.slice(0, parts.size() - 1)),
+			I18n.t("and"), parts[parts.size() - 1],
+		]
+	return line.substr(0, 1).to_upper() + line.substr(1) + "."
+
+
 ## has to be a STRING — deck lists, rewards, the Library — but NOT on the card
 ## face any more: that carries the drawn badge instead (see card_face()).
 static func card_summary(c: Dictionary) -> String:
