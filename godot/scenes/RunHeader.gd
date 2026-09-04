@@ -54,6 +54,22 @@ static func _bar(host: Node) -> Control:
 	bar.add_child(_stat(I18n.t("Faith"), str(st.get("faith", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["faith"])))
 	bar.add_child(_stat(I18n.t("Centimes"), str(st.get("coin", 0)), UIKit.GOLD, I18n.t(UIKit.KEYS["centimes"])))
 	bar.add_child(_stat(I18n.t("Mended"), str(st.get("mended", 0)), UIKit.GREEN, ""))
+	# WHICH RUN THIS IS. You choose a difficulty and a seed on the sign screen
+	# and then nothing said which you were on for the next three nights, so a
+	# player halfway up the ladder could not tell a hard run from an ordinary
+	# one, and a seed handed round was unverifiable at the far end.
+	var level := int(st.get("level", 0))
+	if level > 0:
+		var rung: Dictionary = {}
+		for r in Content.difficulty:
+			if int(r.get("n", 0)) == level:
+				rung = r
+		bar.add_child(_stat(I18n.t("Level"), str(level), UIKit.RED,
+			I18n.t(str(rung.get("text", "")))))
+	var seed_text := str(st.get("seed", ""))
+	if seed_text != "":
+		bar.add_child(_stat(I18n.t("Evening"), seed_text, UIKit.DIM,
+			I18n.t("Every roll this run makes comes from this. Type it on the sign screen to play it again.")))
 
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL

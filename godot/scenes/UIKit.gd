@@ -468,8 +468,43 @@ static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Cal
 ## because grab_focus() needs the node to be in the tree with its visibility
 ## resolved, which is not yet true while a screen's _ready() is still running.
 ## Returns nothing; screens call it and forget.
+## Runs `what` in `seconds`, unless whoever owns it has gone by then.
+##
+## The callable is connected DIRECTLY, with no wrapper lambda around it. That is
+## the whole point of this helper existing.
+##
+## A wrapper — `connect(func(): if what.is_valid(): what.call())` — is the
+## obvious defensive shape and it is exactly wrong: the wrapper CAPTURES `what`,
+## the engine nulls a freed capture before the body runs, and the guard never
+## executes. Six of those errors were printed on every run of the test suite,
+## and chasing them is how this function came to exist.
+##
+## Connected straight to the timer, Godot's own signal bookkeeping removes the
+## connection when the callable's object is freed, and nothing fires at all —
+## which is both quiet and what was wanted.
+##
+## Every deferred beat in the game goes through here: the deal, the knock, the
+## ledger's own pacing.
+static func after(seconds: float, what: Callable) -> void:
+	if seconds <= 0.0:
+		what.call()
+		return
+	tree().create_timer(dur(seconds)).timeout.connect(what)
+
+
 static func focus_first(root: Node) -> void:
-	(func(): _focus_first_now(root)).call_deferred()
+	# The node's ID, not the node. This is deferred by a frame, and a screen torn
+	# down inside that frame — which happens constantly in the scene sweep, and
+	# in the game whenever an action rebuilds the screen immediately — would
+	# leave the lambda holding a freed capture, which Godot reports as an
+	# engine-level ERROR and nulls out BEFORE the body runs, so the going_away()
+	# guard inside _focus_first_now() could not prevent it.
+	var id := root.get_instance_id()
+	(func():
+		if not is_instance_id_valid(id):
+			return
+		_focus_first_now(instance_from_id(id))
+	).call_deferred()
 
 
 static func _focus_first_now(node: Node) -> bool:
@@ -820,7 +855,18 @@ static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> v
 		return  # nothing to restore: the node is already in its end state
 	if node is Label:
 		var start_color: Color = node.get_theme_color("font_color") if node.has_theme_color("font_color") else INK
-		bound_tween(node).tween_method(func(c: Color): node.add_theme_color_override("font_color", c), flash_color, start_color, dur(duration)).set_trans(Tween.TRANS_CUBIC)
+		# By ID, not by node. bind_node() stops the tween when the node goes, but
+		# not necessarily before a step already queued for this frame runs — and
+		# a lambda holding a freed capture is reported by the engine as an ERROR
+		# before its body is entered, so a guard inside the body cannot help.
+		# This screen rebuilds itself on every single action, so a stat pulsing
+		# as the player plays a card is exactly the shape of it.
+		var id := node.get_instance_id()
+		bound_tween(node).tween_method(func(c: Color):
+			if not is_instance_id_valid(id):
+				return
+			(instance_from_id(id) as Control).add_theme_color_override("font_color", c)
+		, flash_color, start_color, dur(duration)).set_trans(Tween.TRANS_CUBIC)
 	node.scale = Vector2(1.35, 1.35)
 	bound_tween(node).tween_property(node, "scale", Vector2.ONE, dur(duration)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 

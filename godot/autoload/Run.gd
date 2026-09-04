@@ -770,10 +770,17 @@ func end_run(why: String) -> void:
 			after = e
 			break
 	state["over"] = {
-		"head": str(after.get("head", "THREE NIGHTS, AND THE KNOCKING STOPS")),
+		# A run that ENDED because somebody left says so, which is a different
+		# sentence from a run that reached the end of the third night. Folding
+		# both into the ending's own head was a regression: the ending describes
+		# what became of the village, and "one of them went home as they came"
+		# describes why you are reading it now.
+		"head": "ONE OF THEM WENT HOME AS THEY CAME" if why == "failed"
+			else "THREE NIGHTS, AND THE KNOCKING STOPS",
 		"title": tier,
 		"body": ["Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice."] if why == "failed"
 			else ["You mended %s of them. What they say about you afterwards is the only score that was ever being kept.", state["mended"]],
+		"after": str(after.get("head", "")),
 		"village": str(after.get("village", "")),
 		"reader": str(after.get("reader", "")),
 		"ledger": ledger,

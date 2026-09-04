@@ -78,15 +78,22 @@ func _knock(root: Control) -> void:
 		return
 	for i in KNOCKS.size():
 		var at: float = KNOCKS[i]
-		var timer := get_tree().create_timer(UIKit.dur(at))
-		timer.timeout.connect(func():
+		UIKit.after(at, func():
 			if not is_instance_valid(room):
 				return
 			Audio.play("knock")
 			var t := UIKit.bound_tween(room)
+			# By ID for the same reason as UIKit.pulse(): the map is torn down
+			# the instant a caller is chosen, which can easily be mid-knock, and
+			# a lambda holding a freed capture is an engine-level ERROR raised
+			# before the body runs.
+			var id := room.get_instance_id()
+			var rattle := func(v: float) -> void:
+				if is_instance_id_valid(id):
+					Table.set_knock(instance_from_id(id), v)
 			# Sharp in, slower out — a hit, then the door settling back.
-			t.tween_method(func(v: float): Table.set_knock(room, v), 0.0, 1.0, UIKit.dur(0.03))
-			t.tween_method(func(v: float): Table.set_knock(room, v), 1.0, 0.0, UIKit.dur(0.22)) \
+			t.tween_method(rattle, 0.0, 1.0, UIKit.dur(0.03))
+			t.tween_method(rattle, 1.0, 0.0, UIKit.dur(0.22)) \
 				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		)
 

@@ -93,11 +93,14 @@ static func sections() -> Array:
 			I18n.t("Someone knocks. They have a job, a sign, and something they will not say. Their composure starts at nothing, and you have to fill it before your readings with them run out — then they go home whole."),
 			I18n.t("Eight knocks a night, three nights. The last one on the third night is the mayor, and he is not like the others."),
 			I18n.t("Between knocks you take a road: another sitter, the apothecary, or whatever the evening puts in front of you."),
+			I18n.t("The evening runs on a clock, and the whole of it is on the left of the map: half-hourly from eight until half past eleven, with who has already been, who is at the door now, and the shape of what is still to come. Plan against it — the mayor is always the last half-hour of the third night."),
 		]],
 		[I18n.t("ONE READING"), [
 			I18n.t("You draw a hand. You lay cards left to right, spending energy, and then you READ IT — they are spoken as one sentence, in the order you laid them."),
 			I18n.t("THE ORDER IS THE WHOLE GAME. Most cards pay attention to what came before them, and a card laid in the wrong place is worth a fraction of the same card laid in the right one."),
 			I18n.t("Energy comes back in full every reading. Your hand does not: whatever is left is discarded and you draw fresh."),
+			I18n.t("Nothing is committed until you read it. The composure bar shows what the cards on the table would do before you do it — gold for what reaches them, violet for what their denial eats first — and TAKE IT BACK returns the last card you laid, with its energy. What you cannot undo is the reading."),
+			I18n.t("Reading it out shows you the working: every card, the link it made, and what it paid. Any key skips it."),
 		]],
 		[I18n.t("THE WHEEL"), _wheel_lines()],
 		[I18n.t("WHAT THEY WILL NOT SAY"), [
@@ -107,8 +110,26 @@ static func sections() -> Array:
 		]],
 		[I18n.t("THE WORDS ON A CARD"), _glossary_lines()],
 		[I18n.t("THE FOUR ELEMENTS"), _element_lines()],
+		[I18n.t("BEFORE A RUN"), _ladder_lines()],
 		[I18n.t("CONTROLS"), _control_lines()],
 	]
+
+
+## The difficulty ladder and the seed, read off the live content so a pack that
+## retunes a rung retunes what this screen says about it — the same rule as the
+## element wheel below.
+static func _ladder_lines() -> Array:
+	var lines: Array = [
+		I18n.t("The sign screen decides two things about the run before it starts."),
+		I18n.t("HOW HARD. Each rung is everything below it and one more thing on top, and a rung opens once you have finished enough runs — won or lost, since losing one teaches you as much."),
+	]
+	for rung in Content.difficulty:
+		if int(rung.get("n", 0)) == 0:
+			continue
+		lines.append("%d · %s — %s" % [
+			int(rung.get("n", 0)), I18n.t(str(rung.get("name", ""))), I18n.t(str(rung.get("text", "")))])
+	lines.append(I18n.t("THE EVENING. Every roll a run makes comes out of the seed in that box, so typing the same one twice deals the same three nights: the same callers, the same signs, the same shuffles. Leave it empty for a new one. It is printed in the run header and on the last screen."))
+	return lines
 
 
 ## The element wheel, drawn from the ring the engine actually uses rather than

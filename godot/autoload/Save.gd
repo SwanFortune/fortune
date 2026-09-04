@@ -143,6 +143,11 @@ func peek() -> Dictionary:
 		"faith": int(st.get("faith", 0)),
 		"reader": str(st.get("reader", {}).get("k", "")),
 		"saved_at": int(doc.get("saved_at", 0)),
+		# So the menu's one-line description of the run says which run it is —
+		# a player with a hard run and an ordinary one on two machines has no
+		# other way to tell which save they are about to resume.
+		"level": int(st.get("level", 0)),
+		"seed": str(st.get("seed", "")),
 	}
 
 

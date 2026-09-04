@@ -359,6 +359,13 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 
 	face.position.y = roundf((CARD_BAND - face_size.y) * 0.5) - LIFT
 	var settle := func() -> void:
+		# Guarded because this is also called DEFERRED, a frame later, and a
+		# screen torn down inside that frame leaves the lambda holding freed
+		# captures — which Godot reports as an ERROR before the body runs, so
+		# checking inside the body is not enough on its own. See the id dance in
+		# UIKit.focus_first() for the same problem solved the same way.
+		if not (is_instance_valid(face) and is_instance_valid(band)):
+			return
 		if face.size != face_size:
 			face.size = face_size
 		face.position.x = roundf((band.size.x - face_size.x) * 0.5)
@@ -454,8 +461,7 @@ func _deal_sound(delay: float) -> void:
 	if UIKit.motion_off() or delay <= 0.0:
 		Audio.play("card_draw")
 		return
-	var timer := get_tree().create_timer(UIKit.dur(delay))
-	timer.timeout.connect(func(): Audio.play("card_draw"))
+	UIKit.after(delay, func(): Audio.play("card_draw"))
 
 
 func _lay(card_uid: String) -> void:
@@ -619,8 +625,7 @@ func _reveal() -> void:
 	_beat(at, "reading_resolve")
 	v.add_child(UIKit.block(I18n.t("(any key)"), 10, UIKit.DIM))
 
-	var done := get_tree().create_timer(UIKit.dur(at + REVEAL_HOLD))
-	done.timeout.connect(func():
+	UIKit.after(at + REVEAL_HOLD, func():
 		if _revealing:
 			_finish_read()
 	)
@@ -628,10 +633,7 @@ func _reveal() -> void:
 
 ## One sound, `delay` seconds from now. Same shape as _deal_sound().
 func _beat(delay: float, event: String) -> void:
-	if delay <= 0.0:
-		Audio.play(event)
-		return
-	get_tree().create_timer(UIKit.dur(delay)).timeout.connect(func(): Audio.play(event))
+	UIKit.after(delay, func(): Audio.play(event))
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -131,9 +131,14 @@ func _begin_label() -> String:
 func _saved_line(saved: Dictionary) -> String:
 	var reader: Dictionary = Content.get_reader(str(saved.get("reader", "")))
 	var who: String = I18n.reader_field(reader, "name") if not reader.is_empty() else "?"
-	return I18n.t("night %s, knock %s · %s · %s faith") % [
+	var line := I18n.t("night %s, knock %s · %s · %s faith") % [
 		saved.get("night", 1), saved.get("step", 1), who, saved.get("faith", 0),
 	]
+	if int(saved.get("level", 0)) > 0:
+		line += I18n.t(" · level %d") % int(saved.get("level", 0))
+	if str(saved.get("seed", "")) != "":
+		line += " · " + str(saved["seed"])
+	return line
 
 
 func _continue() -> void:

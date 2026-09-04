@@ -43,6 +43,9 @@ func _ready() -> void:
 	# are chosen by how many of them left as they came.
 	var village := str(over.get("village", ""))
 	if village != "":
+		var after := str(over.get("after", ""))
+		if after != "":
+			v.add_child(UIKit.block(I18n.t(after), 11, UIKit.GOLD))
 		v.add_child(UIKit.block(I18n.t(village), 12, UIKit.DIM))
 	var reader := str(over.get("reader", ""))
 	if reader != "":

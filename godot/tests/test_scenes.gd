@@ -143,6 +143,7 @@ func _visit_standalone() -> void:
 	await _test_the_marks_are_on_the_hands()
 	await _test_the_last_card_floats()
 	_test_the_sitters_are_different_people()
+	await _test_the_screens_read_the_live_content()
 	await _test_somebody_knocks()
 	await _test_the_reading_shows_its_own_maths()
 	await _test_the_reading_is_read_out_once()
@@ -741,6 +742,65 @@ func _test_somebody_knocks() -> void:
 
 	settings.set_value("animation_scale", was)
 	print("--- somebody knocks, with the animations on and off ---")
+
+
+## THE RULES SCREEN KNOWS ABOUT THE LADDER, AND THE MAP DRAWS THE AGENDA.
+##
+## Two screens that are built from live data and would go quietly stale
+## otherwise. The rules screen's whole premise is that it explains the game by
+## READING it rather than by restating it, so a rung added to difficulty.json
+## and never mentioned is exactly the drift it exists to prevent. And the agenda
+## is only worth having if it is on screen: an hour missing from the page is a
+## plan the player cannot use, and nothing else in the game would notice.
+func _test_the_screens_read_the_live_content() -> void:
+	var instance: Node = load("res://scenes/HowToPlay.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	var rules_text := _text_of(instance)
+	for rung in content.difficulty:
+		if int(rung.get("n", 0)) == 0:
+			continue
+		if not rules_text.contains(str(rung.get("name", ""))):
+			printerr("FAIL: difficulty rung '%s' exists and the rules screen has never heard of it"
+				% rung.get("name", "?"))
+	instance.queue_free()
+	await process_frame
+
+	run.state = run.fresh("a fixed evening")
+	run.pick_reader(0)
+	run.take_pick(0)
+	instance = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var map_text := _text_of(instance)
+	var plan: Array = run.state.get("plan", [])
+	check_not_empty(plan, "the night should have a plan")
+	for slot in plan:
+		if not map_text.contains(str(slot.get("at", ""))):
+			printerr("FAIL: the night runs to %s and the agenda does not show that hour" % slot.get("at", "?"))
+			break
+	# And the last half-hour of the last night is the Mayor, said out loud —
+	# the one thing a player most needs to be able to plan against.
+	instance.queue_free()
+	await process_frame
+	run.state["night"] = 2
+	run.state["step"] = 0
+	run.state["plan"] = run.make_plan(2)
+	instance = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	if not _text_of(instance).contains(load("res://scenes/Map.gd").PROMISE["boss"]):
+		printerr("FAIL: the mayor is at the end of the last night and the agenda does not say so")
+	instance.queue_free()
+	await process_frame
+	print("--- the rules screen and the agenda are reading the live content ---")
+
+
+func check_not_empty(a: Array, why: String) -> void:
+	if a.is_empty():
+		printerr("FAIL: " + why)
 
 
 ## THE VILLAGERS ARE DIFFERENT PEOPLE, AND THE SAME ONES EVERY TIME.

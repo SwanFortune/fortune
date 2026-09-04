@@ -1374,6 +1374,63 @@ worse than one that says it does not know.
 re-asserts its children's positions every layout pass and leaves scale alone —
 with the pivot at the bottom of the card, so growing reads as lifting.
 
+## Making the last batch actually usable
+
+Three follow-ups on the eight, and one bug I had put in myself.
+
+**A failed run lost its own headline.** `end_run("failed")` — one sitter left as
+they came and the whole run stops — used to say ONE OF THEM WENT HOME AS THEY
+CAME. Folding the new endings in overwrote that with the ending's own head for
+both paths, which is wrong: the ending describes what became of the village, and
+"one of them went home as they came" describes why you are reading it now. Both
+are on the screen, in that order.
+
+**The difficulty and the seed were invisible once the run started.** You choose
+them on the sign screen and then nothing said which you were on for three
+nights: a player halfway up the ladder could not tell a hard run from an
+ordinary one, and a seed passed to somebody else was unverifiable at the far
+end. Both are in the run header now, and both are on the CONTINUE line, so two
+saves on two machines can be told apart before resuming one.
+
+**The rules screen had never heard of any of it.** It explains the game by
+READING the game — that is its whole premise — so the agenda, the projection,
+taking a card back, the ladder and the seed all had to land in it. The ladder
+section is generated from `difficulty.json`, and `tests/test_scenes.gd` now
+fails if a rung exists that the screen does not mention.
+
+That test was written wrong the first time in a way worth recording, because it
+is the second time in two days: the first version added a rung to the JSON and
+checked the screen showed it — which it always does, because the screen reads
+the JSON. It proved nothing. The property to break is the READING, so the stub
+that must fail is the screen hard-coding its list, and that is what was
+verified. A test whose stub you cannot name is not a test.
+
+### The lambda captures, honestly
+
+There were six `Lambda capture at index 0 was freed` errors printed on every run
+of the suite. They are harmless — Godot nulls the capture and carries on — but
+this project reads its test output by grepping for ERROR, so noise costs
+something.
+
+Chasing them produced one real improvement and one honest failure.
+
+The improvement is `UIKit.after()`, which every deferred beat in the game now
+goes through — the deal, the knock, the ledger's pacing. The instructive part is
+what does NOT work: wrapping the callable in a guard lambda,
+`connect(func(): if what.is_valid(): what.call())`, is the obvious defensive
+shape and is exactly wrong. The wrapper CAPTURES the callable, the engine nulls
+a freed capture before the body runs, and the guard never executes — it moves
+the error rather than removing it. Connected straight to the timer, Godot's own
+signal bookkeeping drops the connection when the callable's object goes, and
+nothing fires at all.
+
+The honest failure: **six of them remain and I could not find them.** They are
+not `focus_first`, not `animate_in`, not `pulse`, not the knock, not the reveal,
+and not any timer — each was ruled out by disabling it and re-counting. They
+vanish entirely when animation is off, so a tween is holding something, and the
+engine reports no GDScript location for them. Recorded here rather than
+described as fixed.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
