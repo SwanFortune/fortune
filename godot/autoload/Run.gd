@@ -74,6 +74,11 @@ func fresh(seed_text: String = "", level: int = 0) -> Dictionary:
 	return st
 
 
+## Difficulty keys a higher rung REPLACES rather than adds to — a chance and a
+## multiplier, where "and also" would mean nothing.
+const SET_OUTRIGHT := ["elite_chance", "max_mul"]
+
+
 ## THE LADDER. Everything the chosen difficulty level does, folded into one
 ## dictionary — every level at or below the chosen one, so level 3 carries its
 ## own line and the two under it.
@@ -88,9 +93,11 @@ func level_fx() -> Dictionary:
 		if int(rung.get("n", 0)) > want:
 			continue
 		for key in rung.get("fx", {}):
-			# Later rungs win outright on a key both name (elite_chance), and
-			# add up on the ones that are amounts.
-			if key == "elite_chance":
+			# Later rungs win outright on a key both name, and add up on the ones
+			# that are amounts. WHICH IS WHICH IS LISTED, not inferred from the
+			# value: JSON has no integer type, so 2 and 0.85 both arrive as floats
+			# and a type test would fold 1.1 down to 1.
+			if key in SET_OUTRIGHT:
 				out[key] = float(rung["fx"][key])
 			else:
 				out[key] = int(out.get(key, 0)) + int(rung["fx"][key])
@@ -218,7 +225,10 @@ func scale_sitter(s: Dictionary, night: int, step: int) -> Dictionary:
 	var k := 1.0 + prog * 0.045
 	var out := s.duplicate(true)
 	var harder := level_fx()
-	out["max"] = int(round(s["max"] * k))
+	# The one difficulty key every encounter feels. A wall only exists for the two
+	# signs that raise one, so `denial_add` below is a spike against those and
+	# nothing anywhere else — see data/base/difficulty.json.
+	out["max"] = int(round(s["max"] * k * float(harder.get("max_mul", 1.0))))
 	out["denial"] = int(s["denial"]) + int(prog / 5) + int(harder.get("denial_add", 0))
 	# Never below one reading: a level that made an encounter unplayable would
 	# not be a harder game, it would be a broken one.

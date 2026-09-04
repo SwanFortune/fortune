@@ -218,16 +218,29 @@ func _test_the_ladder() -> void:
 	check(rungs.size() > 1, "there should be a ladder to climb")
 	var last_denial := -999
 	var last_turns := 999
+	var last_max := -999
 	for rung in rungs:
 		run.state = run.fresh("a fixed evening", int(rung.get("n", 0)))
+		var fx: Dictionary = run.level_fx()
 		var s: Dictionary = run.scale_sitter(content.sitters[0], 0, 0)
 		check(int(s["denial"]) >= last_denial,
 			"level %s should not have a thinner wall than the rung below it" % rung.get("n"))
 		check(int(s["turns"]) <= last_turns,
 			"level %s should not give more readings than the rung below it" % rung.get("n"))
 		check(int(s["turns"]) >= 1, "no level may leave an encounter with no readings in it")
+		check(int(s["max"]) >= last_max,
+			"level %s should not ask for less composure than the rung below it" % rung.get("n"))
+		# A rung's fractions must survive the fold. JSON hands every number over
+		# as a float, so a key folded as an amount turns a 1.1 multiplier into 1
+		# — a rung that silently does nothing, which is what this whole ladder was
+		# measured for in the first place (see tests/balance_sim.gd).
+		for key in rung.get("fx", {}):
+			if key in run.SET_OUTRIGHT:
+				check(is_equal_approx(float(fx.get(key, 0.0)), float(rung["fx"][key])),
+					"level %s should carry %s as %s, not %s" % [rung.get("n"), key, rung["fx"][key], fx.get(key, 0.0)])
 		last_denial = int(s["denial"])
 		last_turns = int(s["turns"])
+		last_max = int(s["max"])
 
 	# And the lowest rung changes nothing: level 0 is the game as written.
 	run.state = run.fresh("a fixed evening", 0)

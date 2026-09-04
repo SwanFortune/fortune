@@ -1577,6 +1577,51 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## A rung of the difficulty ladder that did nothing
+
+The ladder in `data/base/difficulty.json` is mine, not the source's — and until
+now nothing had ever measured that climbing it makes the game harder. It does
+now, because `tests/balance_sim.gd` takes `level=<n>` and `elite=1` and plays
+the ladder through Run's own `level_fx()` rather than a copy of it.
+
+The first thing that fell out is that **rung 1 did nothing**. "Every denial wall
+is two thicker" is a true sentence about a mechanic almost nobody meets: a
+sitter's wall only exists for the two signs that raise one, so `denial_add: 2`
+cost the field 0.2 points — and Taurus, alone, ten. Measured, at night 1 step 3,
+2000 fights a rung:
+
+| rung | before | after |
+|------|--------|-------|
+| 0 AN ORDINARY WEEK | 86.9% | 87.4% |
+| 1 WORD HAS GOT ROUND | 86.7% | 80.0% |
+| 2 A HARD WINTER | 86.6% | 81.0% |
+| 3 THEY COME LATE | 79.7% | 71.9% |
+| 4 THE DIFFICULT ONES | 78.8% | 71.5% |
+| 5 YOU ARE TIRED | 75.8% | 68.2% |
+
+Rung 1 now also carries `max_mul: 1.1` — everyone takes a tenth more moving,
+which is the one key every encounter feels. At the hard point (night 2, step 6)
+the same ladder runs 63.4% → 52.8% → 40.2% → 37.3%, and the last hour of the
+last night on the top rung is 35.6%, right on the source's own "close to
+unwinnable" line. That is where the top of a ladder unlocked after nine finished
+runs belongs, and the simulator is a greedy auto-player with no marks and no
+shopping, so a real player at that rung has more than it does.
+
+**Two rungs this cannot measure, and neither is a fault in them.** `coin_sub`
+(rung 2) only moves the purse a run opens with, and the simulator never shops —
+which is why rung 2 reads as noise above. `elite_chance` (rung 4) only changes
+how OFTEN a difficult caller is offered, and here the fight is handed over
+rather than chosen; `elite=1` says what one costs when you sit with it (86.9% →
+68.0% at night 1 step 3), and that number times how often one turns up is the
+rung's real weight.
+
+The fold in `level_fx()` needed a list, not a type test: JSON has no integer
+type, so `2` and `1.1` both arrive as floats, and the "amounts add up" branch
+turned a 1.1 multiplier into 1 — a rung that silently does nothing, which is
+exactly the bug this whole exercise was about. `Run.SET_OUTRIGHT` names the keys
+a higher rung replaces instead of adding to, and `test_run.gd` checks every
+declared value survives the fold.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

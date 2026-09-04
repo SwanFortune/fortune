@@ -19,9 +19,20 @@
 ##                               real shift from noise; pin the cell you are
 ##                               tuning and give it the whole n.
 ##   night=<n> / step=<n>        measure at a different point in the run.
+##   level=<n>                   climb the difficulty ladder (data/base/
+##                               difficulty.json). Cumulative, as in play.
+##   elite=1                     every caller is a difficult one, twist and all.
 ##
 ##   ... -- 1300 sign=taurus          every reader against the hardest sign
 ##   ... -- 6500 night=2 step=6       the whole field, late in the last night
+##   ... -- 3000 level=5              the whole field on the top rung
+##
+## TWO LADDER RUNGS THIS CANNOT MEASURE, and neither is a bug in them:
+## `coin_sub` (level 2) only moves the purse a run starts with, and this
+## simulator never shops; `elite_chance` (level 4) only changes how OFTEN a
+## difficult caller is OFFERED, and here the fight is handed over rather than
+## chosen. Use `elite=1` for what an elite costs you once you sit with one —
+## that number times how often one turns up is the rung's real weight.
 ##
 ## Reads as a report, not a pass/fail test: the source's own guidance
 ## (printed at the bottom) is under ~35% win rate is close to unwinnable,
@@ -50,6 +61,13 @@ var only_reader := ""
 var at_night := 1
 var at_step := 3
 
+## The difficulty rung to play on, and whether the caller is a difficult one.
+## Both are read by Run's own code (level_fx() off run.state, elite_of()), not
+## re-implemented here — a ladder measured against a copy of itself measures
+## nothing.
+var at_level := 0
+var elites := false
+
 
 func _initialize() -> void:
 	content = root.get_node("Content")
@@ -70,8 +88,12 @@ func _initialize() -> void:
 			at_night = int(a.substr(6))
 		elif a.begins_with("step="):
 			at_step = int(a.substr(5))
+		elif a.begins_with("level="):
+			at_level = int(a.substr(6))
+		elif a.begins_with("elite="):
+			elites = a.substr(6) != "0"
 		else:
-			printerr("unknown argument \"%s\" — expected a count, sign=<key>, reader=<key>, night=<n> or step=<n>" % a)
+			printerr("unknown argument \"%s\" — expected a count, sign=<key>, reader=<key>, night=<n>, step=<n>, level=<n> or elite=1" % a)
 			quit(1)
 			return
 	if only_sign != "" and content.get_sign(only_sign).is_empty():
@@ -82,6 +104,17 @@ func _initialize() -> void:
 		printerr("no such reader key: %s" % only_reader)
 		quit(1)
 		return
+	var top := 0
+	for rung in content.difficulty:
+		top = maxi(top, int(rung.get("n", 0)))
+	if at_level < 0 or at_level > top:
+		printerr("no such difficulty level: %d (the ladder is 0..%d)" % [at_level, top])
+		quit(1)
+		return
+	# The ONE piece of shared state this touches, and deliberately: Run.level_fx()
+	# reads it, so setting it here means the ladder under test is the one the game
+	# plays. Safe because nothing else in this process has a run.
+	run.state["level"] = at_level
 
 	var t0 := Time.get_ticks_msec()
 	var rows := sim_sweep(n)
@@ -93,7 +126,9 @@ func _initialize() -> void:
 			wins += 1
 	var overall := float(wins) / rows.size()
 
-	var scope := ", night %d step %d" % [at_night, at_step]
+	var scope := ", night %d step %d, level %d" % [at_night, at_step, at_level]
+	if elites:
+		scope += ", elites"
 	if only_reader != "":
 		scope += ", reader=%s" % only_reader
 	if only_sign != "":
@@ -184,7 +219,10 @@ func sim_fight(reader: Dictionary, sitter: Dictionary, quirk: Dictionary) -> Dic
 		"turn": 1,
 		"turns": int(sitter["turns"]) + (1 if rules.has(ctx, "turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
 		"energyMax": int(run.cfg_energy()) + (1 if rules.has(ctx, "energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if quirk.get("fx", "") == "energydown" else 0),
-		"handMax": int(run.cfg_hand()) + (1 if rules.has(ctx, "hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) - (1 if job.get("fx", "") == "tax2" else 0),
+		# maxi() and the twist's hand bonus are not decoration: the top rung takes
+		# a card away and one elite twist gives one back, and a handMax of zero
+		# would deal nothing and lose every fight for the wrong reason.
+		"handMax": maxi(1, int(run.cfg_hand()) - int(run.level_fx().get("hand_sub", 0))) + (1 if rules.has(ctx, "hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(sitter.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
 		"readerEl": reader["el"], "hand": [], "draw": run.shuffle(run.base_deck(reader)), "disc": [],
 		"cross": [], "gone": [], "faith": 0, "coin": 0,
 	}
@@ -220,7 +258,9 @@ func sim_sweep(n: int) -> Array:
 	var signs: Array = content.signs
 	for i in n:
 		var r: Dictionary = content.get_reader(only_reader) if only_reader != "" else readers[i % readers.size()]
-		var s: Dictionary = run.scale_sitter(run.pick_rand(sitters), at_night, at_step)
+		# elite_of() BEFORE scale_sitter(), the order make_options() uses — the
+		# twist multiplies the base composure, then the night scales the result.
+		var s: Dictionary = run.scale_sitter(run.elite_of(run.pick_rand(sitters), elites), at_night, at_step)
 		var q: Dictionary = content.get_sign(only_sign) if only_sign != "" else run.pick_rand(signs)
 		var res: Dictionary = sim_fight(r, s.duplicate(true), q)
 		var max_hp: int = res["max"]
