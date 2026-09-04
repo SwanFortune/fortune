@@ -91,8 +91,13 @@ func _build() -> void:
 	actions.add_child(UIKit.button(I18n.t("BACK"), _back))
 	outer.add_child(actions)
 
-	# The code field, not the first button: the player came here to type.
-	if _code_field != null:
+	# The PREFIX field, not the code and not the first button. The player came
+	# here to type, and the gesture is "dial 3615, then four letters" — landing
+	# on the second half of it means typing a code and being refused for a
+	# prefix you were never put in front of.
+	if _prefix_field != null:
+		_prefix_field.call_deferred("grab_focus")
+	elif _code_field != null:
 		_code_field.call_deferred("grab_focus")
 	else:
 		UIKit.focus_first(self)
@@ -254,6 +259,12 @@ func _composer() -> Control:
 	# Digits only, and no accidental letters in the tariff prefix: it is a
 	# number you dialled, not a word.
 	_prefix_field.text_changed.connect(func(t: String): _clean(_prefix_field, t, false))
+	# Enter on the prefix moves to the code rather than doing nothing, so the
+	# whole gesture is one uninterrupted piece of typing.
+	_prefix_field.text_submitted.connect(func(_t: String):
+		if _code_field != null:
+			_code_field.grab_focus()
+	)
 	row.add_child(_prefix_field)
 
 	_code_field = _field(Minitel.CODE_LENGTH, "ABCD")

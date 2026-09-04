@@ -1595,6 +1595,20 @@ func _test_minitel_screen_dials() -> void:
 	await process_frame
 	await process_frame
 
+	# TYPING STARTS AT THE PREFIX. The gesture is "dial 3615, then four
+	# letters", and both halves are typed — Minitel.submit() refuses a wrong
+	# prefix. Landing on the code field means a player types four letters,
+	# presses ENVOI, and is turned away over a field they were never shown.
+	var focused: Control = instance.get_viewport().gui_get_focus_owner()
+	if focused != instance._prefix_field:
+		printerr("FAIL: the minitel opens with focus on %s, not the 3615 field — the code is the second half of the gesture"
+			% ("nothing" if focused == null else str(focused)))
+	# And Enter on the prefix carries on to the code rather than doing nothing.
+	instance._prefix_field.text_submitted.emit("3615")
+	await process_frame
+	if instance.get_viewport().gui_get_focus_owner() != instance._code_field:
+		printerr("FAIL: Enter on the 3615 field does not move to the code — the gesture stalls half way")
+
 	instance._prefix_field.text = "3615"
 	instance._code_field.text = "oeil"
 	# I18n by get_node(), not by its global name: this script is compiled by

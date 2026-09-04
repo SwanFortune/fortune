@@ -185,7 +185,9 @@ func _rebuild_list() -> void:
 		var name_line := "%s%s" % [UIKit.card_summary(c), "   ●" if edited else ""]
 		var lines := [
 			[name_line, 14, UIKit.GOLD if edited else el_c],
-			["%s · %s · cost %s · restores %s" % [_pool_label(pool), c.get("r", "?"), c.get("cost", 0), c.get("f", 0)], 11, UIKit.DIM],
+			# Through card_price(), so the Library says a card's two numbers in
+			# the same words the reward screen and the hand's tooltip do.
+			["%s · %s · %s" % [_pool_label(pool), c.get("r", "?"), UIKit.card_price(c)], 11, UIKit.DIM],
 			[UIKit.card_text(c), 11, UIKit.INK],
 		]
 		_list_box.add_child(UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
