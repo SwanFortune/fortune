@@ -1473,6 +1473,54 @@ It was verified against both failure kinds before being trusted: reintroducing
 the freed capture gave `NOT GREEN … 10 unexpected console line(s)`, and a
 planted `printerr("FAIL: …")` gave a red test and `exit=1`.
 
+### The bugs a green suite cannot see
+
+Once `run_all.sh` was trustworthy the suite stopped being where the bugs were.
+The next batch came from rendering the screens and looking at them, and they
+share a shape worth naming: **none of them fails. They are all things that are
+absent.** A screen with no way out looks exactly like a screen. A card clipped
+at the top looks like a card. A hand pushed off the bottom of the window looks
+like a screen with a lot on it. Nothing throws, nothing warns, and every
+existing assertion still passes, because each of them asks whether what is
+there is right and none of them asks what is missing.
+
+Four found that way, in the order they were noticed:
+
+- **There was no way back to the main menu.** From the moment a player pressed
+  BEGIN, the Library, the Minitel, the mods list and QUIT were unreachable for
+  the rest of the session — SETTINGS came back to the run it was opened from,
+  and everything else led forward. The only way to leave the game was the
+  window's close button.
+- **The card under the pointer was clipped.** It grows about a pivot on its
+  bottom edge, so it grows upward, out of a `ScrollContainer` that clips —
+  losing the cost and the restore, which are the two numbers the gesture exists
+  to read.
+- **A wide hand hid its last cards** on a wrapped second row inside that same
+  clipped box.
+- **A reading with the energy spent could not be played without a mouse.**
+  Focus is aimed at the hand; every card is disabled once the energy is gone; a
+  disabled control cannot take focus; so `focus_first` placed nothing at all and
+  a gamepad player had no way to reach READ IT. On 33 readings out of 60.
+
+The last one is the lesson. It surfaced as an intermittent failure in an
+unrelated test — "nothing is focused" on about one run in eight — and the
+obvious reading was a timing flake in a test that awaits three frames. It was
+not. It was the game, on more than half of all readings, and the test was right
+every time it complained. **Before writing off an intermittent failure as
+timing, reproduce it in a loop and look at what the failing cases have in
+common.** Here they had one thing: `energy=0`, every single time.
+
+Two tests in the same sweep really were weather, and are now seeded: an unseeded
+`fresh()` deals a hand that some sitters shorten, so a precondition failed about
+one run in ten and told the truth about nothing. A seeded deal is also a
+reproducible one — the seed can be typed into the sign screen.
+
+And the sweep now checks that it put the player's settings back. It changes
+`text_scale` on purpose, because building a screen under a look setting is the
+only way to check the setting reaches the interface, and `Settings` writes
+straight to disk. A 1.3 left behind once rendered every screenshot at the wrong
+size for an hour before the words looked big enough to notice.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
