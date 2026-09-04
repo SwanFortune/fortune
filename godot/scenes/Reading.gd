@@ -215,11 +215,18 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 	# THE PACE: how far short you still are, spread over the readings left. A
 	# reading is six or seven turns against a fixed number, and without this the
 	# only way to learn you were behind was to run out.
+	#
+	# The two numbers are one subtraction: `still` already has this reading's
+	# projection taken off it, so once anything is laid the shortfall belongs to
+	# the readings AFTER this one — and with an empty cross, to this one as well.
+	# Which is why the sentence says "over N readings" and not "after this one":
+	# N counted this reading in one case and not the other, and at reading 1 of 8
+	# with nothing laid it read "8 readings after this one".
 	var still := maxi(0, int(f["max"]) - maxi(0, int(f["hp"])) - int(will_land))
 	var readings_left := maxi(0, int(f["turns"]) - int(f["turn"]) + (0 if will_land > 0.0 else 1))
 	if still > 0:
 		var per := int(ceil(float(still) / float(maxi(1, readings_left))))
-		var pace := UIKit.block(I18n.t("Still to reach: %d, with %d reading(s) after this one — about %d each")
+		var pace := UIKit.block(I18n.t("Still to reach: %d over %d reading(s) — about %d each")
 			% [still, readings_left, per], 11,
 			UIKit.RED if readings_left <= 0 else UIKit.DIM)
 		v.add_child(pace)

@@ -43,6 +43,16 @@ Nav="*res://autoload/Nav.gd"
 ; Settings' ui_scale multiplies on top of this (Viewport.content_scale_factor),
 ; so it goes back to meaning "and a bit bigger than that" instead of being the
 ; only thing that made a big display usable.
+; THE CANVAS THE GAME IS DESIGNED AT, and it must stay equal to Settings'
+; default `resolution` — test_settings checks that it does. Godot's own default
+; is 1152x648, and nothing had ever set this, so the first launch of every
+; build opened a 1152x648 canvas and then immediately asked the OS for a
+; 1280x720 window because that is what the settings said. A resize for nothing,
+; on every first run, and on any display server that does not hand the resize
+; straight back (this project's own Xvfb, for one) the game stayed 1152x648 and
+; drew itself in the corner of a black 1280x720 window.
+window/size/viewport_width=1280
+window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 

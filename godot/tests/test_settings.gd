@@ -444,6 +444,19 @@ func _test_the_interface_scales_with_the_window() -> void:
 	check(vp.content_scale_size.x > 0 and vp.content_scale_size.y > 0,
 		"the base size must be set, got %s" % vp.content_scale_size)
 
+	# THE CANVAS AND THE DEFAULT RESOLUTION MUST BE THE SAME SIZE. They were not:
+	# the project sat on Godot's 1152x648 default while the settings asked for a
+	# 1280x720 window, so every first launch resized for nothing — and on a
+	# display server that does not hand the resize back, the game drew itself at
+	# 1152x648 in the corner of a black 1280x720 window. Invisible to a headless
+	# suite, which never opens one.
+	var canvas := Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 0)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 0)))
+	var wanted := str(settings.default_for("resolution")).split("x")
+	check(wanted.size() == 2 and canvas == Vector2i(int(wanted[0]), int(wanted[1])),
+		"the project canvas %s should be the default resolution %s — a first launch must not resize" % [canvas, settings.default_for("resolution")])
+
 	# ui_scale multiplies on top of that, so it still means "and a bit bigger
 	# than that" rather than being the only thing making a large display usable.
 	settings.set_value("ui_scale", 1.25)

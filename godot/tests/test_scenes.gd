@@ -1222,7 +1222,14 @@ func _test_the_hand_stays_on_screen() -> void:
 	var restore_scale = settings.get_value("text_scale")
 	var restore_hand = settings.get_value("hand_size")
 	var restore_size: Vector2i = root.size
-	root.size = Vector2i(1152, 648)
+	# THE WINDOW THE GAME SHIPS AT, read from the project rather than typed in
+	# here: with canvas_items stretch the tree is laid out in canvas units, so a
+	# number copied from an older canvas measures the hand against a bottom edge
+	# that is not the one the player has.
+	var window := Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 1152)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 648)))
+	root.size = window
 	# The widest hand the game can deal, which is the case that broke: eight is
 	# the top of the hand-size setting and a reader can add one on top of it. A
 	# seeded sample of ordinary hands would mostly miss it, and a test that does
@@ -1270,16 +1277,16 @@ func _test_the_hand_stays_on_screen() -> void:
 						and node.get_parent() is HFlowContainer:
 					var c: Control = node
 					bottom = maxf(bottom, c.global_position.y + c.size.y)
-			if bottom > 648.0:
+			if bottom > float(window.y):
 				lost += 1
-				worst = maxf(worst, bottom - 648.0)
+				worst = maxf(worst, bottom - float(window.y))
 			instance.queue_free()
 			await process_frame
 		if tried == 0:
 			printerr("FAIL: precondition — no reading with a fan was dealt at text_scale %.2f" % scale)
 		elif lost > 0:
-			printerr("FAIL: at text_scale %.2f, %d of %d readings put the hand off the bottom of a 1152x648 window (worst %.0fpx) — those cards cannot be played"
-				% [scale, lost, tried, worst])
+			printerr("FAIL: at text_scale %.2f, %d of %d readings put the hand off the bottom of a %dx%d window (worst %.0fpx) — those cards cannot be played"
+				% [scale, lost, tried, window.x, window.y, worst])
 	settings.set_value("text_scale", restore_scale)
 	settings.set_value("hand_size", restore_hand)
 	root.size = restore_size

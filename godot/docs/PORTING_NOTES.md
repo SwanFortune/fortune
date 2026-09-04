@@ -1359,9 +1359,14 @@ of `lay_card()`, which would have four ways to be subtly wrong about somebody's
 run. Deliberately not in `state`, so it is never saved. You cannot un-say a
 reading; that is the commitment.
 
-**The pace.** "Still to reach: 23, with 6 readings after this one — about 4
-each." Balatro's whole readability is "you need 300"; this is the same sentence
-in this game's words.
+**The pace.** "Still to reach: 23 over 6 readings — about 4 each." Balatro's
+whole readability is "you need 300"; this is the same sentence in this game's
+words. It said "with 6 readings AFTER this one" until a screenshot of reading 1
+of 8 said there were eight of them after it: the shortfall already has this
+reading's projection taken off, so the count includes this reading while the
+cross is empty and excludes it once anything is laid. One phrase was standing in
+for two different quantities. The numbers were right the whole time — nothing to
+test, only a sentence to stop lying.
 
 **How your deck lines up.** A card whose element matches the caller's sign is
 worth +2 on every play of it, so "how many of mine are Water" is the one number
@@ -1576,6 +1581,42 @@ in the right place loses half of itself, and a translator is handed one string
 they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
+
+## The game was drawing itself in the corner of its own window
+
+Looking at the frames the export smoke test leaves behind — which is the whole
+reason it keeps them — every one had a black band across the top and its bottom
+seventy pixels missing, cards cut off mid-face. The obvious reading was that the
+capture was cropping the window, and it would have been easy to stop there.
+
+It was not the capture. The window was at 0,0 and 1280x720; the game was drawing
+1152x648 into it:
+
+```
+boot:   window=(1280, 720)  root=(1152, 648)
+resize: window=(1000, 600)  root=(1152, 648)
+```
+
+`project.godot` had never set a canvas size, so it sat on Godot's 1152x648
+default, while Settings' default `resolution` is 1280x720 — so the first launch
+of every build opened the canvas at one size and immediately asked the OS for a
+window at another. Where the display server hands that resize straight back
+(any ordinary desktop) `canvas_items` stretch absorbs it and nobody notices.
+Where it does not — this project's own Xvfb, and the second line above says
+later resizes never arrive either — the viewport keeps the old size and the game
+sits in the corner of a black window.
+
+The fix is that the two numbers now have to agree: the canvas is 1280x720, and
+`test_settings` checks it against Settings' default resolution, so the pair
+cannot drift apart again. `_apply_display()` also stops asking for a resize to
+the size it already is, which on boot is now every time.
+
+Two things this cost, both worth naming. The headless suite never opens a
+window, so nothing in it could ever have seen this — the only reason it surfaced
+is that something looks at the pictures. And `test_scenes`' hand-overflow guard
+had 648 typed into it; it now reads the canvas from the project, because a test
+measuring the window against a number copied from an older canvas is measuring
+an edge the player does not have.
 
 ## A rung of the difficulty ladder that did nothing
 

@@ -401,12 +401,17 @@ func _apply_display() -> void:
 		DisplayServer.window_set_position(Vector2i.ZERO)
 	elif mode == "windowed":
 		var size := _resolution_size()
-		DisplayServer.window_set_size(size)
-		# Re-centre, or a window that just grew can end up mostly off-screen
-		# with its close button somewhere the mouse cannot reach.
-		var screen := DisplayServer.screen_get_size()
-		if screen.x > 0 and screen.y > 0:
-			DisplayServer.window_set_position((screen - size) / 2 + DisplayServer.screen_get_position())
+		# Only when it is actually a different size. This runs on boot and on
+		# every apply, and a resize to the size you already are still moves the
+		# window and costs a frame — and asking for one is what left the game
+		# drawn in the corner on a display server that does not hand it back.
+		if DisplayServer.window_get_size() != size:
+			DisplayServer.window_set_size(size)
+			# Re-centre, or a window that just grew can end up mostly off-screen
+			# with its close button somewhere the mouse cannot reach.
+			var screen := DisplayServer.screen_get_size()
+			if screen.x > 0 and screen.y > 0:
+				DisplayServer.window_set_position((screen - size) / 2 + DisplayServer.screen_get_position())
 
 	match str(get_value("vsync")):
 		"off": DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)

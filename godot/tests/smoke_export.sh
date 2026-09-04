@@ -50,12 +50,20 @@ rm -rf "$HOME/.local/share/godot/app_userdata/Parlour/save.dat"*
 "$BIN" >"$OUT/console.log" 2>&1 &
 echo $! > "$OUT/pid"
 sleep 10
+# THE WINDOW, NOT THE ROOT, so a frame is the game and nothing else and the
+# comparison below cannot be moved by anything outside it. Here they happen to
+# be the same rectangle — which is worth knowing: a root capture once showed the
+# game in the corner of a black band and the obvious explanation was that the
+# capture was cropping it. It was not. The game really was drawing 1152x648 into
+# a 1280x720 window, and the fix was the project canvas, not this.
+WIN=$(xdotool search --name . 2>/dev/null | tail -1)
+grab() { if [ -n "$WIN" ]; then xwd -id "$WIN" -silent; else xwd -root -silent; fi; }
 i=0
 for step in "$@"; do
   label="${step%%:*}"; key="${step#*:}"
   if [ -n "$key" ]; then xdotool key --clearmodifiers "$key"; sleep 3; fi
   i=$((i + 1))
-  xwd -root -silent | convert xwd:- png:"$OUT/$(printf '%d' $i)_$label.png" 2>/dev/null
+  grab | convert xwd:- png:"$OUT/$(printf '%d' $i)_$label.png" 2>/dev/null
 done
 pid=$(cat "$OUT/pid")
 kill -0 "$pid" 2>/dev/null && echo alive > "$OUT/alive"
