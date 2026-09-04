@@ -97,6 +97,7 @@ func _filter_row() -> Control:
 	var row := UIKit.hbox(8)
 
 	var pool_opt := OptionButton.new()
+	UIKit.style_button(pool_opt)
 	pool_opt.add_item(I18n.t("All pools"))
 	pool_opt.set_item_metadata(0, "all")
 	var i := 1
@@ -111,6 +112,7 @@ func _filter_row() -> Control:
 	row.add_child(pool_opt)
 
 	var el_opt := OptionButton.new()
+	UIKit.style_button(el_opt)
 	el_opt.add_item(I18n.t("All elements"))
 	el_opt.set_item_metadata(0, "all")
 	var j := 1
@@ -127,6 +129,7 @@ func _filter_row() -> Control:
 	row.add_child(el_opt)
 
 	var search := LineEdit.new()
+	UIKit.style_field(search)
 	search.placeholder_text = I18n.t("Search by name…")
 	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	search.text_changed.connect(func(t: String):
@@ -385,6 +388,7 @@ func _element_row(c: Dictionary) -> Control:
 	row.add_child(cap)
 
 	var opt := OptionButton.new()
+	UIKit.style_button(opt)
 	opt.add_item(I18n.t("None"))
 	opt.set_item_metadata(0, null)
 	var current = c.get("el")

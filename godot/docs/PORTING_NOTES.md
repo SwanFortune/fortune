@@ -1168,6 +1168,47 @@ And the row shows the option's own words. Only that third branch printed
 shop entry — which for these events is the whole voice of them ("It smells like
 her kitchen and it works, which you resent").
 
+## The ugly rectangles
+
+With the parlour drawn behind everything, the interface in front of it became
+the problem: Godot's stock Button is a grey slab with square-ish corners, a
+progress bar was two hard-edged ColorRects, a row was a flat panel with a 3px
+radius, and the sliders and text fields were straight out of a settings dialog.
+Nine drawn screens with a spreadsheet sitting on top of them, and the spreadsheet
+won.
+
+There is now one section at the top of `scenes/UIKit.gd` that describes what a
+surface is, and everything that is a box comes out of it. The look is one
+sentence: **warm dark paper, rounded a little, a hairline of ink around it and a
+soft shadow under it, gold only where something is live.**
+
+Three things that make it hold together rather than being forty hand-written
+StyleBoxFlats:
+
+**One radius and one shadow.** `RADIUS` and `SHADOW` are single numbers. A game
+with three corner radii in it looks like three games.
+
+**Everything derives from the LIVE palette**, through `warm()` — which nudges a
+colour toward gold — rather than being written out. That is what keeps high
+contrast working: the second palette swaps `PANEL`, `INK`, `GOLD` and `FOCUS`,
+and every surface in the game follows without a second set of boxes to maintain.
+
+**The two Buttons that were not made by `UIKit.button()`** — the run header's
+chips and the keybind rows — both looked wrong, and both were found by looking
+rather than by anything failing. `tests/test_scenes.gd` now sweeps every screen
+and fails on any Button or LineEdit still wearing the engine default, because
+the way this stops being true is not a decision anyone makes: it is somebody
+writing `Button.new()` on a new screen because that is what the documentation
+says. (CheckButton is exempt, with a reason: what it looks like IS the toggle.)
+
+One thing worth writing down because it is the sort of styling change that
+breaks a layout quietly: the first pass gave buttons a square 10px of padding
+on every side, which made every button in the game four pixels taller, which
+pushed QUIT off the bottom of the main menu on a resumable save. A button is a
+line of text with air either side of it, not a square — the padding is wide and
+shallow now, and the menu's own spacing came down from 18 to 12 so the last
+entry is reachable at 720p with a run in progress.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

@@ -138,6 +138,9 @@ static func _chip(text: String, on_pressed: Callable) -> Control:
 	b.text = text
 	b.pressed.connect(on_pressed)
 	b.add_theme_font_size_override("font_size", 11)
+	# The header's chips are the same surface as every other button, at three
+	# fifths of the treatment — they sit above the game and should not shout.
+	UIKit.style_button(b, 0.6)
 	return b
 
 

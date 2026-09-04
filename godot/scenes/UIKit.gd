@@ -233,6 +233,125 @@ static func style_text(c: Control, base: int = BUTTON_FONT_SIZE) -> void:
 	c.add_theme_color_override("font_color", INK)
 
 
+# ── surfaces ────────────────────────────────────────────────────────────
+#
+# Everything in the game that is a box comes out of this section. Before it,
+# a button was Godot's default grey slab, a bar was two hard-edged ColorRects,
+# and a row was a flat panel with a 3px radius — which read as a spreadsheet
+# sitting on top of a drawn parlour, and the parlour lost.
+#
+# The look is one sentence: warm dark paper, rounded a little, a hairline of
+# ink around it and a soft shadow under it, gold only where something is live.
+# Everything derives from the live palette (see apply_palette) rather than
+# being written out, so high contrast keeps working without a second set of
+# boxes to maintain.
+
+## How round everything is. One number: a game with three corner radii in it
+## looks like three games.
+const RADIUS := 5
+## The lift under a panel. Small — this is a table with paper on it, not a
+## phone with cards floating over it.
+const SHADOW := 4
+
+
+## Warms a colour toward gold. What makes the panels read as lamplight on paper
+## rather than as grey, without a second palette to keep in step.
+static func warm(c: Color, amount: float) -> Color:
+	return Color(c.r, c.g, c.b, c.a).lerp(Color(GOLD.r, GOLD.g, GOLD.b, c.a), amount)
+
+
+## The one place a surface is described.
+static func surface(fill: Color, border: Color = Color(0, 0, 0, 0), width: int = 1,
+		pad: int = 10, shadow: float = 0.0) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.set_corner_radius_all(RADIUS)
+	box.set_content_margin_all(pad)
+	box.border_color = border
+	box.set_border_width_all(width if border.a > 0.0 else 0)
+	if shadow > 0.0:
+		box.shadow_color = Color(0, 0, 0, 0.45 * shadow)
+		box.shadow_size = int(SHADOW * shadow)
+		box.shadow_offset = Vector2(0, 2)
+	return box
+
+
+## Dresses a Button. Godot's default theme is a grey slab with square-ish
+## corners and no relationship to anything else on screen; every Button in the
+## game goes through here instead, including the two built outside button()
+## (the run header's chips and the keybind rows).
+##
+## `weight` scales the whole treatment down for small chrome: 1.0 is a menu
+## entry, 0.6 is a chip in the header that should not shout.
+##
+## The padding is WIDE AND SHALLOW — a square 10 on every side is what a first
+## pass reached for, and it made every button four pixels taller than it was,
+## which pushed QUIT off the bottom of the main menu. A button is a line of
+## text with air either side of it, not a square.
+static func style_button(b: Button, weight: float = 1.0) -> void:
+	var pad_x := int(14 * weight)
+	var pad_y := int(5 * weight)
+	b.add_theme_stylebox_override("normal",
+		_padded(surface(warm(PANEL, 0.05 * weight), Color(INK, 0.10), 1, 0, weight), pad_x, pad_y))
+	b.add_theme_stylebox_override("hover",
+		_padded(surface(warm(PANEL, 0.16), Color(GOLD, 0.45), 1, 0, weight), pad_x, pad_y))
+	# Pressed loses the shadow: the paper is under your finger, not floating.
+	b.add_theme_stylebox_override("pressed",
+		_padded(surface(warm(PANEL, 0.01), Color(GOLD, 0.30), 1, 0), pad_x, pad_y))
+	b.add_theme_stylebox_override("disabled",
+		_padded(surface(Color(PANEL, 0.35), Color(INK, 0.06), 1, 0), pad_x, pad_y))
+	# Focus is drawn OVER the state box, so it is a ring and nothing else.
+	b.add_theme_stylebox_override("focus",
+		_padded(surface(Color(0, 0, 0, 0), FOCUS, 2, 0), pad_x, pad_y))
+	b.add_theme_color_override("font_color", INK)
+	b.add_theme_color_override("font_hover_color", INK)
+	b.add_theme_color_override("font_pressed_color", GOLD)
+	b.add_theme_color_override("font_focus_color", INK)
+	b.add_theme_color_override("font_disabled_color", Color(INK, 0.35))
+
+
+static func _padded(box: StyleBoxFlat, x: int, y: int) -> StyleBoxFlat:
+	box.content_margin_left = x
+	box.content_margin_right = x
+	box.content_margin_top = y
+	box.content_margin_bottom = y
+	return box
+
+
+## Dresses an HSlider. Godot's default is a hairline with a white dot on it,
+## which is the one control on the settings screen that still looked like a
+## dialog box. A dark pill, gold behind the grabber, and a gold grabber.
+static func style_slider(sl: HSlider) -> void:
+	var track := surface(Color(0, 0, 0, 0.38), Color(INK, 0.10), 1, 0)
+	track.set_corner_radius_all(4)
+	track.content_margin_top = 4
+	track.content_margin_bottom = 4
+	sl.add_theme_stylebox_override("slider", track)
+	var filled := surface(Color(GOLD, 0.55), Color(0, 0, 0, 0), 0, 0)
+	filled.set_corner_radius_all(4)
+	sl.add_theme_stylebox_override("grabber_area", filled)
+	sl.add_theme_stylebox_override("grabber_area_highlight", filled)
+	var knob := surface(GOLD, Color(0, 0, 0, 0.5), 1, 0)
+	knob.set_corner_radius_all(7)
+	knob.content_margin_left = 7
+	knob.content_margin_right = 7
+	knob.content_margin_top = 7
+	knob.content_margin_bottom = 7
+	sl.add_theme_stylebox_override("grabber", knob)
+	sl.add_theme_stylebox_override("grabber_highlight", knob)
+
+
+## Dresses a LineEdit — the Minitel's two fields and the Library's search box.
+## Same reason as style_button(): the default is a grey slab.
+static func style_field(e: LineEdit) -> void:
+	e.add_theme_stylebox_override("normal", surface(Color(BG, 0.85), Color(INK, 0.14), 1, 8))
+	e.add_theme_stylebox_override("focus", surface(Color(BG, 0.85), FOCUS, 2, 8))
+	e.add_theme_stylebox_override("read_only", surface(Color(BG, 0.5), Color(INK, 0.07), 1, 8))
+	e.add_theme_color_override("font_color", INK)
+	e.add_theme_color_override("font_placeholder_color", Color(INK, 0.30))
+	e.add_theme_color_override("caret_color", GOLD)
+
+
 static func button(text: String, on_pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -246,6 +365,7 @@ static func button(text: String, on_pressed: Callable) -> Button:
 	)
 	b.focus_entered.connect(func(): Audio.play("ui_move"))
 	b.custom_minimum_size = Vector2(0, 36)
+	style_button(b)
 	return b
 
 
@@ -405,13 +525,12 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 	var wrap := PanelContainer.new()
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrap.tooltip_text = tooltip
-	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL if enabled else Color(PANEL, 0.5)
-	style.set_content_margin_all(10)
-	style.corner_radius_top_left = 3
-	style.corner_radius_top_right = 3
-	style.corner_radius_bottom_left = 3
-	style.corner_radius_bottom_right = 3
+	# A sheet of paper on the table, not a slab: the same surface every button
+	# and card face uses, with a hairline of ink round it and a little shadow
+	# under it. See the surfaces section at the top of this file.
+	var style := surface(
+		warm(PANEL, 0.04) if enabled else Color(PANEL, 0.5),
+		Color(INK, 0.10 if enabled else 0.05), 1, 10, 1.0 if enabled else 0.0)
 	wrap.add_theme_stylebox_override("panel", style)
 
 	make_interactive(wrap, style, on_pressed, enabled)
@@ -523,6 +642,7 @@ static func setting_choice(key: String, caption: String, help: String, values: A
 		labels: Array, enabled: bool = true, on_changed: Callable = Callable()) -> Control:
 	var row := setting_row(caption, help)
 	var opt := OptionButton.new()
+	style_button(opt)
 	opt.disabled = not enabled
 	var current = Settings.get_value(key)
 	var selected := 0
@@ -552,6 +672,7 @@ static func setting_slider(key: String, caption: String, help: String, fmt: Call
 	var row := setting_row(caption, help)
 
 	var slider := HSlider.new()
+	style_slider(slider)
 	slider.min_value = float(def[1])
 	slider.max_value = float(def[2])
 	slider.step = 1.0 if whole else 0.05
@@ -603,12 +724,21 @@ static func setting_toggle(key: String, caption: String, help: String, on_toggle
 static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h: float = 14, duration: float = 0.5) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(w, h)
-	var bg := ColorRect.new()
-	bg.color = PANEL
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	c.add_child(bg)
-	var fill := ColorRect.new()
-	fill.color = fg
+	# A track and a fill, both pills. Two hard-edged rectangles is what a
+	# progress bar looks like in a settings dialog; this one sits under a
+	# person's name on a table in a room, and a rounded end costs nothing.
+	var track := Panel.new()
+	var track_box := surface(Color(0, 0, 0, 0.38), Color(INK, 0.10), 1, 0)
+	track_box.set_corner_radius_all(int(h * 0.5))
+	track.add_theme_stylebox_override("panel", track_box)
+	track.set_anchors_preset(Control.PRESET_FULL_RECT)
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.add_child(track)
+	var fill := Panel.new()
+	var fill_box := surface(fg, Color(0, 0, 0, 0), 0, 0)
+	fill_box.set_corner_radius_all(int(h * 0.5))
+	fill.add_theme_stylebox_override("panel", fill_box)
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fill.position = Vector2.ZERO
 	fill.size = Vector2(w * clampf(from_ratio, 0.0, 1.0), h)
 	c.add_child(fill)
@@ -1204,13 +1334,10 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 		tip_lines.append(kw)
 	wrap.tooltip_text = "\n\n".join(tip_lines)
 
-	var style := StyleBoxFlat.new()
-	style.bg_color = PANEL if enabled else Color(PANEL, 0.5)
-	style.set_content_margin_all(8)
-	style.set_border_width_all(2)
-	style.border_color = el_c if enabled else Color(el_c, 0.35)
-	for c4 in ["corner_radius_top_left", "corner_radius_top_right", "corner_radius_bottom_left", "corner_radius_bottom_right"]:
-		style.set(c4, 5)
+	# The element's colour is the border; everything else is the house surface.
+	var style := surface(
+		warm(PANEL, 0.05) if enabled else Color(PANEL, 0.5),
+		el_c if enabled else Color(el_c, 0.35), 2, 8, 1.0 if enabled else 0.0)
 	wrap.add_theme_stylebox_override("panel", style)
 
 	make_interactive(wrap, style, on_pressed, enabled)

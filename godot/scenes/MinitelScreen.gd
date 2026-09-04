@@ -268,6 +268,7 @@ func _composer() -> Control:
 
 func _field(length: int, placeholder: String) -> LineEdit:
 	var e := LineEdit.new()
+	UIKit.style_field(e)
 	e.max_length = length
 	e.placeholder_text = placeholder
 	e.alignment = HORIZONTAL_ALIGNMENT_CENTER

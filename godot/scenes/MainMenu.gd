@@ -47,7 +47,11 @@ func _build() -> void:
 	_root.add_child(m)
 	var row := UIKit.hbox(0)
 	m.add_child(row)
-	var v := UIKit.vbox(18)
+	# 12, not 18. With a resumable run the menu grows a CONTINUE and a line
+	# describing it, and at the old spacing that pushed QUIT off the bottom of a
+	# 720p window — a menu whose last entry you cannot reach is a bug, not a
+	# tight layout.
+	var v := UIKit.vbox(12)
 	v.custom_minimum_size.x = MENU_WIDTH * UIKit.text_scale
 	v.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -58,7 +62,6 @@ func _build() -> void:
 	# The version, where a player can find it without being asked to. The first
 	# thing a bug report needs is which build it happened on.
 	v.add_child(UIKit.block(Version.full(), 11, UIKit.DIM))
-	v.add_child(Control.new())  # spacer
 
 	var saved: Dictionary = Save.peek()
 	if not saved.is_empty():

@@ -246,6 +246,7 @@ func _pct(x) -> String:
 func _language_row() -> Control:
 	var row := UIKit.setting_row(I18n.t("Language"), "")
 	var opt := OptionButton.new()
+	UIKit.style_button(opt)
 	var i := 0
 	var selected := 0
 	for code in I18n.LOCALES:
@@ -277,6 +278,7 @@ func _keybind_row(action: String, caption: String) -> Control:
 	var armed := false
 	var b := Button.new()
 	UIKit.style_text(b)
+	UIKit.style_button(b)
 	b.custom_minimum_size = Vector2(150 * UIKit.text_scale, 32)
 	b.text = Settings.key_label(action)
 	b.pressed.connect(func():

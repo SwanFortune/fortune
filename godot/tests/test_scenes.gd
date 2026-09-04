@@ -1014,6 +1014,7 @@ const NO_CONTROLS: Array[String] = []
 
 func _check_focus(label: String, instance: Node) -> void:
 	_check_room(label, instance)
+	_check_styled(label, instance)
 	var focused: Control = instance.get_viewport().gui_get_focus_owner()
 	if focused == null:
 		if not NO_CONTROLS.has(label):
@@ -1049,6 +1050,41 @@ func _check_room(label: String, instance: Node) -> void:
 	if room.get_index() > 1:
 		printerr("FAIL: %s draws its room at position %d of %d — it is over the screen, not behind it"
 			% [label, room.get_index(), siblings])
+
+
+## NOTHING WEARS GODOT'S DEFAULT THEME.
+##
+## The game is a drawn parlour, and Godot's stock Button is a grey slab with
+## square-ish corners and no relationship to anything else on screen. Every
+## Button and LineEdit goes through UIKit.style_button() / style_field()
+## instead — and the way that stops being true is not a decision anyone makes,
+## it is somebody writing `Button.new()` on a new screen because that is what
+## the engine's documentation says. Two already existed when this was written
+## (the run header's chips and the keybind rows) and both looked wrong.
+##
+## Called from _check_focus(), so every scene the sweep visits is checked,
+## including ones added later.
+func _check_styled(label: String, instance: Node) -> void:
+	for node in _all_of(instance, []):
+		# CheckButton and CheckBox are exempt: what they look like IS the
+		# toggle graphic, and a panel behind one reads as a button that also
+		# happens to have a switch on it.
+		if node is CheckBox or node is CheckButton:
+			continue
+		if node is Button and not (node as Button).has_theme_stylebox_override("normal"):
+			printerr("FAIL: %s has an unstyled Button ('%s') — it is wearing Godot's grey default"
+				% [label, (node as Button).text])
+			return
+		if node is LineEdit and not (node as LineEdit).has_theme_stylebox_override("normal"):
+			printerr("FAIL: %s has an unstyled LineEdit — it is wearing Godot's grey default" % label)
+			return
+
+
+func _all_of(node: Node, out: Array) -> Array:
+	out.append(node)
+	for child in node.get_children():
+		_all_of(child, out)
+	return out
 
 
 ## The in-run SETTINGS chip has to remember which screen to come back to,
