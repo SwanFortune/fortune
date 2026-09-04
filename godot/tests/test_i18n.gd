@@ -137,10 +137,25 @@ func _test_pronoun_tokens_are_filled() -> void:
 	var leo: Dictionary = content.get_sign("leo")
 	var she := {"p": "she"}
 	var they := {"p": "they"}
-	var s_she: String = i18n.sign_rule(leo, she)
-	var s_they: String = i18n.sign_rule(leo, they)
-	check(s_she.begins_with("She needs it"), "she/singular agreement, got '%s'" % s_she)
-	check(s_they.begins_with("They need it"), "they/plural agreement, got '%s'" % s_they)
+	# The FLAVOUR half. A sign says two things — what they are like (`fl`) and
+	# what that does (`rule`) — and the pronoun tokens are mostly in the first,
+	# because it is the half that talks about the person.
+	var f_she: String = i18n.sign_flavour(leo, she)
+	var f_they: String = i18n.sign_flavour(leo, they)
+	check(f_she.begins_with("She needs it"), "she/singular agreement, got '%s'" % f_she)
+	check(f_they.begins_with("They need it"), "they/plural agreement, got '%s'" % f_they)
+	# And the RULE half, which carries them too — Capricorn's is "Fire restores
+	# nothing at {p} table." Both go through fill(), and a fix to one that
+	# missed the other would have gone unnoticed with only the check above.
+	var cap: Dictionary = content.get_sign("capricorn")
+	var r_she: String = i18n.sign_rule(cap, she)
+	var r_they: String = i18n.sign_rule(cap, they)
+	check(r_she.contains("her table"), "she/possessive in a rule, got '%s'" % r_she)
+	check(r_they.contains("their table"), "they/possessive in a rule, got '%s'" % r_they)
+	# A job's flavour is filled by the same path and had no check at all.
+	var laundress: Dictionary = content.get_job("THE LAUNDRESS")
+	var j: String = i18n.fill(i18n.job_flavour("THE LAUNDRESS", laundress), "they")
+	check(not j.contains("{"), "a job flavour still shows raw tokens: '%s'" % j)
 
 	# A sitter with no pronoun field at all must not fall through to raw tokens.
 	check(not i18n.sign_rule(leo, {}).contains("{"), "a sitter with no pronoun should still fill")

@@ -122,6 +122,29 @@ base game's files. If the id is new, your record is appended. This is exactly
 how `ModLoader._merge_array_by_key()` works; read it if you want the precise
 mechanics.
 
+### A rule and its flavour are two fields
+
+A sign and a job each say two things: what they are LIKE, and what they DO.
+They are separate fields, and the game shows them in different places.
+
+```json
+{ "k": "aries", "n": "ARIES", "el": "fire", "dn": "THE HEAD START",
+  "rule": "The first card of every reading restores nothing.",
+  "fl": "{S} {is} already ahead of you.",
+  "fx": "mutefirst" }
+```
+
+`rule` (a sign) and `t` (a job) are the MECHANIC, printed on the map and on the
+reading screen where a player can act on it. `fl` is the flavour, kept for the
+hover. Write the mechanic so it stands alone — it is the half that has to be
+read while deciding.
+
+The original carried both in one string and cut it at the first full stop; the
+port does not, because a rule with no full stop in the right place then loses
+half of itself, and because a translator should get two strings rather than one
+they must punctuate correctly. A pack that supplies only `rule` still works:
+the whole string shows as the mechanic and the hover is empty.
+
 ### Two registries that are not in the original
 
 `denial_wall` and `pronouns` were added during the port; see

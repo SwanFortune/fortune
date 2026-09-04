@@ -1565,10 +1565,17 @@ more card every reading." — and the source shows only the mechanic on the boar
 keeping the first sentence for a hover (v23 ~730, ~2712). The port ran both
 together on one dim line and, on the reading screen, did not show the job at
 all: an extra card every turn, or one energy less, was visible only on the map
-one screen back. Both screens now split it, in the source's own colours — the
-job in gold, the sign in violet — and `I18n.split_rule()` is careful never to
-hide a mechanic: a one-sentence rule, which no base content has and a mod may
-well ship, stays whole and visible rather than vanishing into a tooltip.
+one screen back. Both screens now show it the source's way, in the
+source's colours — the job in gold, the sign in violet.
+
+They are TWO FIELDS here rather than one string cut at its first full stop: a
+sign carries `rule` and `fl`, a job carries `t` and `fl`, the same shape a card
+has always had. Splitting at display time works on the twelve signs and ten jobs
+that exist, and is a trap for everything after them — a rule with no full stop
+in the right place loses half of itself, and a translator is handed one string
+they have to punctuate correctly instead of two they simply translate. A pack
+that supplies only `rule` still degrades safely: the whole string shows as the
+mechanic and the hover is empty.
 
 ## Where to look
 

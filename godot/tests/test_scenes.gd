@@ -1489,31 +1489,33 @@ func _test_the_reading_is_a_sentence() -> void:
 
 ## THE RULE IS ON THE BOARD; ONLY THE FLAVOUR IS ON THE HOVER.
 ##
-## A sign's rule and a job's text are written flavour-first — "She works while
-## she talks. You draw one more card every reading." — and the source shows only
-## the second half on the board, keeping the first for a tooltip (v23 ~730). The
-## port ran both together on one dim line, and did not show the JOB on the
-## reading screen at all: an extra card every turn, or one less energy, visible
-## only on the map, one screen back.
+## A sign and a job each carry two fields: the mechanic (`rule` / `t`) and the
+## flavour (`fl`). The source shows only the mechanic on the board and keeps the
+## flavour for a hover (v23 ~730). The port ran both together on one dim line
+## and did not show the JOB on the reading screen at all — an extra card every
+## turn, or one less energy, visible only on the map one screen back.
 ##
-## Two things checked, and the second is the one that matters:
+## Two things checked, at two levels:
 ##
-##   - the MECHANIC of both the job and the sign is on the reading screen;
-##   - split_rule NEVER hides a mechanic. On a one-sentence rule — which no base
-##     content has and a mod may well ship — the whole text has to stay visible
-##     rather than vanishing into a hover.
+##   - EVERY sign and job carries both fields, and neither is empty. A missing
+##     `fl` costs a line of writing; a missing `rule` costs a rule the player
+##     cannot see, which is the one that matters;
+##   - the mechanic of this encounter's job AND sign reach the reading screen,
+##     and the sign's flavour does not.
 func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
 	var i18n_node: Node = root.get_node("I18n")
 
-	# The mod case first, since it needs no screen: a rule of one sentence must
-	# come back whole as the mechanic, with nothing left over.
-	for one in ["They simply will not have it", "They simply will not have it."]:
-		var split: Array = i18n_node.split_rule(one)
-		if str(split[0]) == "":
-			printerr("FAIL: split_rule('%s') left no visible rule — a one-sentence rule would be invisible" % one)
-		if str(split[1]) != "":
-			printerr("FAIL: split_rule('%s') put '%s' in the flavour, so part of a one-sentence rule is hidden"
-				% [one, split[1]])
+	for sign in content.signs:
+		if str(sign.get("rule", "")).strip_edges() == "":
+			printerr("FAIL: sign '%s' has no rule — its mechanic would be invisible" % sign.get("k", "?"))
+		if str(sign.get("fl", "")).strip_edges() == "":
+			printerr("FAIL: sign '%s' has no flavour, so its hover says nothing" % sign.get("k", "?"))
+	for role in content.jobs:
+		var job: Dictionary = content.jobs[role]
+		if str(job.get("t", "")).strip_edges() == "":
+			printerr("FAIL: job '%s' has no mechanic text" % role)
+		if str(job.get("fl", "")).strip_edges() == "":
+			printerr("FAIL: job '%s' has no flavour, so its hover says nothing" % role)
 
 	run.state = run.fresh("split")
 	run.pick_reader(0)
@@ -1527,12 +1529,12 @@ func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
 		printerr("FAIL: precondition — no encounter")
 		return
 	var s: Dictionary = f["sitter"]
-	var job: Dictionary = content.get_job(str(s.get("role", "")))
-	var job_rule: String = str(i18n_node.split_rule(
-		i18n_node.fill(i18n_node.job_text(str(s.get("role", "")), job), str(s.get("p", "they"))))[0])
-	var parts: Array = i18n_node.split_rule(i18n_node.sign_rule(f["quirk"], s))
-	var sign_rule: String = str(parts[0])
-	var sign_flavour: String = str(parts[1])
+	var role_name := str(s.get("role", ""))
+	var pronoun := str(s.get("p", "they"))
+	var job: Dictionary = content.get_job(role_name)
+	var job_rule: String = i18n_node.fill(i18n_node.job_text(role_name, job), pronoun)
+	var sign_rule: String = i18n_node.sign_rule(f["quirk"], s)
+	var sign_flavour: String = i18n_node.sign_flavour(f["quirk"], s)
 
 	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
 	root.add_child(instance)

@@ -210,7 +210,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	var leading: Control = null
 	# The flavour halves of the job and the sign, which the rows show only as
 	# their mechanics. Joined into the row's hover so the writing is still
-	# reachable rather than dropped. See I18n.split_rule().
+	# reachable rather than dropped. Each is the content's own `fl` field.
 	var flavours: Array[String] = []
 	match o["kind"]:
 		"sitter", "elite", "boss":
@@ -219,11 +219,10 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
 			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
 			lines.append(["%s · %s %s (%s)" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn")], 12, UIKit.el_color(s["el"])])
-			# The MECHANIC on the row, the flavour on the hover — the same split
-			# the reading screen makes. See I18n.split_rule().
-			var sign_split: Array = I18n.split_rule(I18n.sign_rule(q, s))
-			lines.append([str(sign_split[0]), 11, UIKit.VIOLET])
-			flavours.append(str(sign_split[1]))
+			# The MECHANIC on the row, the flavour on the hover — the same
+			# division the reading screen makes, out of the same two fields.
+			lines.append([I18n.sign_rule(q, s), 11, UIKit.VIOLET])
+			flavours.append(I18n.sign_flavour(q, s))
 			lines.append(["composure %s · denial %s · %s readings" % [s["max"], s["denial"], s["turns"]], 11, UIKit.DIM])
 			# HOW YOUR DECK LINES UP, which is the actual question being asked
 			# and which the screen made you answer from memory. A card whose
@@ -234,10 +233,9 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			lines.append([_deck_against(q), 11, UIKit.el_color(str(q.get("el", "")))])
 			var job: Dictionary = Content.get_job(s["role"])
 			if job.get("t", "") != "":
-				var job_split: Array = I18n.split_rule(
-					I18n.fill(I18n.job_text(s["role"], job), str(s.get("p", "they"))))
-				lines.append([str(job_split[0]), 11, UIKit.GOLD])
-				flavours.append(str(job_split[1]))
+				var pronoun := str(s.get("p", "they"))
+				lines.append([I18n.fill(I18n.job_text(s["role"], job), pronoun), 11, UIKit.GOLD])
+				flavours.append(I18n.fill(I18n.job_flavour(s["role"], job), pronoun))
 			# An elite's twist changes composure, denial, readings or hand size,
 			# and until now was applied silently — the option said "ELITE" and
 			# nothing about what that elite actually does. The source shows this
