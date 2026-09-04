@@ -186,6 +186,7 @@ func _visit_standalone() -> void:
 	await _test_a_spent_reading_can_still_be_played()
 	await _test_an_offered_card_shows_its_price()
 	await _test_the_reading_is_a_sentence()
+	await _test_the_rule_is_visible_and_the_flavour_is_not()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -1484,6 +1485,70 @@ func _test_the_reading_is_a_sentence() -> void:
 			% str(want))
 		return
 	print("--- the reading reads back as one sentence: \"%s\" ---" % spoken)
+
+
+## THE RULE IS ON THE BOARD; ONLY THE FLAVOUR IS ON THE HOVER.
+##
+## A sign's rule and a job's text are written flavour-first — "She works while
+## she talks. You draw one more card every reading." — and the source shows only
+## the second half on the board, keeping the first for a tooltip (v23 ~730). The
+## port ran both together on one dim line, and did not show the JOB on the
+## reading screen at all: an extra card every turn, or one less energy, visible
+## only on the map, one screen back.
+##
+## Two things checked, and the second is the one that matters:
+##
+##   - the MECHANIC of both the job and the sign is on the reading screen;
+##   - split_rule NEVER hides a mechanic. On a one-sentence rule — which no base
+##     content has and a mod may well ship — the whole text has to stay visible
+##     rather than vanishing into a hover.
+func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
+	var i18n_node: Node = root.get_node("I18n")
+
+	# The mod case first, since it needs no screen: a rule of one sentence must
+	# come back whole as the mechanic, with nothing left over.
+	for one in ["They simply will not have it", "They simply will not have it."]:
+		var split: Array = i18n_node.split_rule(one)
+		if str(split[0]) == "":
+			printerr("FAIL: split_rule('%s') left no visible rule — a one-sentence rule would be invisible" % one)
+		if str(split[1]) != "":
+			printerr("FAIL: split_rule('%s') put '%s' in the flavour, so part of a one-sentence rule is hidden"
+				% [one, split[1]])
+
+	run.state = run.fresh("split")
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	if f.is_empty():
+		printerr("FAIL: precondition — no encounter")
+		return
+	var s: Dictionary = f["sitter"]
+	var job: Dictionary = content.get_job(str(s.get("role", "")))
+	var job_rule: String = str(i18n_node.split_rule(
+		i18n_node.fill(i18n_node.job_text(str(s.get("role", "")), job), str(s.get("p", "they"))))[0])
+	var parts: Array = i18n_node.split_rule(i18n_node.sign_rule(f["quirk"], s))
+	var sign_rule: String = str(parts[0])
+	var sign_flavour: String = str(parts[1])
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var screen := _text_of(instance)
+	instance.queue_free()
+	await process_frame
+
+	if job_rule != "" and not screen.contains(job_rule):
+		printerr("FAIL: the job does '%s' and the reading screen never says so" % job_rule)
+	if not screen.contains(sign_rule):
+		printerr("FAIL: the sign does '%s' and the reading screen never says so" % sign_rule)
+	if sign_flavour != "" and screen.contains(sign_flavour):
+		printerr("FAIL: '%s' is flavour and is printed on the board — it belongs on the hover" % sign_flavour)
+	print("--- the job and the sign show their rule, and keep their flavour for the hover ---")
 
 
 ## Builds the main menu under the given look settings and reports the first

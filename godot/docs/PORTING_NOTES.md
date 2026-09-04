@@ -1559,10 +1559,16 @@ Worth recording so nobody ports them later in good faith:
 
 `guard: 3` was already on this list, in test_dead_content's KNOWN.
 
-**One difference is presentational and deliberate.** The prototype splits a
-sign's rule and a job's text into a first sentence shown as flavour and the
-rest shown as the rule; the port runs them together on one line. All the words
-are present, in the same order.
+**One presentational difference was found and closed.** A sign's rule and a
+job's text are written flavour-first — "She works while she talks. You draw one
+more card every reading." — and the source shows only the mechanic on the board,
+keeping the first sentence for a hover (v23 ~730, ~2712). The port ran both
+together on one dim line and, on the reading screen, did not show the job at
+all: an extra card every turn, or one energy less, was visible only on the map
+one screen back. Both screens now split it, in the source's own colours — the
+job in gold, the sign in violet — and `I18n.split_rule()` is careful never to
+hide a mechanic: a one-sentence rule, which no base content has and a mod may
+well ship, stays whole and visible rather than vanishing into a tooltip.
 
 ## Where to look
 

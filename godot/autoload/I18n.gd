@@ -158,6 +158,28 @@ func sign_rule(sign: Dictionary, sitter: Dictionary) -> String:
 	return fill(sign_field(sign, "rule"), str(sitter.get("p", "they")))
 
 
+## A sign's rule and a job's text are written as FLAVOUR FIRST, MECHANIC AFTER:
+## "She works while she talks. You draw one more card every reading." The source
+## splits them (firstSentence/restSentences, v23 ~1180) and shows only the
+## mechanic on the board, keeping the flavour for a hover.
+##
+## Returns [mechanic, flavour].
+##
+## THE MECHANIC IS NEVER THE EMPTY STRING. On a one-sentence text the split
+## would put the whole thing in the flavour and leave the visible line blank —
+## a rule the player cannot see. Base content always has two sentences; a mod
+## need not, so the whole text stays visible and the flavour goes empty.
+func split_rule(text: String) -> Array:
+	var re := RegEx.create_from_string("^[^.!?]*[.!?]\\s*")
+	var m := re.search(text)
+	if m == null:
+		return [text.strip_edges(), ""]
+	var rest := text.substr(m.get_end()).strip_edges()
+	if rest == "":
+		return [text.strip_edges(), ""]
+	return [rest, m.get_string().strip_edges()]
+
+
 func twist_text(twist: Dictionary) -> String:
 	return content("twist/" + Art.slug(str(twist.get("tag", ""))), "t", str(twist.get("t", "")))
 

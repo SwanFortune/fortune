@@ -115,9 +115,70 @@ func _the_sitter(f: Dictionary) -> Control:
 		who.add_child(el_badge)
 	who.add_child(UIKit.label(I18n.element_field(str(s["el"]), "label"), 14, UIKit.el_color(s["el"])))
 	header_text.add_child(who)
-	header_text.add_child(UIKit.block("%s %s — %s: %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_rule(q, s)], 12, UIKit.DIM))
+	header_text.add_child(_what_they_are(f))
 	header.add_child(header_text)
 	return header
+
+
+## THE TWO THINGS PLAYING AGAINST YOU, side by side: their JOB and their SIGN.
+##
+## Both are written flavour-first — "She works while she talks. You draw one
+## more card every reading." — and only the second half is a rule. The source
+## splits them and shows the MECHANIC on the board with the flavour on a hover
+## (v23 ~730); this does the same. See I18n.split_rule().
+##
+## The job was missing from this screen entirely. It is a rule that changes how
+## the reading is played — an extra card every turn, an energy less, a card
+## taken before you start — and it was visible only on the map, one screen back,
+## as one line with its flavour run into it.
+func _what_they_are(f: Dictionary) -> Control:
+	var s: Dictionary = f["sitter"]
+	var q: Dictionary = f["quirk"]
+	var row := UIKit.hbox(14)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var job: Dictionary = Content.get_job(str(s.get("role", "")))
+	var job_text := I18n.fill(I18n.job_text(str(s.get("role", "")), job), str(s.get("p", "they")))
+	if job_text != "":
+		var split: Array = I18n.split_rule(job_text)
+		row.add_child(_side(
+			"%s · %s" % [I18n.t("THE JOB"), I18n.sitter_field(s, "role")],
+			str(split[0]), str(split[1]), UIKit.GOLD))
+
+	# The wall beside the sign's name, because it is the sign's doing and the
+	# number a player is deciding against.
+	var wall := ""
+	if int(f.get("denial", 0)) > 0:
+		wall = I18n.t("HOLDS OFF %d") % int(f["denial"])
+	var sign_split: Array = I18n.split_rule(I18n.sign_rule(q, s))
+	row.add_child(_side(
+		"%s %s — %s  %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), wall],
+		str(sign_split[0]), str(sign_split[1]), UIKit.VIOLET))
+	return row
+
+
+## One of those two: a caption, the rule under it in `tint`, a coloured rule
+## down the left, and the flavour on the hover.
+func _side(caption: String, rule: String, flavour: String, tint: Color) -> Control:
+	var box := UIKit.vbox(3)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.tooltip_text = flavour
+	box.mouse_filter = Control.MOUSE_FILTER_PASS
+	# The left rule is drawn rather than being a StyleBox, so the column keeps
+	# its own height without a panel around it.
+	box.draw.connect(func():
+		box.draw_rect(Rect2(0, 0, 2, box.size.y), Color(tint, 0.55))
+	)
+	box.resized.connect(func(): box.queue_redraw())
+	var pad := UIKit.margin(0)
+	pad.add_theme_constant_override("margin_left", 9)
+	box.add_child(pad)
+	var col := UIKit.vbox(3)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pad.add_child(col)
+	col.add_child(UIKit.block(caption, 10, UIKit.DIM))
+	col.add_child(UIKit.block(rule, 11, tint))
+	return box
 
 
 ## WHERE THE READING STANDS: the two bars, the piles, and whether you are on
