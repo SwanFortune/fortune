@@ -128,14 +128,53 @@ static func refresh_look() -> void:
 	text_scale = float(settings.get_value("text_scale"))
 
 
-static func root_control() -> Control:
+## `room` picks which view of the parlour is drawn behind the screen — see
+## scenes/Table.gd. It is a parameter of THIS function and not something each
+## screen does for itself, because "every screen is somewhere" is a rule, and a
+## rule that each of thirteen screens has to remember is a rule that a
+## fourteenth will break. tests/test_scenes.gd asserts the room is there.
+##
+## Table.gd is loaded by path rather than preloaded: this file is reached from
+## autoloads, and preload() resolves at compile time, before `godot -s` has
+## registered them. See autoload/Content.gd's header — seventh time.
+static func root_control(room: String = "table") -> Control:
 	refresh_look()
 	var c := Control.new()
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Still here under the room. The room draws over all of it, but a screen
+	# that somehow gets no room, or a frame before the room has been sized, must
+	# not show whatever was on screen before it.
 	var bg := ColorRect.new()
 	bg.color = BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	c.add_child(bg)
+	if room != "none":
+		c.add_child((load("res://scenes/Table.gd") as GDScript).background(room))
+	return c
+
+
+## A dark gradient down one side of the screen, so a column of text can sit on
+## a drawn room and still be read.
+##
+## The alternative is a scrim over the WHOLE backdrop, which is what a first
+## pass reached for — and it quietens the part of the room nothing is written on
+## just as much as the part that needs it, so you pay for the room and then hide
+## it. This darkens only the side the words are on and leaves the rest alone.
+static func side_scrim(width: float, strength: float = 0.55) -> Control:
+	var c := Control.new()
+	c.name = "Scrim"
+	c.set_anchors_preset(Control.PRESET_FULL_RECT)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	c.draw.connect(func():
+		var steps := 26
+		for i in steps:
+			var f := float(i) / float(steps)
+			# Solid at the edge, gone by `width`. Squared so it holds its
+			# darkness under the text and falls away quickly past it.
+			c.draw_rect(Rect2(0, 0, width * (1.0 - f), c.size.y),
+				Color(0, 0, 0, strength / float(steps)))
+	)
+	c.resized.connect(func(): c.queue_redraw())
 	return c
 
 

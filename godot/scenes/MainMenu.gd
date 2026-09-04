@@ -6,6 +6,11 @@ extends Control
 ## does not resolve, this script fails to compile, and the scene instantiates
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
+
+## How wide the menu column is. Scaled with the text, because at the top of the
+## interface-size range the labels are 30% bigger and a fixed column clips them.
+const MENU_WIDTH := 430.0
 
 ## Set once BEGIN has been pressed while a run was in progress, so the second
 ## press is the one that actually discards it. A two-step button rather than a
@@ -30,13 +35,23 @@ func _ready() -> void:
 func _build() -> void:
 	if _root != null:
 		_root.queue_free()
-	_root = UIKit.root_control()
+	_root = UIKit.root_control(Table.VIEW_DOOR)
 	add_child(_root)
+	# The menu is a COLUMN down the left, not a stack of buttons stretched from
+	# one side of the window to the other. Two reasons, and the second is the
+	# one that matters: a 1100-pixel-wide button is bad at any resolution, and
+	# leaving the right two thirds clear is what lets the room behind be a room
+	# rather than a texture behind some widgets.
+	_root.add_child(UIKit.side_scrim(MENU_WIDTH * UIKit.text_scale * 1.6))
 	var m := UIKit.margin(48)
 	_root.add_child(m)
+	var row := UIKit.hbox(0)
+	m.add_child(row)
 	var v := UIKit.vbox(18)
+	v.custom_minimum_size.x = MENU_WIDTH * UIKit.text_scale
+	v.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	m.add_child(v)
+	row.add_child(v)
 
 	v.add_child(UIKit.block(I18n.t("PARLOUR"), 40, UIKit.GOLD))
 	v.add_child(UIKit.block("a fortune-teller's ledger, in card form — Godot vertical-slice port", 14, UIKit.DIM))

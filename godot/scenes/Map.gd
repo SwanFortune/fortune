@@ -7,10 +7,11 @@ extends Control
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
 
 
 func _ready() -> void:
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_DOOR)
 	add_child(root)
 	var m := UIKit.margin(32)
 	root.add_child(m)

@@ -11,6 +11,7 @@ extends Control
 
 ## Loaded by path, not by `class_name` — see autoload/Content.gd's header.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
 
 const COLUMN_WIDTH := 780
 const SCROLL_STEP := 60
@@ -20,7 +21,7 @@ var _scroll: ScrollContainer
 
 
 func _ready() -> void:
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_WALL)
 	add_child(root)
 	var m := UIKit.margin(32)
 	root.add_child(m)

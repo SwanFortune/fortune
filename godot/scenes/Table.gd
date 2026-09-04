@@ -86,10 +86,28 @@ const SKIN_PASSES := [SKIN_LINE, SKIN_SHADE, SKIN]
 const PASS_GROW := [1.16, 1.0, 0.80]
 
 
-## The table with its cloth: a full-rect background to put behind a screen.
-## Draws nothing that moves and takes no input, so it can sit under anything.
-static func background() -> Control:
+## The three views of the room, which is the whole set: one game, one parlour,
+## three places to be standing in it.
+##
+##   TABLE   you are at the table, looking down at the cloth. The reading, the
+##           rewards, the shop, the reference screens.
+##   DOOR    you are looking across the room at the door somebody is about to
+##           knock on. The menu, "who knocks tonight?", and the end of a run,
+##           which is the night the knocking stops.
+##   WALL    just the papered wall and the floor, no props. For the reference
+##           screens — settings, library, mods, the rules, the credits. They are
+##           dense with words and there is nothing happening in them; a table
+##           laid out behind a list of sliders is something to look past, not at.
+const VIEW_TABLE := "table"
+const VIEW_DOOR := "door"
+const VIEW_WALL := "wall"
+
+
+## The room, as a full-rect backdrop to put behind a screen. Draws nothing that
+## moves and takes no input, so it can sit under anything.
+static func background(view: String = VIEW_TABLE) -> Control:
 	var c := Control.new()
+	c.name = "Room"
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	# No z_index: this is added straight after UIKit.root_control()'s flat
@@ -97,7 +115,13 @@ static func background() -> Control:
 	# afterwards is a later sibling and so draws on top. Pushing it behind with
 	# a negative z_index put it UNDER that opaque ColorRect, which is exactly
 	# where it cannot be seen.
-	c.draw.connect(func(): _draw_room(c))
+	match view:
+		VIEW_DOOR:
+			c.draw.connect(func(): _draw_doorway(c))
+		VIEW_WALL:
+			c.draw.connect(func(): _draw_bare_wall(c))
+		_:
+			c.draw.connect(func(): _draw_room(c))
 	# Godot only redraws a Control when something asks it to, and this one has
 	# no state of its own to change — but its SIZE changes with the window, and
 	# every measurement below is taken from it.
@@ -119,10 +143,11 @@ static func _draw_room(c: Control) -> void:
 	var s := c.size
 	if s.x < 4.0 or s.y < 4.0:
 		return
-	_draw_wall(c, s)
-	_draw_floor(c, s)
-	_draw_door(c, s)
-	_draw_coat(c, s)
+	var wall_h := s.y * HORIZON
+	_draw_wall(c, s, wall_h)
+	_draw_floor(c, s, wall_h)
+	_draw_door(c, s, Rect2(s.x * 0.615, wall_h * 0.10, s.x * 0.155, wall_h * 0.90))
+	_draw_coat(c, s, Vector2(s.x * 0.855, wall_h * 0.24), wall_h * 0.74)
 	var cloth := _draw_table(c, s)
 	_draw_minitel(c, s)
 	_draw_teacup(c, s)
@@ -130,11 +155,55 @@ static func _draw_room(c: Control) -> void:
 	_draw_vignette(c, s)
 
 
+## The quietest view: the wall behind you and the boards under your feet, and
+## nothing else in it at all. Same paper, same floor, so a screen using it is
+## still in the same house.
+static func _draw_bare_wall(c: Control) -> void:
+	var s := c.size
+	if s.x < 4.0 or s.y < 4.0:
+		return
+	var wall_h := s.y * 0.86
+	_draw_wall(c, s, wall_h)
+	_draw_floor(c, s, wall_h)
+	_draw_vignette(c, s)
+
+
+## The other end of the same room: you have turned your chair round and you are
+## looking at the door. Nobody has knocked yet.
+##
+## Same wall, same door, same coat, same floor — a long way up the wall this
+## time, because the table is behind you. What it adds is a cold line of outside
+## under the door, and the warm pool of the lamp on the floorboards behind you,
+## which between them say that the light in here is yours and the light out
+## there is not.
+static func _draw_doorway(c: Control) -> void:
+	var s := c.size
+	if s.x < 4.0 or s.y < 4.0:
+		return
+	var wall_h := s.y * 0.80
+	_draw_wall(c, s, wall_h)
+	_draw_floor(c, s, wall_h)
+
+	# The door, near enough to reach. Well off centre and to the RIGHT: a door
+	# dead centre reads as a diagram of a door, and the screens that use this
+	# view put their words down the left.
+	var dw := minf(s.x * 0.185, s.y * 0.37)
+	var leaf := Rect2(s.x * 0.655 - dw * 0.5, wall_h * 0.13, dw, wall_h * 0.87)
+	_draw_door(c, s, leaf, true)
+	_draw_coat(c, s, Vector2(s.x * 0.885, wall_h * 0.19), wall_h * 0.50)
+
+	# The lamp behind you, thrown forward across the boards. It stops short of
+	# the door, which is the whole point of it.
+	for i in range(9, 0, -1):
+		var f := float(i) / 9.0
+		c.draw_circle(Vector2(s.x * 0.5, s.y * 1.02), s.x * 0.44 * f, Color(LAMPLIGHT, 0.013))
+	_draw_vignette(c, s)
+
+
 ## The back wall: striped paper, a picture rail near the top, and a skirting
 ## board where it meets the floor. The stripes are what make it read as a room
 ## in a house rather than as a dark rectangle.
-static func _draw_wall(c: Control, s: Vector2) -> void:
-	var wall_h := s.y * HORIZON
+static func _draw_wall(c: Control, s: Vector2, wall_h: float) -> void:
 	c.draw_rect(Rect2(0, 0, s.x, wall_h), WALL)
 	var pitch := s.x * 0.032
 	var x := pitch * 0.5
@@ -158,8 +227,7 @@ static func _draw_wall(c: Control, s: Vector2) -> void:
 ## behind everything, and the table reads as a shape cut out of a void rather
 ## than a piece of furniture standing on something. Boards crowding together
 ## toward the wall is the whole of the perspective here.
-static func _draw_floor(c: Control, s: Vector2) -> void:
-	var y := s.y * HORIZON
+static func _draw_floor(c: Control, s: Vector2, y: float) -> void:
 	c.draw_rect(Rect2(0, y, s.x, s.y - y), FLOOR)
 	for i in 6:
 		var t := (float(i) + 1.0) / 7.0
@@ -171,17 +239,13 @@ static func _draw_floor(c: Control, s: Vector2) -> void:
 ## The door. It is the one prop in this room with a job: someone knocks on it,
 ## and a run ends when the knocking stops. Closed, panelled, brass knob, hinged
 ## on the far side so the knob faces the room.
-static func _draw_door(c: Control, s: Vector2) -> void:
-	var wall_h := s.y * HORIZON
-	var w := s.x * 0.155
-	var left := s.x * 0.615
-	var top := wall_h * 0.10
+static func _draw_door(c: Control, s: Vector2, leaf: Rect2, under_light: bool = false) -> void:
+	var w := leaf.size.x
 	# The architrave is a BORDER, not a filled rectangle behind the leaf. Filled,
 	# it was a pale slab the size of a door sitting directly under the header
 	# text, which is the loudest thing this room could possibly have done.
-	var frame := Rect2(left - w * 0.055, top - wall_h * 0.05, w * 1.11, wall_h - top + wall_h * 0.05)
+	var frame := leaf.grow_individual(w * 0.055, leaf.size.y * 0.035, w * 0.055, 0.0)
 	c.draw_rect(frame, Color(DOOR_EDGE, 0.55), false, maxf(1.0, s.y * 0.005))
-	var leaf := Rect2(left, top, w, wall_h - top)
 	c.draw_rect(leaf, DOOR)
 
 	# Two recessed panels, each with a lit top edge so the recess reads.
@@ -197,26 +261,41 @@ static func _draw_door(c: Control, s: Vector2) -> void:
 
 	# The knob, on the room side.
 	var knob := Vector2(leaf.position.x + w * 0.10, leaf.position.y + leaf.size.y * 0.52)
-	c.draw_circle(knob, s.y * 0.011, Color(BRASS, 0.85))
-	c.draw_circle(knob - Vector2(s.y * 0.003, s.y * 0.003), s.y * 0.004, Color(1, 0.92, 0.75, 0.5))
+	var knob_r := maxf(2.0, minf(s.y * 0.011, w * 0.07))
+	c.draw_circle(knob, knob_r, Color(BRASS, 0.85))
+	c.draw_circle(knob - Vector2(knob_r * 0.3, knob_r * 0.3), knob_r * 0.36, Color(1, 0.92, 0.75, 0.5))
+
+	# A cold sliver of outside under the door. Only in the view that faces it —
+	# on the reading screen the door is a detail at the back of the room, and a
+	# glowing line under it would be the brightest thing on the table.
+	if under_light:
+		var cold := Color(0.56, 0.64, 0.78)
+		# The spill first, ON THE FLOOR in front of the threshold and fading as
+		# it goes — light under a door lands somewhere. Then the gap itself, a
+		# hairline. A first pass drew the gap alone, thick and bright, and it
+		# read as a strip light rather than as night on the other side.
+		for i in 7:
+			var f := float(i) / 7.0
+			c.draw_rect(Rect2(leaf.position.x - w * 0.06 * f, leaf.end.y,
+				w * (1.0 + 0.12 * f), s.y * 0.055 * f), Color(cold, 0.012))
+		c.draw_rect(Rect2(leaf.position.x, leaf.end.y - s.y * 0.0015, w, s.y * 0.003),
+			Color(cold, 0.20))
 
 
 ## A coat on a hook by the door — TAKE THEIR COAT is the first thing a lot of
 ## readings open with, and this is where it goes.
-static func _draw_coat(c: Control, s: Vector2) -> void:
-	var wall_h := s.y * HORIZON
-	var at := Vector2(s.x * 0.855, wall_h * 0.24)
+static func _draw_coat(c: Control, s: Vector2, at: Vector2, length: float) -> void:
 	c.draw_line(at, at + Vector2(0, s.y * 0.012), Color(BRASS, 0.6), maxf(1.0, s.y * 0.004), true)
 	# Shoulders, then a body that widens and settles — a hung coat, not a person.
 	var body := PackedVector2Array([
 		at + Vector2(0, s.y * 0.014),
 		at + Vector2(s.x * 0.028, s.y * 0.040),
-		at + Vector2(s.x * 0.032, wall_h * 0.74),
-		at + Vector2(-s.x * 0.032, wall_h * 0.74),
+		at + Vector2(s.x * 0.032, length),
+		at + Vector2(-s.x * 0.032, length),
 		at + Vector2(-s.x * 0.028, s.y * 0.040),
 	])
 	c.draw_colored_polygon(_soften(body, s.y * 0.016), COAT)
-	c.draw_line(at + Vector2(0, s.y * 0.022), at + Vector2(0, wall_h * 0.70),
+	c.draw_line(at + Vector2(0, s.y * 0.022), at + Vector2(0, length * 0.95),
 		Color(0, 0, 0, 0.30), maxf(1.0, s.y * 0.004), true)
 
 

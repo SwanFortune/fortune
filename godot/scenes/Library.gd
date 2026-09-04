@@ -20,6 +20,7 @@ extends Control
 ## does not resolve, this script fails to compile, and the scene instantiates
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
 
 ## Flag fields, and the label each gets. Unlike the numeric fields (which
 ## come from the card_effects registry) these are booleans the engine reads
@@ -46,7 +47,7 @@ var _summary_label: Label
 
 
 func _ready() -> void:
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_WALL)
 	add_child(root)
 	var m := UIKit.margin(24)
 	root.add_child(m)

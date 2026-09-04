@@ -49,8 +49,6 @@ func _ready() -> void:
 	var f: Dictionary = Run.state["f"]
 	var root := UIKit.root_control()
 	add_child(root)
-	# The table and its cloth, behind everything. See scenes/Table.gd.
-	root.add_child(Table.background())
 	var m := UIKit.margin(28)
 	root.add_child(m)
 	var v := UIKit.vbox(10)

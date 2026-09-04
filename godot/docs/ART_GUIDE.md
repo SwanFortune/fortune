@@ -208,7 +208,7 @@ is a placeholder with a clear replacement.
 | Where | What it draws | Replaced by |
 |---|---|---|
 | `scenes/UIKit.gd` — `sitter_portrait()` | A face: an oval, two eyes, a mouth whose curve follows the sitter's mood | A sitter portrait PNG, via the manifest. Already wired: deliver the file and the drawing stops being used. |
-| `scenes/Table.gd` | The parlour — a room with a papered wall, a door, a coat on a hook, a floor, a table in perspective with a green cloth on it, a Minitel and a cup of tea standing on it, and the reader's two hands holding the fan with every mark won this run drawn onto them | Nothing yet. See below. |
+| `scenes/Table.gd` | The parlour, behind EVERY screen in the game, in three views: the table (a papered wall, a door, a coat on a hook, a floor, the table in perspective with its cloth, a Minitel and a cup of tea on it, and the reader's two hands holding the fan with every mark drawn on them), the closed door, and the bare wall | Nothing yet. See below. |
 | `autoload/Icons.gd` | The element, sign, planet and archetype glyphs, rasterised at runtime from the vector paths in `data/base/icons.json` | These are FINISHED, not placeholders — they came from the design document and are meant to stay. Redraw a path in `icons.json` to change one. |
 
 ### The room, the table and the hands
@@ -246,6 +246,12 @@ on the reader's own hands, and for the whole port they were a list on a panel.
 Now a ring you win goes on a finger and stays there for the rest of the run,
 where you can see it while you play. A replacement that is a beautiful painting
 of hands with nothing on them would be a step backwards.
+
+**There are three views, and a replacement needs all three** — `VIEW_TABLE`,
+`VIEW_DOOR` and `VIEW_WALL` in the file. They are the same room from three
+places in it, and they have to look like the same room: same wallpaper, same
+door, same light. The wall view is deliberately empty, because the screens that
+use it are dense with words.
 
 If you want to take it over, the two useful shapes are:
 

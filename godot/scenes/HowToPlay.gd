@@ -22,6 +22,7 @@ extends Control
 
 ## Loaded by path, not by `class_name` — see autoload/Content.gd's header.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
 
 ## A comfortable measure for prose. The rest of the game is columns and lists
 ## that want the whole window; this is the only screen that is paragraphs, and
@@ -38,7 +39,7 @@ var _scroll: ScrollContainer
 func _ready() -> void:
 	if Nav.help_return_scene != "":
 		_return_scene = Nav.help_return_scene
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_WALL)
 	add_child(root)
 	var m := UIKit.margin(32)
 	root.add_child(m)

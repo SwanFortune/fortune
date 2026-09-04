@@ -778,6 +778,7 @@ const NO_CONTROLS: Array[String] = []
 
 
 func _check_focus(label: String, instance: Node) -> void:
+	_check_room(label, instance)
 	var focused: Control = instance.get_viewport().gui_get_focus_owner()
 	if focused == null:
 		if not NO_CONTROLS.has(label):
@@ -790,6 +791,29 @@ func _check_focus(label: String, instance: Node) -> void:
 		# get nothing and have no way to know why. The settings rail disables
 		# its selected entry, which put it first in line for focus.
 		printerr("FAIL: %s focused a DISABLED control (%s) — pressing Confirm there does nothing" % [label, focused])
+
+
+## EVERY SCREEN IS SOMEWHERE. The game is set in one room and every screen is a
+## view of it — the table, the door, or the bare wall — so no screen should be a
+## rectangle of flat colour with widgets on it. That is what the whole game was
+## before, and the way back to it is not a decision anyone makes: it is somebody
+## adding a fourteenth screen and not knowing there was anything to remember.
+##
+## Called from _check_focus(), so every scene the sweep above visits is checked,
+## including any added later. The room comes from UIKit.root_control() precisely
+## so a screen cannot forget it — this is the assertion that that stays true.
+##
+## It also has to be BEHIND the screen. A backdrop drawn over the words is worse
+## than no backdrop, and nothing else would notice.
+func _check_room(label: String, instance: Node) -> void:
+	var room := instance.find_child("Room", true, false)
+	if room == null:
+		printerr("FAIL: %s has no room behind it — it is a flat rectangle with widgets on it" % label)
+		return
+	var siblings: int = room.get_parent().get_child_count()
+	if room.get_index() > 1:
+		printerr("FAIL: %s draws its room at position %d of %d — it is over the screen, not behind it"
+			% [label, room.get_index(), siblings])
 
 
 ## The in-run SETTINGS chip has to remember which screen to come back to,

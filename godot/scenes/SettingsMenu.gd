@@ -20,6 +20,7 @@ extends Control
 ## does not resolve, this script fails to compile, and the scene instantiates
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
 
 
 var _return_scene: String = "res://scenes/MainMenu.tscn"
@@ -39,7 +40,7 @@ func _build() -> void:
 	for c in get_children():
 		c.queue_free()
 
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_WALL)
 	add_child(root)
 	var m := UIKit.margin(32)
 	root.add_child(m)

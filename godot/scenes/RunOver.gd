@@ -6,18 +6,31 @@ extends Control
 ## does not resolve, this script fails to compile, and the scene instantiates
 ## with no script at all. See autoload/Content.gd's header for the full story.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
+
+## The width of the column this screen reads down. Same idea as MainMenu's.
+const COLUMN := 460.0
 
 
 func _ready() -> void:
 	var over: Dictionary = Run.state["over"]
 
-	var root := UIKit.root_control()
+	var root := UIKit.root_control(Table.VIEW_DOOR)
 	add_child(root)
+	# A column down the left, like the menu — this screen is the same closed
+	# door, and stretching four stat lines from one side of the window to the
+	# other put "Faith" and "44" a thousand pixels apart with the picture of the
+	# thing that just happened hidden behind them.
+	root.add_child(UIKit.side_scrim(COLUMN * UIKit.text_scale * 1.6))
 	var m := UIKit.margin(48)
 	root.add_child(m)
+	var row_wrap := UIKit.hbox(0)
+	m.add_child(row_wrap)
 	var v := UIKit.vbox(14)
+	v.custom_minimum_size.x = COLUMN * UIKit.text_scale
+	v.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	m.add_child(v)
+	row_wrap.add_child(v)
 
 	v.add_child(UIKit.block(UIKit.tr_line(over.get("head")), 15, UIKit.GOLD))
 	v.add_child(UIKit.block(UIKit.tr_line(over.get("title")), 22, UIKit.INK))

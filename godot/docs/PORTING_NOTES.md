@@ -963,6 +963,57 @@ asserted in BOTH directions, so open hands must clear the card and closed hands
 must cross the fan. Every guard was verified by stubbing the fix and watching
 the test go red.
 
+## Every screen is somewhere
+
+Drawing the parlour behind the reading screen made a new problem: the reading
+screen was a room and the other thirteen were flat rectangles with widgets on
+them, so the game looked half-finished in a way it had not before. The map is
+seen as often as the reading is.
+
+The room is now the backdrop to the whole game, in three views, all of the same
+house:
+
+| View | Where you are | Screens |
+|---|---|---|
+| `VIEW_TABLE` | At the table, looking down at the cloth | The reading, the result, rewards, the shop, events |
+| `VIEW_DOOR` | Looking across the room at the closed door | The main menu, "who knocks tonight?", and the end of a run |
+| `VIEW_WALL` | The papered wall and the boards, nothing else | Settings, library, mods, the rules, the credits, the Minitel, choosing a sign |
+
+**The view is a parameter of `UIKit.root_control()`, not something each screen
+does for itself.** Every screen already called it, so this was one change rather
+than thirteen — and, more to the point, "every screen is somewhere" is now a
+rule a fourteenth screen cannot forget, because it gets the room whether or not
+whoever writes it knows the rule exists. `tests/test_scenes.gd` asserts it from
+inside `_check_focus()`, which every visit in the sweep already goes through, so
+the check extends to screens that do not exist yet. It also asserts the room is
+BEHIND the screen: a backdrop drawn over the words is worse than no backdrop,
+and nothing else would notice.
+
+`VIEW_WALL` exists because the first pass gave the reference screens the table.
+A settings list is dense with words and nothing is happening in it; a table laid
+out behind a row of sliders, with a teacup showing through the gaps between
+them, is something to look past rather than at. The bare wall keeps those
+screens in the same house without asking anything of the reader.
+
+### The menu became a column
+
+With a room behind it, the main menu's stack of buttons stretched from one edge
+of the window to the other was suddenly the problem: it covered the room
+completely, and an 1100-pixel-wide button was never good anyway. The menu and
+the run-over screen now read down a column on the left, with `UIKit.side_scrim()`
+darkening only that side.
+
+A scrim over the WHOLE backdrop was the first attempt, and it quietens the part
+of the room nothing is written on exactly as much as the part that needs it —
+you pay for the room and then hide it. Darken the side the words are on and
+leave the rest.
+
+The door moved to the right of the frame for the same reason, so the screens
+using that view have somewhere to put their text. And what is under the door
+went from a bright bar — a strip light, not a door — to a hairline at the
+threshold with a soft spill on the boards in front of it, because light coming
+under a door lands somewhere.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
