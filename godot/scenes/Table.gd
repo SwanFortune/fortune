@@ -168,6 +168,20 @@ static func _draw_bare_wall(c: Control) -> void:
 	_draw_vignette(c, s)
 
 
+## Somebody is at the door. `amount` is 1 at the instant a fist lands on it and
+## 0 at rest; the caller tweens it down. The door jumps in its frame, the light
+## under it flickers, and the frame itself takes a little of it.
+##
+## Kept as state ON the backdrop rather than as an argument, because the room is
+## drawn from a `draw` signal with no parameters and the alternative is rebuilding
+## the whole node three times a knock. A view with no door ignores it.
+static func set_knock(room: Control, amount: float) -> void:
+	if room == null or not is_instance_valid(room):
+		return
+	room.set_meta("knock", amount)
+	room.queue_redraw()
+
+
 ## The other end of the same room: you have turned your chair round and you are
 ## looking at the door. Nobody has knocked yet.
 ##
@@ -189,7 +203,12 @@ static func _draw_doorway(c: Control) -> void:
 	# view put their words down the left.
 	var dw := minf(s.x * 0.185, s.y * 0.37)
 	var leaf := Rect2(s.x * 0.655 - dw * 0.5, wall_h * 0.13, dw, wall_h * 0.87)
-	_draw_door(c, s, leaf, true)
+	# A knock moves the LEAF and not the frame, because that is what a door in a
+	# frame does — it is the gap between them that rattles.
+	var hit: float = float(c.get_meta("knock", 0.0))
+	if hit > 0.001:
+		leaf.position += Vector2(s.y * 0.006 * hit, -s.y * 0.0035 * hit)
+	_draw_door(c, s, leaf, true, hit)
 	_draw_coat(c, s, Vector2(s.x * 0.885, wall_h * 0.19), wall_h * 0.50)
 
 	# The lamp behind you, thrown forward across the boards. It stops short of
@@ -239,7 +258,7 @@ static func _draw_floor(c: Control, s: Vector2, y: float) -> void:
 ## The door. It is the one prop in this room with a job: someone knocks on it,
 ## and a run ends when the knocking stops. Closed, panelled, brass knob, hinged
 ## on the far side so the knob faces the room.
-static func _draw_door(c: Control, s: Vector2, leaf: Rect2, under_light: bool = false) -> void:
+static func _draw_door(c: Control, s: Vector2, leaf: Rect2, under_light: bool = false, hit: float = 0.0) -> void:
 	var w := leaf.size.x
 	# The architrave is a BORDER, not a filled rectangle behind the leaf. Filled,
 	# it was a pale slab the size of a door sitting directly under the header
@@ -279,7 +298,14 @@ static func _draw_door(c: Control, s: Vector2, leaf: Rect2, under_light: bool = 
 			c.draw_rect(Rect2(leaf.position.x - w * 0.06 * f, leaf.end.y,
 				w * (1.0 + 0.12 * f), s.y * 0.055 * f), Color(cold, 0.012))
 		c.draw_rect(Rect2(leaf.position.x, leaf.end.y - s.y * 0.0015, w, s.y * 0.003),
-			Color(cold, 0.20))
+			Color(cold, 0.20 + 0.55 * hit))
+		# Whoever is out there is standing in the light, so a knock puts more of
+		# them across the threshold, not less.
+		if hit > 0.001:
+			for i in 4:
+				var g := float(i) / 4.0
+				c.draw_rect(Rect2(leaf.position.x - w * 0.10 * g, leaf.end.y,
+					w * (1.0 + 0.20 * g), s.y * 0.085 * g), Color(cold, 0.030 * hit))
 
 
 ## A coat on a hook by the door — TAKE THEIR COAT is the first thing a lot of

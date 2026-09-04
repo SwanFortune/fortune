@@ -95,6 +95,15 @@ def main():
     write("sitter_lose", mix(tone(1.2, 392.0, 261.6, 0.40), tone(1.2, 196.0, 196.0, 0.30, (0.6,))))
     # Money on the table.
     write("coin", mix(tone(0.30, 1568.0, 1480.0, 0.10, (0.4, 0.9, 0.5)), noise_thud(0.10, 6000, 0.08)))
+    # A fist on the front door. The one sound in the game the title is about:
+    # a run is sixteen knocks and it ends when the knocking stops. Wood, so a
+    # low body with a hard noisy transient on the front of it, and short —
+    # a door in a small house does not ring.
+    write("knock", mix(
+        tone(0.30, 155.0, 118.0, 0.11, (1.0, 0.45, 0.18)),
+        tone(0.18, 92.0, 78.0, 0.09, (0.8,)),
+        noise_thud(0.05, 1900, 0.025, click=0.9),
+    ))
     # Menus: quiet enough to sit under a hundred presses an hour.
     write("ui_move", noise_thud(0.05, 5200, 0.05), peak=0.28)
     write("ui_press", mix(tone(0.10, 660.0, 620.0, 0.07, (0.7, 0.2)), noise_thud(0.04, 5000, 0.04)), peak=0.38)

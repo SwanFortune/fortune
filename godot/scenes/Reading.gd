@@ -64,7 +64,7 @@ func _ready() -> void:
 	var prev_energy_ratio := float(f.get("_prevEnergy", f["energy"])) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
 
 	var header := UIKit.hbox(14)
-	header.add_child(UIKit.sitter_portrait(s["el"], hp_ratio, Art.sitter_texture(s)))
+	header.add_child(UIKit.sitter_portrait(s, hp_ratio, Art.sitter_texture(s)))
 	var header_text := UIKit.vbox(4)
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# The element as its drawn badge rather than a character. The sitter's

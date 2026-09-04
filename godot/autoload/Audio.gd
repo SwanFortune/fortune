@@ -32,6 +32,7 @@ const EVENTS := {
 	"sitter_win": "they go home whole",
 	"sitter_lose": "they leave as they came",
 	"coin": "centimes changing hands",
+	"knock": "somebody at the front door — the sound the whole run is counted in",
 	"ui_move": "keyboard/gamepad focus moving between things",
 	"ui_press": "a button or row being activated",
 }
@@ -46,6 +47,13 @@ const VOICES := 8
 ## without losing the game's sounds is the point. An event missing from here
 ## goes to SFX, the right default for a sound a mod added.
 const UI_EVENTS := ["ui_move", "ui_press"]
+
+## Every event this has actually played, and how many times. Kept because a
+## headless test has no ears: "the door knocks even with animation turned off"
+## is a real promise (turning motion off should not make the game go quiet) and
+## there was no way to assert it. Costs one dictionary entry per event.
+var played: Dictionary = {}
+
 
 var _players: Array[AudioStreamPlayer] = []
 var _next := 0
@@ -73,6 +81,7 @@ func reload() -> void:
 ## varies the pitch a little per play so a run of the same sound (five cards
 ## dealt) does not machine-gun.
 func play(event: String) -> void:
+	played[event] = int(played.get(event, 0)) + 1
 	var rec: Dictionary = Content.sounds.get(event, {})
 	if rec.is_empty():
 		return

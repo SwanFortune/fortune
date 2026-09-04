@@ -8,6 +8,7 @@
     "sitter_win":      { "status": "placeholder", "gain_db": -7.0, "pitch_jitter": 0.0 },
     "sitter_lose":     { "status": "placeholder", "gain_db": -7.0, "pitch_jitter": 0.0 },
     "coin":            { "status": "placeholder", "gain_db": -11.0, "pitch_jitter": 0.06 },
+    "knock":           { "status": "placeholder", "gain_db": -4.0, "pitch_jitter": 0.09 },
     "ui_move":         { "status": "placeholder", "gain_db": -18.0, "pitch_jitter": 0.04 },
     "ui_press":        { "status": "placeholder", "gain_db": -14.0, "pitch_jitter": 0.03 }
   }

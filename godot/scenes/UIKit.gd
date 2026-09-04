@@ -683,54 +683,320 @@ static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32
 ## present it replaces the procedural face entirely, keeping only the
 ## composure glow behind it. Null (the default, and the state of every sitter
 ## until the artist delivers) falls through to the drawn placeholder.
-static func sitter_portrait(el: String, hp_ratio: float, art: Texture2D = null) -> Control:
+## The person sitting across the table.
+##
+## Was an oval with two rectangles and a curve in it — a smiley face, which is
+## exactly what it read as. The screen it lives on is now a room, and the
+## weakest thing in that room was the one PERSON in it, who you look at for a
+## whole encounter while deciding what to say to them.
+##
+## This draws a bust: shoulders coming up out of the bottom of the frame, a
+## collar, a neck, a head, hair, and a face. Everything about it answers to two
+## things and nothing else:
+##
+##   COMPOSURE  how far they have been mended, 0 to 1. The brows lift and arch,
+##              the eyes open, the mouth goes from a flat line to something
+##              close to a smile, the shoulders come down out of their hunch,
+##              and their element warms behind them. Someone closing off and
+##              someone reached should not need a number to tell apart.
+##   WHO THEY ARE  a stable hash of the sitter's key picks the hair, the
+##              colouring, the width of the face and whether they wear a
+##              moustache. TEN VILLAGERS WHO ALL LOOK THE SAME are not villagers
+##              — and a face that changes between one screen and the next is not
+##              a person, so the variation is derived, never random.
+##
+## PLACEHOLDER, on the same terms as scenes/Table.gd: geometry, not
+## illustration. Deliver a portrait PNG through the manifest and this stops
+## being used for that sitter — see docs/ART_GUIDE.md.
+static func sitter_portrait(sitter: Dictionary, hp_ratio: float, art: Texture2D = null) -> Control:
+	var el := str(sitter.get("el", ""))
 	if art != null:
 		return sitter_portrait_art(el, hp_ratio, art)
 	var port := Control.new()
-	port.custom_minimum_size = Vector2(96, 96)
+	# 3:4, the same shape the delivered portraits are authored at, so swapping
+	# one in does not move the layout around it.
+	port.custom_minimum_size = Vector2(112, 148)
 	var r := clampf(hp_ratio, 0.0, 1.0)
-	var flush := r  # 0 = closed off, 1 = fully reached
-	var base_col := Color(0.82, 0.76, 0.7)
-	var skin := base_col.lerp(el_color(el), flush * 0.35)
+	# name + role, because that is what a sitter is identified BY in the data —
+	# there is no key field. An earlier version asked for one, got "" for every
+	# sitter, and drew the same person ten times.
+	var who := _face_of("%s/%s" % [sitter.get("name", ""), sitter.get("role", "")],
+		str(sitter.get("p", "")))
+	# The face this portrait actually got, hung on the node. A headless test has
+	# no pixels to compare, and a test that derives the key for itself proves
+	# only that two copies of one line agree — which is exactly the bug that
+	# happened here, asking sitters for a `k` field they do not have. Reading it
+	# back off the real portrait is the only version of this check that would
+	# have caught that.
+	port.set_meta("face", who)
+	port.draw.connect(func(): _draw_bust(port, who, el, r))
+	port.resized.connect(func(): port.queue_redraw())
+	return port
+
+
+## Skin, hair and clothes to pick from. Small palettes on purpose: a village in
+## the rain, not a character creator.
+const SKIN_TONES := [
+	Color(0.80, 0.66, 0.55), Color(0.68, 0.53, 0.42),
+	Color(0.86, 0.73, 0.63), Color(0.55, 0.41, 0.32),
+	Color(0.74, 0.60, 0.50),
+]
+const HAIR_TONES := [
+	Color(0.16, 0.12, 0.10), Color(0.30, 0.20, 0.13), Color(0.45, 0.33, 0.20),
+	Color(0.62, 0.60, 0.58), Color(0.82, 0.80, 0.77), Color(0.35, 0.14, 0.09),
+]
+const CLOTH_TONES := [
+	Color(0.17, 0.19, 0.24), Color(0.22, 0.18, 0.16), Color(0.15, 0.22, 0.20),
+	Color(0.26, 0.22, 0.17), Color(0.19, 0.16, 0.22),
+]
+## 0 cropped · 1 long · 2 receding · 3 tied up · 4 headscarf
+const HAIR_STYLES := 5
+
+
+## Everything about a face that is not composure, derived from their key so it
+## is the same face every time you meet them.
+## `pronoun` is the sitter's own `p` field, which the writing already carries.
+## The only thing it decides is the moustache; everything else is the hash, for
+## everybody. A period village in the rain is not a character creator, and
+## deriving more than that from a pronoun would be inventing people the writing
+## did not write.
+static func _face_of(key: String, pronoun: String = "") -> Dictionary:
+	var h := _stable_hash(key)
+	return {
+		"skin": SKIN_TONES[h % SKIN_TONES.size()],
+		"hair": HAIR_TONES[(h / 5) % HAIR_TONES.size()],
+		"cloth": CLOTH_TONES[(h / 31) % CLOTH_TONES.size()],
+		"style": (h / 173) % HAIR_STYLES,
+		# A narrow face and a broad one at the extremes, most in between.
+		"width": 0.88 + float((h / 907) % 5) * 0.06,
+		"moustache": pronoun == "he" and (h / 3313) % 3 == 0,
+		"nose": 0.9 + float((h / 11) % 4) * 0.1,
+	}
+
+
+## Deliberately NOT String.hash(). That is an engine detail with no promise
+## attached, and a face that quietly rearranges itself on a Godot upgrade would
+## be a very confusing bug to be handed. This is nine lines and it is ours.
+static func _stable_hash(text: String) -> int:
+	var h := 2166136261
+	for i in text.length():
+		h = (h ^ text.unicode_at(i)) * 16777619
+		h = h & 0x7FFFFFFF
+	return h
+
+
+static func _draw_bust(c: Control, who: Dictionary, el: String, r: float) -> void:
+	var w := c.size.x
+	var h := c.size.y
+	if w < 8.0 or h < 8.0:
+		return
+	var skin: Color = who["skin"]
+	var hair: Color = who["hair"]
+	var cloth: Color = who["cloth"]
+	var shade := skin.darkened(0.28)
+	var line := skin.darkened(0.62)
 	var glow := el_color(el)
 
-	port.draw.connect(func():
-		# soft glow ring, grows with flush
-		if flush > 0.05:
-			port.draw_circle(Vector2(48, 48), 46, Color(glow, 0.10 + flush * 0.18))
-		port.draw_circle(Vector2(48, 48), 40, skin)
-		port.draw_arc(Vector2(48, 48), 40, 0, TAU, 48, Color(0, 0, 0, 0.35), 1.5, true)
+	# Their element behind them, warming as they are reached. This is the one
+	# part of the old drawing worth keeping: it reads across the room.
+	for i in range(6, 0, -1):
+		var f := float(i) / 6.0
+		c.draw_circle(Vector2(w * 0.5, h * 0.42), w * 0.56 * f, Color(glow, 0.020 + r * 0.030))
 
-		# brows: flat and low when waiting, lifted and arched when reached
-		var brow_lift := lerpf(0.0, 5.0, r)
-		var brow_angle := lerpf(0.02, 0.22, r)
-		for side in [-1, 1]:
-			var s: float = side
-			var bx: float = 48.0 + s * 13.0
-			var by: float = 36.0 - brow_lift
-			port.draw_line(Vector2(bx - 6, by + s * brow_angle * 10.0), Vector2(bx + 6, by - s * brow_angle * 10.0), Color(0.25, 0.2, 0.15), 2.0, true)
+	# Shoulders. They come DOWN as composure climbs — a person who has been got
+	# through to stops holding themselves up.
+	var drop := h * 0.02 * r
+	var shoulder_y := h * 0.76 + drop
+	var shoulders := PackedVector2Array([
+		Vector2(w * 0.20, shoulder_y), Vector2(w * 0.80, shoulder_y),
+		Vector2(w * 1.02, h * 1.05), Vector2(-w * 0.02, h * 1.05),
+	])
+	c.draw_colored_polygon(_soft_poly(shoulders, w * 0.16), cloth)
 
-		# eyes: small and half-lidded when waiting, wide when reached
-		var eye_h := lerpf(2.0, 7.0, r)
-		for side in [-1, 1]:
-			var s2: float = side
-			var ex: float = 48.0 + s2 * 13.0
-			port.draw_rect(Rect2(ex - 3.5, 42.0 - eye_h * 0.5, 7.0, eye_h), Color(0.2, 0.15, 0.12), true)
+	# Neck, then the collar over the bottom of it.
+	c.draw_rect(Rect2(w * 0.41, h * 0.56, w * 0.18, h * 0.24), shade)
+	var collar := PackedVector2Array([
+		Vector2(w * 0.34, shoulder_y - h * 0.03), Vector2(w * 0.5, shoulder_y + h * 0.06),
+		Vector2(w * 0.66, shoulder_y - h * 0.03), Vector2(w * 0.66, shoulder_y + h * 0.02),
+		Vector2(w * 0.5, shoulder_y + h * 0.11), Vector2(w * 0.34, shoulder_y + h * 0.02),
+	])
+	c.draw_colored_polygon(collar, cloth.lightened(0.10))
 
-		# mouth: flat when waiting, a rising arc (smile) as they're reached
-		var mouth_w := lerpf(10.0, 16.0, r)
-		var mouth_curve := lerpf(0.0, 10.0, r)
-		var pts := PackedVector2Array()
-		var steps := 12
-		for i in steps + 1:
-			var t := float(i) / float(steps)
-			var x := 48.0 - mouth_w + t * mouth_w * 2.0
-			var y := 62.0 - sin(t * PI) * mouth_curve
-			pts.append(Vector2(x, y))
-		for i in pts.size() - 1:
-			port.draw_line(pts[i], pts[i + 1], Color(0.3, 0.18, 0.14), 2.2, true)
-	)
-	return port
+	# The head.
+	var cx := w * 0.5
+	var cy := h * 0.37
+	var rx: float = w * 0.27 * float(who["width"])
+	var ry := h * 0.25
+	_ellipse(c, Vector2(cx, cy + h * 0.012), rx * 1.03, ry * 1.03, line)
+	_ellipse(c, Vector2(cx, cy), rx, ry, skin)
+	# Ears, and the jaw shadow under the chin.
+	for side: float in [-1.0, 1.0]:
+		_ellipse(c, Vector2(cx + side * rx * 0.98, cy + ry * 0.12), rx * 0.13, ry * 0.16, shade)
+	_ellipse(c, Vector2(cx, cy + ry * 0.86), rx * 0.55, ry * 0.10, Color(line, 0.18))
+
+	_draw_hair(c, who, Vector2(cx, cy), rx, ry, hair)
+	_draw_face(c, who, Vector2(cx, cy), rx, ry, r, line, shade, hair)
+
+
+## Where the hair stops, per style, as multiples of (rx, ry) from the centre of
+## the head — left temple, over the brow, and back down to the right. This is
+## the whole difference between the styles that have a crown: a RECEDING
+## hairline is a hairline further back, not a different kind of object.
+const HAIRLINES := {
+	0: [Vector2(0.86, -0.30), Vector2(0.44, -0.56), Vector2(0.0, -0.46), Vector2(-0.44, -0.56), Vector2(-0.86, -0.30)],
+	1: [Vector2(0.86, -0.30), Vector2(0.44, -0.56), Vector2(0.0, -0.46), Vector2(-0.44, -0.56), Vector2(-0.86, -0.30)],
+	2: [Vector2(0.98, -0.12), Vector2(0.42, -0.76), Vector2(0.0, -0.64), Vector2(-0.42, -0.76), Vector2(-0.98, -0.12)],
+	3: [Vector2(0.84, -0.34), Vector2(0.42, -0.60), Vector2(0.0, -0.52), Vector2(-0.42, -0.60), Vector2(-0.84, -0.34)],
+}
+
+
+static func _draw_hair(c: Control, who: Dictionary, at: Vector2, rx: float, ry: float, hair: Color) -> void:
+	var style: int = who["style"]
+	if style == 4:
+		# A headscarf: over the crown and down past the jaw, tied at the side.
+		var scarf := PackedVector2Array([
+			at + Vector2(-rx * 1.10, ry * 0.10), at + Vector2(-rx * 0.95, -ry * 0.80),
+			at + Vector2(0, -ry * 1.14), at + Vector2(rx * 0.95, -ry * 0.80),
+			at + Vector2(rx * 1.10, ry * 0.10), at + Vector2(rx * 0.86, ry * 0.92),
+			at + Vector2(0, ry * 1.02), at + Vector2(-rx * 0.86, ry * 0.92),
+		])
+		c.draw_colored_polygon(_soft_poly(scarf, rx * 0.35), hair.lightened(0.18))
+		_ellipse(c, at + Vector2(-rx * 1.02, ry * 0.30), rx * 0.22, ry * 0.16, hair.lightened(0.28))
+		return
+
+	# The crown, sitting a little proud of the skull, closed off by a HAIRLINE
+	# rather than by a straight cut across the middle of the face. The first
+	# version closed at head-centre height and read as a knitted hat pulled down
+	# over the eyebrows; the second gave the receding style two side blobs that
+	# read as earmuffs.
+	var cap := PackedVector2Array()
+	var steps := 18
+	var span: float = 0.30 if style != 2 else 0.12
+	for i in steps + 1:
+		var a := (PI - span) + float(i) / float(steps) * (PI + span * 2.0)
+		cap.append(at + Vector2(cos(a) * rx * 1.05, sin(a) * ry * 1.06))
+	for point: Vector2 in HAIRLINES[style]:
+		cap.append(at + Vector2(point.x * rx, point.y * ry))
+	c.draw_colored_polygon(cap, hair)
+
+	if style == 1:
+		# Long: down both sides to below the jaw.
+		for side: float in [-1.0, 1.0]:
+			var fall := PackedVector2Array([
+				at + Vector2(side * rx * 1.02, -ry * 0.55),
+				at + Vector2(side * rx * 1.16, ry * 0.30),
+				at + Vector2(side * rx * 1.02, ry * 1.30),
+				at + Vector2(side * rx * 0.66, ry * 1.24),
+				at + Vector2(side * rx * 0.80, ry * 0.10),
+			])
+			c.draw_colored_polygon(_soft_poly(fall, rx * 0.20), hair)
+	elif style == 3:
+		# Tied up, which from the front is a shape behind the head.
+		_ellipse(c, at + Vector2(0, -ry * 1.16), rx * 0.34, ry * 0.28, hair.darkened(0.10))
+
+
+static func _draw_face(c: Control, who: Dictionary, at: Vector2, rx: float, ry: float,
+		r: float, line: Color, shade: Color, hair: Color) -> void:
+	var eye_x := rx * 0.42
+	var eye_y := at.y + ry * 0.06        # eyes sit ON the midline of a head
+	var eye_rx := rx * 0.21
+	var eye_ry := ry * 0.135
+
+	# Brows: low and flat when they are closed off, lifted and arched when they
+	# have been reached.
+	var lift := ry * (0.30 + 0.12 * r)
+	var arch := 0.06 + 0.26 * r
+	for side: float in [-1.0, 1.0]:
+		var bx := at.x + side * eye_x
+		var by := eye_y - lift
+		c.draw_line(Vector2(bx - rx * 0.24, by + side * arch * rx * 0.30),
+			Vector2(bx + rx * 0.24, by - side * arch * rx * 0.30),
+			Color(hair.darkened(0.15), 0.9), maxf(1.5, rx * 0.075), true)
+
+	# Eyes. The eye is always the same SIZE; what changes is how much of it the
+	# lid covers — which is how an eye actually works, and the only version of
+	# this that reads. Scaling the whole eye down instead gave a one-pixel white
+	# bar at low composure that looked like a pair of spectacles.
+	var open := lerpf(0.30, 1.0, r)
+	for side: float in [-1.0, 1.0]:
+		var ex := at.x + side * eye_x
+		var eye := Vector2(ex, eye_y)
+		_ellipse(c, eye, eye_rx, eye_ry, Color(0.90, 0.88, 0.85))
+		_ellipse(c, eye + Vector2(side * eye_rx * 0.10, 0), eye_rx * 0.46, eye_ry * 0.86,
+			Color(0.17, 0.13, 0.11))
+		if r > 0.4:
+			c.draw_circle(eye + Vector2(-eye_rx * 0.22, -eye_ry * 0.30),
+				maxf(0.8, eye_rx * 0.20), Color(1, 1, 1, (r - 0.4) * 1.1))
+		# The lid, in skin, coming down over the top of it — the SAME ellipse
+		# shifted up, so its lower edge is curved like an eyelid instead of the
+		# straight cut a rectangle leaves across the eye.
+		var cover := eye_ry * 2.0 * (1.0 - open)
+		if cover > 0.4:
+			_ellipse(c, Vector2(ex, eye_y - eye_ry * 2.0 + cover), eye_rx * 1.04, eye_ry * 1.04, shade)
+		c.draw_line(Vector2(ex - eye_rx, eye_y - eye_ry * 1.02 + cover),
+			Vector2(ex + eye_rx, eye_y - eye_ry * 1.02 + cover),
+			Color(line, 0.75), maxf(1.0, rx * 0.055), true)
+
+	# Nose: two short strokes, because a drawn nose at this size is a smudge.
+	var nose_top := eye_y + ry * 0.14
+	var nose_len: float = ry * 0.20 * float(who["nose"])
+	c.draw_line(Vector2(at.x - rx * 0.05, nose_top), Vector2(at.x - rx * 0.11, nose_top + nose_len),
+		Color(line, 0.38), maxf(1.0, rx * 0.05), true)
+	c.draw_line(Vector2(at.x - rx * 0.11, nose_top + nose_len), Vector2(at.x + rx * 0.05, nose_top + nose_len),
+		Color(line, 0.38), maxf(1.0, rx * 0.05), true)
+
+	# Mouth: a flat line closed off, a small smile reached. Drawn as a curve
+	# rather than an arc so the ends can stay put while the middle moves.
+	var mouth_y := at.y + ry * 0.62
+	var half := rx * lerpf(0.24, 0.36, r)
+	var curve := ry * lerpf(-0.02, 0.17, r)
+	var pts := PackedVector2Array()
+	for i in 13:
+		var t := float(i) / 12.0
+		pts.append(Vector2(at.x - half + t * half * 2.0, mouth_y - sin(t * PI) * curve))
+	c.draw_polyline(pts, Color(line, 0.85), maxf(1.6, rx * 0.065), true)
+
+	if who["moustache"]:
+		var my := mouth_y - ry * 0.14
+		var m := PackedVector2Array([
+			Vector2(at.x - rx * 0.32, my - ry * 0.02),
+			Vector2(at.x, my - ry * 0.09),
+			Vector2(at.x + rx * 0.32, my - ry * 0.02),
+			Vector2(at.x + rx * 0.20, my + ry * 0.07),
+			Vector2(at.x, my + ry * 0.02),
+			Vector2(at.x - rx * 0.20, my + ry * 0.07),
+		])
+		c.draw_colored_polygon(_soft_poly(m, rx * 0.07), Color(hair, 0.92))
+
+
+## A filled ellipse. draw_circle only does circles, and nothing about a head is.
+static func _ellipse(c: Control, at: Vector2, rx: float, ry: float, col: Color) -> void:
+	var pts := PackedVector2Array()
+	var steps := 30
+	for i in steps:
+		var a := float(i) / float(steps) * TAU
+		pts.append(at + Vector2(cos(a) * rx, sin(a) * ry))
+	c.draw_colored_polygon(pts, col)
+
+
+## A polygon with its corners rounded off — shoulders, a fall of hair, a
+## moustache. Same construction as Table.gd's _soften(); kept here rather than
+## reached for across files because UIKit is loaded from places Table is not.
+static func _soft_poly(points: PackedVector2Array, radius: float) -> PackedVector2Array:
+	var n := points.size()
+	if n < 3 or radius <= 0.0:
+		return points
+	var out := PackedVector2Array()
+	for i in n:
+		var prev := points[(i - 1 + n) % n]
+		var cur := points[i]
+		var next := points[(i + 1) % n]
+		var a := cur + (prev - cur).normalized() * minf(radius, (prev - cur).length() * 0.45)
+		var b := cur + (next - cur).normalized() * minf(radius, (next - cur).length() * 0.45)
+		for j in 5:
+			var t := float(j) / 4.0
+			out.append(a.lerp(cur, t).lerp(cur.lerp(b, t), t))
+	return out
 
 
 ## Delivered-portrait variant of sitter_portrait(). Keeps the composure-driven

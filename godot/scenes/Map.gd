@@ -34,10 +34,53 @@ func _ready() -> void:
 
 	var opts: Array = st["options"]
 	for i in opts.size():
-		list.add_child(_opt_button(opts[i], i))
+		var row := _opt_button(opts[i], i)
+		list.add_child(row)
+		# Each option arrives on a knock. The staggering is small on purpose:
+		# this is a beat, not a cutscene, and it is over before someone who has
+		# seen it forty times can be annoyed by it.
+		UIKit.animate_in(row, KNOCKS[mini(i, KNOCKS.size() - 1)] + 0.05)
 	# The night's options, not the run header above them — the header is chrome,
 	# and landing on its DECK chip would make the first key press do nothing useful.
 	UIKit.focus_first(list)
+	_knock(root)
+
+
+## SOMEBODY KNOCKS. The screen asks "who knocks tonight?", a run is sixteen
+## knocks long, and it ends the night the knocking stops — and in the entire
+## port nothing had ever knocked. Three raps on the door behind the screen: the
+## sound, the leaf jumping in its frame, and more of whoever is out there coming
+## under it each time.
+##
+## Nothing waits for it. The options are already there and already focused; a
+## player can choose during the first knock. An atmosphere beat that takes the
+## game away from you is a beat you resent by the tenth night.
+##
+## The rhythm accelerates slightly, the way a person's knuckles do.
+const KNOCKS := [0.00, 0.34, 0.60]
+
+func _knock(root: Control) -> void:
+	var room := root.find_child("Room", false, false)
+	if room == null:
+		return
+	if UIKit.motion_off():
+		# One knock, no rattle: the sound is not the animation, and turning
+		# motion off should not make the door go quiet.
+		Audio.play("knock")
+		return
+	for i in KNOCKS.size():
+		var at: float = KNOCKS[i]
+		var timer := get_tree().create_timer(UIKit.dur(at))
+		timer.timeout.connect(func():
+			if not is_instance_valid(room):
+				return
+			Audio.play("knock")
+			var t := UIKit.bound_tween(room)
+			# Sharp in, slower out — a hit, then the door settling back.
+			t.tween_method(func(v: float): Table.set_knock(room, v), 0.0, 1.0, UIKit.dur(0.03))
+			t.tween_method(func(v: float): Table.set_knock(room, v), 1.0, 0.0, UIKit.dur(0.22)) \
+				.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		)
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:

@@ -142,6 +142,8 @@ func _visit_standalone() -> void:
 	await _test_the_overlays_are_modal()
 	await _test_the_marks_are_on_the_hands()
 	await _test_the_last_card_floats()
+	_test_the_sitters_are_different_people()
+	await _test_somebody_knocks()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
@@ -436,6 +438,111 @@ func _test_the_last_card_floats() -> void:
 		instance.queue_free()
 		await process_frame
 	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+
+
+## SOMEBODY KNOCKS. The map screen asks "who knocks tonight?", a run is sixteen
+## knocks long and it ends the night the knocking stops — and for the whole port
+## nothing ever knocked.
+##
+## Three things, each of which fails in silence:
+##
+##   - the knock has to HAPPEN. It is a timer inside a scene; nothing else in
+##     the game would notice if it stopped firing;
+##   - it has to happen with ANIMATION TURNED OFF too. Turning off motion should
+##     not make the game go quiet, and the easy version of this feature is one
+##     early return that does exactly that;
+##   - it must not TAKE THE SCREEN AWAY. The options have to be there and
+##     focused from the first frame, or a player on their fortieth night is
+##     waiting on a cutscene to let them click.
+func _test_somebody_knocks() -> void:
+	var audio: Node = root.get_node("Audio")
+	var settings: Node = root.get_node("Settings")
+	var was: float = float(settings.get_value("animation_scale"))
+
+	for motion: bool in [true, false]:
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		run.state = run.fresh()
+		run.pick_reader(0)
+		run.take_pick(0)
+		audio.played.erase("knock")
+
+		var instance: Node = load("res://scenes/Map.tscn").instantiate()
+		root.add_child(instance)
+		await process_frame
+		await process_frame
+
+		# Before waiting for a single knock: the choices are here and one of
+		# them is focused. This is the assertion that the beat is a beat.
+		var focused: Control = instance.get_viewport().gui_get_focus_owner()
+		if focused == null or not instance.is_ancestor_of(focused):
+			printerr("FAIL: the map is knocking and nothing is focused — the player is waiting on it")
+
+		# The first knock is at t=0, so it has already fired; the rest are
+		# timers, and this is a real display-less frame loop, so wait them out.
+		await create_timer(1.0).timeout
+		var heard := int(audio.played.get("knock", 0))
+		var want: int = load("res://scenes/Map.gd").KNOCKS.size() if motion else 1
+		if heard < want:
+			printerr("FAIL: %d knock(s) with motion %s, wanted %d — nobody is at the door"
+				% [heard, "on" if motion else "off", want])
+		instance.queue_free()
+		await process_frame
+
+	settings.set_value("animation_scale", was)
+	print("--- somebody knocks, with the animations on and off ---")
+
+
+## THE VILLAGERS ARE DIFFERENT PEOPLE, AND THE SAME ONES EVERY TIME.
+##
+## The sitter portrait is drawn rather than painted, and it takes its hair,
+## colouring, face width and moustache from a hash of who the sitter is. Two
+## things about that fail silently and both would be bad:
+##
+##   - ask for the wrong field and every hash is the hash of "", so ten
+##     villagers are one villager drawn ten times. This is not hypothetical: the
+##     first version asked sitters for a `k` they do not have;
+##   - use a hash with no promise attached — String.hash(), say — and the whole
+##     village quietly rearranges its faces on a Godot upgrade. Someone you have
+##     met twenty times is suddenly a stranger, and nothing in the game changed.
+##
+## So: the hash is pinned to known values, and the faces are counted.
+func _test_the_sitters_are_different_people() -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var UIKitScript := load("res://scenes/UIKit.gd")
+
+	# Pinned. If these move, every face in the game moved with them — which is
+	# allowed, but it is a decision, not something to discover later.
+	const PINNED := {"Mme Perrot/THE LAUNDRESS": 905259117, "Guillaume/THE POSTMAN": 54687178}
+	for key: String in PINNED:
+		var got: int = UIKitScript._stable_hash(key)
+		if got != PINNED[key]:
+			printerr("FAIL: the face hash for '%s' changed (%d, was %d) — every villager now looks like someone else"
+				% [key, got, PINNED[key]])
+
+	# Built through the REAL portrait, which is what reads the sitter's fields.
+	var faces := {}
+	for st in content.sitters:
+		var first: Control = UIKitScript.sitter_portrait(st, 0.5)
+		var again: Control = UIKitScript.sitter_portrait(st, 0.9)
+		var a: Dictionary = first.get_meta("face", {})
+		if a != again.get_meta("face", {}):
+			printerr("FAIL: %s does not look the same twice in a row" % st.get("name", "?"))
+		if a.is_empty():
+			printerr("FAIL: the portrait for %s carries no face at all" % st.get("name", "?"))
+			continue
+		faces["%d/%s/%s/%s/%s" % [a["style"], a["skin"], a["hair"], a["cloth"], a["width"]]] = true
+		first.free()
+		again.free()
+
+	# Not "all distinct" — a hash may honestly collide, and demanding otherwise
+	# would be a test of luck. Most of them, though: if the count collapses, the
+	# hash is being fed something constant.
+	var want: int = maxi(1, int(content.sitters.size() * 0.7))
+	if faces.size() < want:
+		printerr("FAIL: %d sitters produce only %d different faces (wanted %d) — they are all the same person"
+			% [content.sitters.size(), faces.size(), want])
+	else:
+		print("--- %d sitters, %d faces ---" % [content.sitters.size(), faces.size()])
 
 
 ## The card faces are PanelContainers that take focus; every other focusable

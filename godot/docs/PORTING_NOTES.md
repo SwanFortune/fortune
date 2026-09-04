@@ -1014,6 +1014,64 @@ went from a bright bar — a strip light, not a door — to a hairline at the
 threshold with a soft spill on the boards in front of it, because light coming
 under a door lands somewhere.
 
+## The person across the table, and the knock at the door
+
+Two things the writing had always described and the game had never shown.
+
+### The sitter was a smiley face
+
+`UIKit.sitter_portrait()` drew an oval with two rectangles and a curve in it,
+which is exactly what it read as. It sat on a screen that is now a room, and
+the weakest thing in that room was the one PERSON in it — the one you look at
+for a whole encounter while deciding what to say to them.
+
+It is a bust now: shoulders coming up out of the frame, a collar, a neck, a
+head, hair, a face. Everything about it answers to two things:
+
+**Composure.** The brows lift and arch, the eyes open, the mouth goes from a
+flat line to something close to a smile, and the shoulders come down out of
+their hunch — a person who has been got through to stops holding themselves up.
+Closed off and reached should not need a number to tell apart.
+
+**Who they are.** Hair, colouring, face width and moustache come from a hash of
+the sitter's name and role. Ten villagers who all look the same are not
+villagers; a face that changes between one screen and the next is not a person.
+So it is derived, never random — and the hash is nine lines of ours rather than
+`String.hash()`, which is an engine detail with no promise attached and would
+quietly rearrange every face in the village on a Godot upgrade. The only thing
+taken from the sitter's `p` field is whether they can have a moustache;
+deriving more than that from a pronoun would be inventing people the writing
+did not write.
+
+Two bugs worth keeping: the first version asked sitters for a `k` field they do
+not have, so every hash was the hash of `""` and the village was one person
+drawn nine times. The FIRST version of the test did not catch it, because the
+test derived the key for itself and so only proved that two copies of one line
+agreed. The portrait now hangs the face it actually got on the node as metadata
+and the test reads that back — the only version of the check that goes through
+the real path.
+
+### Nobody had ever knocked
+
+The map screen asks "who knocks tonight?". A run is sixteen knocks long. It
+ends the night the knocking stops. Nothing in the port had ever knocked.
+
+Three raps on the door behind the screen, accelerating slightly the way a
+person's knuckles do: the sound (`knock`, a placeholder in `gen_sounds.py`
+like the rest), the door leaf jumping in its frame — the leaf and not the
+frame, because it is the gap between them that rattles — and more of whoever is
+outside coming under the door with each one. The options fade in on the beats.
+
+**It does not take the screen away.** The choices are built and focused on the
+first frame; a player can choose during the first knock. An atmosphere beat that
+holds the game hostage is one you resent by the tenth night, and the test
+asserts focus is placed BEFORE waiting for a single knock.
+
+**And it still knocks with the animations off.** Turning off motion should not
+make the game go quiet, and the easy version of this feature is one early return
+that does exactly that. `Audio.played` — a count per event — exists so a
+headless test can hear it; there was no other way to assert a sound.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended
