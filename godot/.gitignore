@@ -25,3 +25,4 @@ assets/**/*.import
 # tests/test_boot.gd and the README both rely on: clone, run, green, with no
 # editor-generated file in the way.
 *.uid
+build_stamp.cfg

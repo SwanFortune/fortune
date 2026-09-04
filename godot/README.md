@@ -209,6 +209,19 @@ it). You need Godot's export templates for your version installed; the editor
 offers to download them, or `godot --headless --export-release` will tell you
 they are missing.
 
+Use `build.sh`, which stamps the commit into the build before exporting it:
+
+```
+cd godot && ./build.sh            # Linux and Windows
+cd godot && ./build.sh Linux      # one preset
+```
+
+A build then names itself on the main menu and in the credits — "0.2.0 · Godot
+4.7.0 · 9117492" — which is the difference between a bug report you can act on
+and one you cannot. Without it every build between two hand-bumped version
+numbers is indistinguishable, and a stale binary looks exactly like a broken
+one. The raw command still works and produces an unstamped build:
+
 ```
 godot --headless --path godot --export-release "Linux" ../build/linux/parlour.x86_64
 ```

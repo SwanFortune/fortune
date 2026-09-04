@@ -29,7 +29,44 @@ func string() -> String:
 ## version is read at runtime rather than written here, so it cannot be stale.
 func full() -> String:
 	var e := Engine.get_version_info()
-	return "%s · Godot %s.%s.%s" % [string(), e.get("major", "?"), e.get("minor", "?"), e.get("patch", 0)]
+	var line := "%s · Godot %s.%s.%s" % [string(), e.get("major", "?"), e.get("minor", "?"), e.get("patch", 0)]
+	var b := build()
+	return line if b == "" else "%s · %s" % [line, b]
+
+
+## WHICH BUILD THIS IS, as a short commit — "9117492", or "9117492 (modified)",
+## or "" when running from source rather than from an export.
+##
+## MAJOR/MINOR/PATCH above are bumped by hand, so every build between two bumps
+## calls itself the same thing. That is not a small problem: an export sitting
+## in build/ a day and fifty-four commits old looked, when run, like a broken
+## export rather than an old one, and nothing in it could tell the difference.
+##
+## build.sh writes res://build_stamp.cfg immediately before exporting and
+## deletes it after, so it belongs to a build and never to the source tree. Its
+## absence is meaningful and is not an error: it means nobody exported this.
+const STAMP_PATH := "res://build_stamp.cfg"
+
+func build(path: String = STAMP_PATH) -> String:
+	var cfg := ConfigFile.new()
+	if cfg.load(path) != OK:
+		return ""
+	var sha := str(cfg.get_value("build", "commit", ""))
+	if sha == "":
+		return ""
+	return sha + (" (modified)" if bool(cfg.get_value("build", "dirty", false)) else "")
+
+
+## The same, with the branch and the date, for the credits screen. Empty when
+## there is no stamp.
+func build_detail(path: String = STAMP_PATH) -> String:
+	var cfg := ConfigFile.new()
+	if cfg.load(path) != OK:
+		return ""
+	return "%s · %s · %s" % [
+		build(path), str(cfg.get_value("build", "branch", "?")),
+		str(cfg.get_value("build", "at", "?")),
+	]
 
 
 ## The credits, as [heading, [lines]] pairs — the same shape HowToPlay uses, so
@@ -56,12 +93,22 @@ func credits() -> Array:
 			I18n.t("Music and sound: unfilled."),
 		]],
 		[I18n.t("TRANSLATION"), _translation_lines()],
-		[I18n.t("THIS BUILD"), [
-			"· " + I18n.t("Version %s") % string(),
-			"· " + I18n.t("Engine %s") % _godot_version(),
-			"· " + I18n.t("Content packs loaded: %s") % _pack_names(),
-		]],
+		[I18n.t("THIS BUILD"), _this_build()],
 	]
+
+
+## The build's own facts. A list rather than a literal because the commit line
+## is only there on an EXPORT: run from source there is no stamp, and a line
+## reading "unknown" would be noise on a screen nobody is debugging.
+func _this_build() -> Array:
+	var out: Array = [
+		"· " + I18n.t("Version %s") % string(),
+		"· " + I18n.t("Engine %s") % _godot_version(),
+		"· " + I18n.t("Content packs loaded: %s") % _pack_names(),
+	]
+	if build_detail() != "":
+		out.append("· " + I18n.t("Built from %s") % build_detail())
+	return out
 
 
 func _godot_version() -> String:

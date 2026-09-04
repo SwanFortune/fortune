@@ -85,6 +85,7 @@ func _initialize() -> void:
 	await process_frame
 	content.reload()
 
+	_check_the_build_can_name_itself()
 	var used := _keys_in_content()
 	var src := _all_source()
 
@@ -155,6 +156,55 @@ func _spelt(n: int) -> String:
 		"eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
 		"fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
 	return WORDS[n] if n < WORDS.size() else str(n)
+
+
+## A BUILD SAYS WHICH COMMIT IT IS, or says nothing — never something wrong.
+##
+## Version.gd's MAJOR/MINOR/PATCH are bumped by hand, so every build between two
+## bumps calls itself the same thing. An export sat in build/ for a day and
+## fifty-four commits, and running it showed a game with no drawn room and a
+## different menu: the obvious reading was a broken export, the true one was an
+## old one, and nothing in the binary could tell them apart.
+##
+## build.sh writes res://build_stamp.cfg just before exporting and removes it
+## after. This checks the reading of it, both ways round, because both matter:
+## a stamp that is not read leaves the build anonymous, and a stamp read when
+## there is none would put a fabricated commit on the credits screen.
+func _check_the_build_can_name_itself() -> void:
+	var version: Node = root.get_node("Version")
+
+	# No stamp: silent, and full() is still a sensible line.
+	var missing := "user://no_such_stamp.cfg"
+	if version.build(missing) != "":
+		failures.append("Version.build() invented '%s' from a stamp that does not exist"
+			% version.build(missing))
+	if version.build_detail(missing) != "":
+		failures.append("Version.build_detail() invented a detail with no stamp")
+
+	# A clean stamp, and a dirty one.
+	var path := "user://test_stamp.cfg"
+	for dirty in [false, true]:
+		var cfg := ConfigFile.new()
+		cfg.set_value("build", "commit", "abc1234")
+		cfg.set_value("build", "branch", "main")
+		cfg.set_value("build", "dirty", dirty)
+		cfg.set_value("build", "at", "2026-01-01T00:00:00Z")
+		cfg.save(path)
+		var got: String = version.build(path)
+		if not got.begins_with("abc1234"):
+			failures.append("a stamped build reports '%s', which does not name its commit" % got)
+		if got.contains("modified") != dirty:
+			failures.append("a %s tree reports '%s' — the modified marker is the wrong way round"
+				% ["dirty" if dirty else "clean", got])
+		if not version.build_detail(path).contains("main"):
+			failures.append("build_detail() drops the branch: '%s'" % version.build_detail(path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	# And the export has to actually CARRY the file, or all of the above is
+	# read from a stamp that never reaches a player.
+	var presets := FileAccess.get_file_as_string("res://export_presets.cfg")
+	if presets != "" and not presets.contains("build_stamp.cfg"):
+		failures.append("export_presets.cfg does not include build_stamp.cfg — a .cfg at the project root is not a resource Godot imports, so the stamp is written, ignored, and the build stays anonymous")
 
 
 ## The version exists in two places that cannot disagree: autoload/Version.gd,
