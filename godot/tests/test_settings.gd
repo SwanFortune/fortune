@@ -20,7 +20,10 @@
 ##   - the SFX and UI buses are real, and the sliders move them;
 ##   - EVERY rebindable action has a gamepad button. The settings screen tells
 ##     the player "an action keeps its gamepad button either way", and for two
-##     of the five that sentence was simply false — they had none to keep.
+##     of the five that sentence was simply false — they had none to keep;
+##   - EVERY setting MOVES SOMETHING. This file's header has always claimed the
+##     settings screen has no decorative rows on it, and nothing checked the
+##     claim — see _test_every_setting_moves_something().
 extends SceneTree
 
 const TESTS := [
@@ -29,6 +32,7 @@ const TESTS := [
 	"_test_containers_are_copied_out",
 	"_test_unknown_key_is_refused",
 	"_test_every_setting_is_reachable",
+	"_test_every_setting_moves_something",
 	"_test_choice_defaults_are_valid_choices",
 	"_test_a_bad_stored_choice_falls_back",
 	"_test_legacy_fullscreen_migrates",
@@ -176,6 +180,84 @@ func _test_every_setting_is_reachable() -> void:
 ## Each choice setting's DEFAULT has to be one of its choices, or a fresh
 ## profile starts out in a state the screen cannot display and every apply
 ## falls through to whatever the last match arm happens to be.
+## EVERY SETTING MOVES SOMETHING OBSERVABLE.
+##
+## Settings.gd's header says the screen has no row on it that lies to the
+## player — no music slider with no music, no shake toggle with nothing that
+## shakes. That was a promise kept by hand, and the only thing standing behind
+## it was the author remembering. This measures it: set the value one way, read
+## the thing it is supposed to drive, set it the other way, read again.
+##
+## Four settings are NOT checked here and are named rather than quietly skipped:
+## `window_mode`, `resolution` and `max_fps` need a real DisplayServer, and
+## `vsync` needs one whose driver accepts a vsync change — under Xvfb's software
+## GL the engine itself refuses it. All four were measured by hand against a
+## real display; only the last cannot be, anywhere in this container.
+const NEEDS_A_DISPLAY := ["window_mode", "resolution", "max_fps", "vsync"]
+
+func _test_every_setting_moves_something() -> void:
+	var content: Node = root.get_node("Content")
+	# By NODE, never by the bare autoload name: this file is compiled by
+	# `godot -s` before the autoloads are registered, and `Run` would not
+	# resolve. See autoload/Content.gd's header.
+	var run: Node = root.get_node("Run")
+	var i18n: Node = root.get_node("I18n")
+	var UIKit = load("res://scenes/UIKit.gd")
+	var before := {}
+	for key in settings.DEFS:
+		before[key] = settings.get_value(key)
+
+	# key: [low, high, what it should move]
+	var probes := {
+		"ui_scale": [0.75, 1.5, func(): return root.content_scale_factor],
+		"master_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(0)],
+		"sfx_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("SFX"))],
+		"ui_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("UI"))],
+		"muted": [false, true, func(): return AudioServer.is_bus_mute(0)],
+		"animation_scale": [1.0, 0.0, func(): return [UIKit.dur(1.0), UIKit.motion_off()]],
+		"text_scale": [1.0, 1.3, func(): UIKit.refresh_look(); return UIKit.text_scale],
+		"high_contrast": [false, true, func(): UIKit.refresh_look(); return UIKit.INK],
+		"start_energy": [3, 7, func(): return run.cfg_energy()],
+		"hand_size": [5, 9, func(): return run.cfg_hand()],
+		"locale": ["en", "fr", func():
+			i18n.reload()
+			return i18n.content("card/pour-the-tea", "n", "?")],
+		"load_example_mods": [true, false, func():
+			content.reload(); return content.cards_minor.size()],
+		"disabled_mods": [[], ["example.a_new_card"], func():
+			content.reload(); return content.cards_minor.size()],
+		"keybinds": [{}, {"parlour_deck": KEY_F9}, func(): return _keys_of("parlour_deck")],
+	}
+
+	for key in settings.DEFS:
+		if NEEDS_A_DISPLAY.has(key):
+			continue
+		if not probes.has(key):
+			check(false, "'%s' has no probe here — either it moves something and this test should say what, or it is a decorative row" % key)
+			continue
+		var probe: Array = probes[key]
+		var measure: Callable = probe[2]
+		settings.set_value(key, probe[0])
+		var low = measure.call()
+		settings.set_value(key, probe[1])
+		var high = measure.call()
+		# Put THIS setting back before probing the next one. Left to the end,
+		# the probes interfere: `load_example_mods` finishes on false, and
+		# `disabled_mods` then switches off a pack that is not loaded and
+		# correctly changes nothing.
+		settings.set_value(key, before[key])
+		check(str(low) != str(high),
+			"'%s' set to %s and to %s and the thing it drives did not move (%s both times)"
+			% [key, probe[0], probe[1], low])
+
+	for key in before:
+		settings.set_value(key, before[key])
+	UIKit.refresh_look()
+	i18n.reload()
+	content.reload()
+	done("_test_every_setting_moves_something")
+
+
 func _test_choice_defaults_are_valid_choices() -> void:
 	for pair in [["window_mode", settings.WINDOW_MODES], ["vsync", settings.VSYNC_MODES],
 			["resolution", settings.RESOLUTIONS]]:
