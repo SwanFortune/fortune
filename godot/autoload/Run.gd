@@ -618,7 +618,7 @@ func build_shop() -> Dictionary:
 
 func take_pick(i: int) -> void:
 	var pick: Dictionary = state["pick"]
-	var o: Dictionary = pick["opts"][i]
+	var o: Dictionary = resolve_named(pick["opts"][i])
 	if pick.get("kind", "") == "gift":
 		var c: Dictionary = o["card"].duplicate(true)
 		c["uid"] = uid()
@@ -675,6 +675,44 @@ func take_pick(i: int) -> void:
 	state["coin"] = coin
 	state["pick"] = {}
 	advance()
+
+
+## An option may NAME the card or mark it gives instead of carrying a whole copy
+## of one: `"card": "Pour The Tea"` rather than the card object.
+##
+## This exists for the events. An events file that inlines a copy of a card is a
+## SECOND COPY OF THAT CARD'S RULES — it goes stale the moment the card is
+## balanced, a mod that rebalances the card does not rebalance the copy, and
+## Save.gd's content re-resolution has no way to tell the copy from the
+## original. A name is resolved here, against whatever content is loaded now.
+##
+## A name nothing answers to is dropped with a warning rather than crashing or
+## handing out an empty card: a pack that removes a card an event names is a
+## mistake to report, not a run to end.
+func resolve_named(o: Dictionary) -> Dictionary:
+	if not (o.get("card") is String or o.get("mark") is String):
+		return o
+	var out := o.duplicate(true)
+	if out.get("card") is String:
+		var named := Content.get_card(str(out["card"]))
+		if named.is_empty():
+			push_warning("[Run] an option names the card '%s', which no loaded pack has." % out["card"])
+			out.erase("card")
+		else:
+			out["card"] = named
+	if out.get("mark") is String:
+		var wanted := str(out["mark"])
+		var found := {}
+		for m in Content.marks + Content.relics:
+			if str(m.get("n", "")) == wanted:
+				found = m
+				break
+		if found.is_empty():
+			push_warning("[Run] an option names the mark '%s', which no loaded pack has." % wanted)
+			out.erase("mark")
+		else:
+			out["mark"] = found
+	return out
 
 
 func skip_pick() -> void:

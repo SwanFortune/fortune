@@ -1,31 +1,295 @@
 {
-  "_comment": "Adapted from EVENTS in Parlour v23.dc.html (line ~1487). PORTING DECISION (see docs/PORTING_NOTES.md): the source's 'rest:nerve' option reward is dead — the 'nerve'/spiral stat was removed from the design in chat11 but these three event option rewards were never migrated off it, so 'foot' text like '+10 nerve now, +2 for the rest of the run' currently does nothing in v23. We ported the flavor text and choice structure unchanged but replaced the reward with a flat faith payout on the affected options (still free, still the 'spend it on yourself / score' vs 'spend it on money' choice the source event was going for), and dropped the foot line that no longer applies.",
+  "_comment": "Adapted from EVENTS in Parlour v23.dc.html (line ~1487). PORTING DECISION (see docs/PORTING_NOTES.md): the source's 'rest:nerve' option reward is dead — the 'nerve'/spiral stat was removed from the design in chat11 but these three event option rewards were never migrated off it, so 'foot' text like '+10 nerve now, +2 for the rest of the run' currently does nothing in v23. We ported the flavor text and choice structure unchanged but replaced the reward with a flat faith payout on the affected options (still free, still the 'spend it on yourself / score' vs 'spend it on money' choice the source event was going for), and dropped the foot line that no longer applies. ADDED IN THE PORT, not from the source prototype: the eight events after the third one. The source shipped three ordinary events plus the Minitel demonstrator, which is roughly one event per five knocks of a sixteen-knock run -- the shortage a player notices first (docs/STEAM_RELEASE.md). They follow the source's shape exactly (a head, a title, a line, and two options that trade the evening's money against what the village thinks of you) and are marked `\"added\": \"port\"` so the game's author can find and replace them in one search. Options that hand out a card or a mark NAME it rather than carrying a copy; see Run.resolve_named().",
   "events": [
-    { "title": "Your own chair, for once", "body": "Twenty minutes before the next one knocks.",
-      "head": "THE BACK ROOM", "line": "Spend them on yourself or on the money.",
+    {
+      "title": "Your own chair, for once",
+      "body": "Twenty minutes before the next one knocks.",
+      "head": "THE BACK ROOM",
+      "line": "Spend them on yourself or on the money.",
       "opts": [
-        { "kind": "SIT AND DO NOTHING", "name": "Twenty Minutes", "text": "You do not think about any of them. Afterwards you can sit with people a little longer than you could.", "reward": { "faith": 10 } },
-        { "kind": "COUNT THE TILL", "name": "The Evening's Take", "text": "You go through the saucer twice and find more than you remembered.", "reward": { "coin": 12 } }
-      ] },
-    { "title": "A girl on the stairs, no money", "body": "She has been waiting since the last one went in.",
-      "head": "SHE CANNOT PAY", "line": "She wants to know whether her brother is coming back.",
+        {
+          "kind": "SIT AND DO NOTHING",
+          "name": "Twenty Minutes",
+          "text": "You do not think about any of them. Afterwards you can sit with people a little longer than you could.",
+          "reward": {
+            "faith": 10
+          }
+        },
+        {
+          "kind": "COUNT THE TILL",
+          "name": "The Evening's Take",
+          "text": "You go through the saucer twice and find more than you remembered.",
+          "reward": {
+            "coin": 12
+          }
+        }
+      ]
+    },
+    {
+      "title": "A girl on the stairs, no money",
+      "body": "She has been waiting since the last one went in.",
+      "head": "SHE CANNOT PAY",
+      "line": "She wants to know whether her brother is coming back.",
       "opts": [
-        { "kind": "READ HER FOR NOTHING", "name": "For Nothing", "text": "You tell her the truth in the kindest order you can find. She goes home lighter and tells nobody who did it.", "reward": { "faith": 14 } },
-        { "kind": "SEND HER FOR HER MOTHER", "name": "The Full Rate", "text": "She comes back an hour later with the coins in a handkerchief. You read the same cards.", "reward": { "coin": 16 } }
-      ] },
-    { "title": "A card came out of the deck wrong", "body": "It was face up in the pack before you shuffled.",
-      "head": "THE MISDEAL", "line": "Something in the deck is not doing what you asked it to.",
+        {
+          "kind": "READ HER FOR NOTHING",
+          "name": "For Nothing",
+          "text": "You tell her the truth in the kindest order you can find. She goes home lighter and tells nobody who did it.",
+          "reward": {
+            "faith": 14
+          }
+        },
+        {
+          "kind": "SEND HER FOR HER MOTHER",
+          "name": "The Full Rate",
+          "text": "She comes back an hour later with the coins in a handkerchief. You read the same cards.",
+          "reward": {
+            "coin": 16
+          }
+        }
+      ]
+    },
+    {
+      "title": "A card came out of the deck wrong",
+      "body": "It was face up in the pack before you shuffled.",
+      "head": "THE MISDEAL",
+      "line": "Something in the deck is not doing what you asked it to.",
       "opts": [
-        { "kind": "THE REMOVAL OF THINGS", "name": "Burn It", "text": "Take the weakest thing in your deck out of it for good. You do it in the grate yourself.", "reward": { "burn": true } },
-        { "kind": "SHUFFLE AND FORGET IT", "name": "Let It Lie", "text": "You put it back in the middle and decide not to think about it any further tonight.", "reward": { "faith": 8 } }
-      ] },
-    { "_note": "DEMONSTRATOR, paired with the OEIL code in minitel.json. `secret` keeps it out of the ordinary random pool; only Minitel.armed_events() can offer it.",
+        {
+          "kind": "THE REMOVAL OF THINGS",
+          "name": "Burn It",
+          "text": "Take the weakest thing in your deck out of it for good. You do it in the grate yourself.",
+          "reward": {
+            "burn": true
+          }
+        },
+        {
+          "kind": "SHUFFLE AND FORGET IT",
+          "name": "Let It Lie",
+          "text": "You put it back in the middle and decide not to think about it any further tonight.",
+          "reward": {
+            "faith": 8
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "SHE IS BACK",
+      "title": "The gendarme's wife, twice this week",
+      "body": "She asks the same question she asked on Tuesday.",
+      "line": "You already know what she wants you to say.",
+      "opts": [
+        {
+          "kind": "SAY IT AGAIN",
+          "name": "The Same Answer",
+          "text": "You say it the same way, slowly, and let her hear herself agree with it. She goes home and does nothing, again, and thinks better of you.",
+          "reward": {
+            "faith": 13
+          }
+        },
+        {
+          "kind": "SEND HER HOME WITHOUT IT",
+          "name": "Not Tonight",
+          "text": "You tell her you have nothing new and refuse the coins. She leaves them on the cloth anyway.",
+          "reward": {
+            "coin": 15
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "THE RENT",
+      "title": "He waits at the gate until you come out",
+      "body": "The landlord has heard you are doing well.",
+      "line": "He is not unkind about it, which is worse.",
+      "opts": [
+        {
+          "kind": "PAY HIM ON THE SPOT",
+          "name": "In Front Of The Neighbours",
+          "text": "You count it into his hand at the gate where anyone can see. He is embarrassed and the village decides he was the one in the wrong.",
+          "reward": {
+            "faith": 16
+          }
+        },
+        {
+          "kind": "TELL HIM AFTER THE WEEKEND",
+          "name": "Two More Nights",
+          "text": "He agrees, because he always does. You keep the money and something small goes out of your voice.",
+          "reward": {
+            "coin": 14
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "IT KEEPS COMING UP",
+      "title": "The same card, four evenings running",
+      "body": "You have started to shuffle around it without meaning to.",
+      "line": "A deck does not have opinions. This one is developing something like one.",
+      "opts": [
+        {
+          "kind": "GIVE IT ITS WAY",
+          "name": "Let It In",
+          "card": "Sit In The Silence",
+          "text": "You stop fighting it and put another one in beside it."
+        },
+        {
+          "kind": "THE REMOVAL OF THINGS",
+          "name": "Take Something Out Instead",
+          "text": "If the deck wants to be smaller, you can oblige it. The weakest thing in it goes in the grate.",
+          "reward": {
+            "burn": true
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "THE WAKE",
+      "title": "They want the cards at the house",
+      "body": "The old man went on Thursday and the family cannot stop talking.",
+      "line": "Nobody has mentioned paying you, and nobody is going to.",
+      "opts": [
+        {
+          "kind": "GO AND SIT WITH THEM",
+          "name": "For The Family",
+          "text": "You read for three hours in a kitchen full of people and get the daughter to say the thing she came in holding. No money changes hands.",
+          "reward": {
+            "faith": 22
+          }
+        },
+        {
+          "kind": "STAY AT YOUR OWN TABLE",
+          "name": "The Evening's Custom",
+          "text": "You keep the parlour open instead. Four people come, because a death fills a village with questions.",
+          "reward": {
+            "coin": 18
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "YOUR OWN HANDS",
+      "title": "The cold has got into the joints",
+      "body": "You have been shuffling badly all week and pretending not to notice.",
+      "line": "There is a thing your mother used to do about it.",
+      "opts": [
+        {
+          "kind": "DO WHAT SHE DID",
+          "name": "Salt And Hot Water",
+          "mark": "Salt Under The Nails",
+          "text": "It smells like her kitchen and it works, which you resent."
+        },
+        {
+          "kind": "WORK THROUGH IT",
+          "name": "It Will Pass",
+          "text": "You get through the evening on the strength of not admitting anything, which is a skill in itself and pays about as well.",
+          "reward": {
+            "faith": 11
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "THE OTHER ONE",
+      "title": "A woman two villages over",
+      "body": "She reads cards as well, and better, and everyone says so.",
+      "line": "She has sent word that she would like to meet you.",
+      "opts": [
+        {
+          "kind": "WALK OVER AND ASK HER",
+          "name": "What She Does Differently",
+          "card": "Ask Who Told Them That",
+          "text": "She tells you in about four minutes and refuses to take anything for it."
+        },
+        {
+          "kind": "DO NOT GO",
+          "name": "Let Her Come To You",
+          "text": "You stay where you are. Two of her regulars turn up at your door within the fortnight, mostly to see what the fuss is.",
+          "reward": {
+            "coin": 13
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "THE ROAD IS UNDER WATER",
+      "title": "Nobody is getting through tonight",
+      "body": "It has rained since Sunday and the bridge is a rumour.",
+      "line": "The evening is yours whether you want it or not.",
+      "opts": [
+        {
+          "kind": "WALK ROUND THE LONG WAY",
+          "name": "Six Kilometres In The Wet",
+          "text": "You arrive at the far farm at nine, soaked, and are paid in full and fed. They will tell that story for years.",
+          "reward": {
+            "coin": 16
+          }
+        },
+        {
+          "kind": "SIT WITH THE LAMP",
+          "name": "An Evening Off",
+          "text": "You lay the cards out for nobody and look at them properly for the first time in months.",
+          "reward": {
+            "faith": 12
+          }
+        }
+      ]
+    },
+    {
+      "added": "port",
+      "head": "HE CANNOT PAY IN COIN",
+      "title": "The carpenter brings a box",
+      "body": "It is a good box. He made it in the week and he made it for this.",
+      "line": "He is very clear that it is not charity in either direction.",
+      "opts": [
+        {
+          "kind": "TAKE THE BOX",
+          "name": "Something To Keep Them In",
+          "card": "Set Down The Cloth",
+          "text": "The cards live in it now, and they come out of it differently."
+        },
+        {
+          "kind": "TELL HIM TO KEEP IT",
+          "name": "Sell It Yourself",
+          "text": "You send it back with him and he sells it at the Saturday market, and half of what he gets arrives at your door in an envelope.",
+          "reward": {
+            "coin": 12
+          }
+        }
+      ]
+    },
+    {
+      "_note": "DEMONSTRATOR, paired with the OEIL code in minitel.json. `secret` keeps it out of the ordinary random pool; only Minitel.armed_events() can offer it.",
       "secret": true,
-      "title": "The number nobody answers", "body": "The screen is still on. You did not leave it on.",
-      "head": "THE MINITEL, LATER", "line": "It has been ringing at the other end for some time.",
+      "title": "The number nobody answers",
+      "body": "The screen is still on. You did not leave it on.",
+      "head": "THE MINITEL, LATER",
+      "line": "It has been ringing at the other end for some time.",
       "opts": [
-        { "kind": "LET IT RING", "name": "The Other End", "text": "You sit with it until it stops on its own. Whatever it was, it knows you were there.", "reward": { "faith": 20 } },
-        { "kind": "HANG UP", "name": "Not Tonight", "text": "You put the handset down and unplug the thing at the wall. The evening is quieter and a little poorer.", "reward": { "coin": 8 } }
-      ] }
+        {
+          "kind": "LET IT RING",
+          "name": "The Other End",
+          "text": "You sit with it until it stops on its own. Whatever it was, it knows you were there.",
+          "reward": {
+            "faith": 20
+          }
+        },
+        {
+          "kind": "HANG UP",
+          "name": "Not Tonight",
+          "text": "You put the handset down and unplug the thing at the wall. The evening is quieter and a little poorer.",
+          "reward": {
+            "coin": 8
+          }
+        }
+      ]
+    }
   ]
 }

@@ -68,6 +68,12 @@ const KNOWN := {
 	# so it is neither implemented (that would be inventing a rule the author
 	# never wrote) nor deleted (that would discard the intention).
 	"guard": "dead",
+	# PROVENANCE, not a game field, and deliberately not read by anything. The
+	# eight ordinary events added during the port carry `"added": "port"` so the
+	# game's author can find every line somebody else wrote in one search and
+	# replace it. A marker the code acts on would be a marker that changes the
+	# game; this one only has to be greppable.
+	"added": "dead",
 }
 
 var failures: Array[String] = []

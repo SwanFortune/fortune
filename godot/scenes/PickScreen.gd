@@ -47,6 +47,12 @@ func _ready() -> void:
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:
+	# An option may name its card or mark rather than carry a copy — see
+	# Run.resolve_named(). Resolved HERE as well as in take_pick() so the row a
+	# player reads and the thing they get are the same object; a named card
+	# rendered through the "neither a card nor a mark" branch below would show
+	# its own name as flavour text and no rules at all.
+	o = Run.resolve_named(o)
 	var lines: Array = []
 	var cost := int(o.get("cost", 0))
 	var afford := cost <= int(Run.state["coin"])
@@ -70,6 +76,14 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
 		lines.append([I18n.t(str(o.get("name", ""))), 16, UIKit.INK])
 		lines.append([I18n.t(str(o.get("text", ""))), 12, UIKit.DIM])
+
+	# An option that hands over a card or a mark may still have SOMETHING TO SAY
+	# about it — the events written for the port lean on that line ("It smells
+	# like her kitchen and it works, which you resent"). Only the third branch
+	# above printed `text`, so on a card or a mark the option's own words were
+	# silently thrown away and the row read as a shop entry.
+	if (o.has("card") or o.has("mark")) and str(o.get("text", "")) != "":
+		lines.append([I18n.t(str(o["text"])), 11, UIKit.DIM])
 
 	if cost > 0:
 		lines.append(["Cost: %s centimes" % cost, 12, UIKit.GOLD if afford else UIKit.RED])

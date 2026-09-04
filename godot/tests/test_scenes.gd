@@ -145,6 +145,7 @@ func _visit_standalone() -> void:
 	_test_the_sitters_are_different_people()
 	await _test_somebody_knocks()
 	await _test_the_reading_is_read_out_once()
+	await _test_an_events_own_words_are_shown()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
@@ -525,6 +526,46 @@ func _lay_a_reading() -> void:
 	for c in f["hand"].duplicate():
 		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
 			run.lay_card(c["uid"])
+
+
+## AN OPTION'S OWN WORDS ARE ON THE ROW. Several of the events hand over a card
+## or a mark and say something about it in their own voice; the row that shows a
+## card printed the CARD's rules and flavour and threw the option's line away,
+## which turned an event into a shop entry. Nothing raises when a line of
+## writing is dropped — it just is not there.
+func _test_an_events_own_words_are_shown() -> void:
+	var wanted := {}
+	for e in content.events:
+		for o in e.get("opts", []):
+			if (o.get("card") is String or o.get("mark") is String) and str(o.get("text", "")) != "":
+				wanted[e.get("title", "?")] = str(o["text"])
+				break
+	if wanted.is_empty():
+		printerr("FAIL: no event hands over a card or mark with anything to say — nothing to check")
+		return
+
+	for title: String in wanted:
+		for e in content.events:
+			if str(e.get("title", "")) != title:
+				continue
+			run.state = run.fresh()
+			run.pick_reader(0)
+			run.take_pick(0)
+			run.state["pick"] = run.build_event(e)
+			run.state["screen"] = "pick"
+			var instance: Node = load("res://scenes/PickScreen.tscn").instantiate()
+			root.add_child(instance)
+			await process_frame
+			await process_frame
+			# The first few words are enough, and survive wrapping.
+			var opening: String = str(wanted[title]).substr(0, 28)
+			if not _text_of(instance).contains(opening):
+				printerr("FAIL: '%s' says \'%s...\' about what it gives, and the row does not show it"
+					% [title, opening])
+			instance.queue_free()
+			await process_frame
+			break
+	print("--- %d event(s) hand over a card or a mark and get to say why ---" % wanted.size())
 
 
 ## SOMEBODY KNOCKS. The map screen asks "who knocks tonight?", a run is sixteen

@@ -1121,6 +1121,53 @@ the screen named after it drew none.
 Drawn rather than styled, because a StyleBox can do a rounded beige box and
 cannot do any of the other four, and those four are the difference.
 
+## Eight more evenings
+
+`docs/STEAM_RELEASE.md` has said for a while that the shortage a player would
+notice first is content, and named the number: THREE ordinary events for a
+sixteen-knock run. You see one roughly every five knocks, and you have seen all
+three by the middle of the first night.
+
+There are eleven now. **The eight new ones were written during the port, not by
+the game's author, and they say so**: each carries `"added": "port"`, so the
+whole set can be found and replaced in one search. They follow the source's
+shape exactly — a head, a title, a line, and two options that trade the
+evening's money against what the village thinks of you — because that shape IS
+the game: you are a fraud doing counselling, and every event is the same
+question about whether you take the coin.
+
+`test_dead_content.gd` caught the marker immediately, which is what it is for: a
+field no code reads is either a mistake or a decision, and it now sits in KNOWN
+as a decision, with the reason. A marker the code acted on would be a marker
+that changed the game.
+
+### An option can name its card
+
+Two of the new events hand over a real card and one hands over a mark, which
+needed something the engine did not have. An option may now say
+`"card": "Pour The Tea"` instead of carrying a copy of the card object, and
+`Run.resolve_named()` looks it up against whatever content is loaded.
+
+Inlining the card would have been less code and quietly wrong: an events file
+carrying a copy of a card is a SECOND COPY OF THAT CARD'S RULES. It goes stale
+the moment anyone rebalances the card, a mod that rebalances it does not
+rebalance the copy, and `Save.gd`'s content re-resolution cannot tell the copy
+from the original. The cost of the name is that it can be misspelled, and a
+misspelled name fails in the worst possible way — the option is still offered,
+still reads well, and hands over nothing — so `tests/test_run.gd` walks every
+name in the shipped content and asks whether anything answers to it.
+
+`Run.resolve_named()` is called from the pick SCREEN too, not only from
+`take_pick()`. Without that the row a player reads and the thing they get are
+built from different objects, and a named card fell through to the branch for
+options that are neither a card nor a mark: it printed its own name as flavour
+text and no rules at all.
+
+And the row shows the option's own words. Only that third branch printed
+`text`, so an option that handed over a card threw its line away and read like a
+shop entry — which for these events is the whole voice of them ("It smells like
+her kitchen and it works, which you resent").
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

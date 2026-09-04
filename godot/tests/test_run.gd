@@ -20,6 +20,7 @@ func _initialize() -> void:
 	_test_pick_reader_and_gift()
 	_test_start_fight_and_play_one_reading()
 	_test_full_encounter_to_resolution()
+	_test_named_cards_and_marks_resolve()
 
 	if failures.is_empty():
 		print("ALL PASS")
@@ -33,6 +34,55 @@ func _initialize() -> void:
 func check(cond: bool, label: String) -> void:
 	if not cond:
 		failures.append(label)
+
+
+## AN EVENT THAT NAMES A CARD HAS TO NAME A CARD THAT EXISTS.
+##
+## An option may say `"card": "Pour The Tea"` instead of carrying a whole copy
+## of the card — see Run.resolve_named(), and the reason it exists: an events
+## file that inlines a card is a second copy of that card's rules, which goes
+## stale the moment anyone rebalances it.
+##
+## The cost of that convenience is a name that can be WRONG, and a wrong name
+## fails quietly in the worst possible way: the option is still offered, still
+## says something appealing, and hands the player nothing at all. Every name in
+## the shipped content is checked here, and so is the behaviour on a bad one.
+func _test_named_cards_and_marks_resolve() -> void:
+	var named := 0
+	for e in content.events:
+		for o in e.get("opts", []):
+			for key: String in ["card", "mark"]:
+				if not (o.get(key) is String):
+					continue
+				named += 1
+				var got: Dictionary = run.resolve_named(o)
+				check(got.has(key) and got[key] is Dictionary,
+					"event '%s' offers %s '%s', which no loaded pack has" % [e.get("title", "?"), key, o[key]])
+	check(named > 0, "no event names a card or a mark — the resolver is not exercised by the content")
+
+	# A name nothing answers to drops the key rather than crashing or handing
+	# out an empty card. A pack that removes a card an event names is a mistake
+	# to report, not a run to end.
+	print("--- the next two WARNINGs are expected: deliberately unknown names ---")
+	var bad: Dictionary = run.resolve_named({"card": "A Card That Does Not Exist", "kind": "X"})
+	check(not bad.has("card"), "an unknown card name should be dropped, not offered empty")
+	check(bad.get("kind", "") == "X", "resolving should leave the rest of the option alone")
+	var bad_mark: Dictionary = run.resolve_named({"mark": "No Such Mark"})
+	check(not bad_mark.has("mark"), "an unknown mark name should be dropped, not offered empty")
+
+	# And the whole path: take an option that names a card, get that card.
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	var before: int = run.state["deck"].size()
+	run.state["pick"] = {"kind": "rest", "opts": [{"card": "Pour The Tea", "kind": "TEST"}]}
+	run.take_pick(0)
+	var deck: Array = run.state["deck"]
+	check(deck.size() == before + 1, "taking a named card should add exactly one card to the deck")
+	if deck.size() == before + 1:
+		check(str(deck[-1].get("n", "")) == "Pour The Tea",
+			"the card added was '%s', not the one the option named" % deck[-1].get("n", ""))
+		check(deck[-1].has("uid"), "a card taken by name still needs its own uid")
 
 
 func _test_fresh_state() -> void:
