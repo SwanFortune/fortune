@@ -601,6 +601,14 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 	var v := vbox(2)
 	for entry in lines:
 		var text: String = entry[0]
+		# An empty line is a line NOT PRINTED, not a blank one. Callers build
+		# these rows by appending whatever a card or a mark happens to have, and
+		# a plain card — one with no rule beyond restoring — yields an empty
+		# rules string. Printed, that is a visible gap between the price and the
+		# flavour that reads as something missing, which is exactly what a player
+		# would report it as.
+		if text.strip_edges() == "":
+			continue
 		var size: int = entry[1] if entry.size() > 1 else 14
 		var color: Color = entry[2] if entry.size() > 2 else INK
 		v.add_child(block(text, size, color))
@@ -1416,10 +1424,6 @@ static func card_text(c: Dictionary) -> String:
 const CARD_FACE_SIZE := Vector2(122, 158)
 
 
-## The card face at the current text scale. A fixed 122x158 with 30% larger
-## type in it clips the name, so the card grows with the words — checked
-## visually at both ends of the range, which is the only way this kind of thing
-## is ever actually checked.
 ## How much bigger a card is at the current interface size. Less than the text
 ## scale itself (four fifths of it): the words inside a card have to grow with
 ## the setting, but a card that grew at the full rate would leave no table.
@@ -1432,8 +1436,13 @@ static func card_scale() -> float:
 	return lerpf(1.0, text_scale, 0.8)
 
 
+## The card face at the current text scale. A fixed 122x158 with 30% larger
+## type in it clips the name, so the card grows with the words — checked
+## visually at both ends of the range, which is the only way this kind of thing
+## is ever actually checked.
 static func card_face_size() -> Vector2:
 	return CARD_FACE_SIZE * card_scale()
+
 
 ## A fixed-size card face for the hand fan — cost top-left, base restore
 ## top-right, name centered, element-colored border; the full mechanic text,
@@ -1443,7 +1452,16 @@ static func card_face_size() -> Vector2:
 ## is a tooltip") more closely than the roomy panel_button rows PickScreen
 ## and the pre-fan hand list use — those stay as they are; a reward/shop
 ## choice benefits from full text visible, a hand fan does not.
-static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true) -> Control:
+## `enabled` and `interactive` are two different things and were one. `enabled`
+## false is a card you cannot afford: greyed, and it says so. `interactive`
+## false is a card that is only being SHOWN — the deck list is the whole of it
+## today — at full strength, but taking neither the pointer nor the focus.
+##
+## Without the second, a face used as an illustration is in the keyboard's way:
+## the ten cards in the deck panel were ten focus stops that did nothing when
+## pressed, standing between the player and the CLOSE button.
+static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true,
+		interactive: bool = true) -> Control:
 	var wrap := PanelContainer.new()
 	wrap.custom_minimum_size = card_face_size()
 	var el = c.get("el")
@@ -1465,7 +1483,11 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true)
 		el_c if enabled else Color(el_c, 0.35), 2, 8, 1.0 if enabled else 0.0)
 	wrap.add_theme_stylebox_override("panel", style)
 
-	make_interactive(wrap, style, on_pressed, enabled)
+	if interactive:
+		make_interactive(wrap, style, on_pressed, enabled)
+	else:
+		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		wrap.focus_mode = Control.FOCUS_NONE
 
 	var v := vbox(4)
 	var top := hbox(0)

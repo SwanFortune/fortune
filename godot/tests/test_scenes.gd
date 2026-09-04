@@ -184,6 +184,7 @@ func _visit_standalone() -> void:
 	await _test_look_settings_reach_a_built_screen()
 	await _test_the_hand_stays_on_screen()
 	await _test_a_spent_reading_can_still_be_played()
+	await _test_an_offered_card_shows_its_price()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -622,6 +623,19 @@ func _test_the_reading_shows_its_own_maths() -> void:
 		if not laid_one:
 			break
 	f = run.state["f"]
+	# AND ENOUGH ENERGY LEFT FOR ONE OF THEM. Leaving a card in hand is not
+	# enough to have a card to focus: an unaffordable card is disabled, and a
+	# disabled control cannot take focus. Since focus_first gained a fallback,
+	# the screen correctly puts focus on the header instead — so this test, which
+	# is about a CARD's text being reachable without a mouse, was reading the
+	# tooltip of a header chip and reporting that the card carried no text.
+	# The state it is about is one where a card can be focused, so it is set up
+	# rather than hoped for.
+	var cheapest := 99
+	for c in f["hand"]:
+		cheapest = mini(cheapest, int(c.get("cost", 0)))
+	if not f["hand"].is_empty() and int(f["energy"]) < cheapest:
+		f["energy"] = cheapest
 	var sim: Dictionary = rules.simulate(run.run_ctx(), f)
 	var room: int = maxi(0, int(f["max"]) - maxi(0, int(f["hp"])))
 	var expect_land: int = mini(int(sim.get("applied", 0)), room)
@@ -1325,6 +1339,69 @@ func _test_a_spent_reading_can_still_be_played() -> void:
 		printerr("FAIL: precondition — no reading ran out of energy with cards still in hand, so this checked nothing")
 	else:
 		print("--- a reading with the energy spent still has somewhere to put focus (%d checked) ---" % checked)
+
+
+## A CARD YOU ARE OFFERED SAYS WHAT IT COSTS AND WHAT IT RESTORES.
+##
+## The reward and shop rows carried the name, whatever extra rule the card had,
+## and the flavour — and not the two numbers that define it. Rules.auto_text()
+## only describes what a card does BEYOND restoring, so a plain card had an
+## empty rules line and the row read: a name, a blank, and a line of flavour.
+## Choosing which card joins your deck for the rest of the run is the most
+## consequential decision in a deckbuilder, and it was being made blind.
+##
+## Checked against the CONTENT, not against the screen's own idea of itself: the
+## numbers on the row have to be the ones in the card dictionary, which is what
+## makes this fail if the face is dropped, greyed out, or wired to the wrong
+## card. And checked on a plain card specifically — one with no extra rule is
+## the case that was worst and the one a sample of three might well miss.
+func _test_an_offered_card_shows_its_price() -> void:
+	var plain := {}
+	for c in content.cards_minor:
+		if str(c.get("a", "")) == "" and not c.has("text") and int(c.get("cost", 0)) > 0:
+			plain = c
+			break
+	if plain.is_empty():
+		printerr("FAIL: precondition — no plain card in the content to offer")
+		return
+
+	run.state = run.fresh("offer")
+	run.pick_reader(0)
+	run.take_pick(0)
+	# One option, and it is the card whose numbers we know.
+	run.state["pick"] = {
+		"head": "", "title": "Take one", "kind": "reward", "body": "",
+		"opts": [{"card": plain.duplicate(true), "kind": "", "cost": 0}],
+		"skippable": true,
+	}
+	run.state["screen"] = "pick"
+
+	var instance: Node = load("res://scenes/PickScreen.tscn").instantiate()
+	root.add_child(instance)
+	for i in 4:
+		await process_frame
+	# ONE line carrying BOTH numbers, rather than either digit appearing loose
+	# somewhere on a screen that also holds a coin purse and a faith score. Not
+	# matched on the wording, so rephrasing the line — or translating it — does
+	# not break this; what is asserted is that the card's own cost and restore
+	# reach the player together.
+	var cost := str(plain.get("cost", 0))
+	var restore := str(plain.get("f", 0))
+	var said := ""
+	for node in _all_of(instance, []):
+		if node is Label:
+			var text: String = (node as Label).text
+			if text.contains(cost) and text.contains(restore):
+				said = text
+				break
+	instance.queue_free()
+	await process_frame
+
+	if said == "":
+		printerr("FAIL: '%s' costs %s and restores %s, and no line on the offer says both"
+			% [plain.get("n", "?"), cost, restore])
+	else:
+		print("--- a card you are offered says what it costs and what it restores ('%s') ---" % said.strip_edges())
 
 
 ## Builds the main menu under the given look settings and reports the first

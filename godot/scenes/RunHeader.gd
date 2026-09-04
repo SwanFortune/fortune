@@ -270,7 +270,11 @@ static func _show_deck(host: Node) -> void:
 		names.sort()
 		for n in names:
 			var box := UIKit.vbox(2)
-			box.add_child(UIKit.card_face(first[n], func(): pass, true))
+			# Shown, not pressable. These were focusable and did nothing when
+			# pressed, so a keyboard player paging through a ten-card deck met
+			# ten dead stops before reaching CLOSE — which is now what focus
+			# lands on when the overlay opens.
+			box.add_child(UIKit.card_face(first[n], Callable(), true, false))
 			var count_l := UIKit.label("x%d" % counts[n], 12, UIKit.GOLD if counts[n] > 1 else UIKit.DIM)
 			count_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			box.add_child(count_l)
