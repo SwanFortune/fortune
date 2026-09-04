@@ -416,6 +416,26 @@ func _apply_display() -> void:
 	Engine.max_fps = int(get_value("max_fps"))
 
 
+## WHAT THE DRIVER ACTUALLY DID with the vsync request, as one of VSYNC_MODES,
+## or "" when there is no display to ask.
+##
+## Asked for rather than assumed, because this is the one video setting that can
+## be refused: a driver may simply not support changing it, and Godot then warns
+## on the console — which no player reads. Under this project's own test
+## environment (Xvfb software GL) every mode is refused, so the setting cannot
+## be verified here at all; on real hardware it is honoured. The settings screen
+## prints the disagreement so whoever is running the build can see the truth on
+## their own machine instead of taking a porter's word for it.
+func vsync_actual() -> String:
+	if DisplayServer.get_name() == "headless":
+		return ""
+	match DisplayServer.window_get_vsync_mode():
+		DisplayServer.VSYNC_DISABLED: return "off"
+		DisplayServer.VSYNC_ADAPTIVE: return "adaptive"
+		DisplayServer.VSYNC_MAILBOX: return "on"
+		_: return "on"
+
+
 ## The stored "WxH" as a size, clamped to the screen so a resolution carried
 ## over from a bigger monitor cannot open a window nobody can reach.
 func _resolution_size() -> Vector2i:

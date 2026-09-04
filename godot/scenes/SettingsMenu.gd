@@ -139,7 +139,16 @@ func _pane_video(v: VBoxContainer) -> void:
 		"vsync", I18n.t("V-Sync"),
 		I18n.t("On removes tearing. Adaptive tears rather than halving the frame rate when a frame is missed."),
 		Settings.VSYNC_MODES,
-		[I18n.t("Off"), I18n.t("On"), I18n.t("Adaptive")]))
+		[I18n.t("Off"), I18n.t("On"), I18n.t("Adaptive")], true, _build))
+	# WHAT THE DRIVER ACTUALLY DID. V-Sync is the one video setting a driver may
+	# simply refuse — Godot warns on the console, which no player reads, and the
+	# row then shows a choice the machine is not honouring. Said out loud only
+	# when the two disagree, so it is news rather than furniture.
+	var got := Settings.vsync_actual()
+	if got != "" and got != str(Settings.get_value("vsync")):
+		v.add_child(UIKit.block(I18n.t(
+			"Your graphics driver reports V-Sync is %s and will not change it."
+		) % got, 11, UIKit.GOLD))
 	v.add_child(UIKit.setting_slider(
 		"max_fps", I18n.t("Frame rate cap"),
 		I18n.t("Caps the whole main loop. Useful on a laptop — this game does not need 240 frames a second."),
