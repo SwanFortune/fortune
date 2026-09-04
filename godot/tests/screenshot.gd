@@ -95,7 +95,10 @@ func _initialize() -> void:
 			printerr("no button matching '%s' found" % args[4])
 		for i in 3:
 			await process_frame
-		await create_timer(0.6).timeout
+		# Optional 6th arg: how long to wait AFTER the press. 0.6s is right for
+		# an overlay that just appears; the reading being read out takes a
+		# couple of seconds and was being caught halfway through.
+		await create_timer(float(args[5]) if args.size() > 5 else 0.6).timeout
 
 	if OS.get_environment("PARLOUR_DEBUG_SIZES") == "1":
 		_debug_sizes(instance)
@@ -215,6 +218,19 @@ func _setup(name: String) -> void:
 						worn.append(m)
 						break
 			run.state["marks"] = worn
+		"reading_wall":
+			# The same, against the one sign that has a denial WALL, so the
+			# ledger's "their denial holds it off" line has something to show.
+			_setup("read_taurus")
+			var wf: Dictionary = run.state["f"]
+			for wc in wf["hand"].duplicate():
+				if int(wc.get("cost", 0)) <= int(run.state["f"]["energy"]):
+					run.lay_card(wc["uid"])
+		"reading":
+			# The reading being READ OUT: the ledger that writes itself when READ
+			# IT is pressed. Screenshot it by laying a hand and then pressing the
+			# button through the tool's 5th argument.
+			_setup("read_laid")
 		"read_laid":
 			_setup("read")
 			var f: Dictionary = run.state["f"]

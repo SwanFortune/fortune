@@ -26,6 +26,21 @@ const PHOSPHOR_WARN := Color(0.95, 0.78, 0.42)
 ## Roughly the width of a Minitel 1B's screen at this font size. See _build().
 const COLUMN_WIDTH := 600
 
+## The case around the tube. The screen had a green rectangle on it and nothing
+## else, which is a terminal emulator; the machine itself — the beige box, the
+## bezel, the curved dark glass, the scan lines and the little red light that
+## says it is on — is most of what anyone remembers about a Minitel, and it was
+## the one thing the game draws on the parlour table (see scenes/Table.gd) and
+## did not draw on the screen named after it.
+const TUBE_HEIGHT := 150
+const CASE_PAD := 26
+const CASE_FOOT := 30
+const CASE := Color(0.42, 0.39, 0.33)
+const CASE_LIT := Color(0.50, 0.46, 0.39)
+const CASE_SHADE := Color(0.27, 0.25, 0.21)
+const BEZEL := Color(0.13, 0.12, 0.10)
+const POWER_LED := Color(0.92, 0.30, 0.22)
+
 var _return_scene: String = "res://scenes/MainMenu.tscn"
 
 ## The last submit()'s result, or {} before the first one. Only ever produced
@@ -89,19 +104,31 @@ func _build() -> void:
 ## the service's own idle line, so the screen is never a blank rectangle the
 ## player has to guess at.
 func _terminal() -> Control:
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var style := StyleBoxFlat.new()
-	style.bg_color = SCREEN_BG
-	style.set_content_margin_all(16)
-	style.set_border_width_all(2)
-	style.border_color = Color(0.2, 0.3, 0.24)
-	panel.add_theme_stylebox_override("panel", style)
+	var stack := Control.new()
+	stack.custom_minimum_size.y = TUBE_HEIGHT + CASE_PAD * 2 + CASE_FOOT
+	stack.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	# The machine, drawn behind the text. A plain Control rather than a
+	# PanelContainer with a StyleBox: a StyleBox can do a rounded beige box and
+	# cannot do scan lines, a curved glass edge or a power light, and those are
+	# the three things that make it a Minitel rather than a green rectangle.
+	var skin := Control.new()
+	skin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	skin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	skin.draw.connect(func(): _draw_case(skin))
+	skin.resized.connect(func(): skin.queue_redraw())
+	stack.add_child(skin)
+
+	var pad := MarginContainer.new()
+	pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for side in ["left", "top", "right"]:
+		pad.add_theme_constant_override("margin_" + side, CASE_PAD + 12)
+	pad.add_theme_constant_override("margin_bottom", CASE_PAD + CASE_FOOT + 12)
+	stack.add_child(pad)
 
 	var v := UIKit.vbox(2)
-	# Four service lines plus a blank row, so the tube keeps its shape whether
-	# a code printed one line or five and the composer below never jumps.
-	v.custom_minimum_size.y = 118
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for line in _screen_lines():
 		# An empty line in a service's text is a deliberate blank row, and a
 		# Label with no text collapses to nothing — so it becomes a spacer of
@@ -112,8 +139,93 @@ func _terminal() -> Control:
 			v.add_child(sp)
 		else:
 			v.add_child(UIKit.block(str(line[0]), 15, line[1]))
-	panel.add_child(v)
-	return panel
+	v.add_child(_cursor())
+	pad.add_child(v)
+	return stack
+
+
+## The block cursor sitting under the last line, blinking. A cathode terminal
+## with nothing blinking on it looks switched off.
+func _cursor() -> Control:
+	var caret := ColorRect.new()
+	caret.color = PHOSPHOR
+	caret.custom_minimum_size = Vector2(10, 15)
+	caret.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	caret.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not UIKit.motion_off():
+		var t := UIKit.bound_tween(caret)
+		t.set_loops()
+		t.tween_property(caret, "modulate:a", 0.0, UIKit.dur(0.01)).set_delay(UIKit.dur(0.5))
+		t.tween_property(caret, "modulate:a", 1.0, UIKit.dur(0.01)).set_delay(UIKit.dur(0.5))
+	return caret
+
+
+## The beige box, the bezel, the glass and the light.
+func _draw_case(c: Control) -> void:
+	var s := c.size
+	if s.x < 40.0 or s.y < 40.0:
+		return
+	var body := Rect2(Vector2.ZERO, s)
+	_rounded(c, body, 12.0, CASE_SHADE)
+	_rounded(c, Rect2(body.position, body.size - Vector2(0, 3)), 12.0, CASE)
+	# The lit top edge, which is what makes moulded plastic read as moulded.
+	c.draw_line(Vector2(14, 2), Vector2(s.x - 14, 2), Color(CASE_LIT, 0.9), 2.0, true)
+
+	# The bezel, then the glass sunk into it.
+	var glass := Rect2(CASE_PAD, CASE_PAD, s.x - CASE_PAD * 2.0, s.y - CASE_PAD - CASE_FOOT)
+	_rounded(c, glass.grow(5.0), 9.0, BEZEL)
+	_rounded(c, glass, 7.0, SCREEN_BG)
+
+	# The phosphor haze, brightest in the middle where the text is.
+	for i in range(6, 0, -1):
+		var f := float(i) / 6.0
+		c.draw_circle(glass.position + glass.size * Vector2(0.5, 0.45),
+			glass.size.x * 0.52 * f, Color(PHOSPHOR, 0.012))
+
+	# Scan lines. Three pixels apart is what reads as a tube rather than as a
+	# hatch pattern, and the alpha has to stay low enough to leave the words
+	# alone — the point is the surface, not the effect.
+	var y := glass.position.y + 1.0
+	while y < glass.end.y:
+		c.draw_line(Vector2(glass.position.x + 2.0, y), Vector2(glass.end.x - 2.0, y),
+			Color(0, 0, 0, 0.16), 1.0)
+		y += 3.0
+
+	# The corners of the glass, going off into the dark the way a curved tube
+	# does. Four soft wedges rather than a real barrel distortion, which would
+	# need a shader and would be the wrong amount of work for a bezel.
+	for i in 10:
+		var f := float(i) / 10.0
+		var inset := glass.grow(-glass.size.y * 0.42 * f)
+		c.draw_rect(Rect2(glass.position, Vector2(glass.size.x, inset.position.y - glass.position.y)), Color(0, 0, 0, 0.035))
+		c.draw_rect(Rect2(glass.position.x, inset.end.y, glass.size.x, glass.end.y - inset.end.y), Color(0, 0, 0, 0.035))
+
+	# The foot: vents, and the light that says it is on.
+	var foot_y := glass.end.y + 12.0
+	for i in 9:
+		var vx := s.x - CASE_PAD - 8.0 - float(i) * 9.0
+		c.draw_line(Vector2(vx, foot_y), Vector2(vx, foot_y + 9.0), Color(CASE_SHADE, 0.85), 3.0)
+	c.draw_circle(Vector2(CASE_PAD + 6.0, foot_y + 5.0), 6.0, Color(POWER_LED, 0.18))
+	c.draw_circle(Vector2(CASE_PAD + 6.0, foot_y + 5.0), 2.6, POWER_LED)
+
+
+## A filled rounded rectangle. Same construction as scenes/Table.gd's; kept
+## local because this screen is the only thing in the file that needs one.
+func _rounded(c: Control, rect: Rect2, r: float, col: Color) -> void:
+	r = minf(r, minf(rect.size.x, rect.size.y) * 0.5)
+	var pts := PackedVector2Array()
+	const CORNERS := [[PI, 1.5 * PI], [1.5 * PI, TAU], [0.0, 0.5 * PI], [0.5 * PI, PI]]
+	var centres := [
+		rect.position + Vector2(r, r),
+		rect.position + Vector2(rect.size.x - r, r),
+		rect.end - Vector2(r, r),
+		rect.position + Vector2(r, rect.size.y - r),
+	]
+	for i in 4:
+		for j in 7:
+			var a: float = lerpf(CORNERS[i][0], CORNERS[i][1], float(j) / 6.0)
+			pts.append(centres[i] + Vector2(cos(a), sin(a)) * r)
+	c.draw_colored_polygon(pts, col)
 
 
 ## [text, colour] rows for the tube.

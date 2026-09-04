@@ -1072,6 +1072,55 @@ make the game go quiet, and the easy version of this feature is one early return
 that does exactly that. `Audio.played` — a count per event — exists so a
 headless test can hear it; there was no other way to assert a sound.
 
+## The reading is read out
+
+READ IT resolved the whole reading between two frames and left for the next
+screen. That is where the game's mechanic actually pays off — a line of cards
+chained by their elements, a wall that eats the front of it, and whatever is
+left landing on the person opposite — and none of it was ever visible. Which is
+a fair part of why it is the hardest thing in the game to learn: the rule ran,
+and the player saw a number change on a screen they had already left.
+
+It is read out now, as a ledger that writes itself, in the order the rule
+actually works:
+
+1. a line per card, with the LINK NAMED next to what it paid. This is the only
+   place in the game a player is shown *why* a card scored what it scored while
+   looking at the card that did it;
+2. the wall taking its share — shown only when it took something, because a
+   line saying "the wall held off 0" teaches the opposite of the rule;
+3. what actually reaches them, which is the number that mattered all along and
+   was never once seen arriving.
+
+**It is skippable and it never blocks.** Any key, a click, or READ IT again
+jumps to the end. With animation turned off there is no ledger at all — the
+old behaviour, unchanged.
+
+**And it resolves exactly once.** That is the whole risk in this feature and it
+is invisible from outside: there is now a two-second window in which the reading
+has been asked for and has not happened, and everything a player can do in that
+window has to land on the same resolution. Resolving twice would lay the entire
+line a second time — double composure, double faith, a reading nobody played —
+and the screen would look right either way. `tests/test_scenes.gd` asserts the
+turn advances by exactly one.
+
+Writing that test turned up a mistake worth recording: the first version watched
+`Run.state["res"]`, which is only set when the whole ENCOUNTER ends, not after an
+ordinary reading. It reported two failures that were not there. The observable
+is the reading number.
+
+## The Minitel had no Minitel in it
+
+The screen the game names after the machine was a green rectangle with text in
+it, which is a terminal emulator. The machine — the beige box, the bezel, the
+curved dark glass, the scan lines, the blinking block cursor and the little red
+light that says it is on — is most of what anyone remembers about a Minitel, and
+the game was already drawing one on the parlour table (`scenes/Table.gd`) while
+the screen named after it drew none.
+
+Drawn rather than styled, because a StyleBox can do a rounded beige box and
+cannot do any of the other four, and those four are the difference.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

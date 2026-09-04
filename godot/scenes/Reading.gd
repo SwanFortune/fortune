@@ -348,13 +348,179 @@ func _lay(card_uid: String) -> void:
 	Nav.goto_for_state()
 
 
+## READ IT resolved the whole reading in one frame and left for the next
+## screen. That is where the game's mechanic actually pays off — a line of cards
+## chained by their elements, a wall that eats the front of it, and whatever is
+## left landing on the person opposite — and all of it happened between two
+## frames. Nobody could see the rule they had just used, which is the reason it
+## is the hardest thing in the game to learn.
+##
+## It is read out now, in the order the rule works: card by card with each link
+## named, then the wall taking its share, then what actually reaches them.
+const REVEAL_LINE := 0.24        ## per card
+const REVEAL_WALL := 0.38        ## the wall taking its share
+const REVEAL_LAND := 0.55        ## what reaches them
+const REVEAL_HOLD := 0.45        ## before the screen changes
+const REVEAL_WIDTH := 560.0
+
+## Set for the length of the reveal, so a second READ IT (or the shortcut, or a
+## click) skips to the end rather than resolving the reading twice.
+var _revealing := false
+
+
 func _read_it() -> void:
+	if _revealing:
+		_finish_read()
+		return
+	if UIKit.motion_off():
+		_finish_read()
+		return
+	_revealing = true
+	_reveal()
+
+
+func _finish_read() -> void:
+	_revealing = false
 	Audio.play("reading_resolve")
 	Run.read_it()
 	Nav.goto_for_state()
 
 
+## The reading, read out. A ledger that writes itself: one line per card with
+## the link named, then the wall, then what lands.
+##
+## Built over the whole screen rather than woven into it, for the same reason
+## the deck overlay is: this screen rebuilds itself from scratch on every
+## action, so anything that has to survive a couple of seconds is safer as one
+## node that owns its own lifetime.
+func _reveal() -> void:
+	var f: Dictionary = Run.state["f"]
+	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f)
+	var rows: Array = sim.get("rows", [])
+
+	var over := Control.new()
+	over.name = "Reveal"
+	over.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# Eats clicks, so the cards underneath cannot be played mid-reading.
+	over.mouse_filter = Control.MOUSE_FILTER_STOP
+	over.gui_input.connect(func(e: InputEvent):
+		if e is InputEventMouseButton and (e as InputEventMouseButton).pressed:
+			_finish_read()
+	)
+	add_child(over)
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.62)
+	scrim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	over.add_child(scrim)
+
+	var m := UIKit.margin(48)
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	over.add_child(m)
+	var centre := UIKit.vbox(0)
+	centre.alignment = BoxContainer.ALIGNMENT_CENTER
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(centre)
+
+	# A panel, not bare labels over the screen. The reading screen behind this
+	# is busy — a portrait, two bars, a fan of cards, a room — and a ledger
+	# written straight onto it was unreadable however dark the scrim got.
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.custom_minimum_size.x = REVEAL_WIDTH * UIKit.text_scale
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(UIKit.PANEL, 0.97)
+	box.border_color = Color(UIKit.GOLD, 0.30)
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(6)
+	box.set_content_margin_all(22)
+	panel.add_theme_stylebox_override("panel", box)
+	centre.add_child(panel)
+	var v := UIKit.vbox(8)
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(v)
+
+	v.add_child(UIKit.block(I18n.t("YOU READ IT OUT"), 13, UIKit.DIM))
+	var at := 0.0
+	for row in rows:
+		var line := UIKit.hbox(10)
+		line.add_child(UIKit.label(str(row.get("name", "")), 15, UIKit.INK))
+		# The link is the rule. Naming it here, next to what it paid, is the
+		# only place in the game the player is shown WHY a card scored what it
+		# scored while they are looking at the card that did it.
+		var link := str(row.get("link", ""))
+		if link != "":
+			line.add_child(UIKit.label(I18n.t(link).to_upper(), 11, UIKit.el_color(str(row.get("el", "")))))
+		var note := str(row.get("note", ""))
+		if note != "":
+			line.add_child(UIKit.label("· " + I18n.t(note), 11, UIKit.DIM))
+		var pts := UIKit.label("+%s" % row.get("total", 0), 15, UIKit.GREEN)
+		pts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pts.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		line.add_child(pts)
+		v.add_child(line)
+		UIKit.animate_in(line, at, 0.22)
+		_beat(at, "card_lay")
+		at += REVEAL_LINE
+
+	# The wall, which is the part players get wrong. It is only shown when it
+	# actually took something — a line saying "the wall held off 0" teaches the
+	# opposite of the rule.
+	var absorbed := int(sim.get("absorbed", 0))
+	if absorbed > 0:
+		at += REVEAL_WALL - REVEAL_LINE
+		var wall := UIKit.hbox(10)
+		wall.add_child(UIKit.label(I18n.t("Their denial holds it off"), 14, UIKit.RED))
+		var lost := UIKit.label("−%d" % absorbed, 15, UIKit.RED)
+		lost.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		lost.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		wall.add_child(lost)
+		v.add_child(wall)
+		UIKit.animate_in(wall, at, 0.22)
+		_beat(at, "card_discard")
+
+	# And what actually reaches them, which is the number that mattered all
+	# along and was never shown arriving.
+	at += REVEAL_LAND
+	var applied := int(sim.get("applied", 0))
+	var landed := UIKit.hbox(10)
+	landed.add_child(UIKit.label(
+		I18n.t("Composure") if applied > 0 else I18n.t("Nothing reaches them"), 18, UIKit.INK))
+	if applied > 0:
+		var got := UIKit.label("+%d" % applied, 22, UIKit.GREEN)
+		got.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		got.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		landed.add_child(got)
+	v.add_child(landed)
+	UIKit.animate_in(landed, at, 0.28)
+	_beat(at, "reading_resolve")
+	v.add_child(UIKit.block(I18n.t("(any key)"), 10, UIKit.DIM))
+
+	var done := get_tree().create_timer(UIKit.dur(at + REVEAL_HOLD))
+	done.timeout.connect(func():
+		if _revealing:
+			_finish_read()
+	)
+
+
+## One sound, `delay` seconds from now. Same shape as _deal_sound().
+func _beat(delay: float, event: String) -> void:
+	if delay <= 0.0:
+		Audio.play(event)
+		return
+	get_tree().create_timer(UIKit.dur(delay)).timeout.connect(func(): Audio.play(event))
+
+
 func _unhandled_input(event: InputEvent) -> void:
+	# Any key at all skips the reading being read out. A player on their
+	# fortieth reading knows what the wall does.
+	if _revealing and (event is InputEventKey or event is InputEventJoypadButton) \
+			and event.is_pressed() and not event.is_echo():
+		_finish_read()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("parlour_read"):
 		_read_it()
 		get_viewport().set_input_as_handled()

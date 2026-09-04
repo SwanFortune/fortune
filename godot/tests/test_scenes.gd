@@ -144,6 +144,7 @@ func _visit_standalone() -> void:
 	await _test_the_last_card_floats()
 	_test_the_sitters_are_different_people()
 	await _test_somebody_knocks()
+	await _test_the_reading_is_read_out_once()
 	await _test_every_settings_section_builds()
 	await _test_look_settings_reach_a_built_screen()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
@@ -438,6 +439,92 @@ func _test_the_last_card_floats() -> void:
 		instance.queue_free()
 		await process_frame
 	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+
+
+## THE READING IS READ OUT — and, crucially, is resolved EXACTLY ONCE.
+##
+## READ IT used to resolve the whole reading between two frames and leave for
+## the next screen. It now writes a ledger first: a line per card with its link
+## named, then the wall taking its share, then what reaches them. Which means
+## there is a window, a couple of seconds long, in which the reading has been
+## asked for and has not happened — and in that window the player can press READ
+## IT again, press a key, or click. Every one of those has to land on the same
+## resolution.
+##
+## Resolving twice would lay the whole line a second time: double composure,
+## double faith, a reading the player never played. It is the one thing about
+## this that would be a real bug rather than a cosmetic one, and it is invisible
+## from the outside — the screen looks right either way.
+func _test_the_reading_is_read_out_once() -> void:
+	var settings: Node = root.get_node("Settings")
+	var was: float = float(settings.get_value("animation_scale"))
+
+	for motion: bool in [true, false]:
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		_lay_a_reading()
+		# A reading advancing is the observable, not Run.state["res"] — `res` is
+		# only set when the whole ENCOUNTER ends, so a first pass at this test
+		# asserted against a field that is empty after every ordinary reading and
+		# reported two failures that were not there.
+		var turn_before := int(run.state["f"]["turn"])
+
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		await process_frame
+		await process_frame
+
+		instance._read_it()
+		await process_frame
+		var reveal := instance.find_child("Reveal", true, false)
+
+		if motion:
+			if _turn_now() != turn_before:
+				printerr("FAIL: READ IT resolved the reading before reading it out — nobody sees the ledger")
+			if reveal == null:
+				printerr("FAIL: READ IT with motion on shows no ledger at all")
+			# Everything a player can do in that window ends the SAME reading.
+			instance._read_it()
+			instance._read_it()
+			await process_frame
+			var after := _turn_now()
+			if after == turn_before:
+				printerr("FAIL: pressing READ IT during the ledger did not finish the reading")
+			elif after > turn_before + 1:
+				printerr("FAIL: the reading advanced %d turns from one READ IT — it resolved more than once"
+					% (after - turn_before))
+		else:
+			if _turn_now() == turn_before:
+				printerr("FAIL: with motion off READ IT did not resolve — the player is waiting on nothing")
+			if reveal != null:
+				printerr("FAIL: motion is off and the ledger is animating anyway")
+		instance.queue_free()
+		await process_frame
+
+	settings.set_value("animation_scale", was)
+	print("--- the reading is read out, and resolves exactly once ---")
+
+
+## The reading number, or -1 once the encounter itself has ended (a reading big
+## enough to mend them takes the fight with it, and there is no `f` left to ask).
+func _turn_now() -> int:
+	if not run.state.get("res", {}).is_empty():
+		return -1
+	return int(run.state.get("f", {}).get("turn", -2))
+
+
+## A reading with everything affordable already laid, ready for READ IT.
+func _lay_a_reading() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	for c in f["hand"].duplicate():
+		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
 
 
 ## SOMEBODY KNOCKS. The map screen asks "who knocks tonight?", a run is sixteen
