@@ -144,6 +144,7 @@ func _visit_standalone() -> void:
 	await _test_the_last_card_floats()
 	_test_the_sitters_are_different_people()
 	await _test_somebody_knocks()
+	await _test_the_reading_shows_its_own_maths()
 	await _test_the_reading_is_read_out_once()
 	await _test_an_events_own_words_are_shown()
 	await _test_every_settings_section_builds()
@@ -440,6 +441,128 @@ func _test_the_last_card_floats() -> void:
 		instance.queue_free()
 		await process_frame
 	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+
+
+## YOU CAN SEE WHAT YOUR PLAY WILL DO BEFORE YOU COMMIT TO IT.
+##
+## Three things the reading screen now shows and did not, each of which is
+## invisible when it breaks — the screen looks perfectly reasonable without
+## any of them, which is how they were missing for the whole port:
+##
+##   - THE PROJECTION on the composure bar: what the cards already on the table
+##     would restore, and how much of it the sitter's denial would eat first.
+##     This is the source prototype's own three-segment bar (v23 line ~726) and
+##     it was not ported. Checked against the engine, not against itself: the
+##     number on screen has to be the number Rules.simulate() produces, or the
+##     bar is a decoration that lies;
+##   - THE PILES. Every deckbuilder shows how many cards are left to draw;
+##   - A CARD'S TEXT WITHOUT A MOUSE. It lived in a hover tooltip, and a hover
+##     is something a gamepad cannot do, so a controller player could reach
+##     every card, play them, and never read what one of them did.
+func _test_the_reading_shows_its_own_maths() -> void:
+	var rules: Node = root.get_node("Rules")
+	# Autoloads are not bare identifiers in a `godot -s` script — the tree is
+	# reachable, the globals are not. Same reason every other test here says
+	# root.get_node("Save").
+	var i18n: Node = root.get_node("I18n")
+	# ONE card laid, not the whole hand: the projection needs something on the
+	# table, and the card-text check needs something still IN hand to focus. A
+	# first pass reused the "lay everything" helper, left an empty fan, and
+	# reported that nothing was focused — which was true and not the point.
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	# Lay until there is something to project, and stop while a card is still in
+	# hand to focus. Laying exactly one card was the first version and it is a
+	# coin toss: plenty of hands put a 0-restore card down, or one the wall eats
+	# whole, and the check then skips itself and passes with the feature
+	# deleted — which is what happened.
+	var f: Dictionary = run.state["f"]
+	while int(rules.simulate(run.run_ctx(), run.state["f"]).get("applied", 0)) < 1:
+		f = run.state["f"]
+		if f["hand"].size() <= 1:
+			break
+		var laid_one := false
+		for c in f["hand"].duplicate():
+			if int(c.get("cost", 0)) <= int(f["energy"]):
+				run.lay_card(c["uid"])
+				laid_one = true
+				break
+		if not laid_one:
+			break
+	f = run.state["f"]
+	var sim: Dictionary = rules.simulate(run.run_ctx(), f)
+	var room: int = maxi(0, int(f["max"]) - maxi(0, int(f["hp"])))
+	var expect_land: int = mini(int(sim.get("applied", 0)), room)
+	var draw_left: int = f["draw"].size()
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var screen := _text_of(instance)
+
+	# Read THE ROW, not the whole screen. Asking whether "+8" appears anywhere
+	# on a reading screen is not a test: every card in hand prints its own
+	# restore value, so the first version of this passed happily with the
+	# projection deleted. Same for the pile counts against a screen full of
+	# numbers.
+	var composure := _row_text(instance, i18n.t("Composure"))
+	if expect_land >= 1 and not composure.contains("+%d" % expect_land):
+		printerr("FAIL: this reading would restore %d and the composure row says '%s'"
+			% [expect_land, composure.strip_edges()])
+	var piles := _line_containing(instance, i18n.t("Left to draw"))
+	if not piles.contains("%s %d" % [i18n.t("Left to draw"), draw_left]):
+		printerr("FAIL: %d cards are left to draw and the line says '%s'" % [draw_left, piles.strip_edges()])
+
+	# The card that has focus has to be readable without a pointer.
+	var focused: Control = instance.get_viewport().gui_get_focus_owner()
+	if focused == null:
+		printerr("FAIL: nothing is focused, so there is no card to read")
+	else:
+		var tip: String = focused.tooltip_text
+		var opening: String = tip.split("\n")[0].substr(0, 20) if tip != "" else ""
+		if opening == "":
+			printerr("FAIL: the focused card carries no text at all")
+		elif not screen.contains(opening):
+			printerr("FAIL: the focused card says '%s...' and nothing on screen does — its text is mouse-only"
+				% opening)
+	instance.queue_free()
+	await process_frame
+	print("--- the reading prices itself before you commit ---")
+
+
+## Every Label in the row that begins with `caption`, joined. A "row" is an
+## HBoxContainer, which is what stat_row() builds.
+func _row_text(node: Node, caption: String) -> String:
+	if node is HBoxContainer:
+		var first := ""
+		for child in node.get_children():
+			if child is Label:
+				first = (child as Label).text
+				break
+		if first == caption:
+			return _text_of(node)
+	for child in node.get_children():
+		var found := _row_text(child, caption)
+		if found != "":
+			return found
+	return ""
+
+
+## The one Label containing `needle`, or "".
+func _line_containing(node: Node, needle: String) -> String:
+	if node is Label and (node as Label).text.contains(needle):
+		return (node as Label).text
+	for child in node.get_children():
+		var found := _line_containing(child, needle)
+		if found != "":
+			return found
+	return ""
 
 
 ## THE READING IS READ OUT — and, crucially, is resolved EXACTLY ONCE.

@@ -1209,6 +1209,72 @@ line of text with air either side of it, not a square — the padding is wide an
 shallow now, and the menu's own spacing came down from 18 to 12 so the last
 entry is reachable at 720p with a run in progress.
 
+## You could not see what your play would do
+
+Three things the reading screen did not show. Each is invisible when it is
+missing — the screen looks perfectly reasonable without any of them, which is
+how all three survived the whole port.
+
+### The projection, which was in the source all along
+
+The composure bar drew one green segment. **The prototype draws three** (v23,
+line ~726): green for where they are, gold for what the cards already on the
+table would restore, violet for how much of that their denial would eat first.
+Only the green one was ported, so the game asked a player to lay cards toward a
+number they could not see coming.
+
+That is the one affordance every deckbuilder gives you — the play you are about
+to make, priced before you commit to it — and here it was not a design decision
+to add, it was a line of the original that had been dropped. It is back, with
+the figure printed beside the bar as well, because a bar says "about this much"
+and someone deciding whether one more card is worth the energy wants the number.
+
+Violet is used nowhere else in the game, which is the point: on that bar it is
+the one segment that is not yours.
+
+### The piles
+
+Every deckbuilder shows how many cards are left to draw. This one did not, so
+the only way to answer "should I spend this now or hold it" was to count the
+discard from memory. `Left to draw` and `Set aside` sit on the same line as the
+reading number.
+
+### A card's text was mouse-only
+
+The full rules of a card lived in Godot's hover tooltip. **A hover is something
+a gamepad cannot do.** A controller player could reach every card in the game,
+play them, and never once read what any of them did — and the game is navigable
+end to end on a controller, which is asserted by a test, so this was a real
+player having a real bad time.
+
+The hand's caption line is live now: it prints whichever card is under the
+pointer *or* has focus. Better with a mouse too, since the text lands in the
+same place every time instead of following the cursor.
+
+The text is the card's OWN TOOLTIP, flattened — not a second string built for
+the purpose. Two descriptions of one card drift, and the one nobody is looking
+at drifts first.
+
+### Two bad tests, both caught by stubbing
+
+Worth writing down because both LOOKED fine:
+
+- the first version asked whether `"+8"` appeared anywhere on the reading
+  screen. Every card in hand prints its own restore value, so it passed with
+  the projection deleted. It reads the composure ROW now, and the piles line by
+  itself;
+- the second version laid exactly one card. Plenty of hands put down a
+  0-restore card, or one the wall eats whole, and the check then skipped itself
+  and passed — a coin toss dressed as a test. It lays until there is something
+  to project, and stops while a card is still in hand for the focus check.
+
+Also recorded: **`drain` is dead**, on every sitter, in both codebases. The
+source uses it only for `spiralNow`, and spiral/nerve is the mechanic removed
+from the design — the same story as `guard`. `test_dead_content.gd` does not
+catch it because a denial-wall rule has a `drain` key too, and the lint is a
+grep that cannot tell two meanings of one word apart. That is the
+under-reporting its own header admits to; it is written here instead.
+
 ## Where to look
 
 - `autoload/Rules.gd` — the scoring engine, pure and stateless, the intended

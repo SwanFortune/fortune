@@ -111,6 +111,10 @@ static func card_keyword_tooltip(c: Dictionary) -> String:
 	return "\n\n".join(lines)
 const GREEN := Color(0.56, 0.75, 0.45)
 const RED := Color(0.82, 0.42, 0.38)
+## The denial wall's colour, taken from the source prototype's own bar
+## (oklch(0.62 0.13 300), line ~728). Violet is not used anywhere else, which is
+## the point: on the composure bar it is the one segment that is not yours.
+const VIOLET := Color(0.55, 0.42, 0.78)
 
 
 ## Every screen starts by calling this, which makes it the one hook that is
@@ -721,7 +725,18 @@ static func setting_toggle(key: String, caption: String, help: String, on_toggle
 ## A plain two-rect meter (no Theme/StyleBox fuss) — used for composure and
 ## energy on the Reading screen. Animates from `from_ratio` to `to_ratio`
 ## (pass them equal for no animation); both clamped to [0, 1].
-static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h: float = 14, duration: float = 0.5) -> Control:
+## `projected` and `absorbed` sit AFTER the fill, in that order: what the cards
+## on the table would restore if you read them now, and how much of that the
+## sitter's denial would eat before it got there.
+##
+## THIS IS THE SOURCE PROTOTYPE'S BAR AND IT WAS NOT PORTED. v23 draws three
+## segments (`hpPct`, `projPct`, `absorbPct`, line ~726) and the port drew only
+## the first, so the game asked a player to lay cards toward a number they could
+## not see coming. It is the one thing every deckbuilder gives you — the play
+## you are about to make, priced before you commit to it — and it was in the
+## design all along.
+static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h: float = 14,
+		duration: float = 0.5, projected: float = 0.0, absorbed: float = 0.0) -> Control:
 	var c := Control.new()
 	c.custom_minimum_size = Vector2(w, h)
 	# A track and a fill, both pills. Two hard-edged rectangles is what a
@@ -743,6 +758,27 @@ static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h
 	fill.size = Vector2(w * clampf(from_ratio, 0.0, 1.0), h)
 	c.add_child(fill)
 	var target_w := w * clampf(to_ratio, 0.0, 1.0)
+
+	# The two projection segments, stacked after the fill at its TARGET width —
+	# not its current one, since the fill animates and these must not chase it.
+	var at := target_w
+	for seg: Array in [[projected, GOLD], [absorbed, VIOLET]]:
+		var span: float = w * clampf(seg[0], 0.0, 1.0)
+		if span < 0.5:
+			continue
+		var piece := Panel.new()
+		var piece_box := surface(Color(seg[1], 0.85), Color(0, 0, 0, 0.5), 1, 0)
+		piece_box.set_corner_radius_all(int(h * 0.5))
+		piece.add_theme_stylebox_override("panel", piece_box)
+		piece.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		piece.position = Vector2(at, 0)
+		piece.size = Vector2(span, h)
+		c.add_child(piece)
+		if not motion_off():
+			piece.modulate.a = 0.0
+			bound_tween(piece).tween_property(piece, "modulate:a", 1.0, dur(0.25))
+		at += span
+
 	if not is_equal_approx(fill.size.x, target_w):
 		if motion_off():
 			fill.size.x = target_w
@@ -751,14 +787,21 @@ static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h
 	return c
 
 
-static func stat_row(caption: String, value_text: String, from_ratio: float, to_ratio: float, fg: Color, tooltip: String = "") -> Control:
+static func stat_row(caption: String, value_text: String, from_ratio: float, to_ratio: float,
+		fg: Color, tooltip: String = "", projected: float = 0.0, absorbed: float = 0.0,
+		projected_text: String = "") -> Control:
 	var row := hbox(10)
 	row.tooltip_text = tooltip
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_child(label(caption, 12, DIM))
-	row.add_child(bar(from_ratio, to_ratio, fg))
+	row.add_child(bar(from_ratio, to_ratio, fg, 260, 14, 0.5, projected, absorbed))
 	var value_l := label(value_text, 12, INK)
 	row.add_child(value_l)
+	# The projection as a number as well as a length. A bar says "about this
+	# much"; a player deciding whether one more card is worth the energy wants
+	# the figure.
+	if projected_text != "":
+		row.add_child(label(projected_text, 12, GOLD))
 	if not is_equal_approx(from_ratio, to_ratio):
 		pulse(value_l, GREEN if to_ratio > from_ratio else RED)
 	return row

@@ -80,9 +80,28 @@ func _ready() -> void:
 	header_text.add_child(UIKit.block("%s %s — %s: %s" % [I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn"), I18n.sign_rule(q, s)], 12, UIKit.DIM))
 	header.add_child(header_text)
 	v.add_child(header)
-	v.add_child(UIKit.stat_row(I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio, UIKit.GREEN, I18n.t(UIKit.KEYS["composure"])))
+	# WHAT THE CARDS ON THE TABLE WOULD DO, on the composure bar, before you
+	# commit to them: gold for what would reach them, violet for what their
+	# denial would eat first. Ported from the source's own three-segment bar
+	# (v23 line ~726) — see UIKit.bar().
+	var sim: Dictionary = Rules.simulate(Run.run_ctx(), f) if not f["cross"].is_empty() else {}
+	var room := maxf(0.0, float(f["max"]) - maxf(0.0, float(f["hp"])))
+	var will_land: float = minf(float(sim.get("applied", 0)), room)
+	var will_stop: float = minf(float(sim.get("absorbed", 0)), maxf(0.0, room - will_land))
+	var whole: float = maxf(1.0, float(f["max"]))
+	v.add_child(UIKit.stat_row(
+		I18n.t("Composure"), "%s / %s" % [f["hp"], f["max"]], prev_hp_ratio, hp_ratio,
+		UIKit.GREEN, I18n.t(UIKit.KEYS["composure"]),
+		will_land / whole, will_stop / whole,
+		("+%d" % int(will_land)) if will_land >= 1.0 else ""))
 	v.add_child(UIKit.stat_row(I18n.t("Energy"), "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, I18n.t(UIKit.KEYS["energy"])))
-	var denial_row := UIKit.block("%s %s / %s   ·   %s %s" % [I18n.t("Reading"), f["turn"], f["turns"], I18n.t("Denial wall"), f["denial"]], 12, UIKit.DIM)
+	# The two piles, which every deckbuilder shows and this one did not: a
+	# player deciding whether to spend a card now or hold it is asking how many
+	# are left, and the only honest answer was to count the discard by memory.
+	var denial_row := UIKit.block("%s %s / %s   ·   %s %s   ·   %s %d   ·   %s %d" % [
+		I18n.t("Reading"), f["turn"], f["turns"], I18n.t("Denial wall"), f["denial"],
+		I18n.t("Left to draw"), f["draw"].size(), I18n.t("Set aside"), f["disc"].size(),
+	], 12, UIKit.DIM)
 	denial_row.tooltip_text = I18n.t(UIKit.KEYS["denial"])
 	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(denial_row)
@@ -106,7 +125,7 @@ func _ready() -> void:
 	if f["cross"].is_empty():
 		cross_box.add_child(UIKit.label(I18n.t("(nothing yet)"), 12, UIKit.DIM))
 	else:
-		var preview: Dictionary = Rules.simulate(Run.run_ctx(), f)
+		var preview: Dictionary = sim
 		for i in f["cross"].size():
 			var c: Dictionary = f["cross"][i]
 			var row: Dictionary = preview["rows"][i] if i < preview["rows"].size() else {}
@@ -125,7 +144,17 @@ func _ready() -> void:
 	read_btn.disabled = not Run.can_read()
 	v.add_child(read_btn)
 
-	var hand_label := UIKit.label(I18n.t("YOUR HAND — hover a card for its full text"), 12, UIKit.DIM)
+	# A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and
+	# a hover is something a keyboard or a gamepad cannot do — so a player on a
+	# controller could reach every card in the game, play them, and never once
+	# read what any of them did. This line is now live: it shows whichever card
+	# is under the pointer OR has focus, which fixes the hole and is better with
+	# a mouse too, since the text lands in the same place every time instead of
+	# following the cursor around.
+	var hand_label := UIKit.block(I18n.t("YOUR HAND — the card you are on says what it does here"), 12, UIKit.DIM)
+	# Two lines' worth, held open, so the layout under it does not jump every
+	# time the pointer crosses a card.
+	hand_label.custom_minimum_size.y = 34 * UIKit.text_scale
 	v.add_child(hand_label)
 	# The fan sits on top of the reader's own hands: the cards are HELD, and
 	# every mark won this run is drawn on the fingers holding them. A Control
@@ -153,6 +182,7 @@ func _ready() -> void:
 	if alone:
 		var only: Dictionary = f["hand"][0]
 		var face := _lift(held, only, int(only.get("cost", 0)) <= int(f["energy"]))
+		_inspect(face, hand_label)
 		if just_drawn.has(only["uid"]):
 			UIKit.animate_in(face)
 			_deal_sound(0.0)
@@ -177,6 +207,7 @@ func _ready() -> void:
 		for c in f["hand"]:
 			var afford := int(c.get("cost", 0)) <= int(f["energy"])
 			var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
+			_inspect(face, hand_label)
 			fan.add_child(face)
 			if just_drawn.has(c["uid"]):
 				UIKit.animate_in(face, deal_index * 0.06)
@@ -207,6 +238,42 @@ func _ready() -> void:
 	# The hand, not the run header above it. See Map.gd. Falls back to the whole
 	# screen when the hand is empty, so READ IT is still reachable.
 	UIKit.focus_first(focus_on)
+
+
+## Wires a card face to the hand label, so hovering it or focusing it prints
+## what it does.
+##
+## The text is the card's OWN TOOLTIP, flattened — not a second string built
+## here. Two descriptions of one card drift, and the one nobody is looking at
+## drifts first; this way the mouse and the gamepad are reading the same
+## sentence by construction.
+func _inspect(face: Control, into: Label) -> void:
+	var idle := into.text
+	var full := face.tooltip_text.replace("\n\n", "   ·   ").replace("\n", " ")
+	if full.strip_edges() == "":
+		return
+	# is_instance_valid on every one of these: the label and the card are freed
+	# together when the screen rebuilds, and whichever goes first leaves the
+	# other's handler holding a dead reference — which Godot reports as "Lambda
+	# capture at index 0 was freed" and then passes null into the body. (There
+	# are six of those already, from elsewhere in the project; these are not
+	# them, and this is how you avoid adding a seventh.)
+	for signal_name: String in ["mouse_entered", "focus_entered"]:
+		face.connect(signal_name, func():
+			if not is_instance_valid(into):
+				return
+			into.text = full
+			into.add_theme_color_override("font_color", UIKit.INK)
+		)
+	for signal_name: String in ["mouse_exited", "focus_exited"]:
+		face.connect(signal_name, func():
+			# Only if this card is still the one being shown: leaving card A
+			# fires after entering card B when the pointer slides between them,
+			# and clearing there would blank the text the player just asked for.
+			if is_instance_valid(into) and into.text == full:
+				into.text = idle
+				into.add_theme_color_override("font_color", UIKit.DIM)
+		)
 
 
 ## One card, alone, floating between two open hands instead of clamped in them.
