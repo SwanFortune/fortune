@@ -125,10 +125,28 @@ const WINDOW_MODES := ["windowed", "borderless", "fullscreen"]
 ## feels right, not because most people should pick it.
 const VSYNC_MODES := ["off", "on", "adaptive"]
 
-## Offered window sizes. Anything larger than the player's screen is filtered
-## out at display time rather than removed here, so the list does not depend on
-## the machine that happens to be running the tests.
-const RESOLUTIONS := ["1280x720", "1366x768", "1600x900", "1920x1080", "2560x1440"]
+## Offered window sizes, widest aspect last within each group. Anything larger
+## than the player's screen is filtered out at display time rather than removed
+## here, so the list does not depend on the machine that happens to be running
+## the tests.
+##
+## NOT ONLY 16:9. This was five 16:9 sizes, which is the shape the game was
+## designed at and quietly the only shape anyone had ever seen it in — a laptop
+## at 1920x1200 and an ultrawide are ordinary hardware, and neither was on the
+## list. With `canvas_items`/`expand` stretch the canvas is never SMALLER than
+## the 1280x720 it is drawn for; a taller screen buys canvas height and a wider
+## one buys canvas width, which gives four distinct shapes for the whole list:
+## 1280x720 (16:9), 1280x800 (16:10), 1280x960 (4:3) and 1706x720 (21:9).
+## tests/test_resolutions.gd builds every screen in every one of them.
+const RESOLUTIONS := [
+	"1024x768",
+	"1280x720", "1280x800",
+	"1366x768", "1440x900",
+	"1600x900", "1680x1050",
+	"1920x1080", "1920x1200",
+	"2560x1080", "2560x1440",
+	"3440x1440", "3840x2160",
+]
 
 ## Audio buses this game creates at startup, each feeding Master. There is no
 ## default_bus_layout.tres in the project: building them here keeps the

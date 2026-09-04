@@ -40,6 +40,16 @@ func _initialize() -> void:
 	# leave the locale changed for every later run of the game and the tools —
 	# which is exactly how a later English screenshot came back in French.
 	# Put it back before quitting.
+	# Any argument shaped WxH sets the window, so a screen can be looked at in
+	# the shapes the resolution setting actually offers rather than only in the
+	# one it is drawn for. Matched by shape rather than by position because the
+	# positional arguments above are already four deep.
+	for a: String in args:
+		var wh := a.split("x")
+		if wh.size() == 2 and wh[0].is_valid_int() and wh[1].is_valid_int():
+			root.size = Vector2i(int(wh[0]), int(wh[1]))
+			DisplayServer.window_set_size(root.size)
+
 	var restore_locale := ""
 	if args.size() > 3:
 		var settings: Node = root.get_node("Settings")

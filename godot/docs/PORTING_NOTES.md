@@ -1582,6 +1582,39 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## Every common resolution, and a test that has seen them
+
+The window-size setting offered five sizes, all 16:9, and nothing had ever built
+a screen at any of them but the one the game is drawn for. "The interface
+scales" was checked by reading the stretch settings back, which is not the same
+as looking at what comes out.
+
+The list is now thirteen: 1024x768, 1280x720, 1280x800, 1366x768, 1440x900,
+1600x900, 1680x1050, 1920x1080, 1920x1200, 2560x1080, 2560x1440, 3440x1440,
+3840x2160 — 4:3, both 16:10 laptop shapes, 16:9, and two ultrawides.
+
+**Why that is fewer cases than it looks.** With `canvas_items` stretch and
+aspect `expand`, the canvas is scaled by the smaller of the two ratios against
+1280x720 and the leftover on the other axis becomes more canvas. So the canvas
+is never SMALLER than the size the game is drawn for: a taller screen buys
+canvas height, a wider one buys canvas width, and the thirteen sizes collapse to
+four shapes — 1280x720, 1280x800, 1280x960 and 1706x720. 1280x720 is therefore
+the worst case for everything, which is why nothing had broken.
+
+`tests/test_resolutions.gd` builds all twelve screens in every one of the
+thirteen, at both interface sizes, and asserts two things per screen: every
+focusable control that is not inside a ScrollContainer lies inside the canvas —
+a button past the edge is a button nobody can press — and the room covers the
+canvas, since the parlour is drawn from its own Control's size and an anchor
+that does not follow the window shows as bare background down one side. Both
+verified by stubbing: a 2000px-wide button and a room pinned to 400x400 produce
+572 failures between them.
+
+`tests/screenshot.gd` now takes any argument shaped WxH, so a screen can be
+looked at in a shape the setting actually offers. Which is worth doing: at 4:3
+the extra 240 units of canvas height go to the table, and at 21:9 the extra 440
+of width let a ten-card hand lay out without the cards overlapping at all.
+
 ## The game was drawing itself in the corner of its own window
 
 Looking at the frames the export smoke test leaves behind — which is the whole
