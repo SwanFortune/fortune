@@ -623,14 +623,9 @@ func _test_the_reading_shows_its_own_maths() -> void:
 		if not laid_one:
 			break
 	f = run.state["f"]
-	# AND ENOUGH ENERGY LEFT FOR ONE OF THEM. Leaving a card in hand is not
-	# enough to have a card to focus: an unaffordable card is disabled, and a
-	# disabled control cannot take focus. Since focus_first gained a fallback,
-	# the screen correctly puts focus on the header instead — so this test, which
-	# is about a CARD's text being reachable without a mouse, was reading the
-	# tooltip of a header chip and reporting that the card carried no text.
-	# The state it is about is one where a card can be focused, so it is set up
-	# rather than hoped for.
+	# AND ENOUGH ENERGY LEFT FOR ONE OF THEM. An unaffordable card is disabled,
+	# and a disabled control cannot take focus — so without this the hand can
+	# hold five cards and none of them can be focused to read.
 	var cheapest := 99
 	for c in f["hand"]:
 		cheapest = mini(cheapest, int(c.get("cost", 0)))
@@ -645,8 +640,6 @@ func _test_the_reading_shows_its_own_maths() -> void:
 	root.add_child(instance)
 	for i in 3:
 		await process_frame
-	var screen := _text_of(instance)
-
 	# Read THE ROW, not the whole screen. Asking whether "+8" appears anywhere
 	# on a reading screen is not a test: every card in hand prints its own
 	# restore value, so the first version of this passed happily with the
@@ -660,16 +653,27 @@ func _test_the_reading_shows_its_own_maths() -> void:
 	if not piles.contains("%s %d" % [i18n.t("Left to draw"), draw_left]):
 		printerr("FAIL: %d cards are left to draw and the line says '%s'" % [draw_left, piles.strip_edges()])
 
-	# The card that has focus has to be readable without a pointer.
-	var focused: Control = instance.get_viewport().gui_get_focus_owner()
-	if focused == null:
-		printerr("FAIL: nothing is focused, so there is no card to read")
+	# A CARD IS READABLE WITHOUT A POINTER. Driven by focusing a card outright
+	# rather than by reading whatever focus_first happened to land on: where
+	# focus starts is a different property with its own test, and depending on
+	# it here made this one report a card carrying no text when it was in fact
+	# looking at a header chip.
+	var card: Control = null
+	for node in _all_of(instance, []):
+		if node is PanelContainer and (node as Control).focus_mode == Control.FOCUS_ALL \
+				and node.get_parent() is HFlowContainer:
+			card = node
+			break
+	if card == null:
+		printerr("FAIL: no playable card in the hand to read")
 	else:
-		var tip: String = focused.tooltip_text
+		card.grab_focus()
+		await process_frame
+		var tip: String = card.tooltip_text
 		var opening: String = tip.split("\n")[0].substr(0, 20) if tip != "" else ""
 		if opening == "":
-			printerr("FAIL: the focused card carries no text at all")
-		elif not screen.contains(opening):
+			printerr("FAIL: a card in hand carries no text at all, so there is nothing to show")
+		elif not _text_of(instance).contains(opening):
 			printerr("FAIL: the focused card says '%s...' and nothing on screen does — its text is mouse-only"
 				% opening)
 	instance.queue_free()

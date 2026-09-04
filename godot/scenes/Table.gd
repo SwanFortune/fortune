@@ -1,23 +1,13 @@
-## The parlour itself: a table, a cloth, and the reader's own hands holding the
-## fan — with every mark they have picked up drawn onto them.
+## The parlour itself, drawn procedurally: a table, a cloth, and the reader's own
+## hands holding the fan, with every mark they have picked up drawn onto them.
 ##
-## The reading screen was a dark rectangle with widgets on it. The game is a
-## fortune-teller at a table in a village front room, and none of that was
-## anywhere on screen. This is that room, drawn procedurally.
+## PLACEHOLDER, on the same terms as UIKit.sitter_portrait() and the app icon —
+## geometry, not illustration, meant to be replaced by an artist's work. See
+## docs/ART_GUIDE.md.
 ##
-## PLACEHOLDER, on the same terms as UIKit.sitter_portrait() and the app icon:
-## it is geometry, not illustration, and it is meant to be replaced by an
-## artist's work — see docs/ART_GUIDE.md. It ships because a game that looks
-## like a spreadsheet reads as unfinished no matter how good the engine under
-## it is, and because the hands close a loop the writing had already opened.
-##
-## THE HANDS ARE NOT DECORATION. The overlay that lists your relics is called
-## YOUR HANDS, and the marks themselves are rings, tattoos, scars and boons —
-## the game has always described them as things ON the reader's hands, and they
-## have only ever been a list. Now a ring you win goes on a finger and stays
-## there for the rest of the run, where you can see it while you play.
-##
-## Each of the four kinds knows where it belongs:
+## THE HANDS ARE NOT DECORATION: they are where the marks live. A mark won in a
+## run is a ring, a tattoo, a scar or a boon, and it goes on a finger and stays
+## there. Each of the four kinds knows where it belongs:
 ##   RING    a band around a finger, the metal tinted by what it does
 ##   TATTOO  ink on the back of the hand
 ##   SCAR    a pale line across the knuckles
@@ -78,10 +68,9 @@ const SKIN_SHADE := Color(0.58, 0.45, 0.36)
 const SKIN_LINE := Color(0.30, 0.22, 0.17)
 
 ## Every part of a hand is drawn three times: a dark silhouette a little wider
-## than the part, the shaded skin at its true size, and the lit skin inset and
-## offset toward the light. That gives an edge without stroking an outline over
-## the fill, and the dark pass of one finger is what separates it from the one
-## behind it.
+## than the part, the shaded skin at true size, and the lit skin inset toward
+## the light. That is what gives an edge without stroking an outline, and the
+## dark pass of one finger is what separates it from the one behind it.
 const SKIN_PASSES := [SKIN_LINE, SKIN_SHADE, SKIN]
 const PASS_GROW := [1.16, 1.0, 0.80]
 
@@ -95,9 +84,8 @@ const PASS_GROW := [1.16, 1.0, 0.80]
 ##           knock on. The menu, "who knocks tonight?", and the end of a run,
 ##           which is the night the knocking stops.
 ##   WALL    just the papered wall and the floor, no props. For the reference
-##           screens — settings, library, mods, the rules, the credits. They are
-##           dense with words and there is nothing happening in them; a table
-##           laid out behind a list of sliders is something to look past, not at.
+##           screens — settings, library, mods, the rules, the credits, which
+##           are dense with words and have nothing happening in them.
 const VIEW_TABLE := "table"
 const VIEW_DOOR := "door"
 const VIEW_WALL := "wall"
@@ -110,11 +98,10 @@ static func background(view: String = VIEW_TABLE) -> Control:
 	c.name = "Room"
 	c.set_anchors_preset(Control.PRESET_FULL_RECT)
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# No z_index: this is added straight after UIKit.root_control()'s flat
-	# background ColorRect and paints over it, and everything the screen adds
-	# afterwards is a later sibling and so draws on top. Pushing it behind with
-	# a negative z_index put it UNDER that opaque ColorRect, which is exactly
-	# where it cannot be seen.
+	# NO z_index. This is added straight after UIKit.root_control()'s background
+	# ColorRect and paints over it; everything the screen adds afterwards is a
+	# later sibling and draws on top anyway. A negative z_index puts the room
+	# UNDER that opaque ColorRect, where it cannot be seen at all.
 	match view:
 		VIEW_DOOR:
 			c.draw.connect(func(): _draw_doorway(c))
@@ -168,13 +155,12 @@ static func _draw_bare_wall(c: Control) -> void:
 	_draw_vignette(c, s)
 
 
-## Somebody is at the door. `amount` is 1 at the instant a fist lands on it and
-## 0 at rest; the caller tweens it down. The door jumps in its frame, the light
-## under it flickers, and the frame itself takes a little of it.
+## Somebody is at the door. `amount` is 1 at the instant a fist lands and 0 at
+## rest; the caller tweens it down.
 ##
-## Kept as state ON the backdrop rather than as an argument, because the room is
-## drawn from a `draw` signal with no parameters and the alternative is rebuilding
-## the whole node three times a knock. A view with no door ignores it.
+## State ON the backdrop rather than an argument, because the room is drawn from
+## a `draw` signal that takes no parameters — the alternative is rebuilding the
+## node three times a knock. A view with no door ignores it.
 static func set_knock(room: Control, amount: float) -> void:
 	if room == null or not is_instance_valid(room):
 		return
@@ -182,14 +168,12 @@ static func set_knock(room: Control, amount: float) -> void:
 	room.queue_redraw()
 
 
-## The other end of the same room: you have turned your chair round and you are
-## looking at the door. Nobody has knocked yet.
+## The other end of the same room: the chair turned round, looking at the door.
 ##
-## Same wall, same door, same coat, same floor — a long way up the wall this
-## time, because the table is behind you. What it adds is a cold line of outside
-## under the door, and the warm pool of the lamp on the floorboards behind you,
-## which between them say that the light in here is yours and the light out
-## there is not.
+## Same wall, door, coat and floor as the table view, seen from further up the
+## wall. What it adds is the cold line of outside under the door and the warm
+## pool of the lamp behind you — the light in here is yours, the light out there
+## is not.
 static func _draw_doorway(c: Control) -> void:
 	var s := c.size
 	if s.x < 4.0 or s.y < 4.0:
@@ -241,11 +225,10 @@ static func _draw_wall(c: Control, s: Vector2, wall_h: float) -> void:
 	c.draw_rect(Rect2(0, wall_h - s.y * 0.022, s.x, s.y * 0.022), Color(RAIL, 0.5))
 
 
-## The floor. It is only ever seen in two narrow wedges either side of the
-## table — but without it those wedges are the flat colour of the empty screen
-## behind everything, and the table reads as a shape cut out of a void rather
-## than a piece of furniture standing on something. Boards crowding together
-## toward the wall is the whole of the perspective here.
+## The floor, seen only in two narrow wedges either side of the table. Without
+## it those wedges are flat background and the table reads as a shape cut out of
+## a void rather than furniture standing on something. Boards crowding together
+## toward the wall is the whole of the perspective.
 static func _draw_floor(c: Control, s: Vector2, y: float) -> void:
 	c.draw_rect(Rect2(0, y, s.x, s.y - y), FLOOR)
 	for i in 6:
@@ -421,11 +404,10 @@ static func _draw_minitel(c: Control, s: Vector2) -> void:
 			maxf(1.0, u * 0.016), true)
 
 
-## Where the props stand. They are BEHIND the screen's words, so where they go
-## is not a taste question: it is which parts of the table the reading screen
-## leaves empty. The left third from the bars down to the hand label is solid
-## text, and a cup sitting in the middle of "YOUR HAND — hover a card" is worse
-## than no cup. These two spots are clear in every layout the screen produces.
+## Where the props stand. They sit BEHIND the screen's words, so this is not a
+## taste question but a question of which parts of the table the reading screen
+## leaves empty: the left third, from the bars down to the hand label, is solid
+## text. These two spots are clear in every layout the screen produces.
 const MINITEL_AT := Vector2(0.875, 0.535)
 const TEACUP_AT := Vector2(0.635, 0.435)
 
@@ -496,12 +478,11 @@ static func _draw_vignette(c: Control, s: Vector2) -> void:
 ## near one.
 ##
 ## `span` is an optional Callable returning the horizontal extent of the thing
-## being held, as a Vector2 of local x coordinates. Called at DRAW time, which
-## is after layout, so it can measure the fan itself — and it has to, because a
-## hand of two cards and a hand of nine are not the same width, and hands nailed
-## to fixed fractions of the screen hold the first at arm's length and the
-## second by the middle. Return a degenerate span (or pass nothing) to fall back
-## to those fractions.
+## being held, as a Vector2 of local x coordinates. Called at DRAW time — after
+## layout — so it can measure the fan itself, which it must: a hand of two cards
+## and a hand of nine are not the same width, and hands nailed to fixed
+## fractions hold the first at arm's length and the second by the middle.
+## Return a degenerate span, or pass nothing, to fall back to those fractions.
 ##
 ## `reach` is how far the fingers extend. 1.0 is a hand holding something: the
 ## fingers stretch to the top of the band and close over whatever is drawn
@@ -552,11 +533,10 @@ static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float) 
 			# Just INSIDE the edges of what is held, so the fingers land on the
 			# cards rather than beside them.
 			half = (measured.y - measured.x) * 0.5 - hand_w * 0.28
-	# A floor on how close the two can come. A single card is barely wider than
-	# one hand, and following its edges put the two palms together in the middle
-	# of the screen covering the only card in play — praying over it rather than
-	# holding it. An OPEN hand needs more room than a closed one, because its
-	# fingers curl inward across the palm, so the floor rises as the reach drops.
+	# A floor on how close the two hands may come. A single card is barely wider
+	# than one hand, so following its edges puts the palms together over the only
+	# card in play. An OPEN hand needs more room than a closed one — its fingers
+	# curl inward across the palm — so the floor rises as the reach drops.
 	half = maxf(half, hand_w * (0.95 + (1.0 - reach) * 0.35))
 	# And never off the screen, however wide the fan gets.
 	var at := Vector2(clampf(centre - half, hand_w * 0.45, s.x * 0.5),
@@ -580,9 +560,9 @@ const FINGER_SPREAD := 0.135
 ## left hand and -1 for the right.
 ##
 ## Public, and separate from the drawing, for the same reason mark_places() is:
-## a test that asks whether the fingertips clear a floating card has to read the
-## SAME geometry the drawing uses. Re-deriving it in the test would only assert
-## that two copies of a formula agree.
+## a test asking whether the fingertips clear a floating card must read the SAME
+## geometry the drawing does. Re-deriving it would only assert that two copies
+## of a formula agree.
 static func finger_geometry(base: Vector2, h: float, flip: float, reach: float) -> Array:
 	var r := clampf(reach, 0.35, 1.0)
 	var palm := base + Vector2(0, PALM_DROP * h)
@@ -612,12 +592,10 @@ static func finger_geometry(base: Vector2, h: float, flip: float, reach: float) 
 static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, reach: float = 1.0) -> void:
 	var h := c.size.y
 
-	# The back of the hand, sitting just above the bottom of the band so that a
-	# good third of it is on screen. An earlier pass buried all but a sliver of
-	# it, and fingers growing out of nothing read as a mitten; it also has to be
-	# visible for the tattoos and scars that go on it to be anywhere at all.
-	# What falls below the band is the wrist, running off the bottom of the
-	# screen, which is where a hand reaching up to hold a fan comes from.
+	# The back of the hand sits just above the bottom of the band, so a good
+	# third of it is on screen: fingers growing out of nothing read as a mitten,
+	# and the tattoos and scars that go here need somewhere to be. What falls
+	# below the band is the wrist, running off the bottom of the screen.
 	var palm := base + Vector2(0, PALM_DROP * h)
 	_blob(c, palm, 0.345 * h, 0.315 * h, SKIN_LINE)
 	_blob(c, palm, 0.330 * h, 0.300 * h, SKIN_SHADE)
@@ -678,18 +656,17 @@ static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, rea
 const KINDS := ["RING", "TATTOO", "SCAR", "BOON"]
 
 
-## WHERE every mark goes, as data. Separate from the drawing so that it can be
-## checked: the promise this whole file makes is that a mark you won is a mark
-## you can see, and without a screen the only way to assert that is to ask where
-## each one landed.
+## WHERE every mark goes, as data. Separate from the drawing so it can be
+## checked without a screen: the promise this file makes is that a mark you won
+## is a mark you can see.
 ##
-## Returns one entry per mark of a known kind, in order, each carrying the point
-## it is drawn at and its tint. A mark of an UNKNOWN kind gets no entry — a pack
-## inventing a kind should show nothing rather than a ring it did not ask for.
+## One entry per mark of a KNOWN kind, in order, each carrying the point it is
+## drawn at and its tint. An unknown kind gets no entry — a pack inventing one
+## should show nothing rather than a ring it did not ask for.
 ##
-## `fingers` is the LOWER segment of each finger — root to knuckle — because
-## that is where a ring is worn. `h` is the band height every measurement here
-## is a fraction of, the same unit _draw_hand() uses.
+## `fingers` is the LOWER segment of each finger, root to knuckle, because that
+## is where a ring is worn. `h` is the band height every measurement here is a
+## fraction of, the same unit _draw_hand() uses.
 static func mark_places(marks: Array, palm: Vector2, fingers: Array, h: float, flip: float) -> Array:
 	var used := {"RING": 0, "TATTOO": 0, "SCAR": 0, "BOON": 0}
 	var places: Array = []
@@ -702,11 +679,10 @@ static func mark_places(marks: Array, palm: Vector2, fingers: Array, h: float, f
 		var place := {"kind": kind, "tint": _mark_color(m)}
 		match kind:
 			"RING":
-				# Rings WRAP around the four fingers rather than stopping at the
+				# Rings WRAP round the four fingers rather than stopping at the
 				# fourth: a run can hand out more rings than a hand has fingers,
-				# and a fifth ring that is simply not drawn is a reward the
-				# player was told they had and cannot find. The second one on a
-				# finger sits below the first, the way a second ring does.
+				# and one that is simply not drawn is a reward the player was
+				# told they had and cannot find.
 				var finger: Array = fingers[slot % fingers.size()] if not fingers.is_empty() else []
 				var tier: int = slot / maxi(1, fingers.size())
 				place["finger"] = finger
@@ -838,12 +814,11 @@ static func _taper(c: Control, from: Vector2, to: Vector2, r0: float, r1: float,
 
 
 ## The same polygon with every corner rounded off, using the corner itself as
-## the control point of a quadratic curve between the two edges that meet there.
+## the control point of a quadratic curve between the two edges meeting there.
 ##
-## Nothing in this room is a rectangle: the table and the cloth are trapezoids
-## because they are drawn in perspective, and the Minitel's body and the cup are
-## tapered. An earlier rounded-RECTANGLE helper could draw none of them, so this
-## rounds whatever shape it is handed instead.
+## Takes any polygon, not a rectangle, because nothing in this room is one: the
+## table and cloth are trapezoids drawn in perspective, and the Minitel's body
+## and the cup are tapered.
 static func _soften(points: PackedVector2Array, r: float, steps: int = 5) -> PackedVector2Array:
 	var n := points.size()
 	if n < 3 or r <= 0.0:

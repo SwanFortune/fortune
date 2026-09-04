@@ -1,15 +1,10 @@
-## The core loop: lay cards from hand into the spoken line (cross), then READ
-## IT to resolve via Rules.simulate(). Refreshes by reloading this same scene
-## after every action (lay/read) — there's no reactive UI framework here, and
-## re-running _ready() against the latest Run.state is simple and correct for
-## a screen this size. See docs/PORTING_NOTES.md re: the letter-by-letter
-## "mumble" animation this intentionally skips.
+## Lay cards from hand into the spoken line (cross), then READ IT to resolve via
+## Rules.simulate().
 ##
-## Animation note: since the whole screen rebuilds from scratch each action,
-## "what changed" comes from the _prevHp/_prevEnergy/_justDrawn/_justDiscarded
-## snapshot fields Run.gd leaves on the fight dict for exactly this purpose
-## (see Run.gd's begin_turn() doc comment) rather than from diffing against a
-## previous frame of this scene, which doesn't exist by the time this runs.
+## THE WHOLE SCREEN IS REBUILT after every action, so there is no previous frame
+## to diff against. "What changed" comes from the _prevHp/_prevEnergy/_justDrawn/
+## _justDiscarded snapshots Run.gd leaves on the fight dict for this purpose —
+## see Run.begin_turn().
 extends Control
 
 ## Loaded by path, not by `class_name` — a bare name does not resolve on a fresh
@@ -20,40 +15,36 @@ const Table := preload("res://scenes/Table.gd")
 
 ## The card band, and the whole held area beneath it. The hands start where the
 ## cards stop and rise back over them by the difference.
+##
+## At 100% only. USE _band_px()/_held_px() for anything measured against a card:
+## a card grows with the interface-size setting and these do not, so a fixed 176
+## leaves a 196-pixel card overflowing its own band with the fingers gripping
+## empty table above it.
 const CARD_BAND := 176
 const HELD_HEIGHT := 250
 
-## The same two, at the interface size the player has actually chosen.
-##
-## A card grows with that setting (UIKit.card_scale), and these did not: at the
-## top of the range the band stayed 176 pixels while the card in it became 196,
-## so the card overflowed its own band and the fingers drawn to grip its lower
-## edge closed on empty table twenty pixels above it. Everything measured
-## against a card has to move with the card.
-static func _band() -> float:
-	return CARD_BAND * UIKit.card_scale()
-
-
-static func _held() -> float:
-	return HELD_HEIGHT * UIKit.card_scale()
-## How far the hands reach back UP over the cards. Without an overlap the fan
-## floats above a drawing of some fingers instead of being held by them.
-##
-## Table.gd draws its fingertips at the very top of the band it is given, so
-## this number alone decides how far up the cards they reach: at 42 they cross
-## the bottom quarter of a card face. Enough to read as held; not so much that
-## a card is covered.
+## How far the hands reach back UP over the cards. Table.gd draws its fingertips
+## at the very top of the band it is given, so this number alone decides how far
+## up the cards they reach: at 42 they cross the bottom quarter of a card face.
+## Without an overlap the fan floats above a drawing of fingers rather than being
+## held by them.
 const HAND_OVERLAP := 42
 
 ## The last card in hand floats instead of being held. LIFT is how far above
-## where it would sit; BOB is how far it drifts up and down; OPEN_REACH is what
-## the hands do underneath it — Table.hands() shortens and curls the fingers,
-## which turns two hands closing on a card into two hands that have let go of
-## one. Together they leave a clear gap between the fingertips and the card,
-## which is the whole point: you can see daylight under it.
+## where it would sit, BOB how far it drifts, OPEN_REACH how far the fingers
+## reach under it — together they leave visible daylight between the fingertips
+## and the card, which is what makes it read as floating rather than gripped.
 const LIFT := 14
 const BOB := 5.0
 const OPEN_REACH := 0.66
+
+
+static func _band_px() -> float:
+	return CARD_BAND * UIKit.card_scale()
+
+
+static func _held_px() -> float:
+	return HELD_HEIGHT * UIKit.card_scale()
 
 
 func _ready() -> void:
@@ -61,26 +52,16 @@ func _ready() -> void:
 	var root := UIKit.root_control()
 	add_child(root)
 	var m := UIKit.margin(28)
-	# No margin along the bottom: the hand is meant to sit on the edge of the
-	# screen with the fingers holding it running off it, which is what makes the
-	# table a table rather than a panel with a gap under it.
+	# No bottom margin: the hand sits on the screen's edge with the fingers
+	# holding it running off it. A gap under them makes the table a panel.
 	m.add_theme_constant_override("margin_bottom", 0)
 	root.add_child(m)
 
-	# THE THINGS YOU ACT ON ARE NAILED DOWN; THE THINGS YOU READ SCROLL.
-	#
-	# Everything used to be one column, so the hand was pushed down by whatever
-	# happened to be above it — a long sitter rule, a card that slipped out of
-	# your hand, a hint line that wrapped. At the default window that cost about
-	# twenty pixels of drawn fingers. At the largest interface size, which exists
-	# so people can read the game, it put the whole hand off the bottom of the
-	# window: measured across forty readings, fifteen of them lost the cards
-	# entirely, the worst by 261 pixels, with no way to scroll to them.
-	#
-	# So the header, the READ IT row, the hand's own line and the hand itself are
-	# fixed, and the middle — the sitter, the bars, the pace, what has been said
-	# so far — takes whatever room is left and scrolls when there is not enough.
-	# Nothing a player needs to press can be pushed off the screen by prose.
+	# THE THINGS YOU ACT ON ARE FIXED; THE THINGS YOU READ SCROLL. The header, the
+	# READ IT row, the hand's line and the hand keep their places; the middle
+	# takes what room is left. As one column instead, prose above the hand — a
+	# long sign rule, a wrapped hint — pushes it off the bottom of the window,
+	# and at the largest interface size it goes off entirely.
 	var page := UIKit.vbox(10)
 	m.add_child(page)
 
@@ -105,16 +86,14 @@ func _ready() -> void:
 	page.add_child(_the_say())
 	var hand_label := _the_hand_label()
 	page.add_child(hand_label)
-	var held := _the_held()
+	var held := _the_hand_box()
 	page.add_child(held)
 	var focus_on := _fill_the_hand(f, hand_label, held)
 
-	# The hand, not the run header above it. See Map.gd. Falls back to the whole
-	# screen when there is nothing in the hand to focus — which is not only the
-	# empty hand: once the energy is spent every card is disabled, so a fan full
-	# of cards can hold no focusable control at all. Without the fallback that
-	# left NOTHING on the screen focused, on more than half of all readings, and
-	# a player without a mouse could not reach READ IT to end the turn.
+	# The hand, falling back to the whole screen. The fallback is load-bearing:
+	# once the energy is spent every card is disabled and a full fan holds no
+	# focusable control, so without it nothing on the screen takes focus and a
+	# player without a mouse cannot reach READ IT to end the turn.
 	UIKit.focus_first(focus_on, self)
 
 
@@ -129,9 +108,6 @@ func _the_sitter(f: Dictionary) -> Control:
 	header.add_child(UIKit.sitter_portrait(s, hp_ratio, Art.sitter_texture(s)))
 	var header_text := UIKit.vbox(4)
 	header_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# The element as its drawn badge rather than a character. The sitter's
-	# element decides what every card in hand is worth against them, so it is
-	# worth a glance rather than a squint.
 	var who := UIKit.hbox(10)
 	who.add_child(UIKit.label("%s · %s" % [I18n.sitter_field(s, "name"), I18n.sitter_field(s, "role")], 18, UIKit.INK))
 	var el_badge := UIKit.el_badge(str(s["el"]), 24)
@@ -155,10 +131,9 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 	var energy_ratio := float(f["energy"]) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
 	var prev_energy_ratio := float(f.get("_prevEnergy", f["energy"])) / float(f["energyMax"]) if int(f["energyMax"]) > 0 else 0.0
 
-	# WHAT THE CARDS ON THE TABLE WOULD DO, on the composure bar, before you
-	# commit to them: gold for what would reach them, violet for what their
-	# denial would eat first. Ported from the source's own three-segment bar
-	# (v23 line ~726) — see UIKit.bar().
+	# What the cards already laid would do, drawn onto the composure bar before
+	# the player commits: gold for what reaches them, violet for what the denial
+	# eats first. The source's three-segment bar (v23 ~726); see UIKit.bar().
 	var room := maxf(0.0, float(f["max"]) - maxf(0.0, float(f["hp"])))
 	var will_land: float = minf(float(sim.get("applied", 0)), room)
 	var will_stop: float = minf(float(sim.get("absorbed", 0)), maxf(0.0, room - will_land))
@@ -169,9 +144,6 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 		will_land / whole, will_stop / whole,
 		("+%d" % int(will_land)) if will_land >= 1.0 else ""))
 	v.add_child(UIKit.stat_row(I18n.t("Energy"), "%s / %s" % [f["energy"], f["energyMax"]], prev_energy_ratio, energy_ratio, UIKit.GOLD, I18n.t(UIKit.KEYS["energy"])))
-	# The two piles, which every deckbuilder shows and this one did not: a
-	# player deciding whether to spend a card now or hold it is asking how many
-	# are left, and the only honest answer was to count the discard by memory.
 	var denial_row := UIKit.block("%s %s / %s   ·   %s %s   ·   %s %d   ·   %s %d" % [
 		I18n.t("Reading"), f["turn"], f["turns"], I18n.t("Denial wall"), f["denial"],
 		I18n.t("Left to draw"), f["draw"].size(), I18n.t("Set aside"), f["disc"].size(),
@@ -180,10 +152,9 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 	denial_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	v.add_child(denial_row)
 
-	# THE PACE. A reading is six or seven turns against a fixed number, and the
-	# game never said whether you were on course — you found out by running out.
-	# Balatro's whole readability is "you need 300"; this is the same sentence in
-	# this game's words, and it is the difference between a plan and a hope.
+	# THE PACE: how far short you still are, spread over the readings left. A
+	# reading is six or seven turns against a fixed number, and without this the
+	# only way to learn you were behind was to run out.
 	var still := maxi(0, int(f["max"]) - maxi(0, int(f["hp"])) - int(will_land))
 	var readings_left := maxi(0, int(f["turns"]) - int(f["turn"]) + (0 if will_land > 0.0 else 1))
 	if still > 0:
@@ -197,11 +168,11 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 	return v
 
 
-## The two things that may have happened to your hand before you could start,
-## which the reading has to admit to: a card the sitter's sign took out of it,
-## and whatever the last reading discarded. Added straight into `v` rather than
-## returned, because on an ordinary turn there is nothing to say and an empty
-## container would still take a gap in the column.
+## What happened to the hand before the player could start: a card the sitter's
+## sign took, and whatever the last reading discarded.
+##
+## Added into `v` rather than returned: on an ordinary turn there is nothing to
+## say, and an empty container would still take a gap in the column.
 func _the_notices(f: Dictionary, v: Control) -> void:
 	if f.get("taken", null) != null:
 		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
@@ -233,26 +204,24 @@ func _said_so_far(f: Dictionary, sim: Dictionary, v: Control) -> void:
 			var chip := UIKit.label("%s (+%s)" % [UIKit.card_summary(c), row.get("total", "?")], 12, UIKit.GREEN)
 			cross_box.add_child(chip)
 			if i == f["cross"].size() - 1:
-				# Only the just-laid card is new; the rest were already on
-				# screen before this rebuild (or, for the very first card of
-				# a reading, "new" and "only" are the same card either way).
+				# Only the just-laid card is new — the rest were already on
+				# screen before this rebuild.
 				UIKit.animate_in(chip)
 
 
 ## READ IT, and TAKE IT BACK beside it when there is something to take back.
 ##
-## Greyed while a play is still available and nothing is laid — the source does
-## this (`cannotRead`) and the port had inherited only the silent early-return,
-## so the button looked live and did nothing.
+## READ IT is greyed while a play is still available and nothing is laid, which
+## is the source's `cannotRead`. Without the greying the button looks live and
+## silently does nothing.
 func _the_say() -> Control:
 	var say := UIKit.hbox(10)
 	var read_btn := UIKit.button(I18n.t("READ IT"), _read_it)
 	read_btn.disabled = not Run.can_read()
 	read_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	say.add_child(read_btn)
-	# TAKE IT BACK, offered only while there is something to take back. A person
-	# who has just said the wrong thing in a room can generally unsay it before
-	# the other one answers; what you cannot undo is the reading itself.
+	# Offered only while a card can be taken back. The reading itself, once read
+	# out, cannot be.
 	if Run.can_unlay():
 		var undo := UIKit.button(I18n.t("TAKE IT BACK"), _unlay)
 		undo.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -260,38 +229,32 @@ func _the_say() -> Control:
 	return say
 
 
-## A CARD'S FULL TEXT WAS MOUSE-ONLY. It lives in Godot's hover tooltip, and a
-## hover is something a keyboard or a gamepad cannot do — so a player on a
-## controller could reach every card in the game, play them, and never once read
-## what any of them did. This line is live: it shows whichever card is under the
-## pointer OR has focus, which fixes the hole and is better with a mouse too,
-## since the text lands in the same place every time instead of following the
-## cursor around.
+## The line that prints whatever card is under the pointer OR has focus.
+##
+## FOCUS AS WELL AS HOVER, always. A card's full text lives in Godot's hover
+## tooltip, and a keyboard or gamepad cannot hover — so on hover alone a
+## controller player can reach every card, play them, and never read what any
+## of them does.
 func _the_hand_label() -> Control:
 	var hand_label := UIKit.block(I18n.t("YOUR HAND — the card you are on says what it does here"), 12, UIKit.DIM)
-	# Two lines' worth, held open, so the layout under it does not jump every
-	# time the pointer crosses a card.
+	# Two lines' worth, held open, so the layout does not jump every time the
+	# pointer crosses a card.
 	hand_label.custom_minimum_size.y = 34 * UIKit.text_scale
 	return hand_label
 
 
-## The box the hand lives in. The fan sits on top of the reader's own hands: the
-## cards are HELD, and every mark won this run is drawn on the fingers holding
-## them. A Control stacking the two, so the hands are behind and the cards in
-## front — filled by _fill_the_hand().
-func _the_held() -> Control:
+## The box the hand lives in: a plain Control stacking the drawn hands behind the
+## cards they hold. Filled by _fill_the_hand().
+func _the_hand_box() -> Control:
 	var held := Control.new()
-	# THE CARD BAND, not the whole held area. The hands are drawn down to
-	# HELD_HEIGHT and are meant to run off the bottom of the screen — wrists are
-	# not interesting — so reserving the full 250 in the column would either push
-	# the cards up off the table's edge or, before the column scrolled, push them
-	# off the screen. What has to fit is the band the cards are in; the rest of
-	# the drawing overflows this box on purpose, and nothing here clips.
-	held.custom_minimum_size = Vector2(0, _band())
+	# Reserves the CARD BAND, not the whole held area. The hands are drawn down
+	# to HELD_HEIGHT and are meant to run off the bottom of the screen; that part
+	# overflows this box on purpose, and nothing here clips.
+	held.custom_minimum_size = Vector2(0, _band_px())
 	held.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Exactly its own height, not the leftover: the hands are positioned
-	# relative to this box, and a box that grows with the window would walk
-	# them away from the cards they are supposed to be holding.
+	# Exactly its own height, never the leftover: the hands are drawn relative to
+	# this box, so a box that grew with the window would walk them away from the
+	# cards they are holding.
 	held.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	return held
 
@@ -300,11 +263,8 @@ func _the_held() -> Control:
 ## node focus should be aimed at.
 func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 	var just_drawn: Array = f.get("_justDrawn", [])
-	# THE LAST CARD IS NOT HELD IN A FAN. One card between two hands is not a
-	# fan at all, and clamping it between the fingertips the way five cards are
-	# clamped looked like a mistake — the hands closed on each other around a
-	# single sliver. It floats instead: lifted clear of two open hands, in its
-	# own light, breathing. See _lift().
+	# THE LAST CARD IS NOT HELD IN A FAN — one card clamped between fingertips
+	# reads as the hands closing on nothing. It floats instead; see _lift().
 	var alone: bool = f["hand"].size() == 1
 	var focus_on: Node = self
 	var span: Callable
@@ -323,28 +283,21 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 	else:
 		var scroll := UIKit.scroll()
 		scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
-		# ROOM FOR THE CARD TO COME UP IN. The fan lives in a ScrollContainer, so
-		# that a hand too wide for the window wraps to a second row you can still
-		# reach — and a ScrollContainer clips. The card under the pointer grows by
-		# CARD_LIFT about a pivot on its bottom edge, which means it grows UPWARD,
-		# straight out of the clip rect: the top of the raised card was being cut
-		# off, taking its cost and its restore with it. Those two numbers are the
-		# whole reason to point at a card.
-		#
-		# The headroom is made INSIDE the box rather than by moving the cards: the
-		# rect starts `head` pixels higher and the fan is pushed back down by the
-		# same amount, so every card sits exactly where it did — still gripped by
-		# the fingers drawn under it — and only what gets clipped has changed.
-		scroll.offset_bottom = _band()
+		# ROOM FOR THE CARD TO COME UP IN. The fan lives in a ScrollContainer, and
+		# a ScrollContainer CLIPS. The card under the pointer grows about a pivot
+		# on its bottom edge, so it grows upward, out of the clip rect — cutting
+		# off the cost and the restore, the only reason to point at it.
+		# _fit_headroom() opens the room; see it for why the fan is not simply
+		# moved down instead.
+		scroll.offset_bottom = _band_px()
 		held.add_child(scroll)
 		var headroom := MarginContainer.new()
 		headroom.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.add_child(headroom)
 		var fan := HFlowContainer.new()
 		fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		# Centred, so the hands that hold it are symmetric about the middle of
-		# the table rather than both crowding whichever side the cards happened
-		# to stack up on.
+		# Centred, so the hands drawn to hold the fan stay symmetric about the
+		# middle of the table.
 		fan.alignment = FlowContainer.ALIGNMENT_CENTER
 		fan.add_theme_constant_override("h_separation", FAN_GAP)
 		fan.add_theme_constant_override("v_separation", 8)
@@ -362,17 +315,10 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		span = _fan_span.bind(fan, held)
 		if fan.get_child_count() > 0:
 			focus_on = fan
-		# MEASURED, not computed from the constant. A card face is at least
-		# UIKit.card_face_size() and can be taller — a long name wraps to a third
-		# line, and the interface-size setting scales the text inside it — so
-		# headroom worked out from the nominal height is the wrong amount for the
-		# card actually on the table. It is re-measured whenever a card changes
-		# size, which is also what covers the window being resized mid-reading.
-		#
-		# On the CARDS, not only on the fan. Opening the headroom moves the fan
-		# without changing its size, so `fan.resized` does not fire a second time
-		# and the first pass — taken before the cards have been laid out at all —
-		# would be the last word.
+		# CONNECTED TO THE CARDS, not only to the fan. Opening the headroom moves
+		# the fan without changing its size, so `fan.resized` never fires a second
+		# time — and the first pass runs before the cards have been laid out at
+		# all, so its answer would stand forever.
 		var fit := func() -> void:
 			_fit_fan(fan)
 			_fit_headroom(fan, headroom, scroll)
@@ -382,19 +328,17 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		fan.resized.connect(fit)
 		fit.call()
 
-	# The hands are rooted below the cards and reach UP over them, so the fan
-	# reads as held rather than as floating above a drawing of some fingers.
-	# Added AFTER the cards on purpose: the fingertips have to be in FRONT of
-	# their lower edge. Behind them, they are a picture of hands near a fan.
+	# Added AFTER the cards, and the order matters: the fingertips have to draw
+	# in FRONT of the cards' lower edge, or they are a picture of hands near a
+	# fan rather than hands holding one.
 	var hands := Table.hands(Run.state.get("marks", []), span, hand_reach)
 	hands.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	hands.offset_top = _band() - HAND_OVERLAP * UIKit.card_scale()
-	hands.offset_bottom = _held()
+	hands.offset_top = _band_px() - HAND_OVERLAP * UIKit.card_scale()
+	hands.offset_bottom = _held_px()
 	held.add_child(hands)
-	# The cards are laid out by a container, so their width settles a frame
-	# after they are built and again whenever the window changes. Without this
-	# the hands are drawn once against whatever was measured first — which, on
-	# the frame the screen is built, is nothing at all.
+	# The cards are laid out by a container, so their width settles a frame after
+	# they are built and again on every window change. Without these redraws the
+	# hands are drawn once, against a width that is zero on the first frame.
 	held.resized.connect(func(): hands.queue_redraw())
 	for child in held.get_children():
 		if child is Container:
@@ -403,28 +347,25 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 	return focus_on
 
 
-## Wires a card face to the hand label, so hovering it or focusing it prints
-## what it does.
+## Wires a card face to the hand label, so hovering or focusing it prints what
+## the card does, and raises the card while it is the one being read.
 ##
-## The text is the card's OWN TOOLTIP, flattened — not a second string built
-## here. Two descriptions of one card drift, and the one nobody is looking at
-## drifts first; this way the mouse and the gamepad are reading the same
-## sentence by construction.
+## The text is the card's OWN TOOLTIP, flattened — never a second string built
+## here. Two descriptions of one card drift apart, and the one nobody is looking
+## at drifts first.
 func _inspect(face: Control, into: Label) -> void:
 	var idle := into.text
 	var full := face.tooltip_text.replace("\n\n", "   ·   ").replace("\n", " ")
 	if full.strip_edges() == "":
 		return
-	# is_instance_valid on every one of these: the label and the card are freed
-	# together when the screen rebuilds, and whichever goes first leaves the
-	# other's handler holding a dead reference — which Godot reports as "Lambda
-	# capture at index 0 was freed" and then passes null into the body. (There
-	# are six of those already, from elsewhere in the project; these are not
-	# them, and this is how you avoid adding a seventh.)
-	# And it comes forward. Scale is safe to drive here where position is not —
-	# an HFlowContainer re-asserts its children's positions on every layout pass
-	# and leaves scale alone (see UIKit.animate_in) — and the pivot is at the
-	# bottom of the card, so growing reads as lifting off the table.
+	# SCALE, never position: an HFlowContainer re-asserts its children's positions
+	# on every layout pass and leaves scale alone (see UIKit.animate_in). The
+	# pivot sits on the card's bottom edge, so growing reads as lifting.
+	#
+	# The is_instance_valid guards below are not optional. The label and the card
+	# are freed together when the screen rebuilds, and whichever goes first
+	# leaves the other's handler holding a dead reference — which Godot nulls and
+	# then calls the body with anyway.
 	face.pivot_offset = Vector2(UIKit.card_face_size().x * 0.5, UIKit.card_face_size().y)
 	for signal_name: String in ["mouse_entered", "focus_entered"]:
 		face.connect(signal_name, func():
@@ -437,8 +378,8 @@ func _inspect(face: Control, into: Label) -> void:
 	for signal_name: String in ["mouse_exited", "focus_exited"]:
 		face.connect(signal_name, func():
 			# Only if this card is still the one being shown: leaving card A
-			# fires after entering card B when the pointer slides between them,
-			# and clearing there would blank the text the player just asked for.
+			# fires AFTER entering card B when the pointer slides between them,
+			# so clearing unconditionally blanks the text just asked for.
 			if is_instance_valid(into) and into.text == full:
 				into.text = idle
 				into.add_theme_color_override("font_color", UIKit.DIM)
@@ -446,37 +387,26 @@ func _inspect(face: Control, into: Label) -> void:
 		)
 
 
-## The gap between two cards in a hand that fits on the table, and how much of a
-## card must still show in one that does not.
-##
-## Below about half a card there is nothing left to read but a sliver of the
-## name, so past that point the hand is allowed to wrap after all — which at
-## that width means the window is smaller than the game supports, not that a
-## player has been handed too many cards.
+## The gap between two cards in a hand that fits, and the least of a card that
+## may still show in one that does not. Past half a card there is nothing left
+## to read but a sliver of the name, so below that the hand wraps after all.
 const FAN_GAP := 8
 const CARD_MIN_SHOWS := 0.5
 
 
-## Makes the hand fit on one row by OVERLAPPING the cards, the way a hand of
-## cards held in two hands actually looks.
+## Makes the hand fit on one row by OVERLAPPING the cards, via negative
+## separation. Later children draw over earlier ones, so the cards tuck under
+## each other left to right; the one under the pointer comes to the front by
+## itself because _raise() gives it a z_index.
 ##
-## An HFlowContainer wraps, and the fan is inside a box exactly one card tall, so
-## a hand too wide for the table put its last cards on a second row that is
-## clipped out of sight: present in the layout, reachable only by scrolling a
-## box with no visible scrollbar, and to the player simply missing. Seven cards
-## at the largest interface size is enough to do it — and seven is an ordinary
-## hand, since the hand-size setting goes to eight and a reader can add one.
+## Necessary because an HFlowContainer WRAPS, and the fan sits in a box one card
+## tall — so a wrapped second row is clipped out of sight, present in the layout
+## and invisible to the player. Eight cards at the largest interface size is
+## enough to trigger it, and eight is a hand the settings can deal.
 ##
-## Negative separation is the whole trick. Later children draw over earlier ones,
-## so the cards tuck under each other left to right, and the one under the
-## pointer comes to the front on its own because _raise() puts it there.
-##
-## What that costs, stated plainly: an overlapped card loses its top-RIGHT
-## corner, which is where the restore value is printed. The alternative stacking
-## loses the top-left corner, which is the cost — and a cost you cannot see is a
-## card you cannot tell whether you can play. So the cost stays visible, the
-## restore is a hover away, and this only happens at all on a hand wide enough
-## that the choice exists.
+## The cost: an overlapped card loses its top-RIGHT corner, the restore value.
+## Stacking the other way would lose the top-left corner, the cost — and a cost
+## you cannot see is a card you cannot tell whether you can play.
 func _fit_fan(fan: Control) -> void:
 	if not is_instance_valid(fan):
 		return
@@ -494,14 +424,13 @@ func _fit_fan(fan: Control) -> void:
 		fan.add_theme_constant_override("h_separation", want)
 
 
-## Opens enough room above the fan for the raised card to grow into, and lifts
-## the clip rect by the same amount so the cards do not move.
+## Opens room above the fan for the raised card to grow into, and lifts the clip
+## rect by the same amount so the cards themselves do not move.
 ##
-## Called on every relayout of the fan, so it must be cheap and it must not
-## start one: setting a theme constant or an anchor offset to the value it
-## already holds still marks the control dirty, and `fan.resized` fires again
-## on the next pass — a loop that spends a frame budget doing nothing. Hence
-## the comparison before either write.
+## Runs on every relayout of the fan, so it must not CAUSE one: writing a theme
+## constant or an anchor offset marks the control dirty even when the value is
+## unchanged, and `fan.resized` then fires again next pass. Hence the comparison
+## before each write.
 func _fit_headroom(fan: Control, headroom: MarginContainer, scroll: Control) -> void:
 	if not is_instance_valid(fan) or not is_instance_valid(headroom) or not is_instance_valid(scroll):
 		return
@@ -552,7 +481,7 @@ func _raise(face: Control, to: float) -> void:
 func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	var band := Control.new()
 	band.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	band.offset_bottom = _band()
+	band.offset_bottom = _band_px()
 	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	held.add_child(band)
 
@@ -571,7 +500,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	band.add_child(glow)
 	band.add_child(face)
 
-	face.position.y = roundf((_band() - face_size.y) * 0.5) - LIFT
+	face.position.y = roundf((_band_px() - face_size.y) * 0.5) - LIFT
 	var settle := func() -> void:
 		# Guarded because this is also called DEFERRED, a frame later, and a
 		# screen torn down inside that frame leaves the lambda holding freed
@@ -614,7 +543,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 func _draw_lift(c: Control, face_size: Vector2) -> void:
 	if c.size.x < 4.0:
 		return
-	var mid := Vector2(c.size.x * 0.5, roundf((_band() - face_size.y) * 0.5) - LIFT + face_size.y * 0.5)
+	var mid := Vector2(c.size.x * 0.5, roundf((_band_px() - face_size.y) * 0.5) - LIFT + face_size.y * 0.5)
 	for i in range(10, 0, -1):
 		var f := float(i) / 10.0
 		c.draw_circle(mid, face_size.x * 1.15 * f, Color(UIKit.GOLD, 0.016))

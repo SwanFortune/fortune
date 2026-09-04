@@ -59,13 +59,10 @@ var last_error: String = ""
 ## could not be loaded at startup is a different message, shown in a different
 ## place, and mixing them meant a stale one from launch could appear mid-run.
 ##
-## This exists because the failure was completely silent. A disk that is full,
-## or a save directory that is read-only, made every write fail; last_error was
-## set, a warning went to the console, and the player — who is in the middle of
-## a run and nowhere near a console — was told nothing at all. They finished
-## three nights, closed the game, and the run was simply gone, with no
-## CONTINUE on the menu and no explanation ever, because last_error does not
-## survive a relaunch either.
+## A full disk or a read-only save directory makes every write fail, and a
+## warning on a console the player never sees is not telling them. Without a
+## line on screen they finish three nights, close the game and find no CONTINUE
+## and no explanation — last_error does not survive a relaunch either.
 var write_failed := false
 
 ## True when the last read fell back to the backup because the current save
@@ -151,20 +148,18 @@ func peek() -> Dictionary:
 	}
 
 
-## Removes the save AND its backup and temp file. Clearing only the main one
-## would leave a stale backup that a later corrupt read could resurrect —
-## dropping the player into a run they had already finished or abandoned.
-## Puts the run on disk NOW instead of on the next frame. The coalesced write
-## in _process would land a frame later anyway, but "anyway" is carrying a lot
-## of weight in a sentence about somebody's save: this is called when a player
-## deliberately walks away from a run, which is precisely the moment they are
-## most likely to close the window a second later.
+## Puts the run on disk NOW rather than on the next frame's coalesced write.
+## Called when a player deliberately walks away from a run, which is exactly
+## when they are most likely to close the window a second later.
 func flush() -> void:
 	if _dirty:
 		_dirty = false
 		_write()
 
 
+## Removes the save AND its backup and temp file. Clearing only the main one
+## leaves a stale backup that a later corrupt read can resurrect, dropping the
+## player into a run they had already finished or abandoned.
 func clear() -> void:
 	_dirty = false
 	for path in [PATH, BACKUP_PATH, TMP_PATH]:
@@ -209,14 +204,11 @@ func _write() -> void:
 		# CONTINUE would drop the player back into.
 		clear()
 		return
-	# WRITTEN TO A TEMPORARY FILE AND THEN RENAMED. Writing straight to PATH
-	# means the save is, for the length of the write, a half-written file — and
-	# a crash or a power cut in that window leaves the player with a truncated
-	# save and no run. The window is small and this game writes several times a
-	# minute; small and often is exactly how that lottery gets won.
-	#
-	# A rename within the same directory is atomic on every filesystem this
-	# ships to, so the save on disk is only ever the old one or the new one.
+	# WRITTEN TO A TEMPORARY FILE, THEN RENAMED. Writing straight to PATH leaves
+	# a half-written file for the length of the write, and this game writes
+	# several times a minute — small and often is how that lottery gets won.
+	# A rename within one directory is atomic on every filesystem this ships to,
+	# so the save on disk is only ever the old one or the new one.
 	var f := FileAccess.open(TMP_PATH, FileAccess.WRITE)
 	if f == null:
 		last_error = "could not open %s for writing (%s)" % [TMP_PATH, error_string(FileAccess.get_open_error())]

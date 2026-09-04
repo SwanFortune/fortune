@@ -5,16 +5,11 @@
 ## Run reads the gameplay knobs while starting a fight — both during their own
 ## _ready(), so this has to be ready first.
 ##
-## EVERY SETTING HERE DOES SOMETHING REAL, and that is the rule the file is
-## built around rather than a nice property it happens to have. The volumes
-## drive actual AudioServer buses, `animation_scale` genuinely scales the UIKit
-## tweens including an explicit 0 = off path, `max_fps` is Engine.max_fps.
-##
-## The rule is what the settings screen does NOT have as much as what it does.
-## No music slider, because there is no music for it to move. No screen-shake
-## toggle, because nothing shakes. No gamepad-vibration row, because nothing
-## rumbles. Those are the four rows a settings menu grows by imitation, and
-## every one of them would be a control that lies to the player.
+## EVERY SETTING HERE DOES SOMETHING REAL. The volumes drive AudioServer buses,
+## `animation_scale` scales the UIKit tweens with an explicit 0 = off path,
+## `max_fps` is Engine.max_fps. Do not add a row for something the game does not
+## have — no music slider, no screen-shake toggle, no rumble — because each one
+## is a control that lies to the player.
 ##
 ## tests/test_settings.gd asserts the pairing in both directions: no key here
 ## that the screen cannot reach, and no key the screen reaches that is not
@@ -347,11 +342,9 @@ func save_to_disk() -> void:
 	var cfg := ConfigFile.new()
 	for key in _values:
 		cfg.set_value(SECTION, key, _values[key])
-	# The return value is not decoration: if user:// is read-only or the disk is
-	# full this fails, and until now it failed in silence — the same class of
-	# bug as the run that stopped being saved without telling anyone, with
-	# smaller stakes (a lost setting or a lost unlock, not a lost run) and the
-	# same fix. The main menu shows it, once, for whichever of the three failed.
+	# The return value is not decoration: a read-only user:// or a full disk
+	# fails here, and the main menu shows it once for whichever of the three
+	# config writes failed. Silent, it costs a setting or an unlock.
 	# Written to a temporary file and renamed into place, for the same reason
 	# Save.gd does it: a crash partway through a write would otherwise leave a
 	# truncated config, and a truncated config is one ConfigFile.load() refuses
@@ -469,17 +462,13 @@ func _set_bus(name: String, linear: float, mute: bool) -> void:
 ## here, and that is deliberate — UIKit pulls them instead, in root_control(),
 ## at the top of every screen build.
 ##
-## Pushing them was the obvious design and it did not work. Settings is the
-## FIRST autoload (see this file's header), so at the moment its _ready() runs
-## the I18n, Content, Rules and Art autoloads do not exist yet — and UIKit
-## refers to all four. `preload("res://scenes/UIKit.gd")` from here therefore
-## compiled to nothing ("Identifier not found: I18n") and every call on it
-## failed at runtime, silently, in exactly the way autoload/Nav.gd's header
-## describes for the third time.
+## PUSHING THEM CANNOT WORK. Settings is the first autoload, so when its
+## _ready() runs the I18n, Content, Rules and Art autoloads do not exist — and
+## UIKit refers to all four, so preloading it from here compiles to nothing and
+## every call on it fails silently at runtime.
 ##
-## Deferring the push would have fixed the compile and left an ordering
-## hazard: the main scene is built before the first deferred call flushes, so
-## the opening screen would have used an unscaled palette. A pull needs no
-## ordering guarantee at all — by the time any screen builds, everything
-## exists. tests/test_scenes.gd asserts a built screen actually reflects the
-## setting, since that is the half a headless Settings test cannot see.
+## Deferring the push would compile but leaves an ordering hazard: the main
+## scene is built before the first deferred call flushes, so the opening screen
+## would use an unscaled palette. A pull needs no ordering guarantee at all.
+## tests/test_scenes.gd asserts a built screen reflects the setting, which is
+## the half a headless Settings test cannot see.

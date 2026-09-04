@@ -1,11 +1,10 @@
-## Small helper library for building this pass's UI procedurally in code
-## instead of hand-authoring .tscn node trees. Deliberately plain — dark
-## background, readable text, no theming — this vertical slice is about
-## proving the game loop and data pipeline, not matching the source
-## prototype's look. The fan-of-cards hand layout, portrait moods, and
-## hand-drawn tarot glyph art are still out of scope for this pass; see
-## docs/PORTING_NOTES.md. Keyword tooltips (KEYS below) are ported, using
-## Godot's native hover tooltip rather than the source's cursor-following one.
+## The house style, and the widgets built in it. Every screen in the game is
+## assembled from this file in code rather than from hand-authored .tscn trees.
+##
+## Two things here are load-bearing rather than cosmetic, and both are traps
+## Godot sets rather than choices: block() explains why a wrapping Label needs
+## EXPAND to render at all, and panel_button() explains why the game's rows are
+## PanelContainers rather than Buttons. Read those before adding a widget.
 class_name UIKit
 extends RefCounted
 
@@ -239,16 +238,13 @@ static func style_text(c: Control, base: int = BUTTON_FONT_SIZE) -> void:
 
 # ── surfaces ────────────────────────────────────────────────────────────
 #
-# Everything in the game that is a box comes out of this section. Before it,
-# a button was Godot's default grey slab, a bar was two hard-edged ColorRects,
-# and a row was a flat panel with a 3px radius — which read as a spreadsheet
-# sitting on top of a drawn parlour, and the parlour lost.
+# Everything in the game that is a box comes out of this section. The look is
+# one sentence: warm dark paper, rounded a little, a hairline of ink around it
+# and a soft shadow under it, gold only where something is live.
 #
-# The look is one sentence: warm dark paper, rounded a little, a hairline of
-# ink around it and a soft shadow under it, gold only where something is live.
-# Everything derives from the live palette (see apply_palette) rather than
-# being written out, so high contrast keeps working without a second set of
-# boxes to maintain.
+# Every colour derives from the LIVE palette (see apply_palette) rather than
+# being written out, so the high-contrast setting keeps working without a
+# second set of boxes to maintain.
 
 ## How round everything is. One number: a game with three corner radii in it
 ## looks like three games.
@@ -259,13 +255,10 @@ const SHADOW := 4
 
 ## The group every "leave this screen for the main menu" control belongs to.
 ##
-## A group rather than a naming convention because it is what a test can ask
+## A group rather than a naming convention, because it is what a test can ask
 ## about without matching on words: tests/test_scenes.gd builds every screen a
-## run can be on and fails if any of them has nothing in this group. That check
-## exists because for most of the port there was no way back to the menu from
-## anywhere in the game — once BEGIN was pressed the Library, the Minitel, the
-## mods list and QUIT were all unreachable until the process was killed, and
-## nothing said so, because a missing exit looks exactly like a screen.
+## run can be on and fails if any of them has nothing in this group. A screen
+## with no way out looks exactly like a screen, so nothing else catches it.
 const WAY_OUT := "way_out"
 
 
@@ -299,10 +292,9 @@ static func surface(fill: Color, border: Color = Color(0, 0, 0, 0), width: int =
 ## `weight` scales the whole treatment down for small chrome: 1.0 is a menu
 ## entry, 0.6 is a chip in the header that should not shout.
 ##
-## The padding is WIDE AND SHALLOW — a square 10 on every side is what a first
-## pass reached for, and it made every button four pixels taller than it was,
-## which pushed QUIT off the bottom of the main menu. A button is a line of
-## text with air either side of it, not a square.
+## The padding is WIDE AND SHALLOW, not square: a button is a line of text with
+## air either side of it. Equal padding all round adds height to every button in
+## the game, which is enough to push the last entry off the main menu.
 static func style_button(b: Button, weight: float = 1.0) -> void:
 	var pad_x := int(14 * weight)
 	var pad_y := int(5 * weight)
@@ -417,18 +409,14 @@ static func margin(px: int = 24) -> MarginContainer:
 
 ## Makes a PanelContainer row respond to the mouse AND to the keyboard/gamepad.
 ##
-## panel_button() and card_face() each had their own verbatim copy of this
-## block, and both copies handled only InputEventMouseButton — so every card in
-## hand, every sitter on the map and every reward was mouse-only. Buttons made
-## with button() were always keyboard-reachable (Godot's Button is focusable and
-## works out its own focus neighbours from the layout); these rows, being
-## PanelContainers, were not focusable at all, which left keyboard and gamepad
-## players able to reach the menus and nothing else.
+## Godot's Button is focusable and works out its own focus neighbours; a
+## PanelContainer is neither, and the game's rows — every card in hand, every
+## sitter, every reward — are PanelContainers. Without this they are mouse-only,
+## and a keyboard or gamepad player can reach the menus and nothing else.
 ##
-## `style` is mutated in place rather than swapped, because that is how the
-## hover highlight already worked — a StyleBoxFlat handed to
-## add_theme_stylebox_override stays live, so changing a property on it
-## redraws the node.
+## `style` is mutated in place rather than swapped: a StyleBoxFlat handed to
+## add_theme_stylebox_override stays live, so writing a property on it redraws
+## the node.
 static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Callable, enabled: bool) -> void:
 	if not enabled:
 		wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -474,28 +462,20 @@ static func make_interactive(wrap: Control, style: StyleBoxFlat, on_pressed: Cal
 	)
 
 
-## Puts keyboard focus on the first thing in `root` that can take it, so the
-## first Tab or D-pad press does something visible instead of nothing. Deferred
-## because grab_focus() needs the node to be in the tree with its visibility
-## resolved, which is not yet true while a screen's _ready() is still running.
-## Returns nothing; screens call it and forget.
 ## Runs `what` in `seconds`, unless whoever owns it has gone by then.
 ##
-## The callable is connected DIRECTLY, with no wrapper lambda around it. That is
-## the whole point of this helper existing.
+## CONNECTED DIRECTLY, with no wrapper lambda. That is the whole point of this
+## helper, and the reason it is not obvious:
 ##
-## A wrapper — `connect(func(): if what.is_valid(): what.call())` — is the
-## obvious defensive shape and it is exactly wrong: the wrapper CAPTURES `what`,
-## the engine nulls a freed capture before the body runs, and the guard never
-## executes. Six of those errors were printed on every run of the test suite,
-## and chasing them is how this function came to exist.
-##
-## Connected straight to the timer, Godot's own signal bookkeeping removes the
-## connection when the callable's object is freed, and nothing fires at all —
-## which is both quiet and what was wanted.
+## A guard wrapper — `connect(func(): if what.is_valid(): what.call())` — is the
+## defensive shape everyone reaches for and it is exactly wrong. The wrapper
+## CAPTURES `what`; Godot nulls a freed capture, prints an error, and calls the
+## body anyway, so the guard never runs and the error is moved rather than
+## removed. Connected straight to the timer, Godot's signal bookkeeping drops
+## the connection when the callable's object is freed and nothing fires at all.
 ##
 ## Every deferred beat in the game goes through here: the deal, the knock, the
-## ledger's own pacing.
+## ledger's pacing.
 static func after(seconds: float, what: Callable) -> void:
 	if seconds <= 0.0:
 		what.call()
@@ -503,15 +483,16 @@ static func after(seconds: float, what: Callable) -> void:
 	tree().create_timer(dur(seconds)).timeout.connect(what)
 
 
-## Puts focus on the first thing inside `root` that can take it.
+## Puts focus on the first thing inside `root` that can take it, so the first
+## Tab or D-pad press does something visible. Deferred by a frame: grab_focus()
+## needs the node in the tree with its visibility resolved, which is not yet
+## true while a screen's _ready() is running.
 ##
-## `fallback` is where to look if there is nothing — usually the whole screen,
-## when `root` is the part of it a player would normally start on. It is not a
-## nicety: the reading screen aims focus at the HAND, and a hand every card of
-## which is unaffordable contains no focusable control at all, so with the
-## energy spent NOTHING on the screen had focus. A player with a gamepad was
-## then holding a controller that did nothing — READ IT included — with no way
-## to finish the reading. It happened on better than half of all readings.
+## `fallback` is where to look when `root` holds nothing focusable — usually the
+## whole screen, when `root` is the part a player would normally start on. Not a
+## nicety: the reading screen aims focus at the HAND, and every card in a hand
+## is disabled once the energy is spent, so without it nothing on the screen
+## takes focus and a gamepad player cannot reach READ IT.
 static func focus_first(root: Node, fallback: Node = null) -> void:
 	# The node's ID, not the node. This is deferred by a frame, and a screen torn
 	# down inside that frame — which happens constantly in the scene sweep, and
@@ -552,15 +533,11 @@ static func _focus_first_now(node: Node) -> bool:
 
 ## True if `node` or ANY ancestor is queued for deletion.
 ##
-## is_queued_for_deletion() only reports on the node it is called on, and every
-## screen here rebuilds by calling queue_free() on its single root child — so
-## the doomed subtree's Buttons each answered "no", stayed in the tree until
-## the end of the frame, and were the first thing the focus walk found. Focus
-## was placed on a node that then vanished, leaving the rebuilt screen with
-## nothing focused and a keyboard player stuck.
-##
-## It only showed up on a REBUILD, which most screens never do — the settings
-## screen's category rail rebuilds on every click, which is how it surfaced.
+## is_queued_for_deletion() only reports on the node it is called ON, and these
+## screens rebuild by queue_free()-ing their single root child — so every Button
+## in the doomed subtree answers "no", stays in the tree until the end of the
+## frame, and is the first thing a focus walk finds. Focus then lands on a node
+## that vanishes, and the rebuilt screen has nothing focused.
 static func going_away(node: Node) -> bool:
 	var n := node
 	while n != null:
@@ -627,32 +604,25 @@ static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = tru
 	return wrap
 
 
-## The running SceneTree, for kicking off Tweens from a static RefCounted
-## helper. Node.create_tween() would be the normal way to do this, but the
-## nodes these helpers build aren't attached to anything yet at the point
-## they're constructed (their caller only parents them a few lines later) —
-## calling create_tween() on a not-yet-attached node fails since it goes
-## through get_tree() internally, which is null until the node is in the
-## live tree. SceneTree.create_tween() has no such requirement: it just needs
-## the tree to exist, not the animated node specifically, and a Tween's
-## property writes land on whatever node reference it holds regardless of
-## that node's own tree membership at the moment the tween was created — by
-## the time the next frame actually renders, the whole subtree these helpers
-## return is attached (every UI screen builds and parents its entire tree
-## synchronously within one _ready() call), so the animation is visible from
-## frame one with no dropped or out-of-order property writes.
+## The running SceneTree, for starting Tweens from a static helper.
+##
+## Node.create_tween() cannot be used here: the nodes these helpers build are
+## not in the tree yet when they are constructed — the caller parents them a few
+## lines later — and create_tween() goes through get_tree(), which is null until
+## then. SceneTree.create_tween() only needs the tree to exist, and a Tween's
+## writes land on whatever node it holds regardless of when that node was
+## attached. Every screen builds and parents its whole subtree inside one
+## _ready(), so the animation is correct from the first frame.
 static func tree() -> SceneTree:
 	return Engine.get_main_loop()
 
 
 ## Every animation helper below calls this immediately after create_tween().
-## A SceneTree-level tween (see tree() above) is NOT tied to any node's
-## lifetime by default, so if the screen it's animating gets torn down before
-## the tween finishes — this UI rebuilds the whole scene on every action, so
-## that's routine, not an edge case — the tween keeps running and then writes
-## to a freed node on its next step, which is a hard error, not a silent
-## no-op. bind_node() makes the tween stop itself the moment `target` leaves
-## the tree, which is exactly the lifetime this needs to track.
+##
+## A SceneTree-level tween (see tree()) is NOT tied to any node's lifetime, and
+## this UI tears down whole screens on every action — so an unbound tween
+## outlives its target and writes to a freed node, which is a hard error rather
+## than a silent no-op. bind_node() stops it the moment `target` leaves the tree.
 static func bound_tween(target: Node) -> Tween:
 	return tree().create_tween().bind_node(target)
 
@@ -691,13 +661,11 @@ static func setting_row(caption: String, help: String) -> HBoxContainer:
 
 ## The explanatory text that sits to the right of a settings control.
 ##
-## block(), not label(): a non-wrapping Label reports its full text width as
-## its MINIMUM, so an HBoxContainer holding one is forced at least that wide —
-## which pushed the row past the window and clipped the sentence, since the
-## enclosing ScrollContainer has horizontal scrolling off. A wrapping Label
-## with EXPAND_FILL takes whatever is left after the caption and the control
-## and wraps inside it. See block()'s own doc comment for the other half of
-## this trap.
+## block(), never label(): a non-wrapping Label reports its full text width as
+## its MINIMUM, forcing the enclosing HBoxContainer at least that wide and
+## pushing the row past the window — where it is clipped, because the outer
+## ScrollContainer has horizontal scrolling off. See block() for the other half
+## of this trap.
 static func _inline_help(text: String) -> Label:
 	var l := block(text, 11, DIM)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -796,12 +764,9 @@ static func setting_toggle(key: String, caption: String, help: String, on_toggle
 ## on the table would restore if you read them now, and how much of that the
 ## sitter's denial would eat before it got there.
 ##
-## THIS IS THE SOURCE PROTOTYPE'S BAR AND IT WAS NOT PORTED. v23 draws three
-## segments (`hpPct`, `projPct`, `absorbPct`, line ~726) and the port drew only
-## the first, so the game asked a player to lay cards toward a number they could
-## not see coming. It is the one thing every deckbuilder gives you — the play
-## you are about to make, priced before you commit to it — and it was in the
-## design all along.
+## The three segments are the source prototype's own bar — `hpPct`, `projPct`,
+## `absorbPct`, v23 line ~726. Drawing only the first asks the player to lay
+## cards toward a number they cannot see coming.
 static func bar(from_ratio: float, to_ratio: float, fg: Color, w: float = 260, h: float = 14,
 		duration: float = 0.5, projected: float = 0.0, absorbed: float = 0.0) -> Control:
 	var c := Control.new()
@@ -874,14 +839,12 @@ static func stat_row(caption: String, value_text: String, from_ratio: float, to_
 	return row
 
 
-## A quick color flash + scale bump — used on a value label the instant it
-## changes (composure/energy ticking, faith/coin gained) so the change reads
-## as an event, not just a number that's suddenly different after a screen
-## rebuild. Pivots from the node's top-left rather than its center — its
-## real size isn't known yet at the point this is called (layout hasn't run;
-## a fresh Control reports size (0,0) until it's actually been through a
-## layout pass), so a true center-pivot isn't available cheaply here. Small
-## enough content (a stat value, a few characters) that it isn't noticeable.
+## A quick colour flash and scale bump on a value the instant it changes, so
+## the change reads as an event rather than a different number after a rebuild.
+##
+## Pivots from the TOP-LEFT, not the centre: this is called before layout has
+## run and a fresh Control reports size (0,0) until it has, so a true centre
+## pivot is not available. The content is a few characters, so it does not show.
 static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> void:
 	if motion_off():
 		return  # nothing to restore: the node is already in its end state
@@ -903,16 +866,13 @@ static func pulse(node: Control, flash_color: Color, duration: float = 0.5) -> v
 	bound_tween(node).tween_property(node, "scale", Vector2.ONE, dur(duration)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## Fades + scales a node in — used for newly-drawn hand cards and the
-## most-recently-laid card, staggered by `delay` so a hand of 5 reads as a
-## deal rather than a simultaneous pop. Animates modulate/scale rather than
-## position deliberately: every place this is used lives inside a real
-## Container (HFlowContainer for the hand, HBoxContainer for the laid line),
-## and a Container re-asserts its children's `position` on every layout
-## pass — animating position there would just fight the container and
-## visibly snap back or jitter. modulate and scale aren't part of Container
-## layout, so they're safe to drive with a tween no matter what the parent
-## does on its next sort.
+## Fades and scales a node in, staggered by `delay` so a hand of five reads as
+## a deal rather than a simultaneous pop.
+##
+## MODULATE AND SCALE, never position. Everything this is used on lives inside a
+## Container, and a Container re-asserts its children's `position` on every
+## layout pass — an animated position fights it and snaps back. modulate and
+## scale are not part of Container layout and are safe to drive.
 static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32) -> void:
 	if motion_off():
 		return  # leave it fully visible at rest scale; no fade-in to play
@@ -924,26 +884,17 @@ static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32
 	t.tween_property(node, "scale", Vector2.ONE, dur(duration)).set_delay(dur(delay)).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-## A small procedural face reacting to how close the sitter is to mended
-## (hp_ratio), loosely following the source's MOODS state machine (~line
-## 1147: waiting/listening/reached/struck, driven by eye height, brow angle,
-## mouth shape, and a warm "flush" glow) — not the source's hand-drawn
-## portrait, which this pass doesn't attempt, but the same idea: composure
-## climbing is legible on the sitter's face, not just in a number.
-## `art` is an optional delivered portrait (Art.sitter_texture(...)); when
-## present it replaces the procedural face entirely, keeping only the
-## composure glow behind it. Null (the default, and the state of every sitter
-## until the artist delivers) falls through to the drawn placeholder.
-## The person sitting across the table.
+## The person sitting across the table: shoulders out of the bottom of the
+## frame, a collar, a neck, a head, hair and a face. It follows the source's
+## MOODS state machine (v23 ~1147) in spirit — composure legible on the face
+## rather than only in a number.
 ##
-## Was an oval with two rectangles and a curve in it — a smiley face, which is
-## exactly what it read as. The screen it lives on is now a room, and the
-## weakest thing in that room was the one PERSON in it, who you look at for a
-## whole encounter while deciding what to say to them.
+## `art` is an optional delivered portrait (Art.sitter_texture); when present it
+## replaces the drawing entirely, keeping only the composure glow behind it.
+## Null — the state of every sitter until an artist delivers — falls through to
+## the placeholder below.
 ##
-## This draws a bust: shoulders coming up out of the bottom of the frame, a
-## collar, a neck, a head, hair, and a face. Everything about it answers to two
-## things and nothing else:
+## Everything drawn answers to two things and nothing else:
 ##
 ##   COMPOSURE  how far they have been mended, 0 to 1. The brows lift and arch,
 ##              the eyes open, the mouth goes from a flat line to something
@@ -951,14 +902,12 @@ static func animate_in(node: Control, delay: float = 0.0, duration: float = 0.32
 ##              and their element warms behind them. Someone closing off and
 ##              someone reached should not need a number to tell apart.
 ##   WHO THEY ARE  a stable hash of the sitter's key picks the hair, the
-##              colouring, the width of the face and whether they wear a
-##              moustache. TEN VILLAGERS WHO ALL LOOK THE SAME are not villagers
-##              — and a face that changes between one screen and the next is not
-##              a person, so the variation is derived, never random.
+##              colouring, the width of the face and the moustache. DERIVED,
+##              never random: a face that changes between two screens is not a
+##              person.
 ##
-## PLACEHOLDER, on the same terms as scenes/Table.gd: geometry, not
-## illustration. Deliver a portrait PNG through the manifest and this stops
-## being used for that sitter — see docs/ART_GUIDE.md.
+## PLACEHOLDER, on the same terms as scenes/Table.gd — geometry, not
+## illustration. See docs/ART_GUIDE.md.
 static func sitter_portrait(sitter: Dictionary, hp_ratio: float, art: Texture2D = null) -> Control:
 	var el := str(sitter.get("el", ""))
 	if art != null:
@@ -1004,13 +953,12 @@ const CLOTH_TONES := [
 const HAIR_STYLES := 5
 
 
-## Everything about a face that is not composure, derived from their key so it
-## is the same face every time you meet them.
-## `pronoun` is the sitter's own `p` field, which the writing already carries.
-## The only thing it decides is the moustache; everything else is the hash, for
-## everybody. A period village in the rain is not a character creator, and
-## deriving more than that from a pronoun would be inventing people the writing
-## did not write.
+## Everything about a face that is not composure, derived from the sitter's key
+## so it is the same face every time you meet them.
+##
+## `pronoun` is the sitter's own `p` field, and the ONLY thing it decides is the
+## moustache. Everything else comes from the hash, for everybody — deriving more
+## from a pronoun would invent people the writing did not write.
 static func _face_of(key: String, pronoun: String = "") -> Dictionary:
 	var h := _stable_hash(key)
 	return {
@@ -1444,22 +1392,18 @@ static func card_face_size() -> Vector2:
 	return CARD_FACE_SIZE * card_scale()
 
 
-## A fixed-size card face for the hand fan — cost top-left, base restore
-## top-right, name centered, element-colored border; the full mechanic text,
-## flavor, and keyword glossary all move into the hover tooltip since there's
-## no room to print them at this size. This mirrors the source's own card
-## design rule ("no numbers in the face beyond cost/restore, everything else
-## is a tooltip") more closely than the roomy panel_button rows PickScreen
-## and the pre-fan hand list use — those stay as they are; a reward/shop
-## choice benefits from full text visible, a hand fan does not.
-## `enabled` and `interactive` are two different things and were one. `enabled`
-## false is a card you cannot afford: greyed, and it says so. `interactive`
-## false is a card that is only being SHOWN — the deck list is the whole of it
-## today — at full strength, but taking neither the pointer nor the focus.
+## A fixed-size card face for the hand fan: cost top-left, base restore
+## top-right, name centred, element-coloured border. Everything else — the
+## mechanic text, the flavour, the keyword glossary — moves into the hover
+## tooltip, which is the source's own rule for a card at this size. The roomier
+## panel_button rows the reward and shop screens use are the other choice, and
+## right for a decision made once.
 ##
-## Without the second, a face used as an illustration is in the keyboard's way:
-## the ten cards in the deck panel were ten focus stops that did nothing when
-## pressed, standing between the player and the CLOSE button.
+## `enabled` and `interactive` are DIFFERENT. `enabled` false is a card you
+## cannot afford: greyed, and saying so. `interactive` false is a card being
+## shown as an illustration — full strength, but taking neither the pointer nor
+## the focus. Without the second, ten deck cards are ten focus stops that do
+## nothing when pressed, standing between the player and CLOSE.
 static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true,
 		interactive: bool = true) -> Control:
 	var wrap := PanelContainer.new()

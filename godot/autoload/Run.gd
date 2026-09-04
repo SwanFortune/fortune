@@ -157,14 +157,12 @@ func build_gift(reader: Dictionary) -> Dictionary:
 # ── small helpers ───────────────────────────────────────────────────────
 
 ## THE EVENING'S SEED. Every roll a run makes comes out of this one generator,
-## so a seed is a run: the same eight hours, the same callers, the same signs,
-## the same shuffles. Standard in the genre, and the reason it is worth the
-## small refactor is not the leaderboard — it is that "it did this on seed
-## 41822, knock 6" turns an unreproducible bug report into a reproducible one.
+## so a seed IS a run: the same eight hours, the same callers, the same signs,
+## the same shuffles.
 ##
-## Every rng.randf()/rng.randi() in this file went through it. The global RNG is left
-## alone, because it is what Audio's pitch jitter uses and a run must not sound
-## different for having been re-seeded.
+## Every roll in this file must go through `rng`, never through the global RNG —
+## which is left alone deliberately, because Audio's pitch jitter uses it and a
+## run must not sound different for having been re-seeded.
 ##
 ## HONEST LIMIT: a seed reproduces a run FROM THE START. It does not survive a
 ## reload mid-run — the generator's position is not saved, only the seed — so a
@@ -240,11 +238,10 @@ const HOURS := ["20:00", "20:30", "21:00", "21:30", "22:00", "22:30", "23:00", "
 ## What is on offer at each hour of a night, decided at the START of the night
 ## rather than at each knock — which is the whole point.
 ##
-## The rolls are the same ones make_options() has always made (an elite is
-## possible from the third knock, the apothecary from the second, and the last
-## hour is one caller with no way out); ALL THAT MOVED IS WHEN THEY HAPPEN. Now
-## that the night is decided in advance, it can be shown in advance, and "who
-## knocks tonight?" stops being a question you answer with no information.
+## The rolls are exactly make_options()' own — an elite from the third knock,
+## the apothecary from the second, the last hour a single caller with no way
+## out. ALL THAT MOVED IS WHEN THEY HAPPEN: decided in advance, they can be
+## shown in advance, which is what the agenda on the map draws.
 ##
 ## Deliberately holds STRINGS AND NOTHING ELSE. A plan carrying sitter or sign
 ## objects would be a third place Save.gd has to re-resolve content on load
@@ -463,14 +460,11 @@ func start_fight(o: Dictionary) -> void:
 	state_changed.emit()
 
 
-## Animation bookkeeping note: the UI (Reading.gd) fully rebuilds itself from
-## Run.state on every action rather than staying alive and being incrementally
-## updated (see UIKit.gd's doc comment), so there's no persistent node around
-## to interpolate FROM. The fields below (_prevHp/_prevEnergy/_justDrawn/
-## _justDiscarded) exist purely so the next rebuild can still animate
-## correctly: they snapshot "what changed this action" onto the fight dict
-## itself, read once by the UI and not treated as real game state anywhere
-## in Rules.gd or elsewhere in Run.gd.
+## The _prevHp/_prevEnergy/_justDrawn/_justDiscarded fields below are ANIMATION
+## BOOKKEEPING, not game state: Reading.gd rebuilds itself from scratch on every
+## action, so there is no persistent node to interpolate from. They snapshot
+## what changed this action, are read once by the UI, and are never consulted by
+## Rules.gd or by the rest of this file.
 func begin_turn(f: Dictionary) -> void:
 	# A reading, a new turn and a new sitter all end the window in which the
 	# last card can be taken back.
@@ -514,10 +508,6 @@ func draw_to(f: Dictionary, n: int) -> void:
 		f["hand"].append(f["draw"].pop_front())
 
 
-## Ported from _lay(uid) (~2021): moves a card from hand to the laid line
-## (f.cross), paying its energy cost. draw/energy card fields resolve
-## immediately on lay, not at read time — only simulate()'s scoring math is
-## deferred to READ IT.
 ## THE FIGHT AS IT WAS BEFORE THE LAST CARD WENT DOWN.
 ##
 ## A whole-dict snapshot rather than an inverse of lay_card(): laying a card can
@@ -551,6 +541,11 @@ func unlay() -> void:
 	state_changed.emit()
 
 
+## Moves a card from hand to the laid line (f.cross), paying its energy cost.
+## Ported from _lay(uid) (~2021).
+##
+## A card's draw/energy fields resolve IMMEDIATELY on lay, not at read time —
+## only simulate()'s scoring is deferred to READ IT.
 func lay_card(card_uid: String) -> void:
 	var f: Dictionary = state["f"]
 	if f.is_empty():
@@ -580,9 +575,6 @@ func lay_card(card_uid: String) -> void:
 	state_changed.emit()
 
 
-## Resolves the laid line via Rules.simulate() and applies the result. The
-## source animates this card-by-card (tick()); this port applies it
-## immediately — see docs/PORTING_NOTES.md for why that's fine for this pass.
 ## Whether READ IT should do anything.
 ##
 ## The prototype's rule is "not with an empty line" (readIt returns early, and
@@ -608,6 +600,9 @@ func can_read() -> bool:
 	return true
 
 
+## Resolves the laid line via Rules.simulate() and applies the result. The
+## source animates this card by card (tick()); this port applies it at once —
+## see docs/PORTING_NOTES.md.
 func read_it() -> void:
 	# A reading, a new turn and a new sitter all end the window in which the
 	# last card can be taken back.
