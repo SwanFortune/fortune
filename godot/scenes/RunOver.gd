@@ -63,6 +63,18 @@ func _ready() -> void:
 		v.add_child(row)
 
 	v.add_child(UIKit.button(I18n.t("BEGIN AGAIN"), _restart))
+	# And a way out that is not another run. This screen offered exactly one
+	# move, straight back into a fresh evening, which made the ending the last
+	# thing a player could do deliberately: no Library, no Minitel, no QUIT.
+	var way_out := UIKit.button(I18n.t("THE MENU"), func():
+		# The run is finished, so the save is stale by definition. Cleared here
+		# rather than left for CONTINUE on the menu to offer to resume an evening
+		# that has already been read out.
+		Save.clear()
+		Nav.goto_main_menu()
+	)
+	way_out.add_to_group(UIKit.WAY_OUT)
+	v.add_child(way_out)
 	row_wrap.add_child(_the_ledger(over.get("ledger", [])))
 	UIKit.focus_first(self)
 

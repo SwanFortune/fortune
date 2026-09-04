@@ -217,8 +217,23 @@ func _ready() -> void:
 	else:
 		var scroll := UIKit.scroll()
 		scroll.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		# ROOM FOR THE CARD TO COME UP IN. The fan lives in a ScrollContainer, so
+		# that a hand too wide for the window wraps to a second row you can still
+		# reach — and a ScrollContainer clips. The card under the pointer grows by
+		# CARD_LIFT about a pivot on its bottom edge, which means it grows UPWARD,
+		# straight out of the clip rect: the top of the raised card was being cut
+		# off, taking its cost and its restore with it. Those two numbers are the
+		# whole reason to point at a card.
+		#
+		# The headroom is made INSIDE the box rather than by moving the cards: the
+		# rect starts `head` pixels higher and the fan is pushed back down by the
+		# same amount, so every card sits exactly where it did — still gripped by
+		# the fingers drawn under it — and only what gets clipped has changed.
 		scroll.offset_bottom = CARD_BAND
 		held.add_child(scroll)
+		var headroom := MarginContainer.new()
+		headroom.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(headroom)
 		var fan := HFlowContainer.new()
 		fan.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		# Centred, so the hands that hold it are symmetric about the middle of
@@ -227,7 +242,7 @@ func _ready() -> void:
 		fan.alignment = FlowContainer.ALIGNMENT_CENTER
 		fan.add_theme_constant_override("h_separation", 8)
 		fan.add_theme_constant_override("v_separation", 8)
-		scroll.add_child(fan)
+		headroom.add_child(fan)
 		var deal_index := 0
 		for c in f["hand"]:
 			var afford := int(c.get("cost", 0)) <= int(f["energy"])
@@ -241,6 +256,23 @@ func _ready() -> void:
 		span = _fan_span.bind(fan, held)
 		if fan.get_child_count() > 0:
 			focus_on = fan
+		# MEASURED, not computed from the constant. A card face is at least
+		# UIKit.card_face_size() and can be taller — a long name wraps to a third
+		# line, and the interface-size setting scales the text inside it — so
+		# headroom worked out from the nominal height is the wrong amount for the
+		# card actually on the table. It is re-measured whenever a card changes
+		# size, which is also what covers the window being resized mid-reading.
+		#
+		# On the CARDS, not only on the fan. Opening the headroom moves the fan
+		# without changing its size, so `fan.resized` does not fire a second time
+		# and the first pass — taken before the cards have been laid out at all —
+		# would be the last word.
+		var fit := func() -> void: _fit_headroom(fan, headroom, scroll)
+		for child in fan.get_children():
+			if child is Control:
+				(child as Control).resized.connect(fit)
+		fan.resized.connect(fit)
+		fit.call()
 
 	# The hands are rooted below the cards and reach UP over them, so the fan
 	# reads as held rather than as floating above a drawing of some fingers.
@@ -306,6 +338,34 @@ func _inspect(face: Control, into: Label) -> void:
 				into.add_theme_color_override("font_color", UIKit.DIM)
 			_raise(face, 1.0)
 		)
+
+
+## Opens enough room above the fan for the raised card to grow into, and lifts
+## the clip rect by the same amount so the cards do not move.
+##
+## Called on every relayout of the fan, so it must be cheap and it must not
+## start one: setting a theme constant or an anchor offset to the value it
+## already holds still marks the control dirty, and `fan.resized` fires again
+## on the next pass — a loop that spends a frame budget doing nothing. Hence
+## the comparison before either write.
+func _fit_headroom(fan: Control, headroom: MarginContainer, scroll: Control) -> void:
+	if not is_instance_valid(fan) or not is_instance_valid(headroom) or not is_instance_valid(scroll):
+		return
+	var tallest := 0.0
+	for child in fan.get_children():
+		if child is Control:
+			# Whichever is known. On the frame the screen is built a card has no
+			# size yet but does have a minimum; once laid out it has both, and a
+			# card given more room than its minimum is the one that matters.
+			var c: Control = child
+			tallest = maxf(tallest, maxf(c.size.y, c.get_combined_minimum_size().y))
+	if tallest <= 0.0:
+		return
+	var head := int(ceil(tallest * (CARD_LIFT - 1.0)))
+	if headroom.get_theme_constant("margin_top") != head:
+		headroom.add_theme_constant_override("margin_top", head)
+	if int(scroll.offset_top) != -head:
+		scroll.offset_top = -head
 
 
 ## How far the card under the pointer comes off the table.

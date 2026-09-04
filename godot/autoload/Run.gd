@@ -789,7 +789,7 @@ func end_run(why: String) -> void:
 			{"left": "Restored", "right": str(state["mended"])},
 			{"left": "Deck", "right": ["%s cards", state["deck"].size()]},
 			{"left": "Centimes left", "right": str(state["coin"])},
-			{"left": "The evening", "right": str(state.get("seed", ""))},
+			{"left": "Evening no.", "right": str(state.get("seed", ""))},
 		],
 	}
 	state_changed.emit()

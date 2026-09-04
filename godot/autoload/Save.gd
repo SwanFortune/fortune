@@ -154,6 +154,17 @@ func peek() -> Dictionary:
 ## Removes the save AND its backup and temp file. Clearing only the main one
 ## would leave a stale backup that a later corrupt read could resurrect —
 ## dropping the player into a run they had already finished or abandoned.
+## Puts the run on disk NOW instead of on the next frame. The coalesced write
+## in _process would land a frame later anyway, but "anyway" is carrying a lot
+## of weight in a sentence about somebody's save: this is called when a player
+## deliberately walks away from a run, which is precisely the moment they are
+## most likely to close the window a second later.
+func flush() -> void:
+	if _dirty:
+		_dirty = false
+		_write()
+
+
 func clear() -> void:
 	_dirty = false
 	for path in [PATH, BACKUP_PATH, TMP_PATH]:

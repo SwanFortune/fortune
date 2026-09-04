@@ -128,7 +128,7 @@ static func _ladder_lines() -> Array:
 			continue
 		lines.append("%d · %s — %s" % [
 			int(rung.get("n", 0)), I18n.t(str(rung.get("name", ""))), I18n.t(str(rung.get("text", "")))])
-	lines.append(I18n.t("THE EVENING. Every roll a run makes comes out of the seed in that box, so typing the same one twice deals the same three nights: the same callers, the same signs, the same shuffles. Leave it empty for a new one. It is printed in the run header and on the last screen."))
+	lines.append(I18n.t("WHICH EVENING. Every roll a run makes comes out of the seed in that box, so typing the same one twice deals the same three nights: the same callers, the same signs, the same shuffles. Leave it empty for a new one. It is printed in the run header and on the last screen."))
 	return lines
 
 

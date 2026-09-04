@@ -17,7 +17,18 @@ func _ready() -> void:
 	var v := UIKit.vbox(14)
 	m.add_child(v)
 
-	v.add_child(UIKit.block(I18n.t("CHOOSE YOUR SIGN"), 26, UIKit.GOLD))
+	# A HEADING AND A WAY BACK, on the same line. This screen had neither a run
+	# header nor an exit: pressing BEGIN on the menu — by accident or to see what
+	# was here — left a player on a screen whose only move was forward into a run.
+	# Nothing is lost by going back; the run is not made until a reader is picked.
+	var top := UIKit.hbox(14)
+	var heading := UIKit.block(I18n.t("CHOOSE YOUR SIGN"), 26, UIKit.GOLD)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(heading)
+	var back := UIKit.button(I18n.t("BACK"), func(): Nav.goto_main_menu())
+	back.add_to_group(UIKit.WAY_OUT)
+	top.add_child(back)
+	v.add_child(top)
 	v.add_child(UIKit.block(I18n.t("Every reader is a sign, an element, and a starting deck of ten."), 13, UIKit.DIM))
 	v.add_child(_before_you_start())
 
@@ -45,7 +56,10 @@ func _ready() -> void:
 		if locked:
 			lines.append(["%s %s" % [I18n.t("LOCKED —"), Profile.unlock_text(r.get("unlock", null))], 12, UIKit.GOLD])
 		list.add_child(UIKit.panel_button(lines, _pick.bind(i), not locked, "", _sigil(r, locked)))
-	UIKit.focus_first(self)
+	# The LIST, not the screen. What this screen is for is choosing a reader, and
+	# focus_first takes the first focusable thing in tree order — which, since
+	# BACK was added at the top, would otherwise be the way out.
+	UIKit.focus_first(list)
 
 
 ## The two things that are decided before a run rather than during it: how hard
@@ -103,10 +117,17 @@ func _before_you_start() -> Control:
 	# THE SEED. Every roll a run makes comes out of it, so this box is the
 	# whole run: hand it to somebody else and they play the same three nights.
 	var seed_row := UIKit.hbox(10)
-	seed_row.add_child(UIKit.label(I18n.t("THE EVENING"), 11, UIKit.GOLD))
+	# "WHICH EVENING", not "THE EVENING". The agenda down the left of the map is
+	# headed THE EVENING, and so was this box, and so were two different sections
+	# of the How To Play screen — one about the clock, one about the seed. The
+	# seed is not the evening; it is which of all possible evenings you get.
+	seed_row.add_child(UIKit.label(I18n.t("WHICH EVENING"), 11, UIKit.GOLD))
 	_seed_field = LineEdit.new()
 	UIKit.style_field(_seed_field)
-	_seed_field.placeholder_text = I18n.t("leave empty for whichever one turns up")
+	# Short enough to actually fit the box. The old placeholder ran off the end
+	# of the field — "leave empty for whichever one turns" — which is a worse
+	# sentence than the one it was trying to be, and looked like a bug.
+	_seed_field.placeholder_text = I18n.t("leave empty for a new one")
 	_seed_field.custom_minimum_size.x = 300 * UIKit.text_scale
 	seed_row.add_child(_seed_field)
 	box.add_child(seed_row)

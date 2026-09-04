@@ -257,6 +257,17 @@ const RADIUS := 5
 ## phone with cards floating over it.
 const SHADOW := 4
 
+## The group every "leave this screen for the main menu" control belongs to.
+##
+## A group rather than a naming convention because it is what a test can ask
+## about without matching on words: tests/test_scenes.gd builds every screen a
+## run can be on and fails if any of them has nothing in this group. That check
+## exists because for most of the port there was no way back to the menu from
+## anywhere in the game — once BEGIN was pressed the Library, the Minitel, the
+## mods list and QUIT were all unreachable until the process was killed, and
+## nothing said so, because a missing exit looks exactly like a screen.
+const WAY_OUT := "way_out"
+
 
 ## Warms a colour toward gold. What makes the panels read as lamplight on paper
 ## rather than as grey, without a second palette to keep in step.

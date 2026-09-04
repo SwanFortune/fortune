@@ -68,7 +68,7 @@ static func _bar(host: Node) -> Control:
 			I18n.t(str(rung.get("text", "")))))
 	var seed_text := str(st.get("seed", ""))
 	if seed_text != "":
-		bar.add_child(_stat(I18n.t("Evening"), seed_text, UIKit.DIM,
+		bar.add_child(_stat(I18n.t("Evening no."), seed_text, UIKit.DIM,
 			I18n.t("Every roll this run makes comes from this. Type it on the sign screen to play it again.")))
 
 	var spacer := Control.new()
@@ -91,6 +91,22 @@ static func _bar(host: Node) -> Control:
 	bar.add_child(_chip(I18n.t("SETTINGS"), func():
 		Nav.goto_settings(host.scene_file_path)
 	))
+	# THE WAY OUT. Once BEGIN was pressed there was no route back to the main
+	# menu from anywhere in the game: not from the sign screen, not from the map,
+	# not from the ending. SETTINGS returned you to the run it came from, and
+	# everything else led forward. Which meant that after starting a run a player
+	# could not reach the Library, the Minitel, the mods list — or QUIT. The only
+	# way to leave this game was the window's close button.
+	#
+	# No confirmation, because there is nothing to confirm: the run is written to
+	# disk on the way out and CONTINUE on the menu picks it up mid-reading, cards
+	# in hand and all. That is the whole reason the save keeps the fight.
+	var way_out := _chip(I18n.t("MENU"), func():
+		Save.flush()
+		Nav.goto_main_menu()
+	)
+	way_out.add_to_group(UIKit.WAY_OUT)
+	bar.add_child(way_out)
 	return bar
 
 

@@ -41,6 +41,16 @@ func _ready() -> void:
 		v.add_child(row)
 
 	v.add_child(UIKit.button(UIKit.tr_line(res.get("cta")), _continue))
+	# This screen carries no run header, so it needs its own way out — and it is
+	# a screen a player can be sitting on when they close the game, since the
+	# result is part of the saved state. Every screen a run can be on offers the
+	# same exit; see UIKit.WAY_OUT.
+	var way_out := UIKit.button(I18n.t("THE MENU"), func():
+		Save.flush()
+		Nav.goto_main_menu()
+	)
+	way_out.add_to_group(UIKit.WAY_OUT)
+	v.add_child(way_out)
 	UIKit.focus_first(self)
 
 

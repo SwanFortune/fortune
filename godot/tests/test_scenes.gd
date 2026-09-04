@@ -142,6 +142,7 @@ func _visit_standalone() -> void:
 	await _test_the_overlays_are_modal()
 	await _test_the_marks_are_on_the_hands()
 	await _test_the_last_card_floats()
+	await _test_the_raised_card_is_not_clipped()
 	_test_the_sitters_are_different_people()
 	await _test_the_screens_read_the_live_content()
 	await _test_somebody_knocks()
@@ -442,6 +443,87 @@ func _test_the_last_card_floats() -> void:
 		instance.queue_free()
 		await process_frame
 	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+
+
+## THE CARD YOU ARE POINTING AT IS NOT CUT IN HALF.
+##
+## The fan lives in a ScrollContainer so a hand too wide for the window wraps to
+## a second row you can still reach, and a ScrollContainer clips. The card under
+## the pointer grows by CARD_LIFT about a pivot on its BOTTOM edge — so it grows
+## upward, out of the clip rect. The top of the raised card was being cut off,
+## which is where its cost and its restore are printed: the two numbers that are
+## the entire reason to point at a card in the first place.
+##
+## Checked as geometry rather than by eye, because this is exactly the kind of
+## thing a screenshot at the wrong moment does not show: the clip only bites
+## while a card is raised, and it comes back down in a tenth of a second.
+func _test_the_raised_card_is_not_clipped() -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var ReadingScript := load("res://scenes/Reading.gd")
+
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	# Two or more, so the fan branch runs. One card alone is _lift(), which has
+	# no scroll box around it and cannot be clipped by one.
+	if f["hand"].size() < 2:
+		printerr("FAIL: precondition — wanted a fan, was dealt %d card(s)" % f["hand"].size())
+		return
+
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	for i in 4:
+		await process_frame
+
+	var face := _first_focusable_panel(instance)
+	if face == null:
+		printerr("FAIL: no card face on the reading screen at all")
+		instance.queue_free()
+		await process_frame
+		return
+
+	# The box that does the clipping, found by walking up from the card rather
+	# than by name: if the shape of the hand changes, this should follow it or
+	# say so, not quietly pass by matching nothing.
+	var clipper: Control = null
+	var walk: Node = face.get_parent()
+	while walk != null and walk != instance:
+		if walk is ScrollContainer:
+			clipper = walk
+			break
+		walk = walk.get_parent()
+	if clipper == null:
+		printerr("FAIL: the fan is not inside a ScrollContainer any more — this test is measuring nothing")
+		instance.queue_free()
+		await process_frame
+		return
+
+	# Where the top edge goes when the card comes up. Scale is about a pivot on
+	# the bottom edge, so all of the growth is upward.
+	# Its top edge WITH THE SCALE TAKEN OFF. The first version of this read
+	# face.global_position, which is not where the card sits: a Control scaled
+	# about a pivot has that pivot folded into its transform, so a card caught
+	# part-way through its own lift reports an origin already partly raised —
+	# and multiplying that by the lift again counts the growth twice. The first
+	# card in the fan takes focus as the screen builds, so this is not the rare
+	# case, it is every run of this test. Measured from the fan, which is never
+	# scaled, plus the card's own unscaled offset within it.
+	var lift: float = ReadingScript.CARD_LIFT
+	var fan: Control = face.get_parent()
+	var resting_top: float = fan.global_position.y + face.position.y
+	var raised_top: float = resting_top - face.size.y * (lift - 1.0)
+	var clip_top: float = clipper.global_position.y
+	if raised_top < clip_top - 0.5:
+		printerr("FAIL: a %.0fpx card resting at y=%.0f reaches y=%.0f when raised, and the box clips at y=%.0f — %.0fpx of it, cost and restore included, is cut off"
+			% [face.size.y, resting_top, raised_top, clip_top, clip_top - raised_top])
+	instance.queue_free()
+	await process_frame
+	print("--- the card under the pointer comes up inside its box, not through the top of it ---")
 
 
 ## YOU CAN SEE WHAT YOUR PLAY WILL DO BEFORE YOU COMMIT TO IT.
@@ -1212,6 +1294,45 @@ func _check_focus(label: String, instance: Node) -> void:
 		printerr("FAIL: %s focused a DISABLED control (%s) — pressing Confirm there does nothing" % [label, focused])
 
 
+## EVERY SCREEN A RUN CAN BE ON HAS A WAY OFF IT.
+##
+## For most of the port there was none. Pressing BEGIN on the main menu took you
+## to the sign screen, which had no BACK; picking a reader took you into a run,
+## whose header offered DECK, MARKS, RULES and SETTINGS — and SETTINGS came back
+## to the run it was opened from. The ending offered BEGIN AGAIN. So from the
+## moment a player pressed BEGIN, the Library, the Minitel, the mods list and
+## QUIT were unreachable for the rest of the session, and the only way to leave
+## the game was the window's close button.
+##
+## Nothing about that is visible: a screen with no exit looks exactly like a
+## screen. Hence a check that runs on every screen the sweep builds rather than
+## one written per screen, so a fourteenth screen inherits it.
+##
+## Asked as a GROUP rather than by matching button text, so it cannot be
+## satisfied by a label that happens to read MENU, and it does not break the
+## first time somebody translates one.
+func _check_way_out(label: String, instance: Node) -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var UIKitScript := load("res://scenes/UIKit.gd")
+	var out: Array = []
+	for node in _all_of(instance, []):
+		if node.is_in_group(UIKitScript.WAY_OUT):
+			out.append(node)
+	if out.is_empty():
+		printerr("FAIL: %s has no way back to the main menu — from here the Library, the Minitel and QUIT are all unreachable" % label)
+		return
+	# Present is not the same as usable. Disabled is the one this can really
+	# check: UIKit.button() connects a sound wrapper to every button it makes, so
+	# "has a connection" is true of any button built the normal way and only
+	# catches a bare Button.new() dropped into the group. Kept for that case, and
+	# named honestly rather than treated as proof the exit goes anywhere.
+	for node in out:
+		if node is BaseButton and (node as BaseButton).disabled:
+			printerr("FAIL: %s has a way out that is disabled" % label)
+		elif node is BaseButton and (node as BaseButton).pressed.get_connections().is_empty():
+			printerr("FAIL: %s has a way-out control that nothing at all is connected to (%s)" % [label, node])
+
+
 ## EVERY SCREEN IS SOMEWHERE. The game is set in one room and every screen is a
 ## view of it — the table, the door, or the bare wall — so no screen should be a
 ## rectangle of flat colour with widgets on it. That is what the whole game was
@@ -1299,6 +1420,9 @@ func _visit(label: String, setup: Callable) -> void:
 	# focus_first() defers a frame, so give it one more before looking.
 	await process_frame
 	_check_focus(label, instance)
+	# Only the screens a RUN can be on, which is what _visit builds. The menus
+	# _visit_scene reaches are what a way out leads TO, and each has its own BACK.
+	_check_way_out(label, instance)
 	instance.queue_free()
 	await process_frame
 	print("--- END ", label, " (", scene_path, ") ---")
