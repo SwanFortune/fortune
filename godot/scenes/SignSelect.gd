@@ -30,9 +30,26 @@ func _ready() -> void:
 	v.add_child(_before_you_start())
 
 	var scroll := UIKit.scroll()
+	# The rest of the screen, not a fixed 420. Everything above it is four short
+	# rows; the readers are what this screen is, and they were being shown three
+	# and a half at a time in the top half of the window with the bottom half
+	# empty.
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	v.add_child(scroll)
-	scroll.custom_minimum_size = Vector2(0, 420)
-	var list := UIKit.vbox(6)
+	# TWO ACROSS. A reader row is four short lines of text and was being given
+	# the full width of the window — about four hundred pixels of words in
+	# twelve hundred, with the rest blank, and seven of the thirteen readers off
+	# the bottom. Two columns halve the scrolling and use the space that was
+	# already paid for.
+	var list := GridContainer.new()
+	# As many as fit, measured off the canvas rather than fixed at two: a tile
+	# wants about 460 for its four lines and its sigil, and that number grows
+	# with the interface size, so a wide window gets three columns and a large
+	# text setting drops back to two instead of squeezing them.
+	var room := get_viewport_rect().size.x - 64.0
+	list.columns = clampi(int(room / (460.0 * UIKit.text_scale)), 1, 3)
+	list.add_theme_constant_override("h_separation", 10)
+	list.add_theme_constant_override("v_separation", 8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
@@ -52,7 +69,12 @@ func _ready() -> void:
 		]
 		if locked:
 			lines.append(["%s %s" % [I18n.t("LOCKED —"), Profile.unlock_text(r.get("unlock", null))], 12, UIKit.GOLD])
-		list.add_child(UIKit.panel_button(lines, _pick.bind(i), not locked, "", _sigil(r, locked)))
+		# The element on the edge of the row, so the four families are tellable
+		# apart at a glance instead of by reading thirteen rules.
+		var accent: Color = UIKit.GOLD if bool(r.get("wild", false)) else el_c
+		var tile := UIKit.panel_button(lines, _pick.bind(i), not locked, "", _sigil(r, locked), accent)
+		tile.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		list.add_child(tile)
 	# The LIST, not the screen. What this screen is for is choosing a reader, and
 	# focus_first takes the first focusable thing in tree order — which, since
 	# BACK was added at the top, would otherwise be the way out.
@@ -83,7 +105,11 @@ func _before_you_start() -> Control:
 		var row := UIKit.hbox(10)
 		row.add_child(UIKit.label(I18n.t("HOW HARD"), 11, UIKit.GOLD))
 		var what := UIKit.label("", 12, UIKit.INK)
-		what.custom_minimum_size.x = 300 * UIKit.text_scale
+		# Centred in a box of its own, so the two buttons sit either side of the
+		# name instead of a hand's width apart with the words against the left
+		# edge of the gap between them.
+		what.custom_minimum_size.x = 240 * UIKit.text_scale
+		what.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		what.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		var explain := UIKit.block("", 11, UIKit.DIM)
 		var show := func() -> void:

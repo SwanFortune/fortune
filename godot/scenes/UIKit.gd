@@ -560,17 +560,25 @@ static func going_away(node: Node) -> bool:
 ## icon on a reader row, the element badge on a sitter. It is a Control rather
 ## than another line because that is the whole point: these are the drawn icons
 ## from the design, not more characters.
+## `accent`, when it has any alpha, replaces the hairline with the row's own
+## colour — the element a reader belongs to, on a screen that is nothing but a
+## list of them. Off by default: everywhere else these rows are a list of one
+## kind of thing and a coloured edge would be noise.
 static func panel_button(lines: Array, on_pressed: Callable, enabled: bool = true,
-		tooltip: String = "", leading: Control = null) -> Control:
+		tooltip: String = "", leading: Control = null,
+		accent: Color = Color(0, 0, 0, 0)) -> Control:
 	var wrap := PanelContainer.new()
 	wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrap.tooltip_text = tooltip
 	# A sheet of paper on the table, not a slab: the same surface every button
 	# and card face uses, with a hairline of ink round it and a little shadow
 	# under it. See the surfaces section at the top of this file.
+	var edge := Color(INK, 0.10 if enabled else 0.05)
+	if accent.a > 0.0:
+		edge = Color(accent, 0.45 if enabled else 0.18)
 	var style := surface(
 		warm(PANEL, 0.04) if enabled else Color(PANEL, 0.5),
-		Color(INK, 0.10 if enabled else 0.05), 1, 10, 1.0 if enabled else 0.0)
+		edge, 1, 10, 1.0 if enabled else 0.0)
 	wrap.add_theme_stylebox_override("panel", style)
 
 	make_interactive(wrap, style, on_pressed, enabled)
