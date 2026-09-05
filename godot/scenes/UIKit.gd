@@ -923,7 +923,7 @@ static func sitter_portrait(sitter: Dictionary, hp_ratio: float, art: Texture2D 
 	var port := Control.new()
 	# 3:4, the same shape the delivered portraits are authored at, so swapping
 	# one in does not move the layout around it.
-	port.custom_minimum_size = Vector2(112, 148)
+	port.custom_minimum_size = PORTRAIT_SLOT
 	var r := clampf(hp_ratio, 0.0, 1.0)
 	# name + role, because that is what a sitter is identified BY in the data —
 	# there is no key field. An earlier version asked for one, got "" for every
@@ -1206,24 +1206,35 @@ static func _soft_poly(points: PackedVector2Array, radius: float) -> PackedVecto
 	return out
 
 
-## Delivered-portrait variant of sitter_portrait(). Keeps the composure-driven
-## element glow (so the "they're softening" read survives) but lets the
-## artwork carry the face. Portraits are authored 3:4 (see docs/ART_GUIDE.md);
-## this crops to the square header slot, biased to the top where the face is.
+## The slot a delivered portrait gets, and the shape it is authored in: 3:4,
+## the same rectangle the drawn placeholder occupies, so a portrait arriving
+## moves nothing on the screen around it.
+## EXACTLY 3:4, computed rather than typed: it was 112x148, which is 1.32 and
+## not 1.33, so a 768x1024 portrait lost a sliver off the top and bottom — a
+## detail nobody would ever have noticed, in a guide that now promises the whole
+## image is shown.
+const PORTRAIT_SLOT := Vector2(112, 112.0 * 4.0 / 3.0)
+
+
+## Delivered-portrait variant of sitter_portrait(), for sitters and readers
+## alike. The artwork carries the face; the composure glow is a RIM around it.
+##
+## THREE THINGS WERE WRONG HERE, and all three were invisible because no
+## portrait has been delivered yet:
+##
+##   - the slot was 96x96 while the placeholder beside it is 112x148, so the
+##     header would jump the day an artist finished one;
+##   - the doc comment said the 3:4 image was cropped square "biased to the top
+##     where the face is". KEEP_ASPECT_COVERED centres — there is no bias — so
+##     it took the middle and cut the top of the head off. The slot is 3:4 now,
+##     which is the shape the guide asks for, so nothing is cropped at all;
+##   - the glow it promised "so the they're-softening read survives" was drawn
+##     UNDER an opaque covering texture. It survived nowhere.
 static func sitter_portrait_art(el: String, hp_ratio: float, art: Texture2D) -> Control:
 	var port := Control.new()
-	port.custom_minimum_size = Vector2(96, 96)
+	port.custom_minimum_size = PORTRAIT_SLOT
 	var flush := clampf(hp_ratio, 0.0, 1.0)
 	var glow := el_color(el)
-
-	var glow_layer := Control.new()
-	glow_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	glow_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow_layer.draw.connect(func():
-		if flush > 0.05:
-			glow_layer.draw_circle(Vector2(48, 48), 46, Color(glow, 0.10 + flush * 0.18))
-	)
-	port.add_child(glow_layer)
 
 	var tex := TextureRect.new()
 	tex.texture = art
@@ -1232,6 +1243,24 @@ static func sitter_portrait_art(el: String, hp_ratio: float, art: Texture2D) -> 
 	tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	port.add_child(tex)
+
+	# ON TOP, and only at the edges: a rim that reaches a few pixels in and
+	# fades out, so composure stays readable without the face being tinted.
+	var rim := Control.new()
+	rim.name = "Composure"
+	rim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rim.draw.connect(func():
+		if flush <= 0.05:
+			return
+		var steps := 8
+		for i in steps:
+			var t := float(i) / float(steps)
+			rim.draw_rect(Rect2(Vector2(i, i), rim.size - Vector2(i, i) * 2.0),
+				Color(glow, (0.10 + flush * 0.22) * (1.0 - t) / float(steps)), false, 2.0)
+	)
+	rim.resized.connect(func(): rim.queue_redraw())
+	port.add_child(rim)
 	return port
 
 

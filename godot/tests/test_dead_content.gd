@@ -88,6 +88,7 @@ func _initialize() -> void:
 	_check_the_build_can_name_itself()
 	var used := _keys_in_content()
 	var src := _all_source()
+	_check_every_kind_of_art_is_shown(src)
 
 	var dead: Array[String] = []
 	for key in used:
@@ -326,6 +327,36 @@ func _keys_in_content() -> Dictionary:
 ## clause it is spoken as, tests/gen_art_manifest.gd copied it into the art
 ## manifest, and on that evidence this check called it used for the whole port
 ## while the reading screen showed card names and no sentence at all.
+## ART THE MANIFEST ASKS FOR THAT NO SCREEN WOULD EVER SHOW.
+##
+## The dead-content check above is about data nothing reads. This is the same
+## question asked of somebody's WORK: the manifest commissions art by `kind`,
+## and every kind must have a screen that puts it up. It did not. Thirteen
+## reader portraits had been on the list since the manifest was written and
+## `Art.reader_texture()` was called from nowhere at all — an artist could have
+## drawn every reader in the game and never seen one of them in it.
+func _check_every_kind_of_art_is_shown(src: String) -> void:
+	var raw := FileAccess.get_file_as_string("res://data/base/art_manifest.json")
+	var parsed = JSON.parse_string(raw)
+	if typeof(parsed) != TYPE_DICTIONARY or not parsed.has("assets"):
+		failures.append("the art manifest should be readable and hold an 'assets' block")
+		return
+	var kinds := {}
+	for id in parsed["assets"]:
+		kinds[str(parsed["assets"][id].get("kind", ""))] = true
+	for kind in kinds:
+		if kind == "":
+			continue
+		# The accessor Art.gd exposes per kind, CALLED — "Art." and all. Without
+		# the prefix the definition inside Art.gd matches its own check and every
+		# kind passes forever, which is how this test first passed with reader
+		# portraits still displayed nowhere.
+		if not src.contains("Art.%s_texture(" % kind):
+			failures.append(
+				"the art manifest commissions '%s' art and no screen calls Art.%s_texture() — it would never be seen"
+				% [kind, kind])
+
+
 func _all_source() -> String:
 	var parts: Array[String] = []
 	for dir_path in ["res://autoload", "res://scenes"]:

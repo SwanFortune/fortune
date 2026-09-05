@@ -27,6 +27,7 @@ func _initialize() -> void:
 	_test_every_manifest_id_is_resolvable()
 	_test_unimported_file_loads()
 	await _test_the_card_holds_a_window_open()
+	_test_a_portrait_lands_in_the_same_slot()
 	_test_the_guide_states_the_window_it_gets()
 
 	if failures.is_empty():
@@ -194,17 +195,49 @@ func _test_the_card_holds_a_window_open() -> void:
 	await process_frame
 
 
+## A DELIVERED PORTRAIT TAKES THE SAME ROOM AS THE PLACEHOLDER IT REPLACES.
+##
+## It did not: the placeholder is 112x148 and the art path was 96x96, so the
+## reading screen's header would have shifted the day an artist finished their
+## first sitter — and the 3:4 image was being centre-cropped into that square,
+## which takes the middle of a portrait and cuts the top of the head off.
+func _test_a_portrait_lands_in_the_same_slot() -> void:
+	var UIKitScript = load("res://scenes/UIKit.gd")
+	var sitter: Dictionary = content.get_sitter("Mme Perrot")
+	check(not sitter.is_empty(), "Mme Perrot should still be in the village")
+	if sitter.is_empty():
+		return
+	var img := Image.create(768, 1024, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.5, 0.4, 0.3))
+	var tex := ImageTexture.create_from_image(img)
+
+	var placeholder: Control = UIKitScript.sitter_portrait(sitter, 0.5)
+	var delivered: Control = UIKitScript.sitter_portrait(sitter, 0.5, tex)
+	check(placeholder.custom_minimum_size == delivered.custom_minimum_size,
+		"a portrait arriving must not move the screen: placeholder %s, delivered %s"
+		% [placeholder.custom_minimum_size, delivered.custom_minimum_size])
+	var slot: Vector2 = delivered.custom_minimum_size
+	check(is_equal_approx(slot.y / slot.x, 4.0 / 3.0),
+		"the portrait slot should be the 3:4 the guide asks for, got %s" % slot)
+	placeholder.free()
+	delivered.free()
+
+
 ## The window's shape and the shape the guide asks an artist to draw must be the
 ## same shape. They are stated in two files that nothing else connects.
 func _test_the_guide_states_the_window_it_gets() -> void:
 	var UIKitScript = load("res://scenes/UIKit.gd")
 	var want: float = UIKitScript.ART_WELL.y / UIKitScript.ART_WELL.x
-	var text := FileAccess.get_file_as_string("res://docs/ART_GUIDE.md")
+	# BOTH copies: the prose one an artist reads and the machine-readable `spec`
+	# block in the manifest they work from. Updating one and not the other is
+	# the obvious way for this to go wrong, and it is how it went wrong once.
+	var text := FileAccess.get_file_as_string("res://docs/ART_GUIDE.md") \
+		+ FileAccess.get_file_as_string("res://data/base/art_manifest.json")
 	check(text != "", "the art guide should be readable")
 	var found := false
 	# The first "W x H px" the card section states is the card art spec.
 	var re := RegEx.new()
-	re.compile("\\*\\*(\\d+)\\s*[x×]\\s*(\\d+)\\s*px\\*\\*")
+	re.compile("(\\d{3,4})\\s*[x×]\\s*(\\d{3,4})")
 	for m in re.search_all(text):
 		var w := float(m.get_string(1))
 		var h := float(m.get_string(2))

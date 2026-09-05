@@ -1582,6 +1582,47 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## Thirteen portraits nobody would ever have seen
+
+Having fixed the card, the same question asked of the other two kinds of art the
+manifest commissions found worse.
+
+**The reader portraits were never displayed anywhere.** `Art.reader_texture()`
+existed and was called from no screen at all; the sign-select list drew a sign
+badge and nothing else. An artist could have drawn every reader in the game and
+never seen one of them in it. The list shows the portrait now, in place of the
+badge — the row's own title already says TAURUS, so both would say it twice.
+
+**A delivered sitter portrait was a different size from the placeholder it
+replaces**: 96x96 against 112x148, so the reading screen's header would have
+shifted the day the first one was finished. And the doc comment said the 3:4
+image was cropped square "biased to the top where the face is" —
+`KEEP_ASPECT_COVERED` centres, there is no bias, so it took the middle and cut
+the top of the head off. The slot is 3:4 now and nothing is cropped. Exactly
+3:4: 112x148 is 1.32, not 1.33, and the guide had just been made to promise the
+whole image is shown.
+
+**The composure glow that comment promised "so the they're-softening read
+survives" was drawn UNDER an opaque covering texture.** It survived nowhere. It
+is a rim at the edges now, drawn over the art, a few pixels deep — the face is
+never tinted.
+
+All three were invisible because no portrait has been delivered yet, which is
+the whole difficulty with art paths: they are dead code until the moment they
+matter, and then they matter to somebody else's work. So `test_dead_content` now
+asks the manifest what kinds it commissions and fails if any kind has no screen
+calling for it. The needle is `Art.<kind>_texture(` **with the prefix** — without
+it the definition inside `Art.gd` matches the check made of it and every kind
+passes forever, which is exactly how the first version of this test passed with
+the reader portraits still displayed nowhere.
+
+**And the artist's list had a mod's card on it.** `gen_art_manifest.gd` reads
+live content, which includes whatever packs are enabled on the machine that runs
+it, so `card/warm-the-cup` from the example mod had been sitting in the manifest
+— with the guide carrying a paragraph telling the artist to ignore it. It keeps
+base records only now, and that paragraph is gone. Art commissioned for content
+that is not in the game is not a wart to document.
+
 ## The card had nowhere to put a drawing
 
 The card face was 122x158 with the name floating in the middle of it — no place

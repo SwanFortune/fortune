@@ -45,8 +45,10 @@ is always runnable — art can land one piece at a time, in any order.
 
 ### Portrait art (sitters and readers) — **768 × 1024 px**, 3:4 portrait, PNG (RGBA)
 
-- **Face and shoulders inside the top 768 × 768.** The bottom quarter may be
-  cropped or covered by a name plate depending on the screen.
+- **The whole image is shown, nothing is cropped.** The slot is the same 3:4
+  shape, on the reading screen and on the sign-select list alike. The only
+  thing drawn over a portrait is the composure glow, and that is a rim a few
+  pixels deep at the edges — the face is never tinted.
 - **Sitters** are the villagers who sit across the table from you — this is
   the face the player watches for a whole encounter, and the one that visibly
   softens as their composure fills. If it's practical, a **second variant**
@@ -126,9 +128,9 @@ Fields you'll **write** (yours; preserved when the file is regenerated):
 `file`, and `notes` survive that. New entries appear as `missing`; removed
 ones are reported in the console so nothing silently vanishes.
 
-(That generator reads the game's *live* content, which includes any mods
-loaded in dev — that's why a demo card like `card/warm-the-cup` from
-`mods_example/` shows up. It isn't base-game content and doesn't need art.)
+(The generator reads the game's *live* content, which includes any mods loaded
+in dev, so it keeps only base-game records — a mod's cards and readers are its
+own author's problem, and this list should be nothing but real work.)
 
 ---
 
@@ -173,8 +175,7 @@ grimdark.
 
 Everything below needs art. Counts as of the last manifest regeneration.
 
-**Cards — 56 base game** (plus 1 demo card from the example mod that doesn't
-need art):
+**Cards — 56 base game** (mods' own cards are not on this list):
 
 - 7 **basics** — the "basic decency" cards, no element, every reader starts
   with all seven. These are seen most; worth doing first.

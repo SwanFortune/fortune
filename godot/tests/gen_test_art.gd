@@ -2,7 +2,8 @@
 ## sizes and flips their manifest status to "final", purely to prove the art
 ## pipeline (manifest -> Art.gd -> UIKit) renders delivered art rather than
 ## the placeholder. These are NOT art; delete them once real pieces land:
-##   rm godot/assets/art/card/pour-the-tea.png godot/assets/art/sitter/mme-perrot.png
+##   rm godot/assets/art/card/pour-the-tea.png godot/assets/art/sitter/mme-perrot.png \
+##      godot/assets/art/reader/taurus.png
 ## then set both statuses back to "missing".
 ##   godot --headless --path godot -s tests/gen_test_art.gd
 extends SceneTree
@@ -13,7 +14,10 @@ const MANIFEST := "res://data/base/art_manifest.json"
 func _initialize() -> void:
 	_write("res://assets/art/card/pour-the-tea.png", 768, 576, Color(0.24, 0.55, 0.9))
 	_write("res://assets/art/sitter/mme-perrot.png", 768, 1024, Color(0.78, 0.59, 0.35))
-	_mark(["card/pour-the-tea", "sitter/mme-perrot"])
+	# A reader too: three kinds are commissioned, and the third had no screen
+	# showing it at all until the sign list grew one.
+	_write("res://assets/art/reader/taurus.png", 768, 1024, Color(0.55, 0.75, 0.45))
+	_mark(["card/pour-the-tea", "sitter/mme-perrot", "reader/taurus"])
 	print("test art written + marked final")
 	quit(0)
 

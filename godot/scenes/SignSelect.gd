@@ -144,7 +144,24 @@ func _sigil(r: Dictionary, locked: bool) -> Control:
 		tint = Color(tint, 0.4)
 	var col := UIKit.vbox(4)
 	col.custom_minimum_size.x = 52
-	var sign_badge := UIKit.icon_badge("sign", str(r.get("k", "")), 46, tint)
+	# THE READER'S OWN FACE, when there is one. The art manifest has asked for
+	# thirteen of these since it was written and no screen had ever displayed
+	# one — an artist could have drawn every reader in the game and never seen
+	# a single one of them in it. Half height: this is a row in a list, not the
+	# reading screen, and the sigil below still carries the sign and the planet.
+	var face := Art.reader_texture(r)
+	if face != null:
+		var port := UIKit.sitter_portrait_art(str(r.get("el", "")), 0.0, face)
+		# The column's own width, in the portrait's 3:4. Anything taller makes a
+		# row with art visibly deeper than a row without one, and art lands one
+		# reader at a time.
+		port.custom_minimum_size = Vector2(52, 52 / UIKit.PORTRAIT_SLOT.x * UIKit.PORTRAIT_SLOT.y)
+		if locked:
+			port.modulate = Color(1, 1, 1, 0.4)
+		col.add_child(port)
+	# The sign badge stands in for the face until there is one. Both would be
+	# saying the same thing twice — the row's own title already reads "TAURUS".
+	var sign_badge := UIKit.icon_badge("sign", str(r.get("k", "")), 46, tint) if face == null else null
 	if sign_badge != null:
 		col.add_child(sign_badge)
 	var planet := str(r.get("planet", ""))

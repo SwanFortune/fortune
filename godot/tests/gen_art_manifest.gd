@@ -17,6 +17,10 @@ var art: Node
 func _initialize() -> void:
 	var content: Node = root.get_node("Content")
 	art = root.get_node("Art")
+	# ModLoader.PACK_FIELD, written out: ModLoader is not an autoload, it is
+	# loaded by Content, so there is no node to ask. tests/test_art.gd spells the
+	# same field the same way for the same reason.
+	var pack_field := "_pack"
 	await process_frame
 	content.reload()
 
@@ -24,7 +28,14 @@ func _initialize() -> void:
 	var assets := {}
 	var added: Array[String] = []
 
-	var add = func(id: String, kind: String, display: String, extra: Dictionary):
+	# THE BASE GAME'S ART LIST, not whatever packs happen to be enabled on the
+	# machine that ran this. Content.reload() merges the player's mods, and a
+	# run of this with the example pack on quietly added a mod reader to the
+	# manifest an artist works from — a piece of art commissioned for content
+	# that is not in the game.
+	var add = func(rec_of: Dictionary, id: String, kind: String, display: String, extra: Dictionary):
+		if str(rec_of.get(pack_field, "parlour.base")) != "parlour.base":
+			return
 		if existing.has(id):
 			assets[id] = existing[id]
 			# Keep the artist's own fields, but refresh the derived ones so a
@@ -44,7 +55,7 @@ func _initialize() -> void:
 		for c in content.registries.get(pool_name, []):
 			var el = c.get("el")
 			add.call(
-				"card/" + _slug(c["n"]), "card", c["n"],
+				c, "card/" + _slug(c["n"]), "card", c["n"],
 				{
 					"pool": pool_name,
 					"element": el if el != null else "none",
@@ -57,19 +68,19 @@ func _initialize() -> void:
 
 	for r in content.readers:
 		add.call(
-			"reader/" + _slug(r["k"]), "reader", "%s — %s" % [r["name"], r["sign"]],
+			r, "reader/" + _slug(r["k"]), "reader", "%s — %s" % [r["name"], r["sign"]],
 			{"element": r["el"], "planet": r.get("planet", ""), "flavor": r.get("line", "")}
 		)
 
 	for s in content.sitters:
 		add.call(
-			"sitter/" + _slug(s["name"]), "sitter", "%s · %s" % [s["name"], s["role"]],
+			s, "sitter/" + _slug(s["name"]), "sitter", "%s · %s" % [s["name"], s["role"]],
 			{"element": s["el"], "pronoun": s.get("p", "they"), "flavor": s.get("brings", "")}
 		)
 	var boss: Dictionary = content.boss
 	if not boss.is_empty():
 		add.call(
-			"sitter/" + _slug(boss["name"]), "sitter", "%s · %s" % [boss["name"], boss["role"]],
+			boss, "sitter/" + _slug(boss["name"]), "sitter", "%s · %s" % [boss["name"], boss["role"]],
 			{"element": boss["el"], "pronoun": boss.get("p", "they"), "flavor": boss.get("brings", ""), "boss": true}
 		)
 
@@ -106,15 +117,15 @@ func _initialize() -> void:
 func _spec() -> Dictionary:
 	return {
 		"card_art": {
-			"pixels": "512x512", "aspect": "1:1 square",
+			"pixels": "768x576", "aspect": "4:3 landscape",
 			"format": "PNG, RGBA, transparent background allowed",
-			"safe_zone": "Keep the focal subject inside the centre 440x440. The card frame overlays ~36px on every edge, and the top ~52px carries the cost/restore numbers.",
-			"notes": "Displayed at roughly 106x106 in the hand at 1x, so it must still read at thumbnail size. 512 gives headroom for a zoomed card-inspect view later.",
+			"safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below.",
+			"notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
 		},
 		"portrait_art": {
 			"pixels": "768x1024", "aspect": "3:4 portrait",
 			"format": "PNG, RGBA",
-			"safe_zone": "Face and shoulders inside the top 768x768. The bottom quarter can be cropped or covered by the name plate at some sizes.",
+			"safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face.",
 			"notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
 		},
 		"naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",

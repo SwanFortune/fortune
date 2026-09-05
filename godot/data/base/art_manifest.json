@@ -703,19 +703,6 @@
       "spoken": "turn the top card",
       "status": "missing"
     },
-    "card/warm-the-cup": {
-      "archetype": "",
-      "display": "Warm The Cup",
-      "element": "water",
-      "file": "",
-      "flavor": "Before the tea, before anything.",
-      "kind": "card",
-      "notes": "",
-      "pool": "cards_minor",
-      "rarity": "common",
-      "spoken": "warm the cup",
-      "status": "missing"
-    },
     "card/weigh-what-they-brought": {
       "archetype": "switch",
       "display": "Weigh What They Brought",
@@ -976,11 +963,11 @@
   },
   "spec": {
     "card_art": {
-      "aspect": "1:1 square",
+      "aspect": "4:3 landscape",
       "format": "PNG, RGBA, transparent background allowed",
-      "notes": "Displayed at roughly 106x106 in the hand at 1x, so it must still read at thumbnail size. 512 gives headroom for a zoomed card-inspect view later.",
-      "pixels": "512x512",
-      "safe_zone": "Keep the focal subject inside the centre 440x440. The card frame overlays ~36px on every edge, and the top ~52px carries the cost/restore numbers."
+      "notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
+      "pixels": "768x576",
+      "safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below."
     },
     "naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
     "portrait_art": {
@@ -988,7 +975,7 @@
       "format": "PNG, RGBA",
       "notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
       "pixels": "768x1024",
-      "safe_zone": "Face and shoulders inside the top 768x768. The bottom quarter can be cropped or covered by the name plate at some sizes."
+      "safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face."
     },
     "status_values": [
       "missing",
