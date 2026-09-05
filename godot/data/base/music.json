@@ -1,0 +1,61 @@
+{
+  "_comment": "THE SCORE AND THE ROOM, added in the port — the prototype had neither, and neither did this until Settings grew the two sliders that drive them. Same shape as sounds.json and the same promise: a missing file is silence, never an error, so the game runs at any point between no music and all of it. `status` is placeholder | wip | final; every track that ships today is a synthesised stand-in (tests/gen_sounds.py) and is meant to be replaced — see docs/SOUND_GUIDE.md, which names the CC0 sources a stock track can come from. `loop` is what separates these from sounds.json: a cue plays until something else replaces it. `fade` is the crossfade in seconds. A cue with no file just does not play.",
+  "music": {
+    "parlour": {
+      "kind": "music",
+      "status": "placeholder",
+      "gain_db": -14.0,
+      "loop": true,
+      "fade": 2.5,
+      "notes": "The menu and everything outside a run. Slow, sparse, a room with the lamp on and nobody in it yet."
+    },
+    "the_evening": {
+      "kind": "music",
+      "status": "placeholder",
+      "gain_db": -15.0,
+      "loop": true,
+      "fade": 2.5,
+      "notes": "The map: the night's plan in front of you. Walking pace, a little expectant."
+    },
+    "the_table": {
+      "kind": "music",
+      "status": "placeholder",
+      "gain_db": -17.0,
+      "loop": true,
+      "fade": 2.0,
+      "notes": "A reading. Quietest of the three — somebody is talking over this and the cards are the event."
+    },
+    "the_mayor": {
+      "kind": "music",
+      "status": "placeholder",
+      "gain_db": -13.0,
+      "loop": true,
+      "fade": 1.5,
+      "notes": "The last half hour of the third night. The only track allowed to be uncomfortable."
+    },
+    "after": {
+      "kind": "music",
+      "status": "placeholder",
+      "gain_db": -14.0,
+      "loop": true,
+      "fade": 3.0,
+      "notes": "The end of a run, win or lose. What is left when the knocking stops."
+    },
+    "rain": {
+      "kind": "ambience",
+      "status": "placeholder",
+      "gain_db": -20.0,
+      "loop": true,
+      "fade": 3.0,
+      "notes": "The default room: rain on the window of a small house in bad weather. Under everything, all night."
+    },
+    "fire": {
+      "kind": "ambience",
+      "status": "placeholder",
+      "gain_db": -22.0,
+      "loop": true,
+      "fade": 3.0,
+      "notes": "The grate, for the hours indoors. Optional second layer under rain."
+    }
+  }
+}

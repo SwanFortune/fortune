@@ -74,6 +74,10 @@ const KNOWN := {
 	# replace it. A marker the code acts on would be a marker that changes the
 	# game; this one only has to be greppable.
 	"added": "dead",
+	# The composer's own column in data/base/music.json — what each cue is FOR,
+	# in words, for whoever writes the track. Read by a person, not by the game,
+	# exactly like the art manifest's `notes`.
+	"notes": "dead",
 }
 
 var failures: Array[String] = []

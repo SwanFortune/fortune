@@ -39,14 +39,14 @@ const ARRAY_KEY_FIELDS := {
 	# rung without restating the rest, which is the whole reason these are
 	# merged by an id field rather than replaced wholesale.
 	"difficulty": "n",
-	# The endings, keyed by the failure count they cover.
-	"endings": "up_to",
+	# The endings, keyed by the fewest people mended that they cover.
+	"endings": "mended_from",
 }
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
 const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes",
-	"icons", "archetypes"]
+	"icons", "archetypes", "music"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]

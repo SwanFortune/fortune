@@ -26,6 +26,7 @@
     "difficulty.json",
     "endings.json",
     "sounds.json",
+    "music.json",
     "icons.json",
     "minitel.json",
     "locale/fr.json"

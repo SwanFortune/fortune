@@ -8,8 +8,8 @@
 ## EVERY SETTING HERE DOES SOMETHING REAL. The volumes drive AudioServer buses,
 ## `animation_scale` scales the UIKit tweens with an explicit 0 = off path,
 ## `max_fps` is Engine.max_fps. Do not add a row for something the game does not
-## have — no music slider, no screen-shake toggle, no rumble — because each one
-## is a control that lies to the player.
+## have — no screen-shake toggle, no rumble, and no music slider until the day
+## there was music — because each one is a control that lies to the player.
 ##
 ## tests/test_settings.gd asserts the pairing in both directions: no key here
 ## that the screen cannot reach, and no key the screen reaches that is not
@@ -51,16 +51,21 @@ const DEFS := {
 	"max_fps": [0, 0, 240],
 	"ui_scale": [1.0, 0.75, 1.5],
 	# ── audio ────────────────────────────────────────────────────────────
-	# Three real AudioServer buses: SFX and UI feed Master. The split is what
-	# lets someone keep the game's sounds and silence the click-on-every-focus,
-	# which is the one sound a keyboard player hears constantly.
+	# Five real AudioServer buses: SFX, UI, MUSIC and AMBIENCE all feed Master.
+	# Every split here is something somebody actually wants down on its own —
+	# the click on every focus change, which a keyboard player hears constantly;
+	# the score, which people play their own music over; the room tone, which is
+	# what somebody in a quiet house wants and what somebody on a train cannot
+	# hear anyway.
 	#
-	# There is NO music slider, deliberately. The game has no music, and a
-	# slider that moves a bus nothing plays through is exactly the dead control
-	# this file's header refuses. It gets one the day there is music.
+	# MUSIC and AMBIENCE got their sliders the day there was something to play
+	# through them, not before: a control that moves a bus nothing feeds is the
+	# dead control this file's header refuses.
 	"master_volume": [0.8, 0.0, 1.0],
 	"sfx_volume": [0.9, 0.0, 1.0],
 	"ui_volume": [0.7, 0.0, 1.0],
+	"music_volume": [0.55, 0.0, 1.0],
+	"ambience_volume": [0.5, 0.0, 1.0],
 	"muted": [false],
 	# ── interface / accessibility ────────────────────────────────────────
 	# FOUR SPEEDS, not a slider — the shape Balatro uses, and the one that
@@ -108,7 +113,7 @@ const DEFS := {
 const SECTIONS := [
 	{"id": "gameplay", "title": "GAMEPLAY", "keys": ["start_energy", "hand_size"]},
 	{"id": "video", "title": "VIDEO", "keys": ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]},
-	{"id": "audio", "title": "AUDIO", "keys": ["master_volume", "sfx_volume", "ui_volume", "muted"]},
+	{"id": "audio", "title": "AUDIO", "keys": ["master_volume", "sfx_volume", "ui_volume", "music_volume", "ambience_volume", "muted"]},
 	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast"]},
 	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds"]},
 	{"id": "language", "title": "LANGUAGE", "keys": ["locale"]},
@@ -152,7 +157,7 @@ const RESOLUTIONS := [
 ## default_bus_layout.tres in the project: building them here keeps the
 ## routing next to the volumes that drive it, and means a fresh clone has no
 ## binary resource to be out of step with this file.
-const BUSES := ["SFX", "UI"]
+const BUSES := ["SFX", "UI", "MUSIC", "AMBIENCE"]
 
 ## The actions offered for rebinding, in the order the settings screen lists
 ## them. ui_accept and ui_cancel are Godot built-ins rather than actions this
@@ -220,7 +225,7 @@ func set_value(key: String, value) -> void:
 	save_to_disk()
 	if key in ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]:
 		_apply_display()
-	elif key in ["master_volume", "sfx_volume", "ui_volume", "muted"]:
+	elif key in ["master_volume", "sfx_volume", "ui_volume", "music_volume", "ambience_volume", "muted"]:
 		_apply_audio()
 	elif key == "keybinds":
 		_apply_input()
@@ -503,6 +508,8 @@ func _apply_audio() -> void:
 	_set_bus("Master", float(get_value("master_volume")), bool(get_value("muted")))
 	_set_bus("SFX", float(get_value("sfx_volume")), false)
 	_set_bus("UI", float(get_value("ui_volume")), false)
+	_set_bus("MUSIC", float(get_value("music_volume")), false)
+	_set_bus("AMBIENCE", float(get_value("ambience_volume")), false)
 
 
 func _set_bus(name: String, linear: float, mute: bool) -> void:

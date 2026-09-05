@@ -69,6 +69,64 @@ the authority — `sounds.json` must cover exactly those keys and no others, and
   `card_draw`: five identical clicks in a row sound like a machine gun, and
   0.07 is enough to stop that. Leave it at 0 for anything melodic.
 
+---
+
+## The score and the room
+
+Two more channels, added after the one-shots: **music** (five cues) and
+**ambience** (the room tone under everything). They live in
+`data/base/music.json`, on their own AudioServer buses with their own sliders,
+and they loop until something replaces them — a screen change crossfades rather
+than cutting.
+
+| Cue | Kind | Where it plays | What it is |
+|---|---|---|---|
+| `parlour` | music | menu, sign, records, library, rules, credits, Minitel, mods | A room with the lamp on and nobody in it yet. |
+| `the_evening` | music | the map, and every choice screen | The night's plan in front of you. Walking pace, a little expectant. |
+| `the_table` | music | a reading | The quietest of them by a distance. Somebody is talking over this and the cards are the event. |
+| `the_mayor` | music | the last half hour of the third night | The only track allowed to be uncomfortable. Asked for by **who is at the door**, not by the screen. |
+| `after` | music | the end of a run, win or lose | What is left when the knocking stops. |
+| `rain` | ambience | all night, under everything | Rain on the window of a small house in bad weather. |
+| `fire` | ambience | — | The grate. Registered and not yet cued anywhere; a second layer if it wants one. |
+
+**Spec for these.** OGG Vorbis, 44.1 kHz, **stereo is right here** (unlike the
+one-shots), and they must **loop seamlessly** — the loop point is heard once a
+minute for an hour, and a click there is the only thing anyone will notice.
+Two to four minutes is plenty; nothing needs to be through-composed. Normalize
+to about −6 dBFS and let `gain_db` do the trim: the defaults in the registry sit
+between −13 and −22 dB, because this is a game somebody plays in the evening
+with the volume low.
+
+**Tone.** Small French village, more weather than money, 1980-something. Warm
+and melancholic, a little spooky, funny in a dry way — the same brief as the
+art. An upright piano nobody has tuned in a while, a bit of tape hiss, a room
+with hard walls. Not orchestral, not synth-wave, not sad-piano-over-nothing.
+
+**Length of the ambience** matters more than its content: `rain` is under the
+whole game, so a two-minute loop is the minimum before the ear starts finding
+the seam.
+
+### Where a stock track can come from
+
+Royalty-free is fine and probably right for the first pass. The sources worth
+knowing, in order of how little they ask of you:
+
+- **freesound.org**, filtered to **CC0** — the best place for rain, a fire, a
+  room tone, a clock. Attribution not required on CC0, but the credits screen
+  will take it anyway.
+- **OpenGameArt.org**, filtered to **CC0** — game music written to be looped,
+  which is the hard part.
+- **Pixabay** and **Mixkit** — their own licences, no attribution required, no
+  account needed. Quality varies wildly; listen to the loop point.
+- **Kevin MacLeod / incompetech** — CC-BY, so it must be credited. Enormous,
+  well-recorded, and a lot of it is exactly this register.
+- **Free Music Archive**, filtered to CC0 or CC-BY.
+
+Whatever you take, **write the licence down**: put the source and the terms in
+that cue's `notes` in `data/base/music.json`, and the credit line goes in
+`Version.credits()` — the credits screen already has a "Music and sound" line
+waiting for it.
+
 ## About the sounds that are in there now
 
 They are **placeholders and they are meant to be replaced.** They were
@@ -79,3 +137,13 @@ nothing on it. They are deliberately plain rather than trying to be good.
 
 Every one of them is marked `"status": "placeholder"`, so the list of what is
 still stand-in is the list of entries with that status.
+
+The music and the room tone are placeholders on exactly the same terms
+(`tests/gen_music.py` — struck tones over a drone, and filtered noise for the
+weather). They are there so the two new sliders, the two new buses, the
+crossfades and the per-screen cues drive something rather than nothing.
+
+**No stock track was fetched for you.** The machine this was written on has no
+route to freesound, OpenGameArt, Pixabay or incompetech — every one of them
+fails to connect — so the list above is where to go, not where these came from.
+Dropping a real file in is one copy, one `status`, and nothing to re-run.

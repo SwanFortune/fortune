@@ -214,6 +214,8 @@ func _test_every_setting_moves_something() -> void:
 		"master_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(0)],
 		"sfx_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("SFX"))],
 		"ui_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("UI"))],
+		"music_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("MUSIC"))],
+		"ambience_volume": [0.2, 1.0, func(): return AudioServer.get_bus_volume_db(AudioServer.get_bus_index("AMBIENCE"))],
 		"muted": [false, true, func(): return AudioServer.is_bus_mute(0)],
 		"animation_scale": [1.0, 4.0, func(): return [UIKit.dur(1.0), UIKit.motion_off()]],
 		"text_scale": [1.0, 1.3, func(): UIKit.refresh_look(); return UIKit.text_scale],
@@ -354,7 +356,8 @@ func _test_the_buses_exist_and_the_volumes_reach_them() -> void:
 			check(AudioServer.get_bus_send(i) == "Master",
 				"bus '%s' should feed Master, sends to '%s'" % [name, AudioServer.get_bus_send(i)])
 
-	for pair in [["master_volume", "Master"], ["sfx_volume", "SFX"], ["ui_volume", "UI"]]:
+	for pair in [["master_volume", "Master"], ["sfx_volume", "SFX"], ["ui_volume", "UI"],
+			["music_volume", "MUSIC"], ["ambience_volume", "AMBIENCE"]]:
 		settings.set_value(pair[0], 0.5)
 		var db := AudioServer.get_bus_volume_db(AudioServer.get_bus_index(pair[1]))
 		check(is_equal_approx(db, linear_to_db(0.5)),

@@ -51,6 +51,8 @@ var denial_shield: Dictionary
 var denial_wall: Dictionary
 var pronouns: Dictionary
 var sounds: Dictionary
+## The looping half of the audio: the score and the room tone. See music.json.
+var music: Dictionary
 var minitel_codes: Dictionary
 var icons: Dictionary
 var archetypes: Dictionary
@@ -107,6 +109,7 @@ func reload() -> void:
 	denial_wall = registries.get("denial_wall", {})
 	pronouns = registries.get("pronouns", {})
 	sounds = registries.get("sounds", {})
+	music = registries.get("music", {})
 	minitel_codes = registries.get("minitel_codes", {})
 	icons = registries.get("icons", {})
 	archetypes = registries.get("archetypes", {})

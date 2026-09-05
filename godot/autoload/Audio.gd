@@ -45,6 +45,35 @@ const VOICES := 8
 ## goes to SFX, the right default for a sound a mod added.
 const UI_EVENTS := ["ui_move", "ui_press"]
 
+## THE LOOPING HALF. `play()` above is for moments; these two channels are for
+## the things that carry on — the score, and the room you are sitting in.
+##
+## ONE AT A TIME PER CHANNEL, and a change is a crossfade rather than a cut: the
+## old track fades down while the new one comes up, both over the incoming
+## track's `fade` seconds. Asking for what is already playing does nothing at
+## all, which is what makes it safe to call from a screen's _ready() — every
+## screen announces what it wants and only a real change costs anything.
+##
+## THE SAME CONTRACT AS play(): an unknown cue, a missing file and an empty
+## registry are silence. The game is playable with no music at all, which is
+## exactly the state it ships in today.
+const CHANNELS := {"music": "MUSIC", "ambience": "AMBIENCE"}
+
+## What each channel is playing, by cue name. Read by tests and by the cue
+## logic; "" means nothing.
+var playing: Dictionary = {"music": "", "ambience": ""}
+
+var _loops: Dictionary = {}
+var _fades: Dictionary = {}
+
+## Which of a channel's two players is the audible one. Tracked explicitly
+## rather than worked out from their volumes: a fade is a tween, so between the
+## call and the next frame both players still read -60 dB and "whichever is
+## louder" picks the same one twice — which restarts the track it was supposed
+## to be fading out of and never brings the other one up.
+var _at: Dictionary = {}
+
+
 ## Every event this has actually played, and how many times. Kept because a
 ## headless test has no ears: "the door knocks even with animation turned off"
 ## is a real promise (turning motion off should not make the game go quiet) and
@@ -64,6 +93,19 @@ func _ready() -> void:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		_players.append(p)
+	# Two players per looping channel, so a crossfade has something to fade out
+	# of and something to fade into. Named, so a test can find them.
+	for channel in CHANNELS:
+		var pair: Array[AudioStreamPlayer] = []
+		for i in 2:
+			var p := AudioStreamPlayer.new()
+			p.name = "%s_%d" % [channel, i]
+			p.bus = CHANNELS[channel]
+			p.volume_db = -60.0
+			add_child(p)
+			pair.append(p)
+		_loops[channel] = pair
+		_at[channel] = 0
 
 
 ## Drops every cached stream, so a mod repointing a sound takes effect on the
@@ -182,4 +224,114 @@ func _load_wav(path: String) -> AudioStreamWAV:
 	stream.mix_rate = rate
 	stream.stereo = channels == 2
 	stream.data = pcm
+	return stream
+
+
+## Puts `cue` on `channel` ("music" or "ambience"), crossfading from whatever is
+## there. An empty cue fades the channel out and leaves it empty.
+##
+## Idempotent on purpose — see the CHANNELS comment. Called from Nav for every
+## screen change, so the common case is "already playing this" and has to cost
+## nothing.
+func play_loop(channel: String, cue: String) -> void:
+	if not CHANNELS.has(channel):
+		push_warning("[Audio] no such channel '%s'" % channel)
+		return
+	if str(playing.get(channel, "")) == cue:
+		return
+	var rec: Dictionary = Content.music.get(cue, {}) if cue != "" else {}
+	if cue != "" and rec.is_empty():
+		# A cue nobody has written a track for yet: leave what is playing alone
+		# rather than dropping to silence, which is the wrong half of "a missing
+		# file changes nothing".
+		return
+	playing[channel] = cue
+	var pair: Array = _loops.get(channel, [])
+	if pair.size() < 2:
+		return
+
+	var stream: AudioStream = null
+	if cue != "":
+		stream = _loop_stream(cue, rec)
+		if stream == null:
+			playing[channel] = ""
+	var seconds := float(rec.get("fade", 2.0))
+	var gain := float(rec.get("gain_db", -14.0))
+
+	# The one that is up goes down; the other one takes the new track.
+	var at: int = int(_at.get(channel, 0))
+	var out: AudioStreamPlayer = pair[at]
+	var into: AudioStreamPlayer = pair[1 - at]
+	_at[channel] = 1 - at
+	_fade(channel + "_out", out, -60.0, seconds, true)
+	if stream != null:
+		into.stream = stream
+		into.volume_db = -60.0
+		into.play()
+		_fade(channel + "_in", into, gain, seconds, false)
+
+
+func music(cue: String) -> void:
+	play_loop("music", cue)
+
+
+func ambience(cue: String) -> void:
+	play_loop("ambience", cue)
+
+
+## Silences both channels — the one thing a hard cut is right for, since it is
+## used when the game is going away.
+func hush() -> void:
+	for channel in CHANNELS:
+		play_loop(channel, "")
+
+
+func _fade(key: String, player: AudioStreamPlayer, to_db: float, seconds: float, stop_after: bool) -> void:
+	var old: Tween = _fades.get(key, null)
+	if old != null and old.is_valid():
+		old.kill()
+	# INSTANT when the player has asked for no motion, the same rule every other
+	# animation in the game follows — somebody who turned animation off did not
+	# ask for three seconds of fade either.
+	# The setting read directly, not through UIKit.motion_off(): an autoload
+	# cannot preload a scene script (see Content.gd's header), and this is the
+	# same one line that function is.
+	if seconds <= 0.0 or Settings.animation_scale() <= 0.01:
+		player.volume_db = to_db
+		if stop_after:
+			player.stop()
+		return
+	var tween := create_tween()
+	tween.tween_property(player, "volume_db", to_db, seconds)
+	if stop_after:
+		tween.tween_callback(player.stop)
+	_fades[key] = tween
+
+
+## A looping stream. Same loader as the one-shots, plus the loop itself: a WAV
+## has to be TOLD to loop (Godot defaults it off), and an .ogg carries its own
+## loop flag which this sets for the same reason.
+func _loop_stream(cue: String, rec: Dictionary) -> AudioStream:
+	var key := "loop:" + cue
+	if _cache.has(key):
+		return _cache[key]
+	var path: String = str(rec.get("file", ""))
+	if path == "":
+		path = AUDIO_ROOT + cue + ".wav"
+		if not FileAccess.file_exists(path):
+			path = AUDIO_ROOT + cue + ".ogg"
+	elif not path.begins_with("res://") and not path.begins_with("user://"):
+		path = AUDIO_ROOT + path
+	var stream := _load_stream(path)
+	if stream != null and bool(rec.get("loop", true)):
+		if stream is AudioStreamWAV:
+			var wav: AudioStreamWAV = stream
+			wav.loop_mode = AudioStreamWAV.LOOP_FORWARD
+			wav.loop_begin = 0
+			wav.loop_end = 0
+		elif stream is AudioStreamOggVorbis:
+			(stream as AudioStreamOggVorbis).loop = true
+		elif stream is AudioStreamMP3:
+			(stream as AudioStreamMP3).loop = true
+	_cache[key] = stream
 	return stream

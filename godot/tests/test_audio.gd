@@ -23,6 +23,9 @@ const TESTS := [
 	"_test_missing_and_unknown_are_silent",
 	"_test_registry_is_moddable",
 	"_test_events_reach_the_right_bus",
+	"_test_every_cue_resolves",
+	"_test_a_cue_is_idempotent_and_crossfades",
+	"_test_every_screen_asks_for_music_that_exists",
 ]
 
 var failures: Array[String] = []
@@ -131,3 +134,69 @@ func _test_events_reach_the_right_bus() -> void:
 		check(voice.bus == want, "'%s' should play on %s, played on %s" % [event, want, voice.bus])
 		check(AudioServer.get_bus_index(voice.bus) >= 0, "bus '%s' should exist" % voice.bus)
 	done("_test_events_reach_the_right_bus")
+
+
+## THE LOOPING HALF. Same promise as the one-shots: every cue the registry lists
+## has to resolve to a real stream, or it is a track in a manifest that plays
+## silence and nobody would ever know.
+func _test_every_cue_resolves() -> void:
+	check(not content.music.is_empty(), "there should be music and room tone registered")
+	for cue in content.music:
+		var rec: Dictionary = content.music[cue]
+		check(str(rec.get("kind", "")) in ["music", "ambience"],
+			"%s should say whether it is music or ambience, got '%s'" % [cue, rec.get("kind", "")])
+		check(audio._loop_stream(cue, rec) != null,
+			"%s is in the registry and resolves to nothing — it would play silence" % cue)
+	done("_test_every_cue_resolves")
+
+
+## ASKING FOR WHAT IS ALREADY PLAYING MUST COST NOTHING. Nav cues on every
+## screen change, so "the same music as the last screen" is the common case; if
+## that restarted the track, walking between two menus would stutter the score.
+##
+## And a real change has to be a CROSSFADE, which means the outgoing player is
+## still audible while the incoming one comes up — checked as "two players, both
+## carrying something" rather than by listening, which a headless test cannot do.
+func _test_a_cue_is_idempotent_and_crossfades() -> void:
+	audio.hush()
+	audio.music("parlour")
+	var pair: Array = audio._loops["music"]
+	var up: AudioStreamPlayer = pair[0] if pair[0].playing else pair[1]
+	check(up.playing, "asking for a track should start one playing")
+	var stream := up.stream
+
+	audio.music("parlour")
+	check(up.stream == stream and up.playing,
+		"asking again for what is playing must not restart it")
+
+	audio.music("the_table")
+	var other: AudioStreamPlayer = pair[1] if up == pair[0] else pair[0]
+	check(other.playing, "a change should bring the other player up")
+	check(up.playing, "and leave the old one running while it fades — that is the crossfade")
+	check(str(audio.playing["music"]) == "the_table",
+		"the channel should know what it is on, says '%s'" % audio.playing["music"])
+
+	# A cue nothing is written for leaves what is playing alone, rather than
+	# dropping the score to silence for a screen somebody forgot to fill in.
+	audio.music("no_such_track")
+	check(str(audio.playing["music"]) == "the_table",
+		"an unwritten cue should change nothing, went to '%s'" % audio.playing["music"])
+	audio.hush()
+	done("_test_a_cue_is_idempotent_and_crossfades")
+
+
+## EVERY SCREEN'S CUE NAMES A REAL TRACK. Nav's table is written by hand and a
+## typo in it is silence on one screen — the exact failure this whole file
+## exists to make impossible for the one-shots.
+func _test_every_screen_asks_for_music_that_exists() -> void:
+	var nav: Node = root.get_node("Nav")
+	for path in nav.MUSIC_FOR:
+		var cue: String = str(nav.MUSIC_FOR[path])
+		check(content.music.has(cue),
+			"%s asks for music '%s', which is not in the registry" % [path, cue])
+	check(content.music.has(nav.AMBIENCE_DEFAULT),
+		"the default room tone '%s' is not in the registry" % nav.AMBIENCE_DEFAULT)
+	# The mayor's track is asked for by who is at the door rather than by a
+	# screen, so it is in neither table and still has to exist.
+	check(content.music.has("the_mayor"), "the mayor's own track should be registered")
+	done("_test_every_screen_asks_for_music_that_exists")

@@ -82,7 +82,56 @@ func goto_main_menu() -> void:
 	_goto("res://scenes/MainMenu.tscn")
 
 
+## WHAT PLAYS ON EACH SCREEN. One place, because every screen change goes
+## through _goto() below — the alternative is a line in fourteen _ready()s, and
+## the fourteenth is the one somebody forgets.
+##
+## A screen absent from here KEEPS WHAT IS PLAYING rather than dropping to
+## silence: the deck overlay, the settings menu and the rules are things you
+## open on top of the evening, not places you go.
+const MUSIC_FOR := {
+	"res://scenes/MainMenu.tscn": "parlour",
+	"res://scenes/SignSelect.tscn": "parlour",
+	"res://scenes/Records.tscn": "parlour",
+	"res://scenes/Library.tscn": "parlour",
+	"res://scenes/HowToPlay.tscn": "parlour",
+	"res://scenes/Credits.tscn": "parlour",
+	"res://scenes/MinitelScreen.tscn": "parlour",
+	"res://scenes/ModsScreen.tscn": "parlour",
+	"res://scenes/Map.tscn": "the_evening",
+	"res://scenes/PickScreen.tscn": "the_evening",
+	"res://scenes/Reading.tscn": "the_table",
+	"res://scenes/ResultScreen.tscn": "the_table",
+	"res://scenes/RunOver.tscn": "after",
+}
+
+## The room tone, which is the same room all night. One entry, kept as a map
+## anyway so a screen that wants a different one (a back room, a street) can
+## have it without this becoming a special case.
+const AMBIENCE_FOR := {}
+const AMBIENCE_DEFAULT := "rain"
+
+
 func _goto(path: String) -> void:
+	_cue(path)
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		tree.change_scene_to_file(path)
+
+
+## THE MAYOR HAS HIS OWN TRACK, and it is not a screen — it is who is at the
+## door. The reading screen asks for `the_table` unless the caller is the last
+## half hour of the third night, which is the one encounter the game has been
+## counting down to.
+func _cue(path: String) -> void:
+	var audio := get_node_or_null("/root/Audio")
+	if audio == null:
+		return
+	var want: String = MUSIC_FOR.get(path, "")
+	if want == "the_table":
+		var run := _run()
+		if run != null and bool(run.state.get("f", {}).get("boss", false)):
+			want = "the_mayor"
+	if want != "":
+		audio.music(want)
+	audio.ambience(AMBIENCE_FOR.get(path, AMBIENCE_DEFAULT))

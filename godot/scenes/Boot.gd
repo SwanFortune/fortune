@@ -16,5 +16,10 @@ extends Node
 ## test boots the game: test_scenes.gd instantiates each screen directly, which
 ## never goes through the main scene at all. It took exporting a build and
 ## running it to see the line.
+##
+## THROUGH NAV, not straight to the file: every screen change asks Audio for the
+## music and the room that go with it (Nav._cue), and this one is a screen
+## change like any other. Called directly, the game opened silent and stayed
+## silent until the player left the menu and came back.
 func _ready() -> void:
-	get_tree().change_scene_to_file.call_deferred("res://scenes/MainMenu.tscn")
+	Nav.goto_main_menu.call_deferred()
