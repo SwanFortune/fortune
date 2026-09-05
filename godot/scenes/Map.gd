@@ -100,7 +100,10 @@ func _knock(root: Control) -> void:
 ## PAST hours name who came and how it went; FUTURE hours give the shape only —
 ## a name would give the night away. Built from Run.state's plan, which is
 ## decided at the start of the night for exactly this reason.
-const AGENDA_WIDTH := 214.0
+## Wider than it was (214), because an hour names everything it holds now and
+## "a caller or someone difficult or an evening off" wrapped to three lines in
+## the old column, which ran the rows into each other.
+const AGENDA_WIDTH := 300.0
 
 ## What a future hour promises, by what the plan says is on offer. Only the
 ## SHAPE — a name would give the night away, and the shape is what a plan is.
@@ -112,6 +115,35 @@ const PROMISE := {
 	"secret": "an evening off",
 	"sitter": "a caller",
 }
+
+## WHAT AN HOUR HOLDS, all of it. This named the single heaviest thing on offer
+## — and every hour but the last also has somebody at the door, so an hour
+## offering a caller AND the apothecary read as "the apothecary" and nothing
+## else. Three of those in a row, which is an ordinary night, made the agenda
+## look like a shopping list and hid the only thing the hour is really asking:
+## whether to answer the door or spend the half hour on yourself.
+##
+## The Mayor is the exception and takes the hour alone — the last half hour of
+## the third night offers nothing but him.
+func _promise(offers: Array) -> String:
+	if offers.has("boss"):
+		return I18n.t(str(PROMISE["boss"]))
+	var parts: Array[String] = []
+	var callers := 0
+	for o in offers:
+		if str(o) == "sitter":
+			callers += 1
+	if callers == 1:
+		parts.append(I18n.t(str(PROMISE["sitter"])))
+	elif callers > 1:
+		parts.append(I18n.t("%d callers") % callers)
+	for key: String in ["elite", "shop", "secret", "event"]:
+		if offers.has(key):
+			var one := I18n.t(str(PROMISE[key]))
+			if not parts.has(one):
+				parts.append(one)
+	return I18n.t(" · ").join(parts) if not parts.is_empty() else ""
+
 
 ## One line saying how the deck you are carrying answers to this caller's sign.
 ##
@@ -154,7 +186,9 @@ func _agenda(st: Dictionary) -> Control:
 	var log: Array = st.get("log", [])
 	var now: int = int(st.get("step", 0))
 
-	var col := UIKit.vbox(0)
+	# Spaced, not flush: a promise long enough to wrap needs a gap under it or
+	# the next hour reads as part of the same sentence.
+	var col := UIKit.vbox(6)
 	col.custom_minimum_size.x = AGENDA_WIDTH * UIKit.text_scale
 	col.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	col.add_child(UIKit.block(I18n.t("THE EVENING"), 11, UIKit.GOLD))
@@ -190,15 +224,13 @@ func _agenda(st: Dictionary) -> Control:
 			tint = UIKit.GOLD
 		else:
 			var offers: Array = slot.get("offers", [])
-			# The heaviest thing on offer is what the hour is remembered as: an
-			# hour with the Mayor in it is the Mayor's hour.
-			for key: String in ["boss", "elite", "shop", "secret", "event", "sitter"]:
-				if offers.has(key):
-					text = I18n.t(str(PROMISE[key]))
-					break
+			text = _promise(offers)
 			if offers.has("boss"):
 				tint = UIKit.RED
-		var line := UIKit.label(text, 12, tint)
+		# block(), not label(): an hour that offers three things is a longer
+		# sentence than the column is wide, and a clipped promise is worse than
+		# a wrapped one.
+		var line := UIKit.block(text, 12, tint)
 		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(line)
 		col.add_child(row)

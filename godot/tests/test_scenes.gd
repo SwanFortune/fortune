@@ -187,6 +187,8 @@ func _visit_standalone() -> void:
 	await _test_an_offered_card_shows_its_price()
 	await _test_the_reading_is_a_sentence()
 	await _test_the_rule_is_visible_and_the_flavour_is_not()
+	await _test_the_agenda_names_the_whole_hour()
+	await _test_a_readings_tally_reads_as_pairs()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -702,6 +704,99 @@ func _row_text(node: Node, caption: String) -> String:
 
 
 ## The one Label containing `needle`, or "".
+## THE AGENDA TELLS THE TRUTH ABOUT AN HOUR.
+##
+## It named the single heaviest thing on offer, and every hour but the last also
+## has somebody at the door — so an hour holding a caller AND the apothecary
+## read as "the apothecary" and nothing else. Three of those in a row is an
+## ordinary night, and it made the plan down the left of the map look like a
+## shopping list while hiding the only question the hour asks: answer the door,
+## or spend the half hour on yourself.
+func _test_the_agenda_names_the_whole_hour() -> void:
+	run.state = run.fresh("agenda")
+	run.pick_reader(0)
+	run.take_pick(0)
+	# A hand-built plan, so this tests the agenda and not the odds: hour 2 holds
+	# a caller and the apothecary, and both have to be on the line.
+	var plan: Array = run.state["plan"]
+	plan[2] = {"at": plan[2].get("at", "21:00"), "offers": ["sitter", "shop"]}
+	run.state["plan"] = plan
+
+	var instance: Node = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	# get_node, not the bare autoload name: this file is run by `godot -s`.
+	var i18n: Node = root.get_node("I18n")
+	# EVERY hour but the last holds at least one caller, so every promise that
+	# names a break has to name the callers too. Asked of all of them rather
+	# than of one, which is both stronger and immune to which hour the plan
+	# happened to put the shop in.
+	var caller: String = i18n.t("a caller")
+	var callers: String = i18n.t("%d callers") % 2
+	for break_name in [i18n.t("the apothecary"), i18n.t("an evening off")]:
+		for node in _all_of(instance, []):
+			var l := node as Label
+			if l == null or not l.text.contains(str(break_name)):
+				continue
+			if not (l.text.contains(caller) or l.text.contains(callers.substr(2))):
+				printerr("FAIL: an hour holding a caller and %s should name both — the agenda says \"%s\""
+					% [break_name, l.text])
+	instance.queue_free()
+	await process_frame
+	print("--- the agenda names everything an hour holds ---")
+
+
+## A READING'S TALLY READS AS PAIRS.
+##
+## The rows were EXPAND_FILL across the whole screen, so on a 1280 window
+## "Composure" sat at the left margin and "36 / 36" eleven hundred pixels away
+## at the right, with the teacup and the Minitel drawn between them — and the
+## number half over the artwork. Geometry, not wording, so it is checked as
+## geometry: the label and its number have to be near enough to read as one line.
+func _test_a_readings_tally_reads_as_pairs() -> void:
+	# A REAL WINDOW. A headless root is 64 wide, in which everything fits and
+	# nothing is ever too far from anything, so this measures nothing at all
+	# until the window is the shape a player has. Same reason the hand-overflow
+	# test sets one.
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 720)))
+	await process_frame
+	run.state = run.fresh("tally")
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	f["hp"] = f["max"]
+	run.win(f)
+
+	var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var found := false
+	for node in _all_of(instance, []):
+		var l := node as Label
+		if l == null or not l.text.contains(str(root.get_node("I18n").t("Composure"))):
+			continue
+		found = true
+		var row := l.get_parent() as Control
+		if row == null or row.size.x > root.size.x * 0.6:
+			printerr("FAIL: the tally row is %s wide in a %s window — the number is not next to its words"
+				% [row.size.x if row != null else -1, root.size.x])
+	if not found:
+		printerr("FAIL: the result screen should show the composure the reading reached")
+	instance.queue_free()
+	root.size = restore_size
+	await process_frame
+	print("--- a reading's tally reads as pairs ---")
+
+
 func _line_containing(node: Node, needle: String) -> String:
 	if node is Label and (node as Label).text.contains(needle):
 		return (node as Label).text

@@ -4,6 +4,10 @@ extends Control
 ## clone. See autoload/Content.gd's header for why, and never change these back.
 const UIKit := preload("res://scenes/UIKit.gd")
 
+## How wide the reading's tally is allowed to be. Wide enough for the longest
+## label and its number, narrow enough that they read as one line.
+const STAT_WIDTH := 460
+
 
 func _ready() -> void:
 	var res: Dictionary = Run.state["res"]
@@ -27,15 +31,27 @@ func _ready() -> void:
 		I18n.sitter_field(sitter, said_field) if not sitter.is_empty() else res.get("said", ""),
 		13, UIKit.DIM))
 
+	# A COLUMN, not the window. These rows were EXPAND_FILL, so on a 1280 screen
+	# "Composure" sat at the far left and "36 / 36" at the far right, eleven
+	# hundred pixels away with the teacup and the Minitel drawn between them —
+	# a pair of numbers nobody can read as a pair, half of it over the artwork.
+	var stats := UIKit.vbox(4)
+	# BEGIN, not CENTER: everything else on this screen starts at the left
+	# margin, and a tally floating in the middle of the table reads as a
+	# different screen from the sentence above it.
+	stats.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	stats.custom_minimum_size.x = STAT_WIDTH * UIKit.text_scale
+	v.add_child(stats)
 	for line in res.get("lines", []):
 		var row := UIKit.hbox(12)
 		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(UIKit.label(UIKit.tr_line(line["left"]), 13, UIKit.DIM))
+		var left := UIKit.label(UIKit.tr_line(line["left"]), 13, UIKit.DIM)
+		left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(left)
 		var right := UIKit.label(_right_text(line), 13, UIKit.GOLD)
-		right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		row.add_child(right)
-		v.add_child(row)
+		stats.add_child(row)
 
 	v.add_child(UIKit.button(UIKit.tr_line(res.get("cta")), _continue))
 	# This screen carries no run header, so it needs its own way out — and it is
