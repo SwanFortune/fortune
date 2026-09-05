@@ -1582,6 +1582,67 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## Thirteen readers, from 14% to 94%
+
+A player picks a reader before they know anything about the game. Measured at
+the point where the field separates — night 2, hour 6, difficulty 2 — they ran
+from Scorpio at 14% to Serpentarius at 94%. That is not a choice, it is a
+ranking with a trap at one end.
+
+**First, the magnitudes came out of the engine.** Every reader trait was a
+literal in `Rules.gd` — `b += 2` for the opener, `b += 3` for the closer,
+`pierce_trait := 4`. They are `amount` in `fx.json` now, read through
+`Rules.trait_amount(name, fallback)`, which keeps the mechanic in code and puts
+the size of it in one file the author can read and revert. A trait with no
+`amount` falls back to the number the engine was written with, so a mod's own
+trait needs no entry.
+
+**Then the outlier that was not about numbers.** Scorpio's whole trait is going
+through a denial wall — and a wall only exists for the two signs that raise one,
+so in ten matchups out of twelve Scorpio was a reader with no trait at all, and
+measured at exactly that: the field's floor. No amount of raising the pierce
+number fixes a trait that does not fire. `pierce` now carries a `spare`: what
+the first card restores instead when the way is already clear. Same shape as the
+difficulty ladder's dead rung — a rule that reads well and almost never happens.
+
+Where the field ended up, same measurement, before → after:
+
+| | before | after |
+|---|---|---|
+| SCORPIO | 16% | 47% |
+| SAGITTARIUS | 21% | 48% |
+| TAURUS | 44% | 48% |
+| LIBRA | 50% | 51% |
+| AQUARIUS | 55% | 57% |
+| PISCES | 46% | 58% |
+| CANCER | 81% | 68% |
+| VIRGO | 88% | 71% |
+| ARIES | 84% | 72% |
+| SERPENTARIUS | 90% | 74% |
+| LEO | 78% | 75% |
+
+74 points of spread down to about 35. Every rule's wording moved with its
+number — a game that lies about its own rules is worse than an unbalanced one.
+
+**Two readers are exempt, and named rather than quietly dropped.** CAPRICORN's
+trait is money and this simulator never shops: five centimes a sitter is about
+eighty a run, five or six things off the apothecary's shelf, and none of it is
+in the number. GEMINI's trait is a bigger hand, and the auto-player is greedy
+and one ply deep — it lays whichever single card scores best right now and never
+plans a reading, so extra choice buys it almost nothing and buys a person a lot.
+Both are floors, not verdicts. Neither excuses a third name appearing on that
+list.
+
+**And it is held in place.** `tests/test_balance.gd` plays 5200 fights at that
+same point and fails if any base reader falls under 35% or over 85%, or if the
+field spans more than 45 points — a band, not a target. It is the slowest test
+in the suite by a distance (about sixteen seconds) and it earns it: a balance
+pass with nothing holding it comes undone the next time somebody tunes a number,
+and nothing else would say a word. The greedy engine now lives in
+`tests/sim_engine.gd` so the report and the test share one player rather than
+two copies of it. Verified red by putting Virgo's and Scorpio's old numbers
+back: it names both, and the 71-point spread.
+
 ## Two endings out of four that no run could reach
 
 Surveying the port against the prototype turned up nothing missing on the

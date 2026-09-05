@@ -30,6 +30,15 @@ func has(run_ctx: Dictionary, fx_key: String) -> bool:
 	return false
 
 
+## HOW BIG a reader trait is, from data/base/fx.json. The mechanic is here; the
+## size of it is a number the author can tune in one file. `fallback` is what
+## the engine was written with, so a trait a mod adds without an `amount` still
+## behaves.
+static func trait_amount(name: String, fallback: int) -> int:
+	var entry: Dictionary = Content.fx.get(name, {})
+	return int(entry.get("amount", fallback)) if entry.has("amount") else fallback
+
+
 func my_el(run_ctx: Dictionary) -> String:
 	var reader: Dictionary = run_ctx.get("reader", {})
 	if has(run_ctx, "serpent"):
@@ -48,10 +57,15 @@ func el_bonus(run_ctx: Dictionary, el: String) -> int:
 	var mark_bonus := 0
 	for m in run_ctx.get("marks", []):
 		if m.get("fx", "") == "el" and m.get("el", "") == el:
-			mark_bonus += 2
+			mark_bonus += trait_amount("el", 2)
 	var own_bonus := 0
 	if own:
-		own_bonus = 3 if (has(run_ctx, "serpent") or has(run_ctx, "own3")) else 1
+		if has(run_ctx, "serpent"):
+			own_bonus = trait_amount("serpent", 3)
+		elif has(run_ctx, "own3"):
+			own_bonus = trait_amount("own3", 3)
+		else:
+			own_bonus = 1
 	return mark_bonus + own_bonus
 
 
@@ -92,7 +106,7 @@ func link_of(run_ctx: Dictionary, fight: Dictionary, carried: String, cur: Dicti
 func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 	var quirk: Dictionary = fight.get("quirk", {})
 	var laid: Array = fight.get("cross", [])
-	var pierce_trait := 4 if has(run_ctx, "pierce") else 0
+	var pierce_trait := trait_amount("pierce", 4) if has(run_ctx, "pierce") else 0
 	var blank := {
 		"rows": [], "gross": 0, "pierced": 0, "absorbed": 0, "applied": 0, "bank": 0, "over": 0,
 		"hpAfter": fight.get("hp", 0), "extraTurns": 0, "coin": 0, "halveNote": null,
@@ -152,31 +166,39 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 			if c.has("opener"):
 				b += int(c["opener"])
 			if has(run_ctx, "opener"):
-				b += 2
+				b += trait_amount("opener", 2)
+			# PIERCE WITH NOTHING TO PIERCE. A wall only exists for the two signs
+			# that raise one, so a reader whose whole trait is going through walls
+			# had nothing to do in ten matchups out of twelve and measured at the
+			# bare floor — the same win rate as a reader with no trait at all.
+			# `spare` is what the first card restores instead when the way is
+			# already clear. 0 or absent restores the source's behaviour exactly.
+			if has(run_ctx, "pierce") and int(fight.get("denial", 0)) <= pierce_trait:
+				b += int(Content.fx.get("pierce", {}).get("spare", 0))
 			if job.get("fx", "") == "opener3":
 				b += 3
 		if not no_bonus and is_last:
 			if c.has("closer"):
 				b += int(c["closer"])
 			if has(run_ctx, "closer"):
-				b += 3
+				b += trait_amount("closer", 3)
 			if job.get("fx", "") == "closer3":
 				b += 3
 		if link == "same":
 			if has(run_ctx, "steady"):
-				b += 2
+				b += trait_amount("steady", 2)
 			if job.get("fx", "") == "steady3":
 				b += 3
 		if link == "turn" and has(run_ctx, "switch2"):
-			b += 2
+			b += trait_amount("switch2", 2)
 		if el != "" and has(run_ctx, "perOwn") and el == my_el(run_ctx):
 			var count2 := 0
 			for x in laid:
 				if x != c and el_of(run_ctx, fight, x) == el:
 					count2 += 1
-			b += count2
+			b += count2 * trait_amount("perOwn", 1)
 		if c.get("neutral", false) and has(run_ctx, "white") and (white_cap <= 0 or white_used < white_cap):
-			b += 3
+			b += trait_amount("white", 3)
 			white_used += 1
 		if el != "" and el == fight.get("el", ""):
 			b += 2

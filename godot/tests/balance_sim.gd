@@ -42,38 +42,16 @@
 ## unfinished work in progress, not a spec to match exactly.
 extends SceneTree
 
+const SimEngine := preload("res://tests/sim_engine.gd")
+
 var content: Node
-var rules: Node
-var run: Node
-
-## Optional filters (sign=<key> / reader=<key>). A whole-field sweep is noisy
-## per cell — 2000 fights spread over 13 readers x 12 signs is ~150 samples
-## each, which is not enough to tell a real 5-point shift from noise. Pinning
-## one axis puts every fight in the cell you are actually tuning.
-var only_sign := ""
-var only_reader := ""
-
-## Where in a run to measure. The source's own baseline is night 1 / step 3 —
-## "measures how the start of a night sits, not the whole run" — and at that
-## point several readers simply never lose, which says more about the opening
-## difficulty than about those readers. Pass night=/step= to sample a later,
-## harder point and see the field actually separate.
-var at_night := 1
-var at_step := 3
-
-## The difficulty rung to play on, and whether the caller is a difficult one.
-## Both are read by Run's own code (level_fx() off run.state, elite_of()), not
-## re-implemented here — a ladder measured against a copy of itself measures
-## nothing.
-var at_level := 0
-var elites := false
+var sim: SimEngine
 
 
 func _initialize() -> void:
 	content = root.get_node("Content")
-	rules = root.get_node("Rules")
-	run = root.get_node("Run")
 	content.reload()
+	sim = SimEngine.new(root)
 
 	var n := 400
 	var args := OS.get_cmdline_user_args()
@@ -81,43 +59,43 @@ func _initialize() -> void:
 		if a.is_valid_int():
 			n = int(a)
 		elif a.begins_with("sign="):
-			only_sign = a.substr(5).to_lower()
+			sim.only_sign = a.substr(5).to_lower()
 		elif a.begins_with("reader="):
-			only_reader = a.substr(7).to_lower()
+			sim.only_reader = a.substr(7).to_lower()
 		elif a.begins_with("night="):
-			at_night = int(a.substr(6))
+			sim.at_night = int(a.substr(6))
 		elif a.begins_with("step="):
-			at_step = int(a.substr(5))
+			sim.at_step = int(a.substr(5))
 		elif a.begins_with("level="):
-			at_level = int(a.substr(6))
+			sim.at_level = int(a.substr(6))
 		elif a.begins_with("elite="):
-			elites = a.substr(6) != "0"
+			sim.elites = a.substr(6) != "0"
 		else:
 			printerr("unknown argument \"%s\" — expected a count, sign=<key>, reader=<key>, night=<n>, step=<n>, level=<n> or elite=1" % a)
 			quit(1)
 			return
-	if only_sign != "" and content.get_sign(only_sign).is_empty():
-		printerr("no such sign key: %s" % only_sign)
+	if sim.only_sign != "" and content.get_sign(sim.only_sign).is_empty():
+		printerr("no such sign key: %s" % sim.only_sign)
 		quit(1)
 		return
-	if only_reader != "" and content.get_reader(only_reader).is_empty():
-		printerr("no such reader key: %s" % only_reader)
+	if sim.only_reader != "" and content.get_reader(sim.only_reader).is_empty():
+		printerr("no such reader key: %s" % sim.only_reader)
 		quit(1)
 		return
 	var top := 0
 	for rung in content.difficulty:
 		top = maxi(top, int(rung.get("n", 0)))
-	if at_level < 0 or at_level > top:
-		printerr("no such difficulty level: %d (the ladder is 0..%d)" % [at_level, top])
+	if sim.at_level < 0 or sim.at_level > top:
+		printerr("no such difficulty level: %d (the ladder is 0..%d)" % [sim.at_level, top])
 		quit(1)
 		return
 	# The ONE piece of shared state this touches, and deliberately: Run.level_fx()
 	# reads it, so setting it here means the ladder under test is the one the game
 	# plays. Safe because nothing else in this process has a run.
-	run.state["level"] = at_level
+	sim.run.state["level"] = sim.at_level
 
 	var t0 := Time.get_ticks_msec()
-	var rows := sim_sweep(n)
+	var rows := sim.sim_sweep(n)
 	var ms := Time.get_ticks_msec() - t0
 
 	var wins := 0
@@ -126,19 +104,19 @@ func _initialize() -> void:
 			wins += 1
 	var overall := float(wins) / rows.size()
 
-	var scope := ", night %d step %d, level %d" % [at_night, at_step, at_level]
-	if elites:
+	var scope := ", night %d step %d, level %d" % [sim.at_night, sim.at_step, sim.at_level]
+	if sim.elites:
 		scope += ", elites"
-	if only_reader != "":
-		scope += ", reader=%s" % only_reader
-	if only_sign != "":
-		scope += ", sign=%s" % only_sign
+	if sim.only_reader != "":
+		scope += ", reader=%s" % sim.only_reader
+	if sim.only_sign != "":
+		scope += ", sign=%s" % sim.only_sign
 	print("=== Parlour balance sweep: %d fights in %dms%s ===" % [n, ms, scope])
 	print("OVERALL WIN RATE: %.1f%%  (rule of thumb: <35%% ~unwinnable, >85%% asks nothing of you)" % (overall * 100.0))
 	print("")
-	_print_group("BY READER", sim_group(rows, "reader"))
-	_print_group("BY SIGN (sitter denial)", sim_group(rows, "sign"))
-	_print_group("BY JOB", sim_group(rows, "job"))
+	_print_group("BY READER", sim.sim_group(rows, "reader"))
+	_print_group("BY SIGN (sitter denial)", sim.sim_group(rows, "sign"))
+	_print_group("BY JOB", sim.sim_group(rows, "job"))
 
 	quit(0)
 
@@ -152,143 +130,3 @@ func _print_group(title: String, groups: Array) -> void:
 	print("")
 
 
-# ── ported engine (see class doc comment) ──────────────────────────────
-
-func sim_ctx(reader: Dictionary) -> Dictionary:
-	return {"reader": reader, "marks": [], "serp_el": reader["el"]}
-
-
-func sim_turn_begin(f: Dictionary, ctx: Dictionary) -> void:
-	f["energy"] = f["energyMax"]
-	f["cross"] = []
-	if not f["hand"].is_empty():
-		f["disc"] = f["disc"] + f["hand"]
-		f["hand"] = []
-	var job: Dictionary = f["job"]
-	var free1 := 2 if (job.get("fx", "") == "free1" and int(f["turn"]) == 1) else 0
-	run.draw_to(f, int(f["handMax"]) + free1)
-	var quirk: Dictionary = f["quirk"]
-	if quirk.get("fx", "") == "steal" and not f["hand"].is_empty():
-		var i: int = randi() % int(f["hand"].size())
-		f["disc"] = f["disc"] + [f["hand"][i]]
-		f["hand"].remove_at(i)
-
-
-func sim_score(ctx: Dictionary, f: Dictionary) -> float:
-	var s: Dictionary = rules.simulate(ctx, f)
-	return float(s["applied"]) + float(s["bank"]) * 0.5
-
-
-func sim_play_turn(ctx: Dictionary, f: Dictionary) -> void:
-	var guard := 0
-	while guard < 30:
-		guard += 1
-		var opts: Array = f["hand"].filter(func(c): return int(c.get("cost", 0)) <= int(f["energy"]))
-		if opts.is_empty():
-			break
-		var base := sim_score(ctx, f)
-		var best = null
-		var best_gain := 0.01
-		for c in opts:
-			f["cross"].append(c)
-			var gain: float = sim_score(ctx, f) - base
-			f["cross"].pop_back()
-			gain += float(c.get("draw", 0)) * 1.5 + float(c.get("energy", 0)) * 1.2 + float(c.get("turn", 0)) * 4.0 + float(c.get("coin", 0)) * 0.2
-			if gain > best_gain:
-				best_gain = gain
-				best = c
-		if best == null:
-			break
-		f["cross"].append(best)
-		f["hand"] = f["hand"].filter(func(x): return x != best)
-		f["energy"] = int(f["energy"]) - int(best.get("cost", 0))
-		if best.has("energy"):
-			f["energy"] = int(f["energy"]) + int(best["energy"])
-		if best.has("draw"):
-			run.draw_to(f, f["hand"].size() + int(best["draw"]))
-
-
-func sim_fight(reader: Dictionary, sitter: Dictionary, quirk: Dictionary) -> Dictionary:
-	var ctx := sim_ctx(reader)
-	var job: Dictionary = content.get_job(sitter["role"])
-	var denial_shield: Dictionary = content.denial_shield
-	var f := {
-		"sitter": sitter, "quirk": quirk, "job": job, "el": quirk["el"], "max": sitter["max"], "hp": 0,
-		"denial": int(sitter["denial"]) if quirk.get("fx", "") == "shield" else 0,
-		"denialUp": int(denial_shield.get(quirk.get("fx", ""), 0)) * int(sitter.get("shieldMul", 1)),
-		"turn": 1,
-		"turns": int(sitter["turns"]) + (1 if rules.has(ctx, "turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
-		"energyMax": int(run.cfg_energy()) + (1 if rules.has(ctx, "energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if quirk.get("fx", "") == "energydown" else 0),
-		# maxi() and the twist's hand bonus are not decoration: the top rung takes
-		# a card away and one elite twist gives one back, and a handMax of zero
-		# would deal nothing and lose every fight for the wrong reason.
-		"handMax": maxi(1, int(run.cfg_hand()) - int(run.level_fx().get("hand_sub", 0))) + (1 if rules.has(ctx, "hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(sitter.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
-		"readerEl": reader["el"], "hand": [], "draw": run.shuffle(run.base_deck(reader)), "disc": [],
-		"cross": [], "gone": [], "faith": 0, "coin": 0,
-	}
-	var readings := 0
-	while readings < 40:
-		if rules.has(ctx, "serpent") and int(f["turn"]) > 1:
-			var ring: Array = content.ring
-			ctx["serp_el"] = ring[(ring.find(ctx["serp_el"]) + 1) % ring.size()]
-		sim_turn_begin(f, ctx)
-		sim_play_turn(ctx, f)
-		var sim: Dictionary = rules.simulate(ctx, f)
-		readings += 1
-		f["hp"] = sim["hpAfter"]
-		f["turns"] = int(f["turns"]) + int(sim["extraTurns"])
-		var exhausted: Array = f["cross"].filter(func(c): return c.get("exhaust", false))
-		var kept: Array = f["cross"].filter(func(c): return not c.get("exhaust", false))
-		f["gone"] = f["gone"] + exhausted
-		f["disc"] = f["disc"] + kept
-		f["cross"] = []
-		if int(f["hp"]) >= int(f["max"]):
-			return {"win": true, "readings": readings, "hp": f["hp"], "max": f["max"]}
-		f["denial"] = rules.next_wall(f, sim)
-		if int(f["turn"]) >= int(f["turns"]):
-			return {"win": false, "readings": readings, "hp": f["hp"], "max": f["max"]}
-		f["turn"] = int(f["turn"]) + 1
-	return {"win": false, "readings": readings, "hp": f["hp"], "max": f["max"]}
-
-
-func sim_sweep(n: int) -> Array:
-	var rows: Array = []
-	var readers: Array = content.readers
-	var sitters: Array = content.sitters
-	var signs: Array = content.signs
-	for i in n:
-		var r: Dictionary = content.get_reader(only_reader) if only_reader != "" else readers[i % readers.size()]
-		# elite_of() BEFORE scale_sitter(), the order make_options() uses — the
-		# twist multiplies the base composure, then the night scales the result.
-		var s: Dictionary = run.scale_sitter(run.elite_of(run.pick_rand(sitters), elites), at_night, at_step)
-		var q: Dictionary = content.get_sign(only_sign) if only_sign != "" else run.pick_rand(signs)
-		var res: Dictionary = sim_fight(r, s.duplicate(true), q)
-		var max_hp: int = res["max"]
-		rows.append({
-			"reader": r["sign"], "sign": q["n"], "job": s["role"], "win": res["win"],
-			"readings": res["readings"], "pct": (float(res["hp"]) / float(max_hp)) if max_hp > 0 else 0.0,
-		})
-	return rows
-
-
-func sim_group(rows: Array, key: String) -> Array:
-	var by: Dictionary = {}
-	for r in rows:
-		var k = r[key]
-		if not by.has(k):
-			by[k] = []
-		by[k].append(r)
-	var out: Array = []
-	for k in by.keys():
-		var g: Array = by[k]
-		var wins := 0
-		var readings_sum := 0.0
-		var pct_sum := 0.0
-		for x in g:
-			if x["win"]:
-				wins += 1
-			readings_sum += x["readings"]
-			pct_sum += x["pct"]
-		out.append({"label": str(k), "n": g.size(), "rate": float(wins) / g.size(), "readings": readings_sum / g.size(), "pct": pct_sum / g.size()})
-	out.sort_custom(func(a, b): return a["rate"] < b["rate"])
-	return out

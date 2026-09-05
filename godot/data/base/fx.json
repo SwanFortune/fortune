@@ -1,47 +1,183 @@
 {
   "_comment": "Ported verbatim from FX in Parlour v23.dc.html (line ~1054). 'on' is trait (reader passives + relics + marks, checked via has(fx)), sign (sitter denial rules) or job (sitter job passives). 't' is the canonical sentence; relic/mark card text is generated from it, sign/job prose stays hand-written in signs.json/jobs.json but should not drift from this line.",
   "fx": {
-    "opener":    { "on": "trait", "t": "Whatever you speak first restores +2." },
-    "closer":    { "on": "trait", "t": "Whatever you speak last restores +3." },
-    "steady":    { "on": "trait", "t": "Chaining the same element restores +2." },
-    "switch2":   { "on": "trait", "t": "Changing element restores +2." },
-    "white":     { "on": "trait", "t": "The first two cards with no element restore +3.", "cap": 2 },
-    "hand":      { "on": "trait", "t": "One more card in hand." },
-    "energy":    { "on": "trait", "t": "One more energy every reading." },
-    "turn":      { "on": "trait", "t": "Every sitter stays one reading longer." },
-    "pierce":    { "on": "trait", "t": "The first 4 of every reading goes straight through denial." },
-    "usury":     { "on": "trait", "t": "Every sitter pays 5 centimes more." },
-    "perOwn":    { "on": "trait", "t": "Each card of your element restores +1 for every other one." },
-    "own3":      { "on": "trait", "t": "Your element restores +3 instead of +1." },
-    "serpent":   { "on": "trait", "t": "Your element turns to the next one every reading, and restores +3." },
-    "el":        { "on": "trait", "t": "Cards of that element restore +2.", "needsEl": true },
-    "mutefirst": { "on": "sign",  "t": "The first card of every reading restores nothing." },
-    "minthree":  { "on": "sign",  "t": "A reading of fewer than three cards restores nothing at all." },
-    "lasthalf":  { "on": "sign",  "t": "Whatever you speak last restores half." },
-    "shield":    { "on": "sign",  "t": "A wall holds off the first points of every reading. Whatever it holds off is worn away, but it thickens 3 again after every one." },
-    "norepeat":  { "on": "sign",  "t": "A sign already spoken in this reading restores nothing the second time." },
-    "deadel":    { "on": "sign",  "t": "One element restores nothing at their table.", "needsEl": true },
-    "steal":     { "on": "sign",  "t": "One card leaves your hand at random before every reading." },
-    "halfown":   { "on": "sign",  "t": "Cards of their own sign restore half." },
-    "energydown":{ "on": "sign",  "t": "You have one less energy every reading." },
-    "halfbest":  { "on": "sign",  "t": "Whatever your best card restores is halved." },
-    "nobonus":   { "on": "sign",  "t": "No card pays its condition — nothing for opening, closing or following." },
-    "tide":      { "on": "sign",  "t": "Nothing is held off the first reading, and the wall thickens 4 after every one." },
-    "deal1":     { "on": "job",   "t": "You draw one more card every reading." },
-    "energy1":   { "on": "job",   "t": "One more energy every reading." },
-    "rush":      { "on": "job",   "t": "One reading fewer than usual." },
-    "slow":      { "on": "job",   "t": "One reading more than usual." },
-    "opener3":   { "on": "job",   "t": "Whatever opens the sentence restores +3." },
-    "steady3":   { "on": "job",   "t": "Saying the same sign twice in a row restores +3." },
-    "coin3":     { "on": "job",   "t": "Every reading pays 3 centimes." },
-    "free1":     { "on": "job",   "t": "Your first reading deals two more cards." },
-    "closer3":   { "on": "job",   "t": "Whatever closes the sentence restores +3." },
-    "tax2":      { "on": "job",   "t": "One card fewer in every hand." }
+    "opener": {
+      "on": "trait",
+      "t": "Whatever you speak first restores +1.",
+      "amount": 1
+    },
+    "closer": {
+      "on": "trait",
+      "t": "Whatever you speak last restores +2.",
+      "amount": 2
+    },
+    "steady": {
+      "on": "trait",
+      "t": "Chaining the same element restores +4.",
+      "amount": 4
+    },
+    "switch2": {
+      "on": "trait",
+      "t": "Changing element restores +3.",
+      "amount": 3
+    },
+    "white": {
+      "on": "trait",
+      "t": "The first card with no element restores +2.",
+      "cap": 1,
+      "amount": 2
+    },
+    "hand": {
+      "on": "trait",
+      "t": "Three more cards in hand.",
+      "amount": 3
+    },
+    "energy": {
+      "on": "trait",
+      "t": "One more energy every reading.",
+      "amount": 1
+    },
+    "turn": {
+      "on": "trait",
+      "t": "Every sitter stays three readings longer.",
+      "amount": 3
+    },
+    "pierce": {
+      "on": "trait",
+      "t": "The first 4 of every reading goes straight through denial, and restores +3 more when there is none left to pierce.",
+      "amount": 4,
+      "spare": 3
+    },
+    "usury": {
+      "on": "trait",
+      "t": "Every sitter pays 5 centimes more.",
+      "amount": 5
+    },
+    "perOwn": {
+      "on": "trait",
+      "t": "Each card of your element restores +1 for every other one.",
+      "amount": 1
+    },
+    "own3": {
+      "on": "trait",
+      "t": "Your element restores +4 instead of +1.",
+      "amount": 4
+    },
+    "serpent": {
+      "on": "trait",
+      "t": "Your element turns to the next one every reading.",
+      "amount": 1
+    },
+    "el": {
+      "on": "trait",
+      "t": "Cards of that element restore +2.",
+      "needsEl": true,
+      "amount": 2
+    },
+    "mutefirst": {
+      "on": "sign",
+      "t": "The first card of every reading restores nothing."
+    },
+    "minthree": {
+      "on": "sign",
+      "t": "A reading of fewer than three cards restores nothing at all."
+    },
+    "lasthalf": {
+      "on": "sign",
+      "t": "Whatever you speak last restores half."
+    },
+    "shield": {
+      "on": "sign",
+      "t": "A wall holds off the first points of every reading. Whatever it holds off is worn away, but it thickens 3 again after every one."
+    },
+    "norepeat": {
+      "on": "sign",
+      "t": "A sign already spoken in this reading restores nothing the second time."
+    },
+    "deadel": {
+      "on": "sign",
+      "t": "One element restores nothing at their table.",
+      "needsEl": true
+    },
+    "steal": {
+      "on": "sign",
+      "t": "One card leaves your hand at random before every reading."
+    },
+    "halfown": {
+      "on": "sign",
+      "t": "Cards of their own sign restore half."
+    },
+    "energydown": {
+      "on": "sign",
+      "t": "You have one less energy every reading."
+    },
+    "halfbest": {
+      "on": "sign",
+      "t": "Whatever your best card restores is halved."
+    },
+    "nobonus": {
+      "on": "sign",
+      "t": "No card pays its condition — nothing for opening, closing or following."
+    },
+    "tide": {
+      "on": "sign",
+      "t": "Nothing is held off the first reading, and the wall thickens 4 after every one."
+    },
+    "deal1": {
+      "on": "job",
+      "t": "You draw one more card every reading."
+    },
+    "energy1": {
+      "on": "job",
+      "t": "One more energy every reading."
+    },
+    "rush": {
+      "on": "job",
+      "t": "One reading fewer than usual."
+    },
+    "slow": {
+      "on": "job",
+      "t": "One reading more than usual."
+    },
+    "opener3": {
+      "on": "job",
+      "t": "Whatever opens the sentence restores +3."
+    },
+    "steady3": {
+      "on": "job",
+      "t": "Saying the same sign twice in a row restores +3."
+    },
+    "coin3": {
+      "on": "job",
+      "t": "Every reading pays 3 centimes."
+    },
+    "free1": {
+      "on": "job",
+      "t": "Your first reading deals two more cards."
+    },
+    "closer3": {
+      "on": "job",
+      "t": "Whatever closes the sentence restores +3."
+    },
+    "tax2": {
+      "on": "job",
+      "t": "One card fewer in every hand."
+    }
   },
-  "denial_shield": { "shield": 3, "tide": 4 },
+  "denial_shield": {
+    "shield": 3,
+    "tide": 4
+  },
   "_denial_wall_comment": "NOT in the source — added during the port, see docs/PORTING_NOTES.md 'Taurus and Virgo'. denial_shield says how much a wall thickens by each reading; this says whether it is worn down in the meantime, and how far it may go. 'drain': true means whatever the wall absorbed this reading is gone from it, so a wall is a buffer to break through rather than a toll charged again every reading. 'cap' is a multiple of the sitter's base denial the wall may never exceed (0 = no ceiling). An fx absent from this table behaves as {drain: false, cap: 0} — the source's behaviour — so a mod adding its own wall fx needs no entry here unless it wants these rules.",
   "denial_wall": {
-    "shield": { "drain": true,  "cap": 2 },
-    "tide":   { "drain": false, "cap": 0 }
-  }
+    "shield": {
+      "drain": true,
+      "cap": 2
+    },
+    "tide": {
+      "drain": false,
+      "cap": 0
+    }
+  },
+  "_fx_amount_comment": "HOW BIG each reader trait is. The mechanic lives in autoload/Rules.gd; the SIZE of it lives here, so a balance pass is a data change the author can read and revert in one file rather than a hunt for magic numbers in the engine. Every one of these was a literal in Rules.gd until the readers were measured against each other and found to run from 14% to 94% at the same point in a run (tests/balance_sim.gd). A trait with no `amount` here falls back to the number the engine was written with, so a mod adding a trait needs no entry."
 }

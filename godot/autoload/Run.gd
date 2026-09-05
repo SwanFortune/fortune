@@ -455,9 +455,9 @@ func start_fight(o: Dictionary) -> void:
 		"el": q["el"], "max": s["max"], "hp": 0,
 		"denial": wall, "denialUp": int(denial_shield.get(q.get("fx", ""), 0)) * int(s.get("shieldMul", 1)),
 		"turn": 1,
-		"turns": int(s["turns"]) + (1 if has("turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
-		"energyMax": cfg_energy() + (1 if has("energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if q.get("fx", "") == "energydown" else 0),
-		"handMax": maxi(1, cfg_hand() - int(level_fx().get("hand_sub", 0))) + (1 if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
+		"turns": int(s["turns"]) + (Rules.trait_amount("turn", 1) if has("turn") else 0) + (1 if job.get("fx", "") == "slow" else 0) - (1 if job.get("fx", "") == "rush" else 0),
+		"energyMax": cfg_energy() + (Rules.trait_amount("energy", 1) if has("energy") else 0) + (1 if job.get("fx", "") == "energy1" else 0) - (1 if q.get("fx", "") == "energydown" else 0),
+		"handMax": maxi(1, cfg_hand() - int(level_fx().get("hand_sub", 0))) + (Rules.trait_amount("hand", 1) if has("hand") else 0) + (1 if job.get("fx", "") == "deal1" else 0) + int(s.get("twist", {}).get("hand", 0)) - (1 if job.get("fx", "") == "tax2" else 0),
 		"readerEl": state["reader"]["el"], "hand": [], "draw": shuffle(state["deck"].duplicate(true)), "disc": [],
 		"cross": [], "gone": [], "faith": 0, "coin": 0, "energy": 0, "swept": 0, "taken": null,
 	}
@@ -657,7 +657,7 @@ func resolve_read(sim: Dictionary) -> void:
 
 func win(f: Dictionary) -> void:
 	var relic = roll_relic() if f.get("elite", false) else null
-	var usury := 5 if has("usury") else 0
+	var usury := Rules.trait_amount("usury", 5) if has("usury") else 0
 	var faith: int = int(f["faith"]) + 12 + (40 if f.get("boss", false) else 0) + (18 if f.get("elite", false) else 0) + (int(f["turns"]) - int(f["turn"])) * 4
 	var coin_gain: int = int(f["coin"]) + usury + 6
 	state["coin"] = int(state["coin"]) + coin_gain

@@ -225,9 +225,14 @@ func _test_simulate_wall_growth() -> void:
 ## Virgo reader (fx:'white'): elementless cards restore +3, but only the first
 ## `fx.white.cap` of them in a reading. NOT the source's rule — see the comment
 ## on white_cap in Rules.simulate().
+## HOW MUCH is data now (fx.json's `amount`/`cap`, see Rules.trait_amount) and
+## this reads it from there. WHICH CARD and WHEN is the mechanic, and that is
+## what these hand-traced cases are for — a test that hard-codes the magnitude
+## goes red on every balance pass and teaches nobody anything.
 func _test_simulate_white_cap() -> void:
 	var cap: int = int(content.fx.get("white", {}).get("cap", 0))
-	check(cap == 2, "this test assumes fx.white.cap == 2, got %s" % cap)
+	var amt: int = rules.trait_amount("white", 3)
+	check(cap >= 1 and amt >= 1, "the white trait should pay something to at least one card, got %d x %d" % [cap, amt])
 	var ctx := _mk_run_ctx("virgo")
 	# Three elementless cards, all with a plain base f and no conditional
 	# bonuses of their own that would muddy the arithmetic.
@@ -236,9 +241,12 @@ func _test_simulate_white_cap() -> void:
 	var c: Dictionary = content.get_card("Take Their Coat")
 	var fight := _mk_fight("earth", "", [a, b, c])
 	var sim: Dictionary = rules.simulate(ctx, fight)
-	check(sim["rows"][0]["total"] == 5 + 3, "1st elementless card takes the +3, got %s" % sim["rows"][0]["total"])
-	check(sim["rows"][1]["total"] == 1 + 3, "2nd elementless card takes the +3, got %s" % sim["rows"][1]["total"])
-	check(sim["rows"][2]["total"] == 1, "3rd elementless card is past the cap and takes nothing, got %s" % sim["rows"][2]["total"])
+	check(sim["rows"][0]["total"] == 5 + amt,
+		"the 1st elementless card takes the white bonus, got %s" % sim["rows"][0]["total"])
+	check(sim["rows"][1]["total"] == 1 + (amt if cap > 1 else 0),
+		"the 2nd elementless card takes it only within the cap, got %s" % sim["rows"][1]["total"])
+	check(sim["rows"][2]["total"] == 1 + (amt if cap > 2 else 0),
+		"the 3rd elementless card is past the cap and takes nothing, got %s" % sim["rows"][2]["total"])
 	done("_test_simulate_white_cap")
 
 
@@ -249,8 +257,12 @@ func _test_simulate_reader_opener_passive() -> void:
 	var why_card: Dictionary = content.get_card("Ask Them Why")  # f=3, air, no card-level opener bonus
 	var fight := _mk_fight("earth", "", [why_card])   # off-element, sitter is earth not air
 	var sim: Dictionary = rules.simulate(ctx, fight)
-	# base 3, no el_bonus (air != earth, air != reader.el fire), +2 opener passive (n==0), no own-el +2.
-	check(sim["rows"][0]["total"] == 5, "opener passive should add +2 to the first card, got %s" % sim["rows"][0]["total"])
+	# base 3, no el_bonus (air != earth, air != reader.el fire), the opener
+	# amount for being spoken first, no own-el +2.
+	var opener: int = rules.trait_amount("opener", 2)
+	check(opener >= 1, "the opener trait should be worth something, got %d" % opener)
+	check(sim["rows"][0]["total"] == 3 + opener,
+		"the opener passive should add %d to the first card, got %s" % [opener, sim["rows"][0]["total"]])
 	done("_test_simulate_reader_opener_passive")
 
 

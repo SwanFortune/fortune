@@ -55,6 +55,7 @@ The files, if you want one at a time:
 
 ```
 godot --headless --path godot -s tests/test_rules.gd          # scoring engine vs hand-traced cases
+godot --headless --path godot -s tests/test_balance.gd         # no reader is a trap, none is a free pass
 godot --headless --path godot -s tests/test_run.gd             # state machine, plays random full encounters
 godot --headless --path godot -s tests/test_soak.gd            # plays complete runs, checks invariants throughout
 godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
@@ -74,7 +75,7 @@ godot --headless --path godot -s tests/test_boot.gd            # the game actual
 godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
 ```
 
-All eighteen should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
+All nineteen should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The
