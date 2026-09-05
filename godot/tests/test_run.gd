@@ -248,18 +248,35 @@ func _test_the_ladder() -> void:
 
 
 ## THE ENDING IS ABOUT THE PEOPLE. Every sitter who sits down goes on the run's
-## ledger with what became of them, and how many of them left as they came is
+## ledger with what became of them, and how many of them you got through to is
 ## what picks the closing paragraphs. Both are silent when they break: the
 ## screen still renders, with an empty list and whichever ending is first.
+##
+## EVERY ENDING HAS TO BE REACHABLE, which is the check that was missing. The
+## endings were keyed on how many people LEFT as they came, ascending — and one
+## person leaving ends the run, so a ledger never holds more than one failure and
+## the two lines covering two and five failures could not be seen at any count.
+## The old test here read the file's own ordering back and agreed with it.
 func _test_the_ledger_and_the_ending() -> void:
 	check(not content.endings.is_empty(), "there should be endings to reach")
-	var covers := -1
+	var covers := 999999
 	for e in content.endings:
-		check(int(e.get("up_to", 0)) > covers, "the endings must be in ascending order of failures")
-		covers = int(e.get("up_to", 0))
+		check(int(e.get("mended_from", 0)) < covers, "the endings must be in descending order, best first")
+		covers = int(e.get("mended_from", 0))
 		check(str(e.get("village", "")) != "" and str(e.get("reader", "")) != "",
 			"an ending has to say what became of the village AND of you")
-	check(covers >= 16, "the last ending must cover a run where every single one of them left")
+	check(covers == 0, "the last ending must cover a run where you got through to nobody")
+
+	# Asked of the game's own chooser across every count a run can produce.
+	# 24 is three nights of eight hours with one caller taken at each.
+	var reached := {}
+	for mended in 25:
+		var e: Dictionary = run.ending_for(mended)
+		check(not e.is_empty(), "no ending covers a run that mended %d people" % mended)
+		reached[str(e.get("head", ""))] = true
+	for e in content.endings:
+		check(reached.has(str(e.get("head", ""))),
+			"the ending \"%s\" cannot be reached by any run" % e.get("head", ""))
 
 	run.state = run.fresh("a fixed evening")
 	run.pick_reader(0)

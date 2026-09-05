@@ -1,30 +1,30 @@
 {
-  "_comment": "ADDED IN THE PORT, not from the source prototype, whose end-of-run screen was a tier line and four numbers. The run is about nine people and which of them went home whole, and it ended by telling you your faith total — so the score screen was the one place in the game that did not know what the game was about. WHAT THE VILLAGE DOES is chosen by how many people you left as they came: `up_to` is the highest number of failures a line covers, and the first matching line wins, so they must stay in ascending order. `reader` is what becomes of you, which is the part the ending is really about: a fortune-teller in a village of people she could not reach is not a person who carries on. Every line is marked `\"added\": \"port\"` so the game's author can find and replace the lot in one search. The per-person lines are NOT here — those are each sitter's own `win` and `fail` in sitters.json, which the source already wrote.",
+  "_comment": "ADDED IN THE PORT, not from the source prototype, whose end-of-run screen was a tier line and four numbers. The run is about the people who sat down and which of them went home whole, and it ended by telling you your faith total — so the score screen was the one place in the game that did not know what the game was about. WHAT THE VILLAGE DOES is chosen by HOW MANY PEOPLE YOU GOT THROUGH TO: `mended_from` is the fewest a line covers and the first matching line wins, so they must stay in DESCENDING order, best first. `reader` is what becomes of you, which is the part the ending is really about: a fortune-teller is what the village decides she is. IT USED TO COUNT FAILURES (`up_to`, ascending) and two of these four could never be seen: one person leaving as they came ends the run, so a ledger never holds more than one failure and the lines covering two and five were dead. Measured over 115 played-out runs, `mended` spreads from 0 to 21, which is a number with room in it. tests/test_run.gd fails if any line here becomes unreachable again.",
   "endings": [
     {
       "added": "port",
-      "up_to": 0,
+      "mended_from": 17,
       "head": "AND THE VILLAGE GOES ON",
       "village": "Nothing changes that anyone could point at. The laundry gets done, the post arrives, and two or three people are kinder to each other than they were in March for reasons they could not explain if you asked them.",
       "reader": "You keep the hours. Some evenings nobody comes and you sit with the lamp and the cards and find you do not mind."
     },
     {
       "added": "port",
-      "up_to": 2,
+      "mended_from": 10,
       "head": "WHAT DID NOT GET SAID",
       "village": "It is a small thing at first. One or two conversations do not happen, and the people who did not have them go on being polite in the street about it. By the spring there are two houses where a particular subject is simply not raised, and everyone knows which subject and nobody says.",
       "reader": "You start leaving the lamp off some evenings. Not every evening. You tell yourself you are only tired, and for a while that is even true."
     },
     {
       "added": "port",
-      "up_to": 4,
+      "mended_from": 4,
       "head": "THE ROOM GETS SMALLER",
       "village": "The village learns that the back room is not a place where things get better. They stop coming, which is a mercy and is also the end of the only thing anyone had. What was going to be said out loud gets said to nobody, or to a dog, or at two in the morning to a wall.",
       "reader": "You go through the deck at the table with the door shut. You do the readings for yourself and you do not believe any of them, and you keep doing them, which is the part that frightens you when you notice it."
     },
     {
       "added": "port",
-      "up_to": 99,
+      "mended_from": 0,
       "head": "NOBODY KNOCKS NOW",
       "village": "They go to the priest, or to the doctor twenty kilometres off, or to nobody at all, which is what most of them choose. A village is a machine for keeping things unsaid and you were the one gap in it. The gap closes over. It closes over quickly.",
       "reader": "You do not open the door in the evenings any more. The cards stay in the box the carpenter made and you cannot say when you last took them out, and there is no one left in the village whose job it is to ask you how you have been."

@@ -747,6 +747,20 @@ func advance() -> void:
 	state_changed.emit()
 
 
+## Which ending `mended` people earns. Its own function so a test can ask it
+## the question directly — the alternative is playing runs until every line
+## turns up, and two of these lines used to be unreachable at any count.
+##
+## Descending, first match wins, and a line with no `mended_from` covers
+## everything — so a pack that adds an ending without the field gets a
+## catch-all rather than nothing.
+func ending_for(mended: int) -> Dictionary:
+	for e in Content.endings:
+		if mended >= int(e.get("mended_from", 0)):
+			return e
+	return {}
+
+
 func end_run(why: String) -> void:
 	var score: int = state["faith"]
 	var tier := "You are still the one in the back room"
@@ -760,20 +774,12 @@ func end_run(why: String) -> void:
 	state["f"] = {}
 	state["pick"] = {}
 	state["res"] = {}
-	# WHAT BECOMES OF THE VILLAGE, and of you, chosen by how many of them left
-	# as they came. The run is about nine people; the screen that ends it used to
-	# be a tier line and four numbers, which is the one place in the game that
-	# did not know what the game was about. See data/base/endings.json.
+	# WHAT BECOMES OF THE VILLAGE, and of you, chosen by how many of them you got
+	# through to. The screen that ends a run used to be a tier line and four
+	# numbers, which is the one place in the game that did not know what the game
+	# was about. See data/base/endings.json and ending_for() below.
 	var ledger: Array = state.get("ledger", [])
-	var left_as_they_came := 0
-	for entry in ledger:
-		if str(entry.get("outcome", "")) == "left":
-			left_as_they_came += 1
-	var after: Dictionary = {}
-	for e in Content.endings:
-		if left_as_they_came <= int(e.get("up_to", 0)):
-			after = e
-			break
+	var after: Dictionary = ending_for(int(state.get("mended", 0)))
 	state["over"] = {
 		# A run that ENDED because somebody left says so, which is a different
 		# sentence from a run that reached the end of the third night. Folding

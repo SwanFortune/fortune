@@ -1582,6 +1582,35 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## Two endings out of four that no run could reach
+
+Surveying the port against the prototype turned up nothing missing on the
+prototype's side — the content is exact (7 basics, 2 chromatics, 31 minors, 16
+arcana, 13 readers, 9 sitters, 12 signs, 6 relics, 13 marks, the boss), every
+one of its game functions has a counterpart, and the two things deliberately
+left out are named in Run.gd's header. What it turned up instead was in my own
+additions.
+
+The four endings were chosen by **how many people left as they came**, `up_to`
+ascending. One person leaving as they came ENDS THE RUN — "one is all it takes"
+is the game's own line for it — so a ledger never holds more than one failure,
+and the lines covering two and five failures were unreachable at any count.
+Measured over 60 played-out runs: most failures in a single run, 1; endings ever
+seen, 2 of 4.
+
+They are keyed on `mended` now — how many of them you got through to —
+descending, best first, from 17 / 10 / 4 / 0. That is a number with room in it:
+over 115 played-out runs `mended` spreads from 0 to 21. All four now turn up
+(20 / 29 / 12 / 14 in 75 runs).
+
+**The old test agreed with the bug.** It read the file's own ordering back and
+checked it was ascending, then checked the last line covered "a run where every
+single one of them left" — a condition no run can produce. A test written from
+the data's shape rather than from what the game can do. It now asks
+`Run.ending_for()` for every count a run can reach (0 to 24, three nights of
+eight hours) and fails if any ending is never returned; stubbing two lines onto
+the same threshold makes it name the one that went dark.
+
 ## Thirteen portraits nobody would ever have seen
 
 Having fixed the card, the same question asked of the other two kinds of art the
