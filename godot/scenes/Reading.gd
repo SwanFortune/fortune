@@ -17,11 +17,15 @@ const Table := preload("res://scenes/Table.gd")
 ## cards stop and rise back over them by the difference.
 ##
 ## At 100% only. USE _band_px()/_held_px() for anything measured against a card:
-## a card grows with the interface-size setting and these do not, so a fixed 176
-## leaves a 196-pixel card overflowing its own band with the fingers gripping
-## empty table above it.
-const CARD_BAND := 176
-const HELD_HEIGHT := 250
+## a card grows with the interface-size setting and these numbers do not, so a
+## band taken literally leaves a card at the top of the range overflowing it,
+## with the fingers gripping empty table above.
+##
+## Both are UIKit.CARD_FACE_SIZE.y plus the same slack they have always had (18
+## and 92). They moved with the card when it grew to hold an art window; if the
+## card moves again, they move again.
+const CARD_BAND := 202
+const HELD_HEIGHT := 276
 
 ## How far the hands reach back UP over the cards. Table.gd draws its fingertips
 ## at the very top of the band it is given, so this number alone decides how far

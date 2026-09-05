@@ -1418,7 +1418,32 @@ static func card_text(c: Dictionary) -> String:
 	return Rules.auto_text(c)
 
 
-const CARD_FACE_SIZE := Vector2(122, 158)
+## The card, and the window in it that belongs to the artist.
+##
+## The face was 122x158 with the name floating in the middle of it, which is a
+## card with no room for a picture — and when a picture DID arrive it went
+## behind the whole face with the name scrimmed over it, so the drawing was
+## delivered and then half covered. Both are the same mistake: the layout had no
+## place set aside, so art had to take somebody else's.
+##
+## Now there is a place. ART_WELL is a fixed window, always present whether or
+## not there is anything in it yet, and NOTHING is ever drawn over it — not the
+## name, not a badge, not a scrim. The card grew by 26px to pay for it — the
+## height is the tallest a card face measures at the SMALLEST interface size,
+## where the fixed paddings stop shrinking but the words do. Its
+## shape (4:3 landscape, the full inner width) is the genre's own: at the size a
+## hand is actually read, a wide window shows a subject and a tall one shows a
+## sliver of one.
+##
+## docs/ART_GUIDE.md states the same numbers for whoever is drawing them. If
+## either moves, both move.
+const CARD_FACE_SIZE := Vector2(122, 184)
+
+## The art window as a fraction of the card's INNER width — 1.0 wide, 0.75 tall.
+const ART_WELL := Vector2(1.0, 0.75)
+
+## Card panel padding, named because the art window is measured from it.
+const CARD_PAD := 8
 
 
 ## How much bigger a card is at the current interface size. Less than the text
@@ -1439,6 +1464,39 @@ static func card_scale() -> float:
 ## is ever actually checked.
 static func card_face_size() -> Vector2:
 	return CARD_FACE_SIZE * card_scale()
+
+
+## THE ART WINDOW. A fixed rectangle held open on every card whether or not
+## there is a drawing for it yet, so a card looks the same shape empty as full
+## and the day art arrives nothing moves.
+##
+## Empty it is a recess and nothing else — no glyph, no motif, no placeholder
+## illustration. A drawing put here to fill the gap is a drawing somebody has to
+## argue with later; an empty frame is an invitation.
+static func art_well(art: Texture2D, enabled: bool = true, scale: float = 1.0) -> Control:
+	var inner := (CARD_FACE_SIZE.x - 2.0 * CARD_PAD) * card_scale() * scale
+	var well := PanelContainer.new()
+	well.name = "ArtWell"
+	well.custom_minimum_size = Vector2(inner * ART_WELL.x, inner * ART_WELL.y)
+	well.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	well.clip_contents = true
+	var recess := StyleBoxFlat.new()
+	recess.bg_color = Color(0.0, 0.0, 0.0, 0.22)
+	recess.set_corner_radius_all(4)
+	well.add_theme_stylebox_override("panel", recess)
+	if art != null:
+		var tex := TextureRect.new()
+		tex.texture = art
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		# COVERED, not scaled: the guide asks for this window's own shape, so a
+		# correctly-sized drawing loses nothing here, and one that is the wrong
+		# shape fills the window rather than leaving a gap beside itself.
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if not enabled:
+			tex.modulate = Color(1, 1, 1, 0.45)
+		well.add_child(tex)
+	return well
 
 
 ## A fixed-size card face for the hand fan: cost top-left, base restore
@@ -1512,41 +1570,16 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true,
 	top.add_child(restore_l)
 	v.add_child(top)
 
-	# The middle band is the art slot. With art delivered the name sits over
-	# it on a scrim (so it stays legible against any illustration); with none,
-	# the name simply centres in the empty band exactly as before.
-	var art := Art.card_texture(c)
+	# The window that belongs to the artist. Above the name, because the drawn
+	# hands in the reading screen reach up over the bottom of a card, and below
+	# the numbers, because those are chrome. Nothing goes over it.
+	v.add_child(art_well(Art.card_texture(c), enabled))
+
 	var name_l := block(I18n.card_name(c), 12, INK if enabled else DIM)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	if art == null:
-		name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_l.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		v.add_child(name_l)
-	else:
-		var band := Control.new()
-		band.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var tex := TextureRect.new()
-		tex.texture = art
-		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		if not enabled:
-			tex.modulate = Color(1, 1, 1, 0.45)
-		band.add_child(tex)
-		var scrim := ColorRect.new()
-		scrim.color = Color(0.05, 0.045, 0.055, 0.55)
-		scrim.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-		scrim.anchor_top = 0.62
-		scrim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		band.add_child(scrim)
-		name_l.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-		name_l.anchor_top = 0.62
-		name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		name_l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		band.add_child(name_l)
-		v.add_child(band)
+	name_l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_l.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	v.add_child(name_l)
 
 	var tags: Array = []
 	if c.get("exhaust", false):

@@ -1582,6 +1582,44 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## The card had nowhere to put a drawing
+
+The card face was 122x158 with the name floating in the middle of it — no place
+for a picture at all — and the code that handled a delivered picture put it
+behind the WHOLE face and scrimmed the name back over the bottom third of it.
+Both are the same mistake in two directions: the layout had no space set aside,
+so art had to take somebody else's. An artist would have found that out months
+later, in their own work.
+
+There is a place now. `UIKit.ART_WELL` is a window of fixed shape held open on
+every card whether or not there is anything in it yet, and **nothing is ever
+drawn over it** — not the name, not a badge, not a scrim. The numbers sit above
+it, the name and the badges below. The card grew from 158 to 184 to pay for it,
+and CARD_BAND/HELD_HEIGHT moved with it, since the drawn hands are measured off
+the card.
+
+**Empty, it is a recess and nothing else.** No glyph, no motif, no placeholder
+illustration — a drawing put there to fill the gap is a drawing somebody has to
+argue with later, and an empty frame is an invitation.
+
+**184 is measured, not chosen.** A card's content is tallest, relative to the
+card, at the SMALLEST interface size, where the fixed paddings stop shrinking
+but the words keep going: 162 needed against 155 declared at 85%, against
+222/218 at 130%. 184 is the declared height that covers the worst of them.
+
+**The window is 4:3, and the guide now says so.** It was asking for 512x512
+squares with a safe zone, a 36px frame overlap and "the top ~52px carries the
+numbers" — advice for a design that no longer exists. It asks for 768x576 and
+promises the whole of it is shown. `tests/test_art.gd` fails if that line and
+`UIKit.ART_WELL` stop agreeing, and fails if anything on the card face overlaps
+the window (both verified by stubbing: a scrim over the face, and the old square
+spec back in the guide).
+
+The reward and shop rows carry the same window at three quarters, beside the
+row. A full face there pushes the third option below the fold — that is why
+those rows are text — but the one screen where a card is chosen for the rest of
+a run should show the picture that will be on it.
+
 ## Every common resolution, and a test that has seen them
 
 The window-size setting offered five sizes, all 16:9, and nothing had ever built

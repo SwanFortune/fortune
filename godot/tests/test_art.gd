@@ -26,6 +26,8 @@ func _initialize() -> void:
 	_test_delivered_art_loads()
 	_test_every_manifest_id_is_resolvable()
 	_test_unimported_file_loads()
+	await _test_the_card_holds_a_window_open()
+	_test_the_guide_states_the_window_it_gets()
 
 	if failures.is_empty():
 		print("ALL PASS — art status: ", art.status_summary())
@@ -144,6 +146,89 @@ func _test_every_manifest_id_is_resolvable() -> void:
 	for r in content.readers:
 		if _is_base(r):
 			check(art.manifest.has(art.reader_id(r)), "manifest missing id for reader %s" % r["k"])
+
+
+## THE ART WINDOW IS HELD OPEN, AND NOTHING IS DRAWN OVER IT.
+##
+## Two promises made to whoever is drawing these, and both are the kind that
+## rot quietly. Before this, a card with no art centred its name in the middle
+## of the face and a card WITH art put that name back on top of it over a scrim
+## — so the layout moved the day a drawing arrived, and then covered the bottom
+## third of it. Either would be found by an artist, months later, in their own
+## work.
+func _test_the_card_holds_a_window_open() -> void:
+	var UIKitScript = load("res://scenes/UIKit.gd")
+	var card: Dictionary = content.get_card("Turn The Top Card")
+	check(not card.is_empty(), "the deck should still have a Turn The Top Card to draw")
+	if card.is_empty():
+		return
+
+	var face: Control = UIKitScript.card_face(card, Callable(), true, false)
+	root.add_child(face)
+	# The face is measured, not merely built: a minimum size is not a rect.
+	face.size = UIKitScript.card_face_size()
+	await process_frame
+	await process_frame
+
+	var well: Control = _find(face, "ArtWell")
+	check(well != null, "every card face should hold an art window open, art or no art")
+	if well != null:
+		var window := Rect2(well.global_position, well.size)
+		check(window.size.x > 1.0 and window.size.y > 1.0,
+			"the art window should have a real size, got %s" % window.size)
+		# Everything else on the card has to stay out of it.
+		for node in _all_of(face, []):
+			var c := node as Control
+			if c == null or c == well or well.is_ancestor_of(c) or not c.is_visible_in_tree():
+				continue
+			if c.size.x <= 0.0 or c.size.y <= 0.0:
+				continue
+			var r := Rect2(c.global_position, c.size)
+			# `wrap` and the vbox inside it contain the window rather than
+			# covering it; anything that merely OVERLAPS is drawn across it.
+			if c.is_ancestor_of(well):
+				continue
+			check(not r.intersects(window),
+				"nothing may be drawn over the card's art window — %s (%s) overlaps it" % [c.name, r])
+	face.queue_free()
+	await process_frame
+
+
+## The window's shape and the shape the guide asks an artist to draw must be the
+## same shape. They are stated in two files that nothing else connects.
+func _test_the_guide_states_the_window_it_gets() -> void:
+	var UIKitScript = load("res://scenes/UIKit.gd")
+	var want: float = UIKitScript.ART_WELL.y / UIKitScript.ART_WELL.x
+	var text := FileAccess.get_file_as_string("res://docs/ART_GUIDE.md")
+	check(text != "", "the art guide should be readable")
+	var found := false
+	# The first "W x H px" the card section states is the card art spec.
+	var re := RegEx.new()
+	re.compile("\\*\\*(\\d+)\\s*[x×]\\s*(\\d+)\\s*px\\*\\*")
+	for m in re.search_all(text):
+		var w := float(m.get_string(1))
+		var h := float(m.get_string(2))
+		if is_equal_approx(h / w, want):
+			found = true
+			break
+	check(found, "docs/ART_GUIDE.md should ask for card art in the window's own %.2f:1 shape" % [1.0 / want])
+
+
+func _find(node: Node, named: String) -> Control:
+	for child in node.get_children():
+		if child.name == named and child is Control:
+			return child
+		var deeper := _find(child, named)
+		if deeper != null:
+			return deeper
+	return null
+
+
+func _all_of(node: Node, out: Array) -> Array:
+	for child in node.get_children():
+		out.append(child)
+		_all_of(child, out)
+	return out
 
 
 ## A record with no pack stamp is treated as base, so this errs towards

@@ -54,6 +54,11 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	var cost := int(o.get("cost", 0))
 	var afford := cost <= int(Run.state["coin"])
 	var tooltip := ""
+	# The drawing, where the card is chosen. Not the whole face — three of those
+	# push the third option below the fold (see the price comment below) — but
+	# the same window, at three quarters, so the one screen where a card is
+	# decided on shows the picture that will be on it.
+	var thumb: Control = null
 
 	if o.has("card"):
 		var c: Dictionary = o["card"]
@@ -63,11 +68,13 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		# The price, explicitly: auto_text() only describes what a card does
 		# BEYOND restoring, so without this the two numbers that define a card
 		# appear nowhere on the screen where you choose it for the rest of the
-		# run. A LINE, not the drawn face — a face is 158px tall and three of
-		# them push the third option below the fold, and a choice screen whose
-		# options cannot be compared at once is the worse problem.
+		# run. A LINE, not the drawn face — a face is the better part of two
+		# hundred pixels tall and three of them push the third option below the
+		# fold, and a choice screen whose options cannot be compared at once is
+		# the worse problem. The art window beside the row is the compromise.
 		lines.append([UIKit.card_price(c), 12, UIKit.GOLD])
 		lines.append([UIKit.card_text(c), 12, UIKit.INK])
+		thumb = UIKit.art_well(Art.card_texture(c), afford, 0.75)
 		if c.get("fl", "") != "":
 			lines.append([c["fl"], 11, UIKit.DIM])
 		tooltip = UIKit.card_keyword_tooltip(c)
@@ -95,7 +102,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	if reward.has("coin"):
 		lines.append(["+%s centimes" % reward["coin"], 12, UIKit.GREEN])
 
-	return UIKit.panel_button(lines, _take.bind(i), afford, tooltip)
+	return UIKit.panel_button(lines, _take.bind(i), afford, tooltip, thumb)
 
 
 func _take(i: int) -> void:

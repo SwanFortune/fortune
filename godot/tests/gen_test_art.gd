@@ -11,7 +11,7 @@ const MANIFEST := "res://data/base/art_manifest.json"
 
 
 func _initialize() -> void:
-	_write("res://assets/art/card/pour-the-tea.png", 512, 512, Color(0.24, 0.55, 0.9))
+	_write("res://assets/art/card/pour-the-tea.png", 768, 576, Color(0.24, 0.55, 0.9))
 	_write("res://assets/art/sitter/mme-perrot.png", 768, 1024, Color(0.78, 0.59, 0.35))
 	_mark(["card/pour-the-tea", "sitter/mme-perrot"])
 	print("test art written + marked final")

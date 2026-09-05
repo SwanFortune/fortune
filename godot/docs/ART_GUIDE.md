@@ -26,15 +26,22 @@ is always runnable — art can land one piece at a time, in any order.
 
 ## Sizes and formats
 
-### Card art — **512 × 512 px**, square, PNG (RGBA, transparency OK)
+### Card art — **768 × 576 px**, 4:3 landscape, PNG (RGBA, transparency OK)
 
-- **Safe zone: keep the subject inside the centre 440 × 440.** The card frame
-  overlays roughly 36px on every edge.
-- **The top ~52px carries the cost and restore numbers** (top-left and
-  top-right corners) — don't put anything you'd hate to lose behind them.
-- It's displayed at about **106 × 106** in the player's hand, so **it has to
-  read at thumbnail size**. One clear silhouette beats fine detail. The 512
+- **The whole image is shown. Nothing is cropped and nothing is drawn over
+  it.** The card holds a window of exactly this shape open — you can see it as
+  an empty recess on every card in the game today — and the numbers, the name
+  and the badges are all outside it, above and below. There is no safe zone to
+  work around because there is nothing to work around.
+- It's displayed at about **106 × 79** in the player's hand, so **it has to
+  read at thumbnail size**. One clear silhouette beats fine detail. The 768
   source gives us headroom for a zoomed card-inspect view later.
+- A piece delivered in some other shape still works — it fills the window and
+  loses whatever hangs over the edges — but 4:3 is the shape that loses
+  nothing.
+- The window's shape lives in `UIKit.ART_WELL`; `tests/test_art.gd` fails if
+  this line and that constant stop agreeing, so the number above cannot go
+  stale without somebody being told.
 
 ### Portrait art (sitters and readers) — **768 × 1024 px**, 3:4 portrait, PNG (RGBA)
 
