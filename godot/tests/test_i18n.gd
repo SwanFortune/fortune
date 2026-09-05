@@ -33,6 +33,7 @@ func _initialize() -> void:
 	_test_template_covers_runtime_ids()
 	_test_pronoun_tokens_are_filled()
 	_test_no_unfilled_tokens_anywhere()
+	_test_every_t_call_is_on_the_checklist()
 
 	settings.set_value("locale", restore)
 	i18n.reload()
@@ -45,6 +46,81 @@ func _initialize() -> void:
 		for f in failures:
 			printerr("FAIL: ", f)
 		quit(1)
+
+
+## EVERY `I18n.t("…")` IN THE SOURCE IS ON THE CHECKLIST.
+##
+## The coverage number counts the locale table, and the table is what was
+## incomplete: the UI strings were enumerated by hand in gen_locale_template.gd
+## and the list had fallen about a hundred strings behind, most of the reading
+## screen among them. So the French build showed "Left to draw 5" and "You have
+## not said anything yet. Elle est looking at your hands." while the counter
+## read 100%, because everything in the table was translated and the table did
+## not know about them.
+##
+## The template scrapes now. This is the guard that the scrape and the source
+## agree — a literal in a `.gd` file that is not a key is a string no translator
+## will ever be shown.
+func _test_every_t_call_is_on_the_checklist() -> void:
+	var table: Dictionary = content.registries.get("locale_fr", {})
+	if table.is_empty():
+		failures.append("the fr table should be loaded")
+		return
+	var missing: Array[String] = []
+	for path in _gd_files("res://scenes") + _gd_files("res://autoload"):
+		for literal in _t_literals(FileAccess.get_file_as_string(path)):
+			if not table.has("ui/" + literal):
+				missing.append("%s: \"%s\"" % [path.get_file(), literal.substr(0, 60)])
+	if not missing.is_empty():
+		failures.append("%d string(s) reach I18n.t() and are on no checklist — re-run tests/gen_locale_template.gd: %s"
+			% [missing.size(), ", ".join(missing.slice(0, 5))])
+
+
+## The double-quoted literal directly inside an I18n.t( call — the same narrow
+## rule the template's scraper uses, and deliberately the same narrowness: a
+## computed argument is a key from data, covered by the content half.
+func _t_literals(text: String) -> Array[String]:
+	var out: Array[String] = []
+	var at := 0
+	while true:
+		var call_at := text.find("I18n.t(\"", at)
+		if call_at < 0:
+			break
+		var i := call_at + 8
+		var s := ""
+		while i < text.length():
+			var c := text[i]
+			if c == "\\" and i + 1 < text.length():
+				s += text[i + 1] if text[i + 1] != "n" else "\n"
+				i += 2
+				continue
+			if c == "\"":
+				break
+			s += c
+			i += 1
+		at = i + 1
+		if s != "":
+			out.append(s)
+	return out
+
+
+func _gd_files(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return out
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if d.current_is_dir():
+			if not name.begins_with("."):
+				out.append_array(_gd_files(full))
+		elif name.ends_with(".gd"):
+			out.append(full)
+		name = d.get_next()
+	d.list_dir_end()
+	return out
 
 
 func check(cond: bool, label: String) -> void:

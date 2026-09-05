@@ -1328,7 +1328,14 @@ static func archetype_text(key: String) -> String:
 	var rec: Dictionary = Content.archetypes.get(key, {})
 	if rec.is_empty():
 		return ""
-	return "%s — %s" % [key.to_upper(), I18n.content("archetype/" + key, "text", str(rec.get("text", "")))]
+	# THE NAME TRANSLATES TOO. It was key.to_upper() — the raw registry id — so
+	# a French card's tooltip read "TIMING — Une bonne syntaxe fait beaucoup",
+	# half in each language. The name is a `name` field on the same locale
+	# record, falling back to the id in upper case for a mod that adds an
+	# archetype without one.
+	return "%s — %s" % [
+		I18n.content("archetype/" + key, "name", key.to_upper()),
+		I18n.content("archetype/" + key, "text", str(rec.get("text", "")))]
 
 
 ## The badge for an element, in the element's own colour.

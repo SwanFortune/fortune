@@ -362,50 +362,60 @@ func fx_audit() -> Array[String]:
 ## Mirrors autoText(c) (~1251): generates a card's printed effect text from its
 ## mechanical fields, so a moddable card never needs its text hand-written
 ## unless it explicitly sets custom=true.
+##
+## EVERY FRAGMENT GOES THROUGH I18n.t(). This is the mechanical text of all
+## fifty-six cards — on the face, in the hand's hint line, on every shop and
+## reward row — and it was built from bare English literals, so a French build
+## read "Restores 9 more if it is the only thing you say." in the middle of an
+## otherwise French sentence. The format strings are the keys, which is the
+## source-as-key scheme used everywhere else.
 func auto_text(card: Dictionary) -> String:
 	var el: Dictionary = Content.elements
 	var glyph_of = func(k): return el.get(k, {}).get("glyph", "")
+	# THE NUMBER WORDS, each translated on its own. "Draw two." is assembled
+	# here rather than written on the card, so without this a French build says
+	# "Piochez two."
 	var numw = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"]
-	var word = func(n: int) -> String: return numw[n] if n >= 0 and n < numw.size() else str(n)
+	var word = func(n: int) -> String: return I18n.t(numw[n]) if n >= 0 and n < numw.size() else str(n)
 	var capw = func(s: String) -> String: return s.substr(0, 1).to_upper() + s.substr(1)
 	var prev_el := {"earth": "fire", "air": "earth", "water": "air", "fire": "water"}
 
 	var p: Array = []
 	if card.get("wild", false):
-		p.append("Counts as every element.")
+		p.append(I18n.t("Counts as every element."))
 	if card.get("chroma", false):
-		p.append("Counts as whatever your element is now.")
+		p.append(I18n.t("Counts as whatever your element is now."))
 	if card.get("any", false):
-		p.append("Reads as whatever element they answer to.")
+		p.append(I18n.t("Reads as whatever element they answer to."))
 	if card.has("bonusFlat"):
-		p.append("Restores %d more." % card["bonusFlat"])
+		p.append(I18n.t("Restores %d more.") % card["bonusFlat"])
 	if card.has("follows") and card.has("bonus"):
 		var target_el: String = card.get("el", "") if card["follows"] == "same" else prev_el.get(card.get("el", ""), "")
-		p.append("+%d more if it follows %s." % [card["bonus"], glyph_of.call(target_el)])
+		p.append(I18n.t("+%d more if it follows %s.") % [card["bonus"], glyph_of.call(target_el)])
 	if card.has("opener"):
-		p.append("+%d more if you say it first." % card["opener"])
+		p.append(I18n.t("+%d more if you say it first.") % card["opener"])
 	if card.has("closer"):
-		p.append("+%d more if you say it last." % card["closer"])
+		p.append(I18n.t("+%d more if you say it last.") % card["closer"])
 	if card.has("solo"):
-		p.append("Restores %d more if it is the only thing you say." % card["solo"])
+		p.append(I18n.t("Restores %d more if it is the only thing you say.") % card["solo"])
 	if card.has("perLaid"):
-		p.append("Restores %d more for every card said before it." % card["perLaid"])
+		p.append(I18n.t("Restores %d more for every card said before it.") % card["perLaid"])
 	if card.has("perEl") and card.has("perAmt"):
-		p.append("+%d for every other %s in the reading." % [card["perAmt"], glyph_of.call(card["perEl"])])
+		p.append(I18n.t("+%d for every other %s in the reading.") % [card["perAmt"], glyph_of.call(card["perEl"])])
 	if card.has("next"):
-		p.append("Whatever you say next restores %d more." % card["next"])
+		p.append(I18n.t("Whatever you say next restores %d more.") % card["next"])
 	if card.has("energy"):
-		p.append("%s energy back." % capw.call(word.call(int(card["energy"]))))
+		p.append(I18n.t("%s energy back.") % capw.call(word.call(int(card["energy"]))))
 	if card.has("draw"):
-		p.append("Draw %s." % word.call(int(card["draw"])))
+		p.append(I18n.t("Draw %s.") % word.call(int(card["draw"])))
 	if card.has("coin"):
-		p.append("%s centimes." % capw.call(word.call(int(card["coin"]))))
+		p.append(I18n.t("%s centimes.") % capw.call(word.call(int(card["coin"]))))
 	if card.has("turn"):
-		p.append("One reading longer." if card["turn"] == 1 else "%s readings longer." % capw.call(word.call(int(card["turn"]))))
+		p.append(I18n.t("One reading longer.") if card["turn"] == 1 else I18n.t("%s readings longer.") % capw.call(word.call(int(card["turn"]))))
 	if card.get("bank", false):
-		p.append("Restores faith instead of composure.")
+		p.append(I18n.t("Restores faith instead of composure."))
 	if card.get("pierce", false):
-		p.append("Straight through their denial.")
+		p.append(I18n.t("Straight through their denial."))
 	if card.get("exhaust", false):
-		p.append("Once.")
+		p.append(I18n.t("Once."))
 	return " ".join(p)

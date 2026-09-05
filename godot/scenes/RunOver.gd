@@ -103,14 +103,25 @@ func _the_ledger(ledger: Array) -> Control:
 		var mended: bool = str(entry.get("outcome", "")) == "mended"
 		var who := UIKit.hbox(8)
 		who.add_child(UIKit.label(str(entry.get("name", "")), 14, UIKit.INK if mended else UIKit.DIM))
-		who.add_child(UIKit.label(str(entry.get("role", "")), 10, UIKit.DIM))
+		# TRANSLATED HERE, not read back as stored. The ledger keeps a copy of
+		# the words so an entry survives a pack being switched off mid-run (see
+		# Run._close_the_hour) — but a copy taken in English stays English, and
+		# these two lines were the only French screen still printing it. Looked
+		# up by the sitter's own id; the stored copy is the fallback, which is
+		# exactly what it was kept for.
+		var sid := "sitter/" + Art.slug(str(entry.get("name", "")))
+		who.add_child(UIKit.label(
+			I18n.content(sid, "role", str(entry.get("role", ""))), 10, UIKit.DIM))
 		var when := UIKit.label("%s %d · %s" % [
 			I18n.t("night"), int(entry.get("night", 0)) + 1, str(entry.get("at", ""))], 10, UIKit.DIM)
 		when.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		when.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		who.add_child(when)
 		list.add_child(who)
-		list.add_child(UIKit.block(str(entry.get("said", "")), 11, UIKit.GREEN if mended else UIKit.RED))
+		list.add_child(UIKit.block(
+			I18n.content("sitter/" + Art.slug(str(entry.get("name", ""))),
+				"win" if mended else "fail", str(entry.get("said", ""))),
+			11, UIKit.GREEN if mended else UIKit.RED))
 	return col
 
 

@@ -82,11 +82,24 @@ func _initialize() -> void:
 func _collect_sources() -> Dictionary:
 	var src := {}
 
-	# 1. UI chrome. The English source doubles as the key (see I18n.t), so
-	#    this list is what the .gd files pass to I18n.t(). It's enumerated
-	#    here rather than scraped from source, because a reliable scraper for
-	#    GDScript string literals is a bigger thing than this needs — keep it
-	#    in step by adding a line whenever you add a t() call.
+	# 1. UI chrome. The English source doubles as the key (see I18n.t), so what
+	#    goes in here is whatever the .gd files hand to I18n.t().
+	#
+	#    SCRAPED FIRST, then topped up by hand. It used to be the hand list
+	#    alone, with a comment saying a reliable scraper was more than this
+	#    needed — and the list fell behind by about a hundred strings, including
+	#    most of the reading screen. The French build showed "Left to draw 5"
+	#    and "You have not said anything yet. Elle est looking at your hands."
+	#    while the coverage counter read 100%, because it counts the table and
+	#    the table is what was incomplete. A checklist that quietly stops
+	#    listing things is worse than no checklist.
+	#
+	#    The hand list stays for what a scrape CANNOT see: Run.gd emits display
+	#    strings as bare data (see its header's display-string convention) and
+	#    they reach I18n.t() through UIKit.tr_line() with no literal at the call
+	#    site.
+	for s in _scraped_ui_strings():
+		src["ui/" + s] = s
 	for s in _ui_strings():
 		src["ui/" + s] = s
 
@@ -153,7 +166,20 @@ func _collect_sources() -> Dictionary:
 			_put(src, "minitel/%s/screen%d" % [code, li], lines[li])
 	# The card archetypes' one-line descriptions — the source's own words for
 	# what each family of card is for. Shown in a card's tooltip.
+	# WHAT BECOMES OF THE VILLAGE. Four endings, three paragraphs each, and the
+	# last thing anybody reads — and they were in no template at all, so the
+	# French build closed a run in English.
+	for e in content.endings:
+		var eid: String = "ending/" + art.slug(str(e.get("head", "")))
+		_put(src, eid + "/head", e.get("head", ""))
+		_put(src, eid + "/village", e.get("village", ""))
+		_put(src, eid + "/reader", e.get("reader", ""))
+
 	for key in content.archetypes:
+		# The NAME as well as the description. It used to be the registry id in
+		# upper case, printed straight, so a French tooltip read "TIMING — Une
+		# bonne syntaxe fait beaucoup" — half in each language.
+		_put(src, "archetype/" + key + "/name", key.to_upper())
 		_put(src, "archetype/" + key + "/text", content.archetypes[key].get("text", ""))
 	for tw in content.elite_twists:
 		var tid: String = "twist/" + art.slug(str(tw.get("tag", "")))
@@ -180,8 +206,79 @@ func _put(src: Dictionary, key: String, value) -> void:
 
 
 ## Keep in step with the I18n.t() calls in scenes/*.gd.
+## Every `I18n.t("…")` literal in the game's own source. Deliberately narrow:
+## only a double-quoted literal directly inside the call, which is how all of
+## them are written — anything computed is a key from data and is covered by the
+## content half of this file.
+func _scraped_ui_strings() -> Array[String]:
+	var out: Array[String] = []
+	var seen := {}
+	for dir_path in ["res://scenes", "res://autoload"]:
+		for path in _gd_files(dir_path):
+			var text := FileAccess.get_file_as_string(path)
+			var at := 0
+			while true:
+				var call_at := text.find("I18n.t(\"", at)
+				if call_at < 0:
+					break
+				var start := call_at + 8
+				var s := ""
+				var i := start
+				while i < text.length():
+					var c := text[i]
+					if c == "\\" and i + 1 < text.length():
+						# A literal quote or backslash inside the string.
+						s += text[i + 1] if text[i + 1] != "n" else "\n"
+						i += 2
+						continue
+					if c == "\"":
+						break
+					s += c
+					i += 1
+				at = i + 1
+				if s != "" and not seen.has(s):
+					seen[s] = true
+					out.append(s)
+	out.sort()
+	return out
+
+
+func _gd_files(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return out
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if d.current_is_dir():
+			if not name.begins_with("."):
+				out.append_array(_gd_files(full))
+		elif name.ends_with(".gd"):
+			out.append(full)
+		name = d.get_next()
+	d.list_dir_end()
+	return out
+
+
 func _ui_strings() -> Array[String]:
 	return [
+		# THE NUMBER WORDS Rules.auto_text() spells cards' amounts with. They
+		# reach I18n.t() as numw[n], a variable, so no scrape can see them —
+		# which is exactly what this hand list is for.
+		"no", "one", "two", "three", "four", "five", "six", "seven", "eight",
+		"nine", "ten", "eleven", "twelve",
+		# END OF A RUN. Run.gd emits these as display strings (see its header's
+		# convention) so there is no I18n.t() literal to scrape.
+		"You are still the one in the back room",
+		"They come from the next village now",
+		"You are the one they send for",
+		"You make rent and a reputation",
+		"ONE OF THEM WENT HOME AS THEY CAME",
+		"THREE NIGHTS, AND THE KNOCKING STOPS",
+		"Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice.",
+		"You mended %s of them. What they say about you afterwards is the only score that was ever being kept.",
 		# main menu
 		"PARLOUR", "BEGIN A READING", "LIBRARY", "MODS", "SETTINGS", "QUIT",
 		"a fortune-teller's ledger, in card form",

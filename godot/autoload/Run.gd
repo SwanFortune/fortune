@@ -754,6 +754,13 @@ func advance() -> void:
 ## Descending, first match wins, and a line with no `mended_from` covers
 ## everything — so a pack that adds an ending without the field gets a
 ## catch-all rather than nothing.
+## The locale id of an ending, which is its head slugged — the same scheme the
+## art manifest and every other content id use.
+func _ending_id(ending: Dictionary) -> String:
+	var head := str(ending.get("head", ""))
+	return "ending/" + Art.slug(head) if head != "" else ""
+
+
 func ending_for(mended: int) -> Dictionary:
 	for e in Content.endings:
 		if mended >= int(e.get("mended_from", 0)):
@@ -791,9 +798,12 @@ func end_run(why: String) -> void:
 		"title": tier,
 		"body": ["Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice."] if why == "failed"
 			else ["You mended %s of them. What they say about you afterwards is the only score that was ever being kept.", state["mended"]],
-		"after": str(after.get("head", "")),
-		"village": str(after.get("village", "")),
-		"reader": str(after.get("reader", "")),
+		# TRANSLATED HERE, by the ending's own id, rather than copied out of the
+		# registry: these three paragraphs are the last thing anybody reads and
+		# they were the only part of a French run that closed in English.
+		"after": I18n.content(_ending_id(after), "head", str(after.get("head", ""))),
+		"village": I18n.content(_ending_id(after), "village", str(after.get("village", ""))),
+		"reader": I18n.content(_ending_id(after), "reader", str(after.get("reader", ""))),
 		"ledger": ledger,
 		"lines": [
 			{"left": "Faith", "right": str(score)},
