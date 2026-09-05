@@ -20,6 +20,8 @@ const TESTS := [
 	"_test_bad_conditions_do_not_lock",
 	"_test_a_finished_run_is_recorded_once",
 	"_test_stats_are_copied_out",
+	"_test_the_streaks_count_and_break",
+	"_test_the_day_streak",
 ]
 
 var failures: Array[String] = []
@@ -128,6 +130,92 @@ func _test_a_finished_run_is_recorded_once() -> void:
 	check(profile.get_stat("readers_finished").has("aries"),
 		"the reader that finished should be recorded, got %s" % str(profile.get_stat("readers_finished")))
 	done("_test_a_finished_run_is_recorded_once")
+
+
+## THE READING STREAK IS WATCHED OFF THE LEDGER, not off a call from Run.gd —
+## the same rule the rest of this file follows. Which means it has to survive
+## what the ledger actually does: it grows mid-screen (nobody changes screen
+## when a reading ends), and it starts over on a new run.
+func _test_the_streaks_count_and_break() -> void:
+	profile.reset()
+	profile._counted = 0
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	var ledger: Array = []
+	for outcome in ["mended", "mended", "mended"]:
+		ledger.append({"outcome": outcome})
+		run.state["ledger"] = ledger
+		run.state_changed.emit()
+	check(int(profile.get_stat("streak_readings")) == 3,
+		"three mended in a row is a streak of 3, got %s" % profile.get_stat("streak_readings"))
+
+	# The same ledger, emitted again: nobody sat down twice.
+	run.state_changed.emit()
+	check(int(profile.get_stat("streak_readings")) == 3,
+		"a redraw must not count anybody twice, got %s" % profile.get_stat("streak_readings"))
+
+	ledger.append({"outcome": "left"})
+	run.state["ledger"] = ledger
+	run.state_changed.emit()
+	check(int(profile.get_stat("streak_readings")) == 0,
+		"somebody going home as they came ends the streak, got %s" % profile.get_stat("streak_readings"))
+	check(int(profile.get_stat("best_streak_readings")) == 3,
+		"the best it reached is kept, got %s" % profile.get_stat("best_streak_readings"))
+	check(int(profile.get_stat("total_left")) == 1,
+		"they should be counted, got %s" % profile.get_stat("total_left"))
+
+	# A NEW RUN, the way the game starts one: the state changes once with an
+	# empty ledger before anybody sits down. Whatever is already on a ledger the
+	# first time we see a run was counted when it happened — that is what stops
+	# a resumed run from handing out a streak nobody played, and it is why this
+	# emits before adding to the ledger rather than after.
+	run.state = run.fresh()
+	run.state_changed.emit()
+	run.state["ledger"] = [{"outcome": "mended"}]
+	run.state_changed.emit()
+	check(int(profile.get_stat("streak_readings")) == 1,
+		"a new run continues the streak from where it was, got %s" % profile.get_stat("streak_readings"))
+
+	# AND A RESUMED RUN COUNTS NOBODY TWICE. Same shape as a reload: a run
+	# arrives already carrying a ledger. Everyone on it was counted the day they
+	# sat down.
+	profile._run_seed = "some other evening"
+	run.state["ledger"] = [{"outcome": "mended"}, {"outcome": "mended"}, {"outcome": "mended"}]
+	run.state_changed.emit()
+	check(int(profile.get_stat("streak_readings")) == 1,
+		"resuming a run must not re-count its ledger, got %s" % profile.get_stat("streak_readings"))
+	done("_test_the_streaks_count_and_break")
+
+
+## THE DAY STREAK STARTS AT ONE. It read zero on the very first day of a
+## profile — the day you played counts, which is not the same rule as a person
+## who went home as they came counting for nothing.
+func _test_the_day_streak() -> void:
+	profile.reset()
+	profile._count_today()
+	check(int(profile.get_stat("streak_days")) == 1,
+		"the first day played is a streak of 1, got %s" % profile.get_stat("streak_days"))
+
+	# Twice in one day is still one day.
+	profile._count_today()
+	check(int(profile.get_stat("streak_days")) == 1,
+		"a second run the same day does not add a day, got %s" % profile.get_stat("streak_days"))
+
+	# Yesterday, then today: two.
+	profile.set_stat("last_day", profile._the_day_before(Time.get_date_string_from_system()))
+	profile._count_today()
+	check(int(profile.get_stat("streak_days")) == 2,
+		"playing the day after continues it, got %s" % profile.get_stat("streak_days"))
+
+	# A gap starts again at one, and keeps the best.
+	profile.set_stat("last_day", "2001-01-01")
+	profile._count_today()
+	check(int(profile.get_stat("streak_days")) == 1,
+		"a missed day starts again at 1, got %s" % profile.get_stat("streak_days"))
+	check(int(profile.get_stat("best_streak_days")) == 2,
+		"the best run of days is kept, got %s" % profile.get_stat("best_streak_days"))
+	done("_test_the_day_streak")
 
 
 ## Same trap as Settings: the defaults live in a `const`, so handing out the

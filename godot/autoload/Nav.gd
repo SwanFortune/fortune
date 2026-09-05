@@ -57,6 +57,10 @@ func goto_settings(return_scene: String = "") -> void:
 	_goto("res://scenes/SettingsMenu.tscn")
 
 
+func goto_records() -> void:
+	_goto("res://scenes/Records.tscn")
+
+
 func goto_library() -> void:
 	_goto("res://scenes/Library.tscn")
 

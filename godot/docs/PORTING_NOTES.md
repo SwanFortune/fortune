@@ -1582,6 +1582,45 @@ they have to punctuate correctly instead of two they simply translate. A pack
 that supplies only `rule` still degrades safely: the whole string shows as the
 mechanic and the hover is empty.
 
+## The profile kept records and showed them to nobody
+
+`Profile.gd` has recorded runs finished, best faith, people mended, readers
+taken to the end and Minitel codes dialled since it was written, and no screen
+had ever displayed a single one of them. The only place a stat surfaced was as
+an unlock condition on a locked reader — so a player could learn a number
+existed only by failing to meet it.
+
+RECORDS, off the main menu. Totals, which readers have been taken to the end
+(named, not counted: "6 of 13" tells you a number, the list tells you which one
+to try next), and three streaks.
+
+**The streaks are the point.** A total says what you have done; a streak says
+what you are in the middle of, and it is the one number that makes stopping cost
+something. People mended one after another — ACROSS runs, because a run ending
+does not break it, somebody leaving does. Runs finished whole, one after
+another. And calendar days you finished a run on.
+
+**Watched off the ledger, not off a call from Run.gd.** The ledger grows by one
+every time somebody gets up from the table and carries what became of them, so
+Profile can read it and Run needs to know nothing — the rule the rest of that
+file already followed. Three things had to be got right and each is a test:
+
+  - it grows MID-SCREEN. Nobody changes screen when a reading ends, the result
+    is drawn over the same one, so the handler could not keep its "only on a
+    screen change" shortcut;
+  - a redraw must not count anybody twice, and `state_changed` fires on every
+    action;
+  - **a resumed run must not count its whole ledger again.** A run loaded from
+    disk arrives carrying readings that were counted the day they happened.
+    Keyed on the run's seed: a ledger belonging to a run we were not already
+    watching is history, not news. Verified by stubbing that guard out — the
+    test reports a streak of 3 that nobody played.
+
+The day streak had its own bug, and its own rule: it read zero on the very
+first day of a profile, because a broken streak restarts at zero and a day you
+played on counts. `_streak()` takes what a broken one restarts at; for days it
+is one.
+
 ## Thirteen readers, from 14% to 94%
 
 A player picks a reader before they know anything about the game. Measured at

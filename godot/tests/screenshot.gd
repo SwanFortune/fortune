@@ -63,6 +63,7 @@ func _initialize() -> void:
 		"menu": "res://scenes/MainMenu.tscn",
 		"settings": "res://scenes/SettingsMenu.tscn",
 		"library": "res://scenes/Library.tscn",
+		"records": "res://scenes/Records.tscn",
 		"mods": "res://scenes/ModsScreen.tscn",
 		"minitel": "res://scenes/MinitelScreen.tscn",
 		"help": "res://scenes/HowToPlay.tscn",

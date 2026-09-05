@@ -100,6 +100,7 @@ func _build() -> void:
 	# than they need the card editor, and a rules screen nobody finds is worth
 	# about as much as no rules screen.
 	v.add_child(UIKit.button(I18n.t("HOW TO PLAY"), func(): Nav.goto_how_to_play()))
+	v.add_child(UIKit.button(I18n.t("RECORDS"), func(): Nav.goto_records()))
 	v.add_child(UIKit.button(I18n.t("LIBRARY"), func(): Nav.goto_library()))
 	# Always shown, never teased. A hidden entry that appears once you already
 	# know a code is a worse secret than an ordinary-looking machine that
