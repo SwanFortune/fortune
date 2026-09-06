@@ -109,7 +109,9 @@ because most interesting failures are engine errors, not assertions.
 handed — resources packed, `godot/tests/` filtered out, the main scene actually
 booted — and it is not part of `run_all.sh` because it builds a 74 MB binary.
 
-CI runs both on every push; see `.github/workflows/tests.yml`.
+CI runs both on every push, and builds all three platforms; see
+`.github/workflows/tests.yml`. `godot/docs/RELEASING.md` is the order the
+release steps go in — version bump, build, play, translate-check, tag.
 
 ## Commit messages
 

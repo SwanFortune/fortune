@@ -11,7 +11,7 @@ you can check in the repository today, and every "not done" is not done.
 
 | | |
 |---|---|
-| Builds | `export_presets.cfg` for Linux, Windows and macOS; `docs`/README explain the command. Linux and Windows are verified to export. |
+| Builds | `export_presets.cfg` for Linux, Windows and macOS; `docs`/README explain the command. All three are verified to export, and CI builds all three on every push. Only Linux is ever *run* — see `docs/RELEASING.md`. |
 | Version | One source of truth (`autoload/Version.gd`), shown on the menu and in the credits, and asserted against the content pack's version by a test. |
 | Settings | Video, audio, interface, controls, language — all persisted, all real. |
 | Controller | Every action has a gamepad binding and the whole game is navigable from one. `tests/test_settings.gd` fails if that stops being true. |

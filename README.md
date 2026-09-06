@@ -34,6 +34,7 @@ test at a time, and what each one is for. The docs beside it go deeper:
 | `godot/docs/ART_GUIDE.md` | the manifest an illustrator works from |
 | `godot/docs/SOUND_GUIDE.md` | the score and room-tone spec, and CC0 sources |
 | `godot/docs/LOCALIZATION.md` | the locale scheme and how to add a language |
+| `godot/docs/RELEASING.md` | the release checklist, in order |
 | `godot/docs/STEAM_RELEASE.md` | what shipping still needs |
 
 `CLAUDE.md` holds the working conventions — the traps this codebase has already
