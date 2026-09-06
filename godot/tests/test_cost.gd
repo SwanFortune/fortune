@@ -1,4 +1,4 @@
-## WHAT THE INTERFACE COSTS TO BUILD, AND WHAT IT REBUILDS THAT IT NEED NOT.
+## WHAT THE INTERFACE COSTS: THE WORK IT REDOES, AND WHAT IT LEAVES BEHIND.
 ##
 ##     godot --headless --path godot -s tests/test_cost.gd
 ##
@@ -47,6 +47,7 @@ func _initialize() -> void:
 	content.reload()
 	root.size = Vector2i(1280, 720)
 
+	await _test_screens_do_not_leave_nodes_behind()
 	await _test_a_keystroke_does_not_rebuild_the_list()
 	await _test_selecting_a_card_leaves_the_other_rows_alone()
 	await _test_no_screen_takes_absurdly_long_to_build()
@@ -56,6 +57,57 @@ func _initialize() -> void:
 	if failures.is_empty():
 		print("ALL PASS — the interface rebuilds only what changed")
 	quit(1 if not failures.is_empty() else 0)
+
+
+## NOTHING IS LEFT BEHIND WHEN A SCREEN GOES.
+##
+## An unparented Node in GDScript is not reference-counted: nothing collects it,
+## and it is not freed with the screen it was almost part of. card_face() built
+## a footer row for the archetype badge and the tags, then parented it "if it
+## has any children" — so every plain card, which most of the basics are, left
+## an empty HBoxContainer behind. Once per card, on every hand, on every rebuild
+## of the reading screen, for the whole of a session.
+##
+## It was found by counting, because there is nothing else to find it by: the
+## game plays correctly, the screens look right, and the suite was green. Six
+## rounds of building and freeing the reading screen took the orphan count from
+## 0 to 6, 11, 19, 27, 34, 38.
+##
+## The screen is torn down ONE FRAME after it is built, which is the shape that
+## catches this: the deal tween, the knock timer and the ledger's pacing are all
+## still pending, and anything holding a reference it should not is still
+## holding it. Freeing a settled screen would have found nothing.
+##
+## Godot's OBJECT_ORPHAN_NODE_COUNT is exact and the same on any machine, so
+## unlike a timing budget this can be asserted at zero growth. (The suite's
+## runner allows a "ObjectDB instances were leaked at exit" line, which is a
+## different thing entirely — that is Godot tearing down a `-s` script with no
+## main scene, and it says nothing about what happens while the game runs.)
+func _test_screens_do_not_leave_nodes_behind() -> void:
+	var run: Node = root.get_node("Run")
+	var counts: Array[int] = []
+	for cycle in 4:
+		for n in 3:
+			run.state = run.fresh("leak-%d-%d" % [cycle, n])
+			run.pick_reader(0)
+			run.take_pick(0)
+			for i in run.state["options"].size():
+				if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+					run.choose(i)
+					break
+			var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+			root.add_child(instance)
+			await process_frame
+			instance.queue_free()
+			for i in 3:
+				await process_frame
+		counts.append(int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)))
+	# Compared from the SECOND cycle: the first pays for anything the engine
+	# holds on to once — a shared theme, a font, a cached resource — and that is
+	# not a leak, it is a cache. What matters is whether it keeps climbing.
+	if counts[counts.size() - 1] > counts[0]:
+		failures.append("building and freeing the reading screen leaves nodes behind: %s orphans after each round of three — an unparented Node is never collected, so this grows for as long as the game is open"
+			% str(counts))
 
 
 func _library() -> Node:

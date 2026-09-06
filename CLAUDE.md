@@ -73,6 +73,12 @@ wide, so any geometry test must set `root.size` first or it measures nothing.
 **`queue_free()` children are still children until the end of the frame.** Skip
 `is_queued_for_deletion()` nodes when searching a subtree you have just rebuilt.
 
+**An unparented Node is never collected.** GDScript reference-counts RefCounted,
+not Node — so "build it, then parent it if it turned out to have content" leaks
+one node every time it turned out not to. Decide first, build second.
+`godot/tests/test_cost.gd` counts orphans across screen teardowns; it found this
+one leaking a container per plain card, on every hand.
+
 ## Content and locale
 
 Content is JSON under `godot/data/base/`, merged by `ModLoader`; the base pack

@@ -1730,16 +1730,25 @@ static func card_face(c: Dictionary, on_pressed: Callable, enabled: bool = true,
 	# own colour. Thirty-four of the fifty-six base cards carry one and the port
 	# had never shown it at all; a player could not see that two cards were the
 	# same kind of move without reading both.
-	var foot := hbox(6)
-	foot.alignment = BoxContainer.ALIGNMENT_CENTER
+	#
+	# BUILT ONLY IF THERE IS SOMETHING TO PUT IN IT. It used to be built first
+	# and parented afterwards "if it has any children" — and a card with no
+	# archetype and no tags, which most of the basics are, left the empty
+	# HBoxContainer behind. An unparented Node is not reference-counted: nothing
+	# collects it, and it is not freed with the screen it was almost part of. It
+	# showed up as an orphan count climbing 6, 11, 19, 27, 34, 38 across six
+	# rounds of building and freeing the reading screen, and it leaked during
+	# ordinary play, once per plain card, on every hand and every rebuild.
 	var arch_badge := archetype_badge(str(c.get("a", "")), 16)
-	if arch_badge != null:
-		if not enabled:
-			arch_badge.modulate = Color(1, 1, 1, 0.45)
-		foot.add_child(arch_badge)
-	if tags.size() > 0:
-		foot.add_child(label(" · ".join(tags), 9, DIM))
-	if foot.get_child_count() > 0:
+	if arch_badge != null or tags.size() > 0:
+		var foot := hbox(6)
+		foot.alignment = BoxContainer.ALIGNMENT_CENTER
+		if arch_badge != null:
+			if not enabled:
+				arch_badge.modulate = Color(1, 1, 1, 0.45)
+			foot.add_child(arch_badge)
+		if tags.size() > 0:
+			foot.add_child(label(" · ".join(tags), 9, DIM))
 		v.add_child(foot)
 
 	wrap.add_child(v)
