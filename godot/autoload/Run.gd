@@ -464,10 +464,23 @@ func _close_the_hour(outcome: String) -> void:
 	state["ledger"] = ledger
 
 
+## `body` is the event's `line`, not its `body` — the same choice the prototype
+## makes (v23 ~1864). The event's own `body` is the sentence the MAP row shows;
+## `line` is the one that frames the choice once you are in the room.
+##
+## `i18n` says which CONTENT FIELD each display slot came from, which is the
+## only way the screen can find the translation. The locale keys are addressed
+## by slug — event/your-own-chair-for-once/line — and the screen was looking
+## them up as interface strings, ui/<the English sentence>, which exists for
+## none of them. Every word of all twelve events was translated into French and
+## shown to nobody: the coverage counter was right, the lookup was in the wrong
+## table. Options follow the same scheme by index, opt0/kind and so on.
 func build_event(e: Dictionary) -> Dictionary:
 	return {
 		"head": e["head"], "title": e["title"], "kind": "rest", "body": e["line"],
 		"opts": e["opts"], "skippable": true, "skipLabel": "LET IT GO BY",
+		"id": "event/" + Art.slug(str(e.get("title", ""))),
+		"i18n": {"head": "head", "title": "title", "body": "line"},
 	}
 
 
@@ -944,9 +957,13 @@ func build_shop() -> Dictionary:
 	if m != null:
 		opts.append({"mark": m, "kind": m["kind"], "cost": int(shop.get("mark_price", 11))})
 	opts.append({"burn": true, "kind": "THE REMOVAL OF THINGS", "cost": int(shop.get("burn_price", 8)), "name": shop.get("burn_name", "Burn A Card"), "text": shop.get("burn_text", "")})
+	# See build_event's comment for `i18n`. The shop's slots come from different
+	# fields again — its heading is the data's `line` — so the map has to be
+	# written down rather than assumed.
 	return {
 		"head": shop.get("head", "THE APOTHECARY"), "title": shop.get("line", ""), "kind": "shop",
 		"body": shop.get("body", ""), "opts": opts, "skippable": true, "skipLabel": "LEAVE WITH YOUR MONEY",
+		"id": "shop", "i18n": {"head": "head", "title": "line", "body": "body"},
 	}
 
 

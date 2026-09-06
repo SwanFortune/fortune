@@ -194,6 +194,7 @@ func _visit_standalone() -> void:
 	await _test_editing_a_card_does_not_destroy_the_control()
 	await _test_a_screen_opens_at_the_top_and_the_wheel_moves_it()
 	await _test_the_very_first_launch()
+	await _test_every_event_says_everything_it_carries()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -277,6 +278,141 @@ func _test_the_reading_screens_are_centred() -> void:
 	root.size = restore_size
 	await process_frame
 	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## ALL TWELVE EVENTS, EVERY WORD THEY CARRY, ON THE SCREEN THAT OWNS IT — AND
+## IN THE PLAYER'S LANGUAGE.
+##
+## An event is twelve pieces of writing in twelve shapes, and only one had ever
+## been on a screen. Two things were wrong and neither could be seen from the
+## English build or from the coverage number.
+##
+##   - THE MAP SHOWED THE WRONG SENTENCE. An event carries a `body` (the
+##     situation: "Twenty minutes before the next one knocks.") and a `line`
+##     (the choice: "Spend them on yourself or on the money."). The prototype
+##     puts `body` on the map row and `line` on the screen you get to; the port
+##     put `line` in both, so the map said what the next screen was about to say
+##     and the other sentence was shown nowhere in the game.
+##   - EVERY EVENT WAS IN ENGLISH IN A FRENCH BUILD. Content is keyed by slug
+##     (event/your-own-chair-for-once/line) and both screens looked it up as an
+##     interface string (ui/"Spend them on yourself…"), which exists for no
+##     locale, so the fallback English was shown. Around a hundred and thirty
+##     translated strings, correct in the file, read by nobody — with the
+##     coverage counter at a hundred per cent, because the table was complete
+##     and the lookup was in the wrong table.
+##
+## So this asks each screen for the fields that screen owns, walking the events
+## rather than naming them, and then asks the same question in French: no line
+## may come back as the English source when a translation exists. That second
+## half is the one that generalises — it is a check that the two key schemes
+## have not been mixed up again, anywhere on these screens.
+const EVENT_HEAD := 24
+
+
+func _test_every_event_says_everything_it_carries() -> void:
+	var i18n: Node = root.get_node("I18n")
+	var settings: Node = root.get_node("Settings")
+	var before_locale = settings.get_value("locale")
+	var missing: Array[String] = []
+	var english: Array[String] = []
+
+	for locale in ["en", "fr"]:
+		settings.set_value("locale", locale)
+		i18n.reload()
+		for e in content.events:
+			var title := str(e.get("title", "?"))
+			var id: String = "event/" + str(root.get_node("Art").slug(title))
+
+			# The choice screen owns head, title, line, and every option.
+			var shown := await _pick_screen_text(e)
+			var want := {"head": "head", "title": "title", "line": "body"}
+			for field: String in want:
+				_expect(missing, english, shown, i18n, locale, id, field,
+					str(e.get(field, "")), "%s (the choice screen)" % title)
+			var oi := 0
+			for o in e.get("opts", []):
+				# An option that hands over a card or a mark shows THAT name, not
+				# its own — `c.n || o.name` in the prototype (v23 ~1981), and the
+				# port follows it. Asserting the option's name there would be
+				# asserting a divergence from the source into place.
+				var names_itself: bool = not (o.has("card") or o.has("mark"))
+				for field in ["kind", "name", "text"]:
+					if field == "name" and not names_itself:
+						continue
+					_expect(missing, english, shown, i18n, locale,
+						"%s/opt%d" % [id, oi], field, str(o.get(field, "")),
+						"%s option %d (the choice screen)" % [title, oi])
+				oi += 1
+
+			# The map row owns the other sentence.
+			var row := await _map_row_text(e)
+			_expect(missing, english, shown_or(row), i18n, locale, id, "body",
+				str(e.get("body", "")), "%s (the map row)" % title)
+
+	settings.set_value("locale", before_locale)
+	i18n.reload()
+	if not missing.is_empty():
+		printerr("FAIL: %d thing(s) an event says never reach the player: %s"
+			% [missing.size(), " · ".join(missing.slice(0, 3))])
+	if not english.is_empty():
+		printerr("FAIL: %d line(s) show the English source in a French build — the translation exists and the screen looks it up under the wrong scheme: %s"
+			% [english.size(), " · ".join(english.slice(0, 3))])
+	if missing.is_empty() and english.is_empty():
+		print("--- all %d events say every word they carry, on the right screen, in both languages ---" % content.events.size())
+
+
+## Passthrough, so the call above reads as one line. (GDScript has no way to
+## name an argument at the call site.)
+func shown_or(text: String) -> String:
+	return text
+
+
+## One field: it has to be on the screen, and in French it has to be the French.
+func _expect(missing: Array[String], english: Array[String], shown: String,
+		i18n: Node, locale: String, id: String, field: String,
+		source: String, where: String) -> void:
+	if source.strip_edges() == "":
+		return
+	var want: String = i18n.content(id, field, source)
+	if not shown.contains(want.substr(0, EVENT_HEAD)):
+		missing.append("%s: %s (\"%s…\") is not on it" % [where, field, want.substr(0, EVENT_HEAD)])
+	elif locale == "fr" and want != source and shown.contains(source.substr(0, EVENT_HEAD)):
+		english.append("%s: %s still reads \"%s…\"" % [where, field, source.substr(0, EVENT_HEAD)])
+
+
+func _pick_screen_text(e: Dictionary) -> String:
+	run.state = run.fresh("event-check")
+	run.pick_reader(0)
+	run.take_pick(0)
+	run.state["pick"] = run.build_event(e)
+	run.state["screen"] = "pick"
+	var instance: Node = load("res://scenes/PickScreen.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var text := _text_of(instance)
+	instance.queue_free()
+	await process_frame
+	return text
+
+
+## The map, with this event forced into the night's options, so the row that
+## previews it can be read. Rolling until the event turns up would take
+## thousands of runs for the rarer ones.
+func _map_row_text(e: Dictionary) -> String:
+	run.state = run.fresh("event-map")
+	run.pick_reader(0)
+	run.take_pick(0)
+	run.state["options"] = [{"kind": "break", "rest": e}]
+	run.state["screen"] = "map"
+	var instance: Node = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var text := _text_of(instance)
+	instance.queue_free()
+	await process_frame
+	return text
 
 
 ## THE STATE EVERY PLAYER SEES FIRST, AND THE ONLY ONE NEVER RENDERED.

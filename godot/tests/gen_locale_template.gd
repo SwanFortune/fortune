@@ -318,6 +318,11 @@ func _ui_strings() -> Array[String]:
 		# which is exactly what this hand list is for.
 		"no", "one", "two", "three", "four", "five", "six", "seven", "eight",
 		"nine", "ten", "eleven", "twelve",
+		# THE WAY OUT OF A CHOICE. Run.gd's pick builders carry these as
+		# `skipLabel` data, so the scrape cannot see them and neither could
+		# anybody reading the coverage number — a French event offered its two
+		# options in French under a button that said LET IT GO BY.
+		"LET IT GO BY", "LEAVE WITH YOUR MONEY", "MOVE ON", "SKIP",
 		# END OF A RUN. Run.gd emits these as display strings (see its header's
 		# convention) so there is no I18n.t() literal to scrape.
 		"You are still the one in the back room",

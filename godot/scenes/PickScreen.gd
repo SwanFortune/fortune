@@ -22,9 +22,9 @@ func _ready() -> void:
 
 	v.add_child(RunHeader.build(self))
 	if pick.get("head", "") != "":
-		v.add_child(UIKit.block(I18n.t(str(pick["head"])), 13, UIKit.GOLD))
-	v.add_child(UIKit.block(I18n.t(str(pick.get("title", ""))), 22, UIKit.INK))
-	v.add_child(UIKit.block(I18n.t(str(pick.get("body", ""))), 13, UIKit.DIM))
+		v.add_child(UIKit.block(_said(pick, "head"), 13, UIKit.GOLD))
+	v.add_child(UIKit.block(_said(pick, "title"), 22, UIKit.INK))
+	v.add_child(UIKit.block(_said(pick, "body"), 13, UIKit.DIM))
 
 	var scroll := UIKit.scroll()
 	v.add_child(scroll)
@@ -41,6 +41,43 @@ func _ready() -> void:
 		v.add_child(UIKit.button(I18n.t(str(pick.get("skipLabel", "SKIP"))), _skip))
 	# The offers, not the run header above them. See Map.gd.
 	UIKit.focus_first(list)
+
+
+## One of the pick's three lines, in the player's language.
+##
+## TWO SCHEMES, and using the wrong one is silent. Interface strings are keyed
+## by their own English text (I18n.t → ui/…); CONTENT is keyed by slug
+## (event/your-own-chair-for-once/line). The gift and the reward are chrome this
+## file writes, so they are the first kind. The events and the apothecary are
+## somebody's writing in a data file, so they are the second — and they were
+## being looked up as the first. Every word of all twelve events had been
+## translated into French and was shown to nobody, because ui/"Your own chair,
+## for once" exists for no locale and the fallback is the English.
+##
+## Which content field feeds which line is carried by the pick itself (`i18n`),
+## because it is not one-to-one: the heading of the apothecary is the shop's
+## `line`, and the sentence under an event's title is the event's `line` while
+## its `body` belongs to the map row.
+func _said(pick: Dictionary, slot: String) -> String:
+	var english := str(pick.get(slot, ""))
+	var id := str(pick.get("id", ""))
+	if id == "":
+		return I18n.t(english)
+	var field := str(pick.get("i18n", {}).get(slot, slot))
+	return I18n.content(id, field, english)
+
+
+## The same, for one option's line. Options are addressed by their position in
+## the event — opt0/kind, opt0/name, opt0/text — which is the scheme the locale
+## template writes them under.
+func _opt_said(o: Dictionary, i: int, field: String) -> String:
+	var english := str(o.get(field, ""))
+	if english == "":
+		return ""
+	var id := str(Run.state["pick"].get("id", ""))
+	if id == "":
+		return I18n.t(english)
+	return I18n.content("%s/opt%d" % [id, i], field, english)
 
 
 func _opt_button(o: Dictionary, i: int) -> Control:
@@ -63,7 +100,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 	if o.has("card"):
 		var c: Dictionary = o["card"]
 		var el_c: Color = UIKit.el_color(c["el"]) if c.get("el") != null else UIKit.DIM
-		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
+		lines.append([_opt_said(o, i, "kind"), 11, UIKit.GOLD])
 		lines.append([UIKit.card_summary(c), 16, el_c])
 		# The price, explicitly: auto_text() only describes what a card does
 		# BEYOND restoring, so without this the two numbers that define a card
@@ -80,27 +117,27 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		tooltip = UIKit.card_keyword_tooltip(c)
 	elif o.has("mark"):
 		var mk: Dictionary = o["mark"]
-		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
+		lines.append([_opt_said(o, i, "kind"), 11, UIKit.GOLD])
 		lines.append([I18n.content("mark/" + Art.slug(str(mk.get("n",""))), "n", str(mk.get("n",""))), 16, UIKit.INK])
 		lines.append([I18n.content("mark/" + Art.slug(str(mk.get("n",""))), "text", str(mk.get("text",""))), 12, UIKit.DIM])
 	else:
-		lines.append([I18n.t(str(o.get("kind", ""))), 11, UIKit.GOLD])
-		lines.append([I18n.t(str(o.get("name", ""))), 16, UIKit.INK])
-		lines.append([I18n.t(str(o.get("text", ""))), 12, UIKit.DIM])
+		lines.append([_opt_said(o, i, "kind"), 11, UIKit.GOLD])
+		lines.append([_opt_said(o, i, "name"), 16, UIKit.INK])
+		lines.append([_opt_said(o, i, "text"), 12, UIKit.DIM])
 
 	# An option handing over a card or a mark may still have SOMETHING TO SAY
 	# about it, and the events lean on that line. The branches above print the
 	# card or the mark, not the option, so without this those words are lost.
 	if (o.has("card") or o.has("mark")) and str(o.get("text", "")) != "":
-		lines.append([I18n.t(str(o["text"])), 11, UIKit.DIM])
+		lines.append([_opt_said(o, i, "text"), 11, UIKit.DIM])
 
 	if cost > 0:
-		lines.append(["Cost: %s centimes" % cost, 12, UIKit.GOLD if afford else UIKit.RED])
+		lines.append([I18n.t("Cost: %s centimes") % cost, 12, UIKit.GOLD if afford else UIKit.RED])
 	var reward: Dictionary = o.get("reward", {})
 	if reward.has("faith"):
-		lines.append(["+%s faith" % reward["faith"], 12, UIKit.GREEN])
+		lines.append([I18n.t("+%s faith") % reward["faith"], 12, UIKit.GREEN])
 	if reward.has("coin"):
-		lines.append(["+%s centimes" % reward["coin"], 12, UIKit.GREEN])
+		lines.append([I18n.t("+%s centimes") % reward["coin"], 12, UIKit.GREEN])
 
 	return UIKit.panel_button(lines, _take.bind(i), afford, tooltip, thumb)
 

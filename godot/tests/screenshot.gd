@@ -256,6 +256,23 @@ func _setup(name: String) -> void:
 		"reward":
 			_setup("win")
 			run.after_res()
+		# THE SHOP AND THE EVENTS, which no capture had ever opened. Built the
+		# same way Run builds them on the map, then shown on the pick screen.
+		# "event" takes an index — "event7" is the eighth of the twelve — because
+		# they are twelve different pieces of writing in twelve different shapes,
+		# and looking at one of them says nothing about the other eleven.
+		"shop":
+			_setup("map")
+			run.state["pick"] = run.build_shop()
+			run.state["screen"] = "pick"
+		"lose":
+			# A sitter who leaves as they came, which ends the run. The result
+			# screen has a losing face nobody had rendered.
+			_setup("read")
+			var lf: Dictionary = run.state["f"]
+			lf["turn"] = lf["turns"]
+			lf["hp"] = 0
+			run.lose(lf, "left")
 		"over":
 			_setup("win")
 			run.after_res()
@@ -263,3 +280,26 @@ func _setup(name: String) -> void:
 			# fast-forward: just force endRun for a screenshot rather than
 			# playing 23 more knocks.
 			run.end_run("done")
+		_:
+			# Prefixed setups, so twelve events and four endings do not need
+			# sixteen entries above.
+			if name.begins_with("event"):
+				_setup("map")
+				var which := int(name.substr(5)) if name.length() > 5 else 0
+				run.state["pick"] = run.build_event(content.events[which % content.events.size()])
+				run.state["screen"] = "pick"
+			elif name.begins_with("ending"):
+				# WHICH ending, chosen by the number it is chosen by. The four are
+				# picked by how many people went home whole, and a run played out
+				# normally lands on one of them — so three of the four had never
+				# been on a screen. "ending2" forces the third rung's threshold.
+				_setup("win")
+				run.after_res()
+				run.skip_pick()
+				var rung := int(name.substr(6)) if name.length() > 6 else 0
+				var rungs: Array = content.endings
+				var e: Dictionary = rungs[clampi(rung, 0, rungs.size() - 1)]
+				run.state["mended"] = int(e.get("mended_from", 0))
+				run.end_run("done")
+			else:
+				printerr("unknown setup '%s'" % name)

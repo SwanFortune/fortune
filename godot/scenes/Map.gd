@@ -283,14 +283,24 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 			# decision this screen asks for, and they were a line of small text.
 			leading = _sigil(str(q.get("k", "")), str(s.get("el", "")))
 		"break":
+			# THE EVENT'S OWN WORDS, in the player's language, and the right ones.
+			#
+			# Two faults in three lines. The words were printed straight from the
+			# data, so a French map read an English event — the translations
+			# exist, keyed by slug, and nothing looked them up. And the sentence
+			# shown was the event's `line`, which is the one the choice screen
+			# says once you are in the room; the prototype shows its `body` here
+			# (v23 ~2721), which is the situation. The port said the same
+			# sentence twice and never showed the other one at all.
 			var rest: Dictionary = o["rest"]
+			var rid := "event/" + Art.slug(str(rest.get("title", "")))
 			if rest.get("kind", "") == "SHOP":
 				lines.append([I18n.t("THE APOTHECARY"), 17, UIKit.GOLD])
-				lines.append([rest.get("title", ""), 12, UIKit.DIM])
+				lines.append([I18n.content("shop", "title", str(rest.get("title", ""))), 12, UIKit.DIM])
 			else:
-				lines.append([rest.get("head", "EVENT"), 13, UIKit.GOLD])
-				lines.append([rest.get("title", ""), 17, UIKit.INK])
-				lines.append([rest.get("line", ""), 12, UIKit.DIM])
+				lines.append([I18n.content(rid, "head", str(rest.get("head", "EVENT"))), 13, UIKit.GOLD])
+				lines.append([I18n.content(rid, "title", str(rest.get("title", ""))), 17, UIKit.INK])
+				lines.append([I18n.content(rid, "body", str(rest.get("body", ""))), 12, UIKit.DIM])
 	var said: Array[String] = []
 	for fl in flavours:
 		if fl != "":
