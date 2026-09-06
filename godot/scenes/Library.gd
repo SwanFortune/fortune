@@ -38,7 +38,21 @@ var _search: String = ""
 var _selected_name: String = ""
 var _selected_pool: String = ""
 
+## Which card field a control edits, so a change can find the rows that read
+## that field without rebuilding them. See _refresh_readouts.
+const FIELD_KEY := "library_field"
+
+## Marks a label that DESCRIBES a field rather than editing it — repainted when
+## the value changes, never rebuilt. See _refresh_readouts.
+const READOUT_KEY := "library_readout"
+
+## Marks the "use the usual amount" button, with the field and amount it is for,
+## so it can be greyed out when the card already carries that amount.
+const TYPICAL_KEY := "library_typical"
+
 var _list_box: VBoxContainer
+var _heading_box: HBoxContainer
+var _actions_box: HBoxContainer
 var _editor_box: VBoxContainer
 var _summary_label: Label
 
@@ -159,6 +173,33 @@ func _rarity(c: Dictionary) -> String:
 	return I18n.t(r) if r != "" else "?"
 
 
+## "Basics · basic" is one fact said twice — every card in the basics pool is
+## that rarity, so the second word carries nothing. French made it plainer
+## ("Bases · de base") but it stutters in both.
+##
+## Asked of the pool's contents rather than answered with the name of the one
+## pool this is true of today: any pool holding a single rarity says it in its
+## own name, and a mod that ships a uniform pool gets the same courtesy without
+## editing this file.
+func _pool_and_rarity(pool: String, c: Dictionary) -> String:
+	if _rarity_is_implied(pool):
+		return _pool_label(pool)
+	return "%s · %s" % [_pool_label(pool), _rarity(c)]
+
+
+func _rarity_is_implied(pool: String) -> bool:
+	var only := ""
+	for card in _cards_for_pool(pool):
+		var r := str(card.get("r", ""))
+		if r == "":
+			continue
+		if only == "":
+			only = r
+		elif only != r:
+			return false
+	return only != ""
+
+
 func _cards_for_pool(pool: String) -> Array:
 	return Content.registries.get(pool, [])
 
@@ -207,7 +248,7 @@ func _rebuild_list() -> void:
 			[name_line, 14, UIKit.GOLD if edited else el_c],
 			# Through card_price(), so the Library says a card's two numbers in
 			# the same words the reward screen and the hand's tooltip do.
-			["%s · %s · %s" % [_pool_label(pool), _rarity(c), UIKit.card_price(c)], 11, UIKit.DIM],
+			["%s · %s" % [_pool_and_rarity(pool, c), UIKit.card_price(c)], 11, UIKit.DIM],
 			[UIKit.card_text(c), 11, UIKit.INK],
 		]
 		# The selected row is lit at its edge. There is always one now, and
@@ -322,40 +363,9 @@ func _rebuild_editor() -> void:
 	var el = c.get("el")
 	var el_c: Color = UIKit.el_color(el) if el != null and el != "" else UIKit.DIM
 
-	# The card as it is actually dealt, beside its numbers. Every other line here
-	# describes the card in words; this is the object, at the size and with the
-	# art well it has in the hand, so a change to a cost or an element can be
-	# seen landing on the thing rather than only read back as a sentence. Shown
-	# as an illustration — it takes neither the pointer nor a focus stop, which
-	# would otherwise sit between the list and the first spin box.
-	var heading := UIKit.hbox(14)
-	heading.add_child(UIKit.card_face(c, Callable(), true, false))
-	var titles := UIKit.vbox(4)
-	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	titles.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	titles.add_child(UIKit.block(UIKit.card_summary(c), 20, el_c))
-	titles.add_child(UIKit.block("%s · %s%s" % [
-		_pool_label(_selected_pool), _rarity(c),
-		"  ·  " + I18n.t("CHANGED") if CardEdits.has_edit(_selected_pool, c["n"]) else "",
-	], 11, UIKit.GOLD if CardEdits.has_edit(_selected_pool, c["n"]) else UIKit.DIM))
-	heading.add_child(titles)
-	_editor_box.add_child(heading)
-
-	# Which pack this card came from, when it is not the base game's. The stamp
-	# is put on by ModLoader; showing it here answers the question a player with
-	# several packs installed actually has — "where did this card come from, and
-	# who last changed it?" — which used to need reading JSON by hand.
-	var pack := str(c.get("_pack", ""))
-	if pack != "" and pack != "parlour.base":
-		_editor_box.add_child(UIKit.block(I18n.t("from %s") % pack, 11, UIKit.GOLD))
-
-	# Live preview: exactly the text a player sees, regenerated from the
-	# current field values rather than stored separately.
-	var preview := UIKit.block(UIKit.card_text(c), 13, UIKit.INK)
-	_editor_box.add_child(UIKit.block(I18n.t("READS AS"), 11, UIKit.DIM))
-	_editor_box.add_child(preview)
-	if c.get("fl", "") != "":
-		_editor_box.add_child(UIKit.block(I18n.card_flavor(c), 11, UIKit.DIM))
+	_heading_box = UIKit.hbox(14)
+	_editor_box.add_child(_heading_box)
+	_fill_heading(c)
 
 	_editor_box.add_child(_gap())
 	_editor_box.add_child(UIKit.block(I18n.t("CORE"), 11, UIKit.GOLD))
@@ -376,17 +386,131 @@ func _rebuild_editor() -> void:
 		_editor_box.add_child(_flag_row(c, key, I18n.t(FLAGS[key])))
 
 	_editor_box.add_child(_gap())
-	var actions := UIKit.hbox(8)
+	_actions_box = UIKit.hbox(8)
+	_editor_box.add_child(_actions_box)
+	_fill_actions(c)
+
+
+## THE HEADING, WHICH IS EVERYTHING THAT ONLY READS THE CARD.
+##
+## Split out from the rest of the editor because these are the parts a change
+## has to update, and the spin boxes are the parts it must NOT: see _apply.
+##
+## The card face is the object as it is actually dealt — same size, same art
+## well, so a change to a cost or an element is seen landing on the thing rather
+## than only read back as a sentence. It is an illustration: it takes neither
+## the pointer nor a focus stop, which would otherwise sit between the list and
+## the first spin box.
+##
+## It also prints the card's NAME, which is why nothing beside it does. A 20px
+## heading of the same three words a hand's width from the card face read as a
+## mistake rather than as a title. What goes in that column is everything the
+## face has no room for: where the card comes from, whether it has been changed,
+## the generated rule text in full, and the flavour line.
+func _fill_heading(c: Dictionary) -> void:
+	for child in _heading_box.get_children():
+		child.queue_free()
+		_heading_box.remove_child(child)
+	var el = c.get("el")
+	var el_c: Color = UIKit.el_color(el) if el != null and el != "" else UIKit.DIM
+	var edited := CardEdits.has_edit(_selected_pool, c["n"])
+
+	_heading_box.add_child(UIKit.card_face(c, Callable(), true, false))
+	var beside := UIKit.vbox(4)
+	beside.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	beside.add_child(UIKit.block("%s%s" % [
+		_pool_and_rarity(_selected_pool, c),
+		"  ·  " + I18n.t("CHANGED") if edited else "",
+	], 11, UIKit.GOLD if edited else UIKit.DIM))
+
+	# Which pack this card came from, when it is not the base game's. The stamp
+	# is put on by ModLoader; showing it here answers the question a player with
+	# several packs installed actually has — "where did this card come from, and
+	# who last changed it?" — which used to need reading JSON by hand.
+	var pack := str(c.get("_pack", ""))
+	if pack != "" and pack != "parlour.base":
+		beside.add_child(UIKit.block(I18n.t("from %s") % pack, 11, UIKit.GOLD))
+
+	# Live preview: exactly the text a player sees, regenerated from the current
+	# field values rather than stored separately. The card face carries the same
+	# text at card size, where a long rule is three tight lines; this is the
+	# readable copy, and the one that has to stay legible while the spin boxes
+	# below are being turned.
+	beside.add_child(UIKit.block(I18n.t("READS AS"), 11, UIKit.DIM))
+	beside.add_child(UIKit.block(UIKit.card_text(c), 14, el_c))
+	if c.get("fl", "") != "":
+		beside.add_child(UIKit.block(I18n.card_flavor(c), 11, UIKit.DIM))
+	_heading_box.add_child(beside)
+
+
+## REVERT THIS CARD only exists once there is something to revert, so this row
+## changes shape and is rebuilt with the heading. Nothing in it is ever mid-use
+## when that happens: pressing either button reloads the whole screen anyway.
+func _fill_actions(c: Dictionary) -> void:
+	for child in _actions_box.get_children():
+		child.queue_free()
+		_actions_box.remove_child(child)
 	if CardEdits.has_edit(_selected_pool, c["n"]):
-		actions.add_child(UIKit.button(I18n.t("REVERT THIS CARD"), func():
+		_actions_box.add_child(UIKit.button(I18n.t("REVERT THIS CARD"), func():
 			CardEdits.revert_card(_selected_pool, c["n"])
 			_reload_content()
 		))
-	actions.add_child(UIKit.button(I18n.t("REVERT ALL CARDS"), func():
+	_actions_box.add_child(UIKit.button(I18n.t("REVERT ALL CARDS"), func():
 		CardEdits.revert_all()
 		_reload_content()
 	))
-	_editor_box.add_child(actions)
+
+
+func _all_editor_controls(node: Node, out: Array[Control] = []) -> Array[Control]:
+	for child in node.get_children():
+		if child is Control and not child.is_queued_for_deletion():
+			out.append(child)
+		_all_editor_controls(child, out)
+	return out
+
+
+## What a change to a number actually has to update.
+##
+## Editing used to call _reload_content(), which rebuilds the editor — and so
+## FREED THE VERY SPIN BOX whose value_changed handler was running. Turning a
+## cost from 1 to 2 destroyed the control under the pointer: the next click of a
+## series landed on a node that no longer existed, and the focus ended up on
+## nothing that was on the screen any more, so a keyboard player was thrown out
+## of the panel after every single press.
+##
+## The first fix was to take the focus back afterwards. It does not work, and
+## the measurements are worth keeping: a SpinBox cannot hold focus at all (its
+## focus_mode is NONE — what a player is on is the LineEdit inside it, and
+## grab_focus on the SpinBox prints a warning and does nothing), and even
+## grabbing the right LineEdit only held until the end of the frame, whether
+## deferred or scheduled a frame later. Chasing the focus was treating the
+## symptom.
+##
+## Nothing required the rebuild. A spin box already holds the value the player
+## just set; what has to follow a change is everything that READS the card — the
+## face, the generated text, the CHANGED stamp, the effect captions and hints,
+## the list row. So those are refreshed and the controls are left alone, which
+## also means no focus to restore and no node destroyed mid-gesture.
+func _refresh_readouts() -> void:
+	var c := _selected_card()
+	if c.is_empty():
+		return
+	_fill_heading(c)
+	_fill_actions(c)
+	for node in _all_editor_controls(_editor_box):
+		if not node.has_meta(READOUT_KEY):
+			continue
+		var field := str(node.get_meta(READOUT_KEY))
+		# The caption of an effect row goes bright once the card carries it, and
+		# dim again when it is set back to zero.
+		if node is Label:
+			(node as Label).add_theme_color_override(
+				"font_color", UIKit.INK if c.has(field) else UIKit.DIM)
+	for node in _all_editor_controls(_editor_box):
+		if not node.has_meta(TYPICAL_KEY) or not node is Button:
+			continue
+		var pair: Array = node.get_meta(TYPICAL_KEY)
+		(node as Button).disabled = int(c.get(str(pair[0]), 0)) == int(pair[1])
 
 
 func _gap() -> Control:
@@ -407,7 +531,10 @@ func _apply(field: String, value) -> void:
 	else:
 		c[field] = value
 	CardEdits.set_card(_selected_pool, c)
-	_reload_content()
+	Content.reload()
+	_refresh_summary()
+	_rebuild_list()
+	_refresh_readouts()
 
 
 ## Editing a card here used to change the registry and leave a run in progress
@@ -434,6 +561,7 @@ func _int_row(c: Dictionary, field: String, caption: String, lo: int, hi: int) -
 	spin.value = float(c.get(field, 0))
 	spin.custom_minimum_size.x = 90
 	spin.value_changed.connect(func(v: float): _apply(field, int(v)))
+	spin.set_meta(FIELD_KEY, field)
 	row.add_child(spin)
 	return row
 
@@ -447,6 +575,7 @@ func _effect_row(c: Dictionary, e: Dictionary) -> Control:
 
 	var cap := UIKit.label(field, 12, UIKit.INK if c.has(field) else UIKit.DIM)
 	cap.custom_minimum_size.x = 150
+	cap.set_meta(READOUT_KEY, field)
 	row.add_child(cap)
 
 	var spin := SpinBox.new()
@@ -456,17 +585,26 @@ func _effect_row(c: Dictionary, e: Dictionary) -> Control:
 	spin.value = float(c.get(field, 0))
 	spin.custom_minimum_size.x = 90
 	spin.value_changed.connect(func(v: float): _apply(field, null if int(v) == 0 else int(v)))
+	spin.set_meta(FIELD_KEY, field)
 	row.add_child(spin)
 
 	# The registry's own suggested amount for this effect (card_effects' "d":
 	# draw 1, coin 3, next 4, solo 6...). It was ported and then read by
 	# nothing, which left every effect starting at 0 — turning "give this card
 	# the solo bonus" into six clicks on a spin box. One button instead.
+	#
+	# ALWAYS BUILT, disabled when the value is already the suggested one, rather
+	# than added and removed as the number changes. A row that changes shape is a
+	# row that has to be rebuilt, and rebuilding the row the player is using is
+	# the whole problem _refresh_readouts exists to avoid — the button would
+	# vanish from under the pointer on the click that made the value match.
 	var typical := int(e.get("d", 0))
-	if typical > 0 and int(c.get(field, 0)) != typical:
+	if typical > 0:
 		var use := UIKit.button(str(typical), func(): _apply(field, typical))
 		use.tooltip_text = I18n.t("The usual amount for this effect.")
 		use.custom_minimum_size = Vector2(52, 28)
+		use.disabled = int(c.get(field, 0)) == typical
+		use.set_meta(TYPICAL_KEY, [field, typical])
 		row.add_child(use)
 
 	var hint := UIKit.label(_effect_hint(e), 11, UIKit.DIM)
@@ -502,6 +640,7 @@ func _flag_row(c: Dictionary, field: String, caption: String) -> Control:
 	var box := CheckButton.new()
 	box.button_pressed = bool(c.get(field, false))
 	box.toggled.connect(func(pressed: bool): _apply(field, true if pressed else null))
+	box.set_meta(FIELD_KEY, field)
 	row.add_child(box)
 	row.add_child(UIKit.label(caption, 12, UIKit.INK))
 	return row
@@ -528,6 +667,7 @@ func _element_row(c: Dictionary) -> Control:
 		i += 1
 	opt.select(selected)
 	opt.item_selected.connect(func(idx: int): _apply("el", opt.get_item_metadata(idx)))
+	opt.set_meta(FIELD_KEY, "el")
 	row.add_child(opt)
 	return row
 

@@ -191,6 +191,7 @@ func _visit_standalone() -> void:
 	await _test_a_readings_tally_reads_as_pairs()
 	await _test_the_reading_screens_are_centred()
 	await _test_the_library_always_shows_a_card()
+	await _test_editing_a_card_does_not_destroy_the_control()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -274,6 +275,77 @@ func _test_the_reading_screens_are_centred() -> void:
 	root.size = restore_size
 	await process_frame
 	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## CHANGING A NUMBER DOES NOT DESTROY THE CONTROL YOU CHANGED IT WITH.
+##
+## Every edit wrote the card and then rebuilt the whole editor — which freed the
+## very spin box whose value_changed handler was running. With a mouse, the next
+## click of a series landed on a node that no longer existed; with a keyboard,
+## the focus ended up on nothing that was on the screen any more, so a player was
+## thrown out of the panel after every press.
+##
+## Both halves are asserted, because either alone is passable by accident. The
+## control has to survive — an editor that rebuilds itself fails that. And the
+## readouts have to follow the number — an editor that refreshes NOTHING passes
+## the first half trivially, and is a screen where the card face and the printed
+## text quietly stop matching the values under them.
+##
+## The stamp is the readout under test: an untouched card carries no CHANGED,
+## and one edit is enough to earn it.
+func _test_editing_a_card_does_not_destroy_the_control() -> void:
+	var edits: Node = root.get_node("CardEdits")
+	# From a clean slate, and put back afterwards: this writes a real mod pack to
+	# the user directory, exactly as the screen does for a player.
+	edits.revert_all()
+	content.reload()
+
+	var instance: Node = load("res://scenes/Library.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+
+	var spin := _first_of_class(instance.get("_editor_box"), "SpinBox") as SpinBox
+	if spin == null:
+		printerr("FAIL: the library's editor has no spin box to change")
+		instance.queue_free()
+		return
+	# A SPIN BOX CANNOT TAKE THE FOCUS — focus_mode NONE, and grab_focus() on it
+	# warns and does nothing. What a player is actually on is the LineEdit
+	# inside, which is what this has to hold on to.
+	var field_edit := spin.get_line_edit()
+	field_edit.grab_focus()
+	await process_frame
+	var held := field_edit.get_instance_id()
+
+	spin.value = spin.value + 1
+	for i in 4:
+		await process_frame
+
+	if not is_instance_id_valid(held):
+		printerr("FAIL: changing a card's number freed the control that changed it")
+	var owner := root.gui_get_focus_owner()
+	if owner == null or owner.get_instance_id() != held:
+		printerr("FAIL: changing a card's number moved the focus off the field being edited (now %s) — a keyboard player is thrown out of the panel on every press"
+			% ("nothing" if owner == null else owner.get_class()))
+
+	# I18n by node, not by bare name: an autoload's global identifier does not
+	# resolve in a `godot -s` script. See Content.gd's header.
+	var i18n: Node = root.get_node("I18n")
+	var changed_word: String = i18n.t("CHANGED")
+	var stamped := false
+	for node in _all_of(instance.get("_editor_box"), []):
+		if node is Label and (node as Label).text.contains(changed_word):
+			stamped = true
+			break
+	if not stamped:
+		printerr("FAIL: a card was edited and the editor never said CHANGED — the readouts do not follow the numbers under them")
+
+	instance.queue_free()
+	await process_frame
+	edits.revert_all()
+	content.reload()
+	print("--- editing a card leaves the control you are using alone ---")
 
 
 ## THE LIBRARY ALWAYS HAS A CARD OPEN, AND IT IS ONE THE LIST IS SHOWING.
