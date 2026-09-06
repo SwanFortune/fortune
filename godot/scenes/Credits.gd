@@ -13,7 +13,6 @@ extends Control
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
 
-const COLUMN_WIDTH := 780
 const SCROLL_STEP := 60
 
 var _return_scene: String = "res://scenes/HowToPlay.tscn"
@@ -27,6 +26,7 @@ func _ready() -> void:
 	root.add_child(m)
 	var outer := UIKit.vbox(12)
 	m.add_child(outer)
+	UIKit.page_column(outer)
 
 	outer.add_child(UIKit.block(I18n.t("CREDITS"), 26, UIKit.GOLD))
 	outer.add_child(UIKit.block(Version.full(), 12, UIKit.DIM))
@@ -35,7 +35,9 @@ func _ready() -> void:
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(_scroll)
 	var v := UIKit.vbox(6)
-	v.custom_minimum_size.x = COLUMN_WIDTH
+	# See UIKit.page_column: a scroll leaves its child at minimum width unless
+	# the child asks to fill, and a wrapping label's minimum is one character.
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(v)
 	# The same renderer as the rules screen: both are headed lists of lines, and
 	# two of them would drift apart the first time one was restyled.

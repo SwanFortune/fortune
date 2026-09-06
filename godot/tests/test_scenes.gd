@@ -189,8 +189,144 @@ func _visit_standalone() -> void:
 	await _test_the_rule_is_visible_and_the_flavour_is_not()
 	await _test_the_agenda_names_the_whole_hour()
 	await _test_a_readings_tally_reads_as_pairs()
+	await _test_the_reading_screens_are_centred()
+	await _test_the_library_always_shows_a_card()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
+
+
+## THE PAGES OF PROSE SIT IN THE MIDDLE OF THE SCREEN, AND ARE THE WIDTH THEY
+## MEANT TO BE.
+##
+## Two bugs, one measurement, and neither of them shows up in any test that only
+## asks whether a screen built:
+##
+##   1. the rules, the credits and the mods list all held their text to a
+##      readable measure and then pinned it to the left margin, so four hundred
+##      pixels of a 1280 canvas — and nine hundred of an ultrawide one — were
+##      empty while the words sat in the corner;
+##   2. the fix for that, on its first attempt, dropped the width the column was
+##      relying on, and a ScrollContainer leaves its child at minimum width
+##      unless the child asks to fill. Minimum width for a wrapping label is one
+##      character, so the whole rules screen came out as a vertical stripe of
+##      single letters. It still built. It still had every label, every string
+##      and every button, so a structural test called it fine.
+##
+## Both are the same measurement: where is the text, and how wide. The union of
+## the wrapping labels' rectangles gives it. Its centre must be near the canvas
+## centre — that is (1) — and its width must be a real measure rather than a
+## stripe or a full-bleed sprawl, which is (2) and also catches the original
+## bug's opposite, a page that gave up and used the whole window.
+##
+## Checked at the shipping canvas and at an ultrawide one, because the centring
+## has to survive a resize: it is recomputed on the parent's `resized` signal,
+## and a version that only ran once at build time would pass the first and fail
+## the second.
+const CENTRED_SLACK := 60.0
+
+func _test_the_reading_screens_are_centred() -> void:
+	var restore_size: Vector2i = root.size
+	var pages := {
+		"how to play": "res://scenes/HowToPlay.tscn",
+		"credits": "res://scenes/Credits.tscn",
+		"mods": "res://scenes/ModsScreen.tscn",
+	}
+	# The window the game ships at, and an ultrawide. With canvas_items stretch
+	# the second one buys canvas WIDTH, so it is the shape that makes an
+	# off-centre column look worst and the one a build-time-only fix fails at.
+	for window: Vector2i in [Vector2i(1280, 720), Vector2i(2560, 1080)]:
+		root.size = window
+		await process_frame
+		var canvas: Vector2 = root.get_visible_rect().size
+		for label: String in pages:
+			var instance: Node = load(pages[label]).instantiate()
+			root.add_child(instance)
+			for i in 3:
+				await process_frame
+			var box := Rect2()
+			var found := false
+			for node in _all_of(instance, []):
+				if not (node is Label):
+					continue
+				var l: Label = node
+				if l.autowrap_mode == TextServer.AUTOWRAP_OFF or l.text.strip_edges() == "":
+					continue
+				var r := Rect2(l.global_position, l.size)
+				box = r if not found else box.merge(r)
+				found = true
+			instance.queue_free()
+			await process_frame
+			if not found:
+				printerr("FAIL: %s at %dx%d has no wrapping text at all" % [label, window.x, window.y])
+				continue
+			var off: float = absf(box.get_center().x - canvas.x * 0.5)
+			if off > CENTRED_SLACK:
+				printerr("FAIL: %s at %dx%d puts its text %.0fpx off centre (column %.0f..%.0f in a %.0f-wide canvas) — the page reads as cropped"
+					% [label, window.x, window.y, off, box.position.x, box.end.x, canvas.x])
+			# A stripe of single letters at one end, a full-bleed page at the
+			# other. Both are pages nobody can read a line of.
+			if box.size.x < 400.0:
+				printerr("FAIL: %s at %dx%d is %.0fpx wide — the column collapsed to its minimum instead of holding a measure"
+					% [label, window.x, window.y, box.size.x])
+			elif box.size.x > canvas.x - 100.0:
+				printerr("FAIL: %s at %dx%d spans %.0fpx of a %.0f-wide canvas — the line is too long to read"
+					% [label, window.x, window.y, box.size.x, canvas.x])
+	root.size = restore_size
+	await process_frame
+	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## THE LIBRARY ALWAYS HAS A CARD OPEN, AND IT IS ONE THE LIST IS SHOWING.
+##
+## Half the screen is the editor, and it opened on "Pick a card on the left to
+## edit it." — six hundred pixels of black explaining that the screen is empty.
+## It also went back to that the moment a filter moved the selected card out of
+## the list, so choosing a pool you were not already looking at blanked the
+## editor with nothing said about why.
+##
+## The invariant that fixes both is one sentence: the selected card is a card
+## the list is currently showing. Checked at every pool, because the filters are
+## how the selection gets lost, and by reading the editor rather than the
+## variable — a selection the editor has not caught up with is the same bug from
+## the player's side.
+func _test_the_library_always_shows_a_card() -> void:
+	var edits: Node = root.get_node("CardEdits")
+	var instance: Node = load("res://scenes/Library.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+
+	var filters: Array = ["all"]
+	filters.append_array(edits.POOLS)
+	for pool: String in filters:
+		instance._pool_filter = pool
+		instance._rebuild_list()
+		await process_frame
+
+		var name: String = instance._selected_name
+		if name == "":
+			printerr("FAIL: the library shows no card at all with the '%s' filter" % pool)
+			continue
+		var listed := false
+		for r in instance._visible_rows():
+			if r["pool"] == instance._selected_pool and str(r["card"]["n"]) == name:
+				listed = true
+				break
+		if not listed:
+			printerr("FAIL: the library's '%s' filter leaves '%s' open in the editor, and that card is not in the list beside it"
+				% [pool, name])
+		# And the editor is actually showing it, not merely pointed at it.
+		var shown := false
+		for node in _all_of(instance._editor_box, []):
+			if node is Label and (node as Label).text.contains(name):
+				shown = true
+				break
+		if not shown:
+			printerr("FAIL: with the '%s' filter the library has '%s' selected but its editor does not name it — the right-hand half is blank or stale"
+				% [pool, name])
+	instance.queue_free()
+	await process_frame
+	print("--- the library always has a card open, from the list beside it ---")
 
 
 ## The rules screen explains the element wheel, and a rules screen that

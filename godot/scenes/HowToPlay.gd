@@ -18,11 +18,6 @@ extends Control
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
 
-## A comfortable measure for prose. The rest of the game is columns and lists
-## that want the whole window; this is the only screen that is paragraphs, and
-## a paragraph 1900px wide is one your eye loses its place in.
-const COLUMN_WIDTH := 780
-
 ## How far one press of up/down moves the page. See _unhandled_input.
 const SCROLL_STEP := 60
 
@@ -39,6 +34,7 @@ func _ready() -> void:
 	root.add_child(m)
 	var outer := UIKit.vbox(12)
 	m.add_child(outer)
+	UIKit.page_column(outer)
 
 	outer.add_child(UIKit.block(I18n.t("HOW TO PLAY"), 26, UIKit.GOLD))
 
@@ -46,8 +42,9 @@ func _ready() -> void:
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	outer.add_child(_scroll)
 	var v := UIKit.vbox(6)
-	v.custom_minimum_size.x = COLUMN_WIDTH
-	v.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	# Without this the scroll leaves the column at its own minimum width, which
+	# for wrapping labels is about one character. See UIKit.page_column.
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(v)
 	build_into(v)
 

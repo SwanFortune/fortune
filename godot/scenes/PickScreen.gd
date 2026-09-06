@@ -76,7 +76,7 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		lines.append([UIKit.card_text(c), 12, UIKit.INK])
 		thumb = UIKit.art_well(Art.card_texture(c), afford, 0.75)
 		if c.get("fl", "") != "":
-			lines.append([c["fl"], 11, UIKit.DIM])
+			lines.append([I18n.card_flavor(c), 11, UIKit.DIM])
 		tooltip = UIKit.card_keyword_tooltip(c)
 	elif o.has("mark"):
 		var mk: Dictionary = o["mark"]

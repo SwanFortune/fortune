@@ -662,6 +662,50 @@ static func caption_width() -> float:
 	return 190.0 * text_scale
 
 
+## A comfortable measure for prose: past roughly this width the eye loses the
+## start of the next line. The rules, the credits and the mods list are the only
+## screens that are paragraphs rather than columns of play, and all three want
+## the same measure.
+const READING_MEASURE := 780.0
+
+
+## Centres a whole page — heading, body and buttons — instead of anchoring it to
+## the left margin.
+##
+## Every reading screen already held its text to READING_MEASURE, which is the
+## right call, but held it in the left corner: on a 1280 canvas that left four
+## hundred pixels of nothing down the right-hand side, and an ultrawide window
+## grew the emptiness while the words stayed where they were. The page looked
+## cropped rather than composed.
+##
+## One of these screens had already set SIZE_SHRINK_CENTER on the text column
+## and it did nothing, which is the trap worth writing down: **ScrollContainer
+## does not centre its child.** It reads the horizontal size flag only to decide
+## whether to stretch the child to its own width (EXPAND_FILL) or leave it at
+## its minimum — the alignment half of SHRINK_CENTER is dropped, so the column
+## sat at the left edge with the flag set. Centring therefore has to happen
+## ABOVE the scroll — on the page vbox inside the MarginContainer, which is a
+## plain Container and does honour it. Doing it there also moves the heading and
+## the buttons with
+## the text, which is what makes it read as one column rather than three things
+## that happen to be near each other, and puts the scrollbar at the column's
+## edge instead of the screen's.
+##
+## The measure scales with text_scale (a 30% larger font wants a proportionally
+## wider line) and is clamped to the room actually available, so a canvas
+## narrower than the measure gives up the centring rather than overflowing.
+static func page_column(page: Control, measure: float = READING_MEASURE) -> void:
+	page.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	var fit := func() -> void:
+		var room: float = page.get_parent_area_size().x
+		var want := measure * text_scale
+		page.custom_minimum_size.x = minf(want, room) if room > 0.0 else want
+	fit.call()
+	var parent := page.get_parent()
+	if parent is Control:
+		(parent as Control).resized.connect(fit)
+
+
 ## A labelled row: caption on the left at a fixed width, `control` after it.
 ## The three setting_* helpers below all start this way; having it once means a
 ## row cannot drift out of alignment with its neighbours.

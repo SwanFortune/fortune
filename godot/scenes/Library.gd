@@ -147,6 +147,18 @@ func _pool_label(pool: String) -> String:
 	return pool
 
 
+## The card's rarity word, in the player's language.
+##
+## It was printed straight from the data, so a French library read "Bases ·
+## basic" — and it was in no checklist to catch, because the scraper only sees
+## literal I18n.t("…") calls and this is a value, not a literal. The keys come
+## from the template generator walking the cards themselves, which is also what
+## gives a mod's invented rarity a key.
+func _rarity(c: Dictionary) -> String:
+	var r := str(c.get("r", ""))
+	return I18n.t(r) if r != "" else "?"
+
+
 func _cards_for_pool(pool: String) -> Array:
 	return Content.registries.get(pool, [])
 
@@ -175,7 +187,15 @@ func _rebuild_list() -> void:
 	var rows := _visible_rows()
 	if rows.is_empty():
 		_list_box.add_child(UIKit.block(I18n.t("Nothing matches those filters."), 12, UIKit.DIM))
+		# The editor keeps whatever was last selected: the filters narrow the
+		# LIST, and blanking the card you were working on because you typed a
+		# letter in the search box would be its own small betrayal.
 		return
+	# BEFORE the rows are built, not after: each row is drawn knowing whether it
+	# is the selected one, so settling the selection afterwards would leave the
+	# accent a rebuild behind — visible as a library that opens with a card in
+	# the editor and nothing marked in the list.
+	_keep_a_card_selected(rows)
 	for r in rows:
 		var c: Dictionary = r["card"]
 		var pool: String = r["pool"]
@@ -187,17 +207,88 @@ func _rebuild_list() -> void:
 			[name_line, 14, UIKit.GOLD if edited else el_c],
 			# Through card_price(), so the Library says a card's two numbers in
 			# the same words the reward screen and the hand's tooltip do.
-			["%s · %s · %s" % [_pool_label(pool), c.get("r", "?"), UIKit.card_price(c)], 11, UIKit.DIM],
+			["%s · %s · %s" % [_pool_label(pool), _rarity(c), UIKit.card_price(c)], 11, UIKit.DIM],
 			[UIKit.card_text(c), 11, UIKit.INK],
 		]
-		_list_box.add_child(UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
-			I18n.t("● marks a card you've changed") if edited else ""))
+		# The selected row is lit at its edge. There is always one now, and
+		# without a mark on it the list and the editor look like two unrelated
+		# halves of a screen — you can read a card's numbers on the right with no
+		# way to see which of the sixty rows on the left they belong to.
+		var selected := pool == _selected_pool and str(c["n"]) == _selected_name
+		# The element's colour where there is one — it says which card is selected
+		# and reminds you what it is in the same stroke. The elementless cards
+		# (most of the basics) fall back to ink rather than to the dim grey their
+		# names are printed in, which at the border's alpha is not a mark at all.
+		var sel_c: Color = el_c if el != null and el != "" else UIKit.INK
+		var row := UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
+			I18n.t("● marks a card you've changed") if edited else "", null,
+			sel_c if selected else Color(0, 0, 0, 0))
+		row.set_meta(ROW_KEY, _key(pool, str(c["n"])))
+		_list_box.add_child(row)
+
+
+## Keeps the right-hand half of the screen showing a card.
+##
+## It opened on "Pick a card on the left to edit it." — one line of grey in six
+## hundred pixels of nothing, which is half the screen spent explaining that the
+## screen is empty. Worse, it stayed empty every time a filter moved the
+## selected card out of the list, so narrowing to a pool you were not looking at
+## blanked the editor with no explanation.
+##
+## So the list always has one card selected: the one you picked if the filters
+## still show it, and otherwise the first row. Nothing is written by selecting —
+## the editor is a view until a number is changed — so opening onto a real card
+## costs nothing and shows a newcomer what the screen is for.
+func _keep_a_card_selected(rows: Array) -> void:
+	for r in rows:
+		if r["pool"] == _selected_pool and r["card"]["n"] == _selected_name:
+			return
+	_selected_pool = rows[0]["pool"]
+	_selected_name = rows[0]["card"]["n"]
+	_rebuild_editor()
+
+
+## Which card a list row stands for, so the row can be found again after the
+## list is rebuilt. See _select.
+const ROW_KEY := "library_card"
+
+
+func _key(pool: String, card_name: String) -> String:
+	return pool + "|" + card_name
 
 
 func _select(pool: String, card_name: String) -> void:
 	_selected_pool = pool
 	_selected_name = card_name
+	# The list is rebuilt, not just repainted. The accent on the selected row is
+	# baked in when the row is built — make_interactive captures the border
+	# colour it was given and restores that on focus_exited, so a colour written
+	# onto a live row afterwards survives exactly until the next time focus
+	# leaves it. Rebuilding is honest and cheap; the list already rebuilds on
+	# every keystroke in the search box.
+	_rebuild_list()
 	_rebuild_editor()
+	_focus_selected_row()
+
+
+## Puts the keyboard back where it was.
+##
+## Selecting a card destroys the row that was pressed, and with it the focus —
+## which for a mouse player is invisible and for a keyboard player means the
+## list stops responding to the arrow keys the moment they choose anything. The
+## replacement row for the same card is the right place to land.
+##
+## The freed rows are still children until the end of the frame, so the ones on
+## their way out have to be skipped or focus goes to a node that is about to
+## stop existing.
+func _focus_selected_row() -> void:
+	var want := _key(_selected_pool, _selected_name)
+	for row in _list_box.get_children():
+		if row.is_queued_for_deletion() or not row.has_meta(ROW_KEY):
+			continue
+		if str(row.get_meta(ROW_KEY)) == want and row is Control:
+			(row as Control).grab_focus()
+			return
 
 
 func _refresh_summary() -> void:
@@ -230,11 +321,25 @@ func _rebuild_editor() -> void:
 
 	var el = c.get("el")
 	var el_c: Color = UIKit.el_color(el) if el != null and el != "" else UIKit.DIM
-	_editor_box.add_child(UIKit.block(UIKit.card_summary(c), 20, el_c))
-	_editor_box.add_child(UIKit.block("%s · %s%s" % [
-		_pool_label(_selected_pool), c.get("r", "?"),
+
+	# The card as it is actually dealt, beside its numbers. Every other line here
+	# describes the card in words; this is the object, at the size and with the
+	# art well it has in the hand, so a change to a cost or an element can be
+	# seen landing on the thing rather than only read back as a sentence. Shown
+	# as an illustration — it takes neither the pointer nor a focus stop, which
+	# would otherwise sit between the list and the first spin box.
+	var heading := UIKit.hbox(14)
+	heading.add_child(UIKit.card_face(c, Callable(), true, false))
+	var titles := UIKit.vbox(4)
+	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	titles.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	titles.add_child(UIKit.block(UIKit.card_summary(c), 20, el_c))
+	titles.add_child(UIKit.block("%s · %s%s" % [
+		_pool_label(_selected_pool), _rarity(c),
 		"  ·  " + I18n.t("CHANGED") if CardEdits.has_edit(_selected_pool, c["n"]) else "",
 	], 11, UIKit.GOLD if CardEdits.has_edit(_selected_pool, c["n"]) else UIKit.DIM))
+	heading.add_child(titles)
+	_editor_box.add_child(heading)
 
 	# Which pack this card came from, when it is not the base game's. The stamp
 	# is put on by ModLoader; showing it here answers the question a player with
@@ -250,7 +355,7 @@ func _rebuild_editor() -> void:
 	_editor_box.add_child(UIKit.block(I18n.t("READS AS"), 11, UIKit.DIM))
 	_editor_box.add_child(preview)
 	if c.get("fl", "") != "":
-		_editor_box.add_child(UIKit.block(c["fl"], 11, UIKit.DIM))
+		_editor_box.add_child(UIKit.block(I18n.card_flavor(c), 11, UIKit.DIM))
 
 	_editor_box.add_child(_gap())
 	_editor_box.add_child(UIKit.block(I18n.t("CORE"), 11, UIKit.GOLD))
@@ -338,7 +443,7 @@ func _int_row(c: Dictionary, field: String, caption: String, lo: int, hi: int) -
 func _effect_row(c: Dictionary, e: Dictionary) -> Control:
 	var field: String = e["k"]
 	var row := UIKit.hbox(10)
-	row.tooltip_text = "%s N %s" % [e.get("pre", ""), e.get("post", "")]
+	row.tooltip_text = _effect_hint(e)
 
 	var cap := UIKit.label(field, 12, UIKit.INK if c.has(field) else UIKit.DIM)
 	cap.custom_minimum_size.x = 150
@@ -364,10 +469,32 @@ func _effect_row(c: Dictionary, e: Dictionary) -> Control:
 		use.custom_minimum_size = Vector2(52, 28)
 		row.add_child(use)
 
-	var hint := UIKit.label("%s %s %s" % [e.get("pre", ""), "N", e.get("post", "")], 11, UIKit.DIM)
+	var hint := UIKit.label(_effect_hint(e), 11, UIKit.DIM)
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(hint)
 	return row
+
+
+## What an effect makes a card say, as the card will actually say it.
+##
+## This used to be assembled from the registry's `pre`/`post` fragments — "Draw
+## N cards." — which read as English in a French build and, worse, was a SECOND
+## description of every effect, kept beside the one Rules.auto_text() prints on
+## the card. The two could disagree and nobody would notice; the fragments are
+## the prototype's, and auto_text has been rewritten around whole translatable
+## sentences since.
+##
+## So the hint is auto_text itself, run on a bare card carrying only this
+## effect at its registry-suggested amount. One source for the wording, already
+## translated, and it cannot drift from the card because it IS the card's text.
+## An effect auto_text does not know — a field a mod invented — yields nothing,
+## and only then do the fragments stand in.
+func _effect_hint(e: Dictionary) -> String:
+	var amount := int(e.get("d", 1))
+	var said := Rules.auto_text({e["k"]: maxi(amount, 1)})
+	if said.strip_edges() != "":
+		return said
+	return "%s %s %s" % [e.get("pre", ""), "N", e.get("post", "")]
 
 
 func _flag_row(c: Dictionary, field: String, caption: String) -> Control:

@@ -68,7 +68,7 @@ func _test_every_t_call_is_on_the_checklist() -> void:
 		return
 	var missing: Array[String] = []
 	for path in _gd_files("res://scenes") + _gd_files("res://autoload"):
-		for literal in _t_literals(FileAccess.get_file_as_string(path)):
+		for literal in _t_literals(_code_only(FileAccess.get_file_as_string(path))):
 			if not table.has("ui/" + literal):
 				missing.append("%s: \"%s\"" % [path.get_file(), literal.substr(0, 60)])
 	if not missing.is_empty():
@@ -102,6 +102,48 @@ func _t_literals(text: String) -> Array[String]:
 		if s != "":
 			out.append(s)
 	return out
+
+
+## The source with its comments blanked out.
+##
+## The scrape below looks for the characters `I18n.t("`, and a comment that
+## MENTIONS the idiom is indistinguishable from a call that uses it. That is not
+## hypothetical: a doc comment written while fixing something else put the key
+## `ui/…` into the template, and the same trick works in reverse — a plausible
+## line in a comment can stand in for a call that is missing, which is exactly
+## what this checklist exists to notice.
+##
+## Comments are blanked rather than cut out so every offset in the file stays
+## where it was, and the scan is string-aware: `#` is an ordinary character
+## inside a literal, and cutting at the first one would silently drop any call
+## further along the same line.
+##
+## The other half of this pair (tests/test_i18n.gd and tests/gen_locale_template.gd)
+## carries the same function on purpose — the test is a second opinion on the
+## generator, and a second opinion that shares its code is not one.
+static func _code_only(text: String) -> String:
+	var lines := text.split("\n")
+	for n in lines.size():
+		var line: String = lines[n]
+		var in_str := false
+		var quote := ""
+		var i := 0
+		while i < line.length():
+			var c := line[i]
+			if in_str:
+				if c == "\\":
+					i += 2
+					continue
+				if c == quote:
+					in_str = false
+			elif c == "\"" or c == "'":
+				in_str = true
+				quote = c
+			elif c == "#":
+				lines[n] = line.substr(0, i) + " ".repeat(line.length() - i)
+				break
+			i += 1
+	return "\n".join(lines)
 
 
 func _gd_files(dir_path: String) -> Array[String]:
@@ -198,6 +240,20 @@ func _test_template_covers_runtime_ids() -> void:
 	for sg in content.signs:
 		if not src.has("sign/%s/rule" % sg["k"]):
 			missing.append("sign/" + str(sg["k"]))
+	# The rarity words — "basic", "common", "uncommon", "rare" — which are
+	# printed beside every card in the Library and on every reward row, and were
+	# on no list of any kind: not the scrape (they reach I18n.t as a value, not a
+	# literal) and not the hand list. A French player read "Bases · basic". The
+	# vocabulary lives in the cards, so the check has to come from the cards too;
+	# a list typed here would be the same kind of thing that failed.
+	for pool in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+		for c in content.registries.get(pool, []):
+			# Deduplicated: there are four rarity words and sixty cards, and a
+			# failure that names "ui/basic" eight times has spent its whole
+			# message saying one thing.
+			var r := str(c.get("r", ""))
+			if r != "" and not src.has("ui/" + r) and not missing.has("ui/" + r):
+				missing.append("ui/" + r)
 	check(missing.is_empty(), "template is missing ids: %s" % ", ".join(missing.slice(0, 8)))
 
 

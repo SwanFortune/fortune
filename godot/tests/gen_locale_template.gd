@@ -109,6 +109,13 @@ func _collect_sources() -> Dictionary:
 			var id: String = art.card_id(c)
 			_put(src, id + "/n", c.get("n", ""))
 			_put(src, id + "/fl", c.get("fl", ""))
+			# The rarity word, which is printed beside the card in the Library and
+			# on every reward row and was in no list at all — a French player read
+			# "Bases · basic". Collected from the cards rather than typed out here,
+			# so a pack that invents a rarity gets a key for it without editing
+			# this file. It goes in under ui/ because it IS ui vocabulary: the
+			# English word is the key, same as every I18n.t() string.
+			_put(src, "ui/" + str(c.get("r", "")), c.get("r", ""))
 	for r in content.readers:
 		var rid: String = art.reader_id(r)
 		_put(src, rid + "/name", r.get("name", ""))
@@ -215,7 +222,7 @@ func _scraped_ui_strings() -> Array[String]:
 	var seen := {}
 	for dir_path in ["res://scenes", "res://autoload"]:
 		for path in _gd_files(dir_path):
-			var text := FileAccess.get_file_as_string(path)
+			var text := _code_only(FileAccess.get_file_as_string(path))
 			var at := 0
 			while true:
 				var call_at := text.find("I18n.t(\"", at)
@@ -241,6 +248,48 @@ func _scraped_ui_strings() -> Array[String]:
 					out.append(s)
 	out.sort()
 	return out
+
+
+## The source with its comments blanked out.
+##
+## The scrape below looks for the characters `I18n.t("`, and a comment that
+## MENTIONS the idiom is indistinguishable from a call that uses it. That is not
+## hypothetical: a doc comment written while fixing something else put the key
+## `ui/…` into the template, and the same trick works in reverse — a plausible
+## line in a comment can stand in for a call that is missing, which is exactly
+## what this checklist exists to notice.
+##
+## Comments are blanked rather than cut out so every offset in the file stays
+## where it was, and the scan is string-aware: `#` is an ordinary character
+## inside a literal, and cutting at the first one would silently drop any call
+## further along the same line.
+##
+## The other half of this pair (tests/test_i18n.gd and tests/gen_locale_template.gd)
+## carries the same function on purpose — the test is a second opinion on the
+## generator, and a second opinion that shares its code is not one.
+static func _code_only(text: String) -> String:
+	var lines := text.split("\n")
+	for n in lines.size():
+		var line: String = lines[n]
+		var in_str := false
+		var quote := ""
+		var i := 0
+		while i < line.length():
+			var c := line[i]
+			if in_str:
+				if c == "\\":
+					i += 2
+					continue
+				if c == quote:
+					in_str = false
+			elif c == "\"" or c == "'":
+				in_str = true
+				quote = c
+			elif c == "#":
+				lines[n] = line.substr(0, i) + " ".repeat(line.length() - i)
+				break
+			i += 1
+	return "\n".join(lines)
 
 
 func _gd_files(dir_path: String) -> Array[String]:

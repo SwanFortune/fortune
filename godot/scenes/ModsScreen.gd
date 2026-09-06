@@ -17,6 +17,11 @@ extends Control
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
 
+## Wider than the prose measure the rules and credits use: half of what is on
+## this screen is file paths, pack ids and folder locations, which do not wrap
+## gracefully and are read by scanning rather than by reading a line at a time.
+const MEASURE := 960.0
+
 var _return_scene: String = "res://scenes/MainMenu.tscn"
 
 
@@ -34,6 +39,7 @@ func _build() -> void:
 	root.add_child(m)
 	var outer := UIKit.vbox(10)
 	m.add_child(outer)
+	UIKit.page_column(outer, MEASURE)
 
 	outer.add_child(UIKit.block(I18n.t("MODS"), 26, UIKit.GOLD))
 	outer.add_child(UIKit.block(
@@ -91,9 +97,7 @@ func _pack_row(p: Dictionary, order: int) -> Control:
 		], 11, UIKit.DIM],
 	]
 	if enabled and int(p.get("records", 0)) > 0:
-		lines.append([I18n.t("%s record(s) in %s") % [
-			p.get("records", 0), ", ".join(p.get("categories", []))
-		], 11, UIKit.DIM])
+		lines.append([_records_line(p), 11, UIKit.DIM])
 	elif not enabled:
 		lines.append([I18n.t("Switched off — nothing from this pack is loaded."), 11, UIKit.RED])
 	var desc := str(p.get("description", ""))
@@ -109,6 +113,26 @@ func _pack_row(p: Dictionary, order: int) -> Control:
 
 	lines.append([I18n.t("TURN OFF") if enabled else I18n.t("TURN ON"), 12, UIKit.GOLD])
 	return UIKit.panel_button(lines, func(): _toggle(str(p.get("id", ""))))
+
+
+## Beyond this many categories the list stops being information and becomes a
+## dump. See _records_line.
+const CATEGORIES_SHOWN := 6
+
+
+## What a pack put into the game.
+##
+## For a mod this is the single most useful line on the screen — "2 record(s) in
+## cards_minor, readers" tells you exactly what it touches. For the base pack it
+## was two wrapped lines naming all twenty-four internal tables, from `ring` and
+## `opp` to `minitel_codes`, which is a debug print with a player-facing screen
+## around it: the base pack defines everything, so listing everything says
+## nothing. Past a handful of categories the count is the whole message.
+func _records_line(p: Dictionary) -> String:
+	var cats: Array = p.get("categories", [])
+	if cats.size() > CATEGORIES_SHOWN:
+		return I18n.t("%s record(s) across %s kinds of content") % [p.get("records", 0), cats.size()]
+	return I18n.t("%s record(s) in %s") % [p.get("records", 0), ", ".join(cats)]
 
 
 func _source_label(source: String) -> String:
