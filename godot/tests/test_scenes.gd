@@ -193,6 +193,7 @@ func _visit_standalone() -> void:
 	await _test_the_library_always_shows_a_card()
 	await _test_editing_a_card_does_not_destroy_the_control()
 	await _test_a_screen_opens_at_the_top_and_the_wheel_moves_it()
+	await _test_the_very_first_launch()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -276,6 +277,64 @@ func _test_the_reading_screens_are_centred() -> void:
 	root.size = restore_size
 	await process_frame
 	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## THE STATE EVERY PLAYER SEES FIRST, AND THE ONLY ONE NEVER RENDERED.
+##
+## Every screen in this file was built against a profile with forty-five runs in
+## it, because that is the profile this machine has. Nobody's first launch looks
+## like that: no runs finished, no readers taken to the end, no best of anything,
+## no difficulty ever cleared. That is the state where a per-run average divides
+## by zero, where "the hardest week you have finished" names a rung nobody has
+## cleared, and where a page of records is a page of noughts.
+##
+## So: the profile is emptied, every screen that reads it is built, and the
+## records page is asked to admit that it is empty. The suite's runner fails on
+## any unexpected ERROR line, so a division by zero or a null in a fresh-profile
+## branch is caught by building the screen at all — which is the point, since
+## none of these screens had ever been built this way.
+##
+## The profile is put back afterwards, values and all. It is the player's real
+## file on a real machine, and a test that costs somebody forty-five evenings is
+## not a test anybody will run twice.
+func _test_the_very_first_launch() -> void:
+	var profile: Node = root.get_node("Profile")
+	var kept: Dictionary = profile._values.duplicate(true)
+	profile._values.clear()
+
+	var screens := {
+		"records": "res://scenes/Records.tscn",
+		"main menu": "res://scenes/MainMenu.tscn",
+		"sign": "res://scenes/SignSelect.tscn",
+		"credits": "res://scenes/Credits.tscn",
+	}
+	run.state = run.fresh()
+	for label: String in screens:
+		var instance: Node = load(screens[label]).instantiate()
+		root.add_child(instance)
+		for i in 3:
+			await process_frame
+		_check_focus("first launch: " + label, instance)
+		if label == "records":
+			var i18n: Node = root.get_node("I18n")
+			var empty_line: String = i18n.t("Nothing here yet. The first evening you see through writes this page.")
+			var said := false
+			for node in _all_of(instance, []):
+				if node is Label and (node as Label).text == empty_line:
+					said = true
+					break
+			if not said:
+				printerr("FAIL: on a fresh profile the records page shows a dozen noughts and does not say it is empty")
+			# And it must not report a difficulty as cleared when none has been.
+			var hardest := _row_text(instance, i18n.t("Hardest week finished"))
+			if hardest.contains("0 ·"):
+				printerr("FAIL: a fresh profile's records claim a hardest week finished (%s) when no run has been finished at all" % hardest)
+		instance.queue_free()
+		await process_frame
+
+	profile._values = kept
+	profile.save_to_disk()
+	print("--- the screens a first launch shows are built and honest ---")
 
 
 ## A SCREEN OPENS AT THE TOP OF ITSELF, AND THE WHEEL MOVES IT.

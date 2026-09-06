@@ -47,6 +47,17 @@ func _ready() -> void:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_scroll.add_child(v)
 
+	# SAID ONCE, AT THE TOP, when there is genuinely nothing to report. A page of
+	# a dozen zeros is not wrong, but it reads as a scoreboard rather than as an
+	# empty one, and "Hardest week finished — 0 · AN ORDINARY WEEK" on a profile
+	# that has finished nothing reads as an achievement. The table stays: it says
+	# what the game is going to keep track of, which is worth knowing before you
+	# have any of it.
+	if _nothing_yet():
+		v.add_child(UIKit.block(
+			I18n.t("Nothing here yet. The first evening you see through writes this page."),
+			13, UIKit.DIM))
+
 	v.add_child(_streaks())
 	v.add_child(_tallies())
 	v.add_child(_the_readers())
@@ -94,6 +105,15 @@ func _streak_card(key: String, caption: String, under: String, tint: Color) -> C
 
 ## The totals. Two columns of label-and-number, because a wall of them in one
 ## column is a receipt.
+## Nothing recorded at all — not merely no run FINISHED. Somebody halfway
+## through their first evening has sat down with three people, and telling them
+## the page is empty while it is already filling in would be its own small lie.
+func _nothing_yet() -> bool:
+	return int(Profile.get_stat("runs_finished")) == 0 \
+		and int(Profile.get_stat("total_mended")) == 0 \
+		and int(Profile.get_stat("total_left")) == 0
+
+
 func _tallies() -> Control:
 	var finished := int(Profile.get_stat("runs_finished"))
 	var won := int(Profile.get_stat("runs_won"))
@@ -123,7 +143,11 @@ func _tallies() -> Control:
 		[I18n.t("Went home whole"), str(mended)],
 		[I18n.t("Went home as they came"), str(left)],
 		[I18n.t("Most faith in one evening"), str(int(Profile.get_stat("best_faith")))],
-		[I18n.t("Hardest week finished"), "%d · %s" % [level, I18n.t(level_name)]],
+		# A dash until one has actually been finished. "0 · AN ORDINARY WEEK" is
+		# the name of the rung nobody has cleared yet, printed where the hardest
+		# one cleared belongs, and it reads as a result rather than as a blank.
+		[I18n.t("Hardest week finished"),
+			"%d · %s" % [level, I18n.t(level_name)] if finished > 0 else "—"],
 		[I18n.t("Minitel codes dialled"), str((Profile.get_stat("codes_entered") as Array).size())],
 	]:
 		grid.add_child(_tally(str(line[0]), str(line[1])))
