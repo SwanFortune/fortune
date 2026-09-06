@@ -192,6 +192,7 @@ func _visit_standalone() -> void:
 	await _test_the_reading_screens_are_centred()
 	await _test_the_library_always_shows_a_card()
 	await _test_editing_a_card_does_not_destroy_the_control()
+	await _test_a_screen_opens_at_the_top_and_the_wheel_moves_it()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -275,6 +276,98 @@ func _test_the_reading_screens_are_centred() -> void:
 	root.size = restore_size
 	await process_frame
 	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## A SCREEN OPENS AT THE TOP OF ITSELF, AND THE WHEEL MOVES IT.
+##
+## Two claims nobody had ever asked out loud, both broken, and the first one by
+## the fix for something else. Turning on ScrollContainer.follow_focus — which a
+## keyboard player needs, since Godot will not hand focus to a control that is
+## off screen — made every long screen open somewhere other than its beginning:
+## focus_first defers itself by a frame, which is enough for the tree but not
+## for a GridContainer still working out how tall thirteen reader tiles in two
+## columns are, so the scroll measured against a height it was about to outgrow
+## and clamped to the far end. The sign screen opened on readers seven to
+## thirteen with the FIRST one focused ninety pixels above the top edge. The
+## mods screen opened with its first pack's title cut off.
+##
+## Neither shows up in a test that builds a screen and reads its labels: every
+## string was there, correct and translated, on a page nobody would have
+## scrolled back up.
+##
+## The wheel half is here because it is the other way a player moves a long
+## page and the arrow keys are the only one the suite had ever pressed. A screen
+## whose scroll is driven entirely by focus would pass every other check and be
+## unusable with a mouse.
+func _test_a_screen_opens_at_the_top_and_the_wheel_moves_it() -> void:
+	var pages := {
+		"sign": "res://scenes/SignSelect.tscn",
+		"mods": "res://scenes/ModsScreen.tscn",
+		"library": "res://scenes/Library.tscn",
+		"how to play": "res://scenes/HowToPlay.tscn",
+		"credits": "res://scenes/Credits.tscn",
+		"records": "res://scenes/Records.tscn",
+	}
+	run.state = run.fresh()
+	# A REAL CANVAS. Headless starts 64px wide, and earlier tests in this sweep
+	# set and restore their own window — so without this the scroll's rect is a
+	# few pixels across, the wheel event is pushed at a point outside it, and the
+	# page reports itself unscrollable by mouse when it is not. Measured: the
+	# same two screens passed standalone and failed inside the sweep.
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(1280, 720)
+	await process_frame
+	for label: String in pages:
+		var instance: Node = load(pages[label]).instantiate()
+		root.add_child(instance)
+		# Five, not two: focus_first defers, and the scroll it corrects defers
+		# once more behind it. Reading at four frames measured the wrong number.
+		for i in 5:
+			await process_frame
+
+		var scroll := _tallest_scroll(instance)
+		if scroll == null:
+			printerr("FAIL: %s has no scrolling region — this test is measuring the wrong screen" % label)
+			instance.queue_free()
+			await process_frame
+			continue
+		var over: float = scroll.get_v_scroll_bar().max_value - scroll.size.y
+		if scroll.scroll_vertical != 0:
+			printerr("FAIL: %s opens %dpx down its own content (of %dpx scrollable) — the top of the page is above the screen before the player has touched anything"
+				% [label, scroll.scroll_vertical, int(over)])
+		if over <= 0.0:
+			# Nothing to scroll: the wheel has nothing to prove here.
+			instance.queue_free()
+			await process_frame
+			continue
+
+		var before := scroll.scroll_vertical
+		var wheel := InputEventMouseButton.new()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = true
+		wheel.position = scroll.get_global_rect().get_center()
+		wheel.global_position = wheel.position
+		root.push_input(wheel)
+		for i in 3:
+			await process_frame
+		if scroll.scroll_vertical <= before:
+			printerr("FAIL: the wheel does nothing on %s — %dpx of it are below the fold and a mouse cannot reach them"
+				% [label, int(over)])
+		instance.queue_free()
+		await process_frame
+	root.size = restore_size
+	await process_frame
+	print("--- every long screen opens at its top, and the wheel moves it ---")
+
+
+## The scrolling region a player would call "the page" — the biggest one, since
+## the Library has two side by side and the smaller is the editor.
+func _tallest_scroll(node: Node) -> ScrollContainer:
+	var best: ScrollContainer = null
+	for n in _all_of(node, []):
+		if n is ScrollContainer and (best == null or (n as ScrollContainer).size.y > best.size.y):
+			best = n
+	return best
 
 
 ## CHANGING A NUMBER DOES NOT DESTROY THE CONTROL YOU CHANGED IT WITH.

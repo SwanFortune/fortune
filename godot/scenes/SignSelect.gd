@@ -133,6 +133,18 @@ func _before_you_start() -> Control:
 		row.add_child(down)
 		row.add_child(what)
 		row.add_child(up)
+		# WIRED TO EACH OTHER BY HAND, which is not decoration. Godot's own
+		# directional search from + going left picks the SEED FIELD on the row
+		# below: that field's rect overlaps the + horizontally, so "left" finds
+		# it at almost no distance while − sits 240px away on the far side of the
+		# difficulty's name. Measured by walking the screen with real key
+		# presses — NOTHING on it could reach −, from any direction, so the
+		# ladder only ever went up for a player without a mouse.
+		#
+		# After both are in the row, not before: a relative path between two
+		# nodes that do not share a parent yet is not a path to anything.
+		down.focus_neighbor_right = down.get_path_to(up)
+		up.focus_neighbor_left = up.get_path_to(down)
 		box.add_child(row)
 		box.add_child(explain)
 		show.call()

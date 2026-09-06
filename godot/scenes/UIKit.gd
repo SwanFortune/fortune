@@ -396,6 +396,14 @@ static func scroll() -> ScrollContainer:
 	# stretches this to its own width instead of shrinking to content.
 	s.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# SCROLLS TO WHATEVER TAKES THE FOCUS. Godot leaves this off, and off means a
+	# list only ever shows the rows it happened to start on: focus moves down
+	# past the fold, the view does not follow, and Godot's own directional search
+	# then refuses to hand focus to a control that is not on screen. So the ring
+	# closes early. Measured by walking every screen with real key presses — 63
+	# of the Library's 80 controls and the last four readers on the sign screen
+	# could not be reached at all without a mouse.
+	s.follow_focus = true
 	return s
 
 
@@ -524,11 +532,53 @@ static func _focus_first_now(node: Node) -> bool:
 		var usable: bool = not (c is BaseButton and (c as BaseButton).disabled)
 		if c.focus_mode == Control.FOCUS_ALL and c.is_visible_in_tree() and usable:
 			c.grab_focus()
+			_settle_the_scroll(c)
 			return true
 	for child in node.get_children():
 		if _focus_first_now(child):
 			return true
 	return false
+
+
+## Scrolls to the freshly focused control ONCE THE LAYOUT IS FINAL.
+##
+## ScrollContainer.follow_focus does this itself the moment focus arrives, and
+## the moment focus arrives is too early: focus_first defers itself by a frame,
+## which is enough for the tree but not for a GridContainer that has not yet
+## worked out how tall thirteen reader tiles in two columns are. The scroll
+## therefore measures itself against a content height it is about to outgrow,
+## clamps, and lands at the far end — measured, the sign screen opened on
+## readers seven to thirteen with the FIRST one focused ninety pixels above the
+## top edge, and the mods screen opened at its own bottom.
+##
+## Re-asking alone does not fix it, and the reason is worth writing down:
+## ensure_control_visible does NOTHING when the control is already on screen, so
+## on the mods screen — where the first focusable pack is the second one, and
+## visible from the top — the stale scroll simply stayed, and the screen opened
+## with its first pack's title cut off above the edge. So the view is put back
+## to the top FIRST and then asked to show the focused control. A screen opens
+## at its top; that is the whole rule. Where the first focusable control really
+## is below the fold, the second half scrolls to it, which is also right.
+static func _settle_the_scroll(c: Control) -> void:
+	var scroll: ScrollContainer = null
+	var n: Node = c.get_parent()
+	while n != null:
+		if n is ScrollContainer:
+			scroll = n
+			break
+		n = n.get_parent()
+	if scroll == null:
+		return
+	# Bound to the scroll, so Godot drops it if the screen is gone by then —
+	# see after()'s comment for why this is a connection and not a lambda.
+	tree().create_timer(0.0).timeout.connect(_open_at_the_top.bind(scroll, c))
+
+
+static func _open_at_the_top(scroll: ScrollContainer, c: Control) -> void:
+	if not is_instance_valid(scroll) or not is_instance_valid(c):
+		return
+	scroll.scroll_vertical = 0
+	scroll.ensure_control_visible(c)
 
 
 ## True if `node` or ANY ancestor is queued for deletion.

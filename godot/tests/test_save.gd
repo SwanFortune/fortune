@@ -103,6 +103,13 @@ func _a_run_on_the_map() -> void:
 
 
 ## Puts a run mid-reading with a card or two already laid.
+##
+## ONE FULL READING FIRST, then a card laid into the next one. Not decoration:
+## the fixture used to lay a single card on turn one and stop, which left the
+## clock at 1 and the composure at 0 — so a save that lost the turn count or the
+## sitter's composure round-tripped to the same numbers it started from and the
+## roundtrip test agreed with the bug. Confirmed: stubbing the load to force
+## `turn` back to 1 could not be made to fail against the old fixture.
 func _a_run_mid_fight() -> void:
 	_a_run_on_the_map()
 	var idx := -1
@@ -111,11 +118,21 @@ func _a_run_mid_fight() -> void:
 			idx = i
 			break
 	run.choose(idx)
+	_lay_one()
+	run.read_it()
+	# A reading that ended the sitter leaves no fight to save. Vanishingly
+	# unlikely off one card, but the fixture is used by several tests and a
+	# silent empty `f` would make all of them assert nothing.
+	if run.state.get("screen", "") == "read":
+		_lay_one()
+
+
+func _lay_one() -> void:
 	var f: Dictionary = run.state["f"]
 	for c in f["hand"].duplicate():
 		if int(c.get("cost", 0)) <= int(f["energy"]):
 			run.lay_card(c["uid"])
-			break
+			return
 
 
 func _test_roundtrip_on_map() -> void:
@@ -153,6 +170,32 @@ func _test_roundtrip_mid_fight() -> void:
 	check(str(f["sitter"]["name"]) == str(f_before["sitter"]["name"]), "the sitter should survive")
 	check(str(f["quirk"]["k"]) == str(f_before["quirk"]["k"]), "the sitter's sign should survive")
 	check(not f["job"].is_empty(), "the sitter's job should be resolved again on load")
+
+	# EVERY NUMBER IN THE READING, not just the piles. The checks above ask
+	# whether the right cards came back, and they would all pass on a reading
+	# that came back with the energy refilled, the clock wound back to turn one,
+	# or the sitter's composure reset — a resumed reading that is quietly a
+	# different, easier reading. Nothing about that is visible at the table: the
+	# screen would look exactly like a reading in progress.
+	#
+	# Read from the saved fight rather than listed by hand, so a field added to a
+	# fight later is covered the day it is added instead of the day somebody
+	# remembers this test. The two exceptions are named, and named for a reason.
+	for key in f_before:
+		# The piles and the content-derived objects are asserted above, by
+		# identity — comparing the dictionaries themselves would compare a live
+		# card against its saved copy and fail on nothing meaningful.
+		if key in ["hand", "draw", "disc", "cross", "gone", "sitter", "quirk", "job"]:
+			continue
+		# Animation bookkeeping. Run.gd's own comment calls these what they are:
+		# a snapshot of what changed on the last action, read once by the screen
+		# that draws the tween and consulted by no rule. A resumed run has not
+		# just done anything, so they SHOULD come back empty.
+		if key.begins_with("_"):
+			continue
+		check(str(f.get(key)) == str(f_before[key]),
+			"the reading's %s should survive the save: '%s' came back as '%s'"
+				% [key, f_before[key], f.get(key)])
 	done("_test_roundtrip_mid_fight")
 
 
