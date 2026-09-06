@@ -108,6 +108,8 @@ func _initialize() -> void:
 	_check_the_readme_lists_every_test()
 	_check_no_autoload_or_test_preloads_a_scene_script()
 	_check_the_version_is_written_down_once()
+	_check_everything_agrees_on_the_engine()
+	_check_the_front_doors_point_at_real_files()
 
 	if not dead.is_empty():
 		print("  known-dead content fields (see KNOWN): %s" % ", ".join(dead))
@@ -118,6 +120,132 @@ func _initialize() -> void:
 		for f in failures:
 			printerr("FAIL: ", f)
 		quit(1)
+
+
+## THE REPOSITORY'S TWO FRONT DOORS NAME FILES THAT EXIST.
+##
+## The root README and CLAUDE.md are the first things a person or an agent
+## opens, and they are almost entirely a list of paths: run this script, read
+## that guide, the game is under here. A path that has been renamed or removed
+## turns the front door into a set of wrong directions, and nothing about that
+## is visible — the file still reads perfectly.
+##
+## This is not hypothetical for this repository. Its root README spent the whole
+## port telling a coding agent to read thirteen design transcripts and recreate
+## the mockups pixel-perfectly, months after the port was finished and living in
+## godot/. It was accurate the day it was written and nobody opened it again.
+##
+## Only backticked paths are checked. Prose says "the reading screen"; the
+## things this is about are the ones written as `godot/build.sh`, and quoting
+## them is already the convention in both files.
+const FRONT_DOORS := ["CLAUDE.md", "README.md"]
+
+
+func _check_the_front_doors_point_at_real_files() -> void:
+	# These live ABOVE res://, which is godot/. Godot refuses to walk out of
+	# res:// with "..", so they are opened as ordinary absolute OS paths.
+	var repo := ProjectSettings.globalize_path("res://").path_join("..").simplify_path()
+	for name in FRONT_DOORS:
+		var path: String = repo.path_join(name)
+		var text := FileAccess.get_file_as_string(path)
+		if text == "":
+			failures.append("%s is missing or unreadable — it is the first thing anyone opens" % name)
+			continue
+		for quoted in _backticked(text):
+			# A path INSIDE THE REPOSITORY, not a command, a code fragment or a
+			# place on the machine: it has a directory separator, no spaces, no
+			# punctuation that belongs to code, and it does not start at the
+			# filesystem root. `/tmp` and `preload("res://scenes/…")` are both
+			# things these documents legitimately say and neither is a promise
+			# about a file in this tree.
+			if not quoted.contains("/") or quoted.begins_with("/"):
+				continue
+			if quoted.contains(" ") or quoted.contains("$") or quoted.contains("(") \
+					or quoted.contains("\"") or quoted.contains("…") or quoted.contains("<"):
+				continue
+			var target: String = repo.path_join(quoted)
+			if not (FileAccess.file_exists(target) or DirAccess.dir_exists_absolute(target)):
+				failures.append("%s points at `%s`, which does not exist" % [name, quoted])
+
+
+## Everything between a pair of backticks on one line. Fenced blocks are skipped
+## whole: they hold shell lines, and a command is not a promise that a path
+## exists — `cd godot` is not a file.
+func _backticked(text: String) -> Array[String]:
+	var out: Array[String] = []
+	var fenced := false
+	for line in text.split("\n"):
+		if line.begins_with("```"):
+			fenced = not fenced
+			continue
+		if fenced:
+			continue
+		var parts := line.split("`")
+		# Odd indices are the quoted spans: a,`b`,c splits to [a, b, c].
+		var i := 1
+		while i < parts.size():
+			var span := str(parts[i]).strip_edges()
+			if span != "":
+				out.append(span)
+			i += 2
+	return out
+
+
+## THE ENGINE THIS IS RUNNING ON IS THE ENGINE THE PROJECT ASKS FOR, AND THE
+## ONE THE README TELLS PEOPLE TO FETCH.
+##
+## The version is written down in three places that cannot see each other:
+## project.godot's `config/features`, which is what Godot itself reads; the
+## README's download URL, which is what a new contributor and the CI runner both
+## follow; and whatever binary is actually in front of you. Nothing compared
+## them.
+##
+## The failure this guards against is quiet in the worst way. A suite run on the
+## wrong engine still goes green — GDScript is forgiving across minor versions —
+## and reports that a build nobody has tested is fine. It is the same shape as
+## every other bug in this file: a fact kept in more than one place, with nothing
+## to notice when they part company.
+##
+## Compared at MAJOR.MINOR. A patch release is not a different engine and
+## pinning to one would fail the day 4.7.1 lands.
+func _check_everything_agrees_on_the_engine() -> void:
+	var info := Engine.get_version_info()
+	var running := "%d.%d" % [int(info["major"]), int(info["minor"])]
+
+	var declared := ""
+	for feature in ProjectSettings.get_setting("application/config/features", PackedStringArray()):
+		# The feature list also carries the renderer ("GL Compatibility"); the
+		# version is the entry shaped like a number.
+		if str(feature).split(".").size() == 2 and str(feature).replace(".", "").is_valid_int():
+			declared = str(feature)
+	if declared == "":
+		failures.append("project.godot declares no engine version in config/features")
+	elif declared != running:
+		failures.append("this is Godot %s but project.godot asks for %s — the suite is green on an engine nobody ships"
+			% [running, declared])
+
+	# The README hands out a download URL. If it names a different version, the
+	# next person to follow it gets an engine the project does not want, and the
+	# first thing they will do is run this suite and believe it.
+	var readme := FileAccess.get_file_as_string("res://README.md")
+	if readme == "":
+		failures.append("README.md is missing or unreadable")
+		return
+	# Read out of the URL itself, not searched for anywhere in the file. The
+	# first version of this asked whether the string "4.7-stable" appeared in
+	# the README at all — which it does, in the prose two lines below, so
+	# pointing the download link at 4.6 changed nothing and the check passed.
+	# A guard that a wrong answer satisfies is not a guard.
+	const MARK := "releases/download/"
+	var at := readme.find(MARK)
+	if at < 0:
+		return  # No download instructions to disagree with.
+	var tag := readme.substr(at + MARK.length())
+	tag = tag.substr(0, tag.find("/"))
+	var wanted := "%s-stable" % running
+	if tag != wanted:
+		failures.append("README.md's download link fetches Godot %s, but this project runs on %s — the next person to follow it installs the wrong engine and this suite will tell them it is fine"
+			% [tag, wanted])
 
 
 ## The README's test list is maintained by hand, so it drifts: it said "all

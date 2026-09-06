@@ -1,25 +1,55 @@
-# CODING AGENTS: READ THIS FIRST
+# Parlour
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+A fortune-teller's card game set in a French village, in Godot 4.7.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+Someone knocks. They have a job, a sign, and something they will not say. You
+lay cards left to right and read them out as one sentence — and the ORDER is the
+whole game, because most cards pay attention to what came before them. Eight
+knocks a night, three nights, and the last one on the third night is the mayor.
 
-## What you should do — IMPORTANT
+```
+godot/          the game — open this in Godot 4.7, or see godot/README.md
+project/        the original browser prototype, Parlour v23.dc.html
+chats/          the design conversations the prototype came out of
+build/          exported binaries (gitignored; ./godot/build.sh makes them)
+```
 
-**Read the chat transcripts first.** There are 13 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+## Running it
 
-**Read `project/Parlour v23.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+Everything lives under `godot/`. From a fresh clone, with no editor pass and no
+import step:
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+```
+cd godot
+tests/run_all.sh          # the whole suite, about ninety seconds
+```
 
-## About the design files
+`godot/README.md` is the real front door: how to get the engine, how to run one
+test at a time, and what each one is for. The docs beside it go deeper:
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+| | |
+|---|---|
+| `godot/docs/PORTING_NOTES.md` | every judgement call in the port, and why |
+| `godot/docs/MODDING.md` | the pack format, and how content is merged |
+| `godot/docs/ART_GUIDE.md` | the manifest an illustrator works from |
+| `godot/docs/SOUND_GUIDE.md` | the score and room-tone spec, and CC0 sources |
+| `godot/docs/LOCALIZATION.md` | the locale scheme and how to add a language |
+| `godot/docs/STEAM_RELEASE.md` | what shipping still needs |
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+`CLAUDE.md` holds the working conventions — the traps this codebase has already
+fallen into, and the method that keeps catching them. Read it before changing
+anything here.
 
-## Bundle contents
+## Where this came from
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `Other deckbuilder` project files (HTML prototypes, assets, components)
+The game began as a single self-contained browser prototype,
+`project/Parlour v23.dc.html`: the design, the writing, the cards and the
+numbers are all its author's. `chats/` holds the conversations it grew out of.
+
+Everything under `godot/` is a port of that file. The rules engine is a direct
+translation of its `simulate()`, and **where the two disagree, the prototype is
+right** — see `godot/docs/PORTING_NOTES.md`, which records each place they had
+to differ and what was decided.
+
+The prototype is kept because it is still the specification. It is not built,
+not run, and not shipped.

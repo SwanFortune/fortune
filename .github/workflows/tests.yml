@@ -1,0 +1,151 @@
+# The test suite, on every push and every pull request.
+#
+# WHY THIS EXISTS. The suite is twenty files and about eighty seconds, and until
+# now it ran only when somebody remembered to run it. Everything it protects —
+# the scoring engine against hand-traced cases, thirteen readers held inside a
+# balance band, every screen reachable without a mouse, a save that round-trips
+# mid-reading — protects nothing on a branch nobody ran it on.
+#
+# WHAT IT DOES NOT DO is re-list the commands. Both jobs below call a script that
+# lives in the repository and is run by hand during development, so CI and a
+# developer's terminal cannot drift apart: if `tests/run_all.sh` learns something
+# new, CI learns it too, with no edit here. A workflow that keeps its own copy of
+# the test list is the same bug as a README that keeps its own copy — and this
+# project has caught that one twice.
+name: tests
+
+on:
+  push:
+  pull_request:
+
+# One run per branch. A push while an older run is still going cancels it: the
+# answer for the commit before last is not worth six minutes of a runner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # THE ONE PLACE THIS IS WRITTEN DOWN in CI. It must match project.godot's
+  # `config/features` and the download link in godot/README.md — and it does not
+  # have to be checked by eye, because tests/test_dead_content.gd compares all
+  # three and fails when they part company. A wrong engine here does not break
+  # the build; it quietly runs the suite on something nobody ships and reports
+  # green, which is why that check exists.
+  GODOT_VERSION: 4.7-stable
+
+jobs:
+  suite:
+    name: headless suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Cached on the version string, so a run costs one download per engine
+      # release rather than one per push.
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot-bin
+          # The same URL godot/README.md hands to a human. Kept identical on
+          # purpose: one instruction, followed by people and by this runner.
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+
+      # FAILS LOUDLY IF THE BINARY IS NOT WHAT WAS ASKED FOR. Downloads get
+      # redirected, caches go stale, and release naming changes. Without this the
+      # suite would run on whatever arrived and pass, which is the one outcome
+      # worse than failing.
+      - name: Check the engine is the one we asked for
+        run: |
+          set -euo pipefail
+          got="$(~/godot-bin/godot --version)"
+          echo "$got"
+          case "$got" in
+            ${GODOT_VERSION%-stable}.stable*) ;;
+            *) echo "::error::expected Godot ${GODOT_VERSION}, got $got"; exit 1 ;;
+          esac
+
+      # No import step and no editor pass: a fresh clone with no .godot cache
+      # runs the suite green as it stands, which is a property the README claims
+      # and tests/test_boot.gd relies on. Verified by cloning this repository
+      # into an empty directory and running exactly this line.
+      - name: Run the suite
+        working-directory: godot
+        run: GODOT=~/godot-bin/godot tests/run_all.sh
+
+  export:
+    name: the exported build plays
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot-bin
+          key: godot-${{ env.GODOT_VERSION }}-linux
+
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p ~/godot-bin
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d ~/godot-bin
+          mv ~/godot-bin/Godot_v${GODOT_VERSION}_linux.x86_64 ~/godot-bin/godot
+          chmod +x ~/godot-bin/godot
+
+      # Export templates are a separate ~700 MB download and the reason this is
+      # its own job rather than another step in the first one: the suite should
+      # report in a minute and a half whether or not the templates are ready.
+      - name: Cache export templates
+        id: cache-templates
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ env.GODOT_VERSION }}
+
+      - name: Install export templates
+        if: steps.cache-templates.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          curl -sSL -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          # The .tpz is a zip whose files sit under templates/; Godot wants them
+          # in a directory named for the version as it writes it, which is
+          # "4.7.stable", not "4.7-stable".
+          dir="$HOME/.local/share/godot/export_templates/${GODOT_VERSION%-stable}.stable"
+          mkdir -p "$dir"
+          unzip -q -o /tmp/templates.tpz -d /tmp/templates
+          mv /tmp/templates/templates/* "$dir"/
+
+      # What tests/smoke_export.sh needs to drive a real window: a display, a
+      # way to press keys into it, and a way to compare two frames.
+      - name: Install what the smoke test drives the window with
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb xdotool imagemagick x11-apps
+
+      # The only thing in this repository that tests the artefact a player is
+      # handed rather than the source tree: resources packed, tests/ filtered
+      # out, the main scene actually booted. It builds, starts the binary, walks
+      # five screens with real keystrokes and lays a card — and asserts that
+      # every step CHANGED THE SCREEN, since a key that reaches nothing leaves
+      # the frame identical, which is what a scene that failed to load looks
+      # like.
+      - name: Play the exported build
+        working-directory: godot
+        run: GODOT=~/godot-bin/godot tests/smoke_export.sh
