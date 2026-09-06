@@ -41,7 +41,10 @@ EOF
 
 targets=("$@")
 if [ ${#targets[@]} -eq 0 ]; then
-  targets=(Linux Windows)
+  # All three. macOS was left out of this list because its preset did not work
+  # — see project.godot's import_etc2_astc comment — which is a reason to fix
+  # the preset, not to keep quietly not building it.
+  targets=(Linux Windows macOS)
 fi
 
 for preset in "${targets[@]}"; do
@@ -58,6 +61,23 @@ for preset in "${targets[@]}"; do
     tail -5 "/tmp/export_$preset.log"
     exit 1
   fi
+  # THE EXPORTER CAN SUCCEED AND PRODUCE NOTHING. Godot reports export failures
+  # through a non-zero exit most of the time, and through an ERROR line and a
+  # zero exit some of the time — the macOS preset failed for months on a
+  # disabled texture format, and would have been reported as built by any check
+  # that only read the exit code. So the artefact is looked at: it has to exist
+  # and be a real binary rather than a stub. A megabyte is far under the sixty
+  # these actually weigh and far over anything a broken export leaves.
+  if [ ! -s "$out" ]; then
+    echo "  FAILED — $preset reported success but wrote no $out"
+    exit 1
+  fi
+  size=$(wc -c <"$out")
+  if [ "$size" -lt 1000000 ]; then
+    echo "  FAILED — $preset wrote only $size bytes to $out; that is not a build"
+    exit 1
+  fi
+  echo "    $out — $((size / 1048576)) MB"
 done
 
 rm -f "$STAMP"

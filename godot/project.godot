@@ -111,5 +111,18 @@ parlour_marks={
 
 [rendering]
 
+; NEEDED BY THE macOS PRESET, which targets universal (Intel + Apple Silicon)
+; and which Godot refuses to export without it: "Cannot export for universal or
+; arm64 if ETC2 ASTC texture format is disabled." The preset had been in
+; export_presets.cfg and in build.sh since the port began and had never once
+; been run — the first time it was, it failed on this.
+;
+; Costs nothing here: the project imports zero textures today (assets/art is
+; the manifest an illustrator will fill), and when it stops being empty this is
+; the setting an Apple Silicon build needs anyway. The alternative was to drop
+; the preset to x86_64 and ship an Intel-only binary that runs under emulation
+; on every Mac sold since 2020.
+textures/vram_compression/import_etc2_astc=true
+
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

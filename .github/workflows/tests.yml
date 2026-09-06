@@ -101,7 +101,7 @@ jobs:
           if-no-files-found: ignore
 
   export:
-    name: the exported build plays
+    name: every platform builds, and Linux plays
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -161,9 +161,26 @@ jobs:
       # every step CHANGED THE SCREEN, since a key that reaches nothing leaves
       # the frame identical, which is what a scene that failed to load looks
       # like.
+      # ALL THREE PLATFORMS, not only the one the smoke test can drive. The
+      # Windows and macOS presets had been in export_presets.cfg since the port
+      # began and nothing had ever run them; the first time macOS was tried it
+      # failed outright, on a texture format the universal build requires. A
+      # preset nobody builds is a preset that is broken and does not know it,
+      # and the day you find out is the day you are trying to ship.
+      #
+      # build.sh checks each artefact exists and is a real size rather than
+      # trusting the exporter's exit code — Godot reports some export failures
+      # through an ERROR line and a zero exit.
+      - name: Export every platform
+        working-directory: godot
+        run: GODOT=~/godot-bin/godot ./build.sh
+
+      # Only Linux can be driven here: xvfb runs a Linux binary, and pressing
+      # keys into a Windows or macOS build needs those platforms. Building them
+      # proves they build; this proves the game plays.
       - name: Play the exported build
         working-directory: godot
-        run: GODOT=~/godot-bin/godot tests/smoke_export.sh
+        run: GODOT=~/godot-bin/godot tests/smoke_export.sh --no-build
 
       # The frames it captured at each step. When this job fails, the question
       # is always "what was on the screen", and a frame answers it in a way no
