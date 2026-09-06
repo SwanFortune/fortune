@@ -32,6 +32,22 @@ set -u
 GODOT="${GODOT:-$HOME/bin/godot}"
 cd "$(dirname "$0")/.." || exit 2
 
+# THE SEED THE WHOLE RUN IS PLAYED ON.
+#
+# Fifty-nine of the suite's runs are started with no seed, on purpose: a
+# different evening every time is how the soak test and the scene sweep find
+# things a fixed fixture never would. The cost was that a failure could not be
+# replayed — one run of this suite failed once and twenty-two afterwards did
+# not, and there was nothing left of the first but the memory of it.
+#
+# So the series is pinned rather than fixed. Run.gd seeds the global generator
+# from PARLOUR_SEED, so the first unseeded run, the second and the fortieth are
+# the same forty evenings for a given seed and different ones for another. A
+# fresh seed is drawn per run and PRINTED, and printed again beside any failure
+# with the line that replays it.
+PARLOUR_SEED="${PARLOUR_SEED:-$(date +%s)-$$}"
+export PARLOUR_SEED
+
 # Every expected ERROR/WARNING, and which test deliberately causes it. A line
 # not matching any of these fails the run.
 ALLOWED=(
@@ -68,6 +84,8 @@ done
 fails=0
 noise=0
 files=0
+FAILED_DIR="${FAILED_DIR:-/tmp/parlour-failures}"
+rm -rf "$FAILED_DIR"
 
 for f in tests/test_*.gd; do
   name="$(basename "$f" .gd)"
@@ -85,6 +103,15 @@ for f in tests/test_*.gd; do
     printf '  FAIL  %s  (%s failure(s), %s unexpected line(s))\n' "$name" "$f_lines" "$n_count"
     printf '%s\n' "$out" | grep 'FAIL' | sed 's/^/        /'
     [ -n "$n_lines" ] && printf '%s\n' "$n_lines" | sed 's/^/        /'
+    # THE WHOLE OUTPUT, KEPT. What a failing test printed before it failed is
+    # most of the evidence, and until now it was thrown away the moment the
+    # next test ran — which is exactly what happened to the one failure this
+    # suite has had that nobody could reproduce.
+    mkdir -p "$FAILED_DIR"
+    printf '%s\n' "$out" > "$FAILED_DIR/$name.log"
+    printf '        full output: %s/%s.log\n' "$FAILED_DIR" "$name"
+    printf '        replay it:   PARLOUR_SEED=%s %s --headless --path . -s %s\n' \
+      "$PARLOUR_SEED" "$GODOT" "$f"
   fi
   fails=$((fails + f_lines))
   noise=$((noise + n_count))
@@ -93,7 +120,10 @@ done
 echo
 if [ "$fails" -eq 0 ] && [ "$noise" -eq 0 ]; then
   echo "ALL GREEN — $files test files, no failures, nothing unexpected on the console."
+  echo "            played on PARLOUR_SEED=$PARLOUR_SEED"
   exit 0
 fi
 echo "NOT GREEN — $files test files, $fails failure(s), $noise unexpected console line(s)."
+echo "            played on PARLOUR_SEED=$PARLOUR_SEED — set it to replay this exact run."
+echo "            full output of each failing file: $FAILED_DIR"
 exit 1

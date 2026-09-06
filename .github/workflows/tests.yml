@@ -85,6 +85,21 @@ jobs:
         working-directory: godot
         run: GODOT=~/godot-bin/godot tests/run_all.sh
 
+      # WHAT A FAILURE LEAVES BEHIND. The runner prints the seed the whole suite
+      # was played on and keeps each failing file's complete output; both are
+      # useless if they only ever exist inside a container that has been thrown
+      # away. This repository has already lost one failure that way — it was
+      # never reproduced, and twenty-two runs afterwards were green.
+      #
+      # The seed is in the log, and the log says how to replay the run with it.
+      - name: Keep what the failure printed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failing-tests
+          path: /tmp/parlour-failures
+          if-no-files-found: ignore
+
   export:
     name: the exported build plays
     runs-on: ubuntu-latest
@@ -149,3 +164,14 @@ jobs:
       - name: Play the exported build
         working-directory: godot
         run: GODOT=~/godot-bin/godot tests/smoke_export.sh
+
+      # The frames it captured at each step. When this job fails, the question
+      # is always "what was on the screen", and a frame answers it in a way no
+      # log line does — the whole check is that each step CHANGED the screen.
+      - name: Keep the frames it walked through
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-frames
+          path: /tmp/smoke_export
+          if-no-files-found: ignore

@@ -38,8 +38,40 @@ static func cfg_hand() -> int:
 var state: Dictionary = {}
 
 
+## The environment variable that pins every "give me a new run" seed for one
+## process. See _pin_the_dice.
+const SEED_PIN := "PARLOUR_SEED"
+
+
 func _ready() -> void:
+	_pin_the_dice()
 	state = fresh()
+
+
+## Makes a whole PROCESS reproducible, when something asks it to.
+##
+## A run with no seed text takes one from the global generator (see _seed_from),
+## which Godot randomises at startup — so every launch plays a different
+## evening, which is exactly right for a player and exactly wrong for a test
+## that failed once and can never be made to fail again. Fifty-nine of the
+## suite's runs are unseeded, on purpose: playing a different evening every time
+## is how the soak test and the scene sweep find things. What was missing is the
+## ability to play THAT evening again.
+##
+## So: not one fixed seed, which would trade the exploring away, but a pinned
+## STARTING POINT for the sequence. With the variable set, the first unseeded
+## run, the second and the fortieth are the same forty runs every time; without
+## it, nothing changes and the game shuffles as it always did.
+##
+## Set on the global generator rather than on `rng`, because that is the one
+## _seed_from draws a fresh seed from — and rng is re-seeded per run, so pinning
+## it would pin every run to the same evening instead of pinning the series.
+func _pin_the_dice() -> void:
+	var pin := OS.get_environment(SEED_PIN)
+	if pin.strip_edges() == "":
+		return
+	seed(pin.hash())
+	print("[Run] dice pinned to %s=%s — this process replays exactly" % [SEED_PIN, pin])
 
 
 # ── setup ────────────────────────────────────────────────────────────────

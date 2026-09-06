@@ -97,6 +97,12 @@ cd godot && tests/run_all.sh          # all twenty files
 tests/smoke_export.sh                 # the EXPORTED binary, walked with real keys
 ```
 
+Fifty-nine of the suite's runs are started with no seed on purpose — a different
+evening every time is how the soak test and the scene sweep find things. The
+runner prints the seed it played on, and `PARLOUR_SEED=<that>` replays the whole
+series exactly; a failing file's complete output is kept in
+`/tmp/parlour-failures`. Use both before assuming a failure was a fluke.
+
 The suite fails on unexpected `ERROR`/`WARNING` lines as well as on `FAIL`,
 because most interesting failures are engine errors, not assertions.
 `godot/tests/smoke_export.sh` is the only thing that tests the artefact a player is
