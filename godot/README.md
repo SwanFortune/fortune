@@ -61,6 +61,7 @@ godot --headless --path godot -s tests/test_soak.gd            # plays complete 
 godot --headless --path godot -s tests/test_scenes.gd          # every screen against every game state
 godot --headless --path godot -s tests/test_resolutions.gd     # every screen at every offered window size
 godot --headless --path godot -s tests/test_reachable.gd       # every control is reachable with the keys alone
+godot --headless --path godot -s tests/test_cost.gd             # the interface rebuilds only what changed
 godot --headless --path godot -s tests/test_content_audit.gd   # fx cross-check (the AUDIT tab equivalent)
 godot --headless --path godot -s tests/test_art.gd             # art manifest -> texture pipeline
 godot --headless --path godot -s tests/test_library.gd         # Library edits -> mod pack -> live content
@@ -76,7 +77,7 @@ godot --headless --path godot -s tests/test_boot.gd            # the game actual
 godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
 ```
 
-All twenty should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
+All twenty-one should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The

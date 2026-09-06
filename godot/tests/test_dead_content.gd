@@ -284,11 +284,27 @@ func _check_the_readme_lists_every_test() -> void:
 		failures.append("README.md should say \"%s\" — there are %d test files" % [expected, files.size()])
 
 
+## The count in words, because the README says "All twenty should print" and a
+## sentence is what a person reads.
+##
+## The list used to stop at twenty and fall back to the digits — so adding a
+## twenty-first test asked the README to say "All 21 should print", which is not
+## a sentence anybody would write. A hand-kept list that quietly stops listing
+## is the exact failure this whole file exists to catch, and it had one in it.
+## Composed now, up to ninety-nine, which is more tests than this project will
+## ever have.
 func _spelt(n: int) -> String:
-	const WORDS := ["zero", "one", "two", "three", "four", "five", "six", "seven",
+	const ONES := ["zero", "one", "two", "three", "four", "five", "six", "seven",
 		"eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
-		"fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty"]
-	return WORDS[n] if n < WORDS.size() else str(n)
+		"fifteen", "sixteen", "seventeen", "eighteen", "nineteen"]
+	const TENS := ["", "", "twenty", "thirty", "forty", "fifty", "sixty",
+		"seventy", "eighty", "ninety"]
+	if n < 0 or n > 99:
+		return str(n)
+	if n < ONES.size():
+		return ONES[n]
+	var tens: String = TENS[n / 10]
+	return tens if n % 10 == 0 else "%s-%s" % [tens, ONES[n % 10]]
 
 
 ## A BUILD SAYS WHICH COMMIT IT IS, or says nothing — never something wrong.

@@ -50,6 +50,11 @@ const READOUT_KEY := "library_readout"
 ## so it can be greyed out when the card already carries that amount.
 const TYPICAL_KEY := "library_typical"
 
+## How long the search box waits after the last keystroke before rebuilding the
+## list. See _filter_row.
+const SEARCH_SETTLE := 0.2
+
+var _search_settles: Timer
 var _list_box: VBoxContainer
 var _heading_box: HBoxContainer
 var _actions_box: HBoxContainer
@@ -143,9 +148,24 @@ func _filter_row() -> Control:
 	UIKit.style_field(search)
 	search.placeholder_text = I18n.t("Search by name…")
 	search.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# NOT ON EVERY KEYSTROKE. Rebuilding the list costs about 220ms — measured,
+	# for fifty-seven rows, and it is not one hot spot but the plain cost of
+	# building three hundred nodes and shaping their text. Typing "lamp" was
+	# therefore most of a second of frozen interface, four times over, and each
+	# of the first three lists was thrown away before anybody could read it.
+	#
+	# So the list follows the typing rather than racing it: the timer restarts on
+	# each keystroke and the rebuild happens once, a fifth of a second after the
+	# last one. Fast enough to feel like it is keeping up, slow enough that
+	# holding a key down does not build fifty lists.
+	_search_settles = Timer.new()
+	_search_settles.one_shot = true
+	_search_settles.wait_time = SEARCH_SETTLE
+	_search_settles.timeout.connect(_rebuild_list)
+	add_child(_search_settles)
 	search.text_changed.connect(func(t: String):
 		_search = t.strip_edges().to_lower()
-		_rebuild_list()
+		_search_settles.start()
 	)
 	row.add_child(search)
 
@@ -238,34 +258,43 @@ func _rebuild_list() -> void:
 	# the editor and nothing marked in the list.
 	_keep_a_card_selected(rows)
 	for r in rows:
-		var c: Dictionary = r["card"]
-		var pool: String = r["pool"]
-		var edited := CardEdits.has_edit(pool, c["n"])
-		var el = c.get("el")
-		var el_c: Color = UIKit.el_color(el) if el != null and el != "" else UIKit.DIM
-		var name_line := "%s%s" % [UIKit.card_summary(c), "   ●" if edited else ""]
-		var lines := [
-			[name_line, 14, UIKit.GOLD if edited else el_c],
-			# Through card_price(), so the Library says a card's two numbers in
-			# the same words the reward screen and the hand's tooltip do.
-			["%s · %s" % [_pool_and_rarity(pool, c), UIKit.card_price(c)], 11, UIKit.DIM],
-			[UIKit.card_text(c), 11, UIKit.INK],
-		]
-		# The selected row is lit at its edge. There is always one now, and
-		# without a mark on it the list and the editor look like two unrelated
-		# halves of a screen — you can read a card's numbers on the right with no
-		# way to see which of the sixty rows on the left they belong to.
-		var selected := pool == _selected_pool and str(c["n"]) == _selected_name
-		# The element's colour where there is one — it says which card is selected
-		# and reminds you what it is in the same stroke. The elementless cards
-		# (most of the basics) fall back to ink rather than to the dim grey their
-		# names are printed in, which at the border's alpha is not a mark at all.
-		var sel_c: Color = el_c if el != null and el != "" else UIKit.INK
-		var row := UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
-			I18n.t("● marks a card you've changed") if edited else "", null,
-			sel_c if selected else Color(0, 0, 0, 0))
-		row.set_meta(ROW_KEY, _key(pool, str(c["n"])))
-		_list_box.add_child(row)
+		_list_box.add_child(_row_for(str(r["pool"]), r["card"]))
+
+
+## One row of the list.
+##
+## Its own function so that CHANGING THE SELECTION can replace two rows instead
+## of all fifty-seven. Measured: rebuilding the list costs 220ms, and it was
+## being done on every click — the row you pressed and the row you left are the
+## only two that look any different afterwards, and two rows are eight
+## milliseconds.
+func _row_for(pool: String, c: Dictionary) -> Control:
+	var edited := CardEdits.has_edit(pool, c["n"])
+	var el = c.get("el")
+	var el_c: Color = UIKit.el_color(el) if el != null and el != "" else UIKit.DIM
+	var name_line := "%s%s" % [UIKit.card_summary(c), "   ●" if edited else ""]
+	var lines := [
+		[name_line, 14, UIKit.GOLD if edited else el_c],
+		# Through card_price(), so the Library says a card's two numbers in
+		# the same words the reward screen and the hand's tooltip do.
+		["%s · %s" % [_pool_and_rarity(pool, c), UIKit.card_price(c)], 11, UIKit.DIM],
+		[UIKit.card_text(c), 11, UIKit.INK],
+	]
+	# The selected row is lit at its edge. There is always one, and without a
+	# mark on it the list and the editor look like two unrelated halves of a
+	# screen — you can read a card's numbers on the right with no way to see
+	# which of the sixty rows on the left they belong to.
+	var selected := pool == _selected_pool and str(c["n"]) == _selected_name
+	# The element's colour where there is one — it says which card is selected
+	# and reminds you what it is in the same stroke. The elementless cards (most
+	# of the basics) fall back to ink rather than to the dim grey their names are
+	# printed in, which at the border's alpha is not a mark at all.
+	var sel_c: Color = el_c if el != null and el != "" else UIKit.INK
+	var row := UIKit.panel_button(lines, _select.bind(pool, c["n"]), true,
+		I18n.t("● marks a card you've changed") if edited else "", null,
+		sel_c if selected else Color(0, 0, 0, 0))
+	row.set_meta(ROW_KEY, _key(pool, str(c["n"])))
+	return row
 
 
 ## Keeps the right-hand half of the screen showing a card.
@@ -299,17 +328,45 @@ func _key(pool: String, card_name: String) -> String:
 
 
 func _select(pool: String, card_name: String) -> void:
+	var was := _key(_selected_pool, _selected_name)
 	_selected_pool = pool
 	_selected_name = card_name
-	# The list is rebuilt, not just repainted. The accent on the selected row is
-	# baked in when the row is built — make_interactive captures the border
-	# colour it was given and restores that on focus_exited, so a colour written
-	# onto a live row afterwards survives exactly until the next time focus
-	# leaves it. Rebuilding is honest and cheap; the list already rebuilds on
-	# every keystroke in the search box.
-	_rebuild_list()
+
+	# TWO ROWS, NOT FIFTY-SEVEN. The accent is baked in when a row is built —
+	# make_interactive captures the border colour it was given and restores that
+	# on focus_exited, so a colour written onto a live row survives exactly until
+	# the next time focus leaves it. Rebuilding the row is therefore the honest
+	# way to move the mark; rebuilding the LIST to do it was the lazy one, and it
+	# cost 220ms of frozen interface on every click. The row you pressed and the
+	# row you left are the only two that look any different afterwards.
+	for key in [was, _key(pool, card_name)]:
+		_replace_row(str(key))
 	_rebuild_editor()
 	_focus_selected_row()
+
+
+## Swaps one row for a freshly built one, in place, keeping its position in the
+## list. Does nothing if that card is not currently on screen — which is the
+## normal case for the row being deselected after a filter has moved on.
+func _replace_row(key: String) -> void:
+	for old in _list_box.get_children():
+		if old.is_queued_for_deletion() or not old.has_meta(ROW_KEY):
+			continue
+		if str(old.get_meta(ROW_KEY)) != key:
+			continue
+		var parts := key.split("|", true, 1)
+		if parts.size() != 2:
+			return
+		for c in _cards_for_pool(parts[0]):
+			if str(c["n"]) != parts[1]:
+				continue
+			var fresh := _row_for(parts[0], c)
+			_list_box.add_child(fresh)
+			_list_box.move_child(fresh, old.get_index())
+			_list_box.remove_child(old)
+			old.queue_free()
+			return
+		return
 
 
 ## Puts the keyboard back where it was.
