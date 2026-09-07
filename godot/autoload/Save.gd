@@ -37,9 +37,12 @@ const TMP_PATH := "user://save.dat.tmp"
 ## See _read() and restore().
 const BACKUP_PATH := "user://save.dat.bak"
 
-## Bumped when the shape of what is written changes incompatibly. A save from a
-## future version, or from one whose shape this code can no longer read, is
-## refused rather than half-restored into a run that then misbehaves.
+## Bumped when the shape of what is written changes incompatibly.
+##
+## A save from the FUTURE is refused — this build cannot know what a later one
+## meant. A save from the PAST is carried forward, one step at a time, by the
+## table in _register_steps(). See it for how to add a step, and read this first
+## if you are about to bump the number.
 const VERSION := 1
 
 ## Keys inside a fight dict that hold cards. `cross` is the line being spoken
@@ -74,6 +77,7 @@ var _dirty := false
 
 
 func _ready() -> void:
+	_register_steps()
 	var run := get_node_or_null("/root/Run")
 	if run != null:
 		run.state_changed.connect(_on_state_changed)
@@ -285,10 +289,61 @@ func _read_file(path: String) -> Dictionary:
 	if typeof(doc) != TYPE_DICTIONARY:
 		last_error = "save file is not readable — it may be from a different build"
 		return {}
+	return _carry_forward(doc)
+
+
+## Steps that turn a save of version N into one of N+1, keyed by the version
+## they read. Empty today, because the format has only ever had one version —
+## and that is exactly why the machinery is here now rather than the first time
+## it is needed, in a hurry, on a build somebody has already shipped.
+##
+## HOW TO ADD ONE. Change the shape, bump VERSION, and register the step that
+## turns the old shape into the new:
+##
+##     steps[1] = func(doc: Dictionary) -> Dictionary:
+##         doc["state"]["patience"] = 0   # a field version 2 expects
+##         return doc
+##
+## A step receives the WHOLE document (version, saved_at, state) and returns it.
+## It must not fail: a save it cannot read is a run somebody loses, so a step
+## with nothing sensible to do should fill in a default rather than give up.
+## Returning {} refuses the save and is the last resort.
+##
+## Registered in code rather than declared as a const because a const Dictionary
+## cannot hold Callables — and as a var, tests can register their own steps and
+## exercise this chain for real instead of leaving it to be discovered broken on
+## the day it first matters.
+var steps: Dictionary = {}
+
+
+func _register_steps() -> void:
+	steps.clear()
+	# (no steps yet — VERSION is 1)
+
+
+## Walks a save up to `target`, one registered step at a time.
+##
+## Refusing an old save was the whole policy before this: `if v != VERSION`,
+## which threw away every run in progress the moment anything about the state
+## changed, and left nowhere for a fix to go. A game that is going to keep being
+## worked on needs the other half.
+func _carry_forward(doc: Dictionary, target: int = VERSION) -> Dictionary:
 	var v := int(doc.get("version", 0))
-	if v != VERSION:
-		last_error = "save is version %d, this build reads version %d" % [v, VERSION]
+	if v > target:
+		last_error = "save is version %d and this build reads version %d — it was written by a newer build" % [v, target]
 		return {}
+	while v < target:
+		if not steps.has(v):
+			last_error = "save is version %d and this build reads version %d, and nothing knows how to carry a version %d save forward" % [int(doc.get("version", 0)), target, v]
+			return {}
+		var step: Callable = steps[v]
+		var next = step.call(doc)
+		if typeof(next) != TYPE_DICTIONARY or next.is_empty():
+			last_error = "the step from version %d refused the save" % v
+			return {}
+		doc = next
+		doc["version"] = v + 1
+		v += 1
 	return doc
 
 

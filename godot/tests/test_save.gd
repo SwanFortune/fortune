@@ -50,6 +50,10 @@ const TESTS := [
 	"_test_the_write_is_atomic",
 	"_test_a_corrupt_save_falls_back_to_the_backup",
 	"_test_clearing_removes_the_backup_too",
+	"_test_an_older_save_is_carried_forward",
+	"_test_a_newer_save_is_refused",
+	"_test_a_gap_in_the_chain_is_refused",
+	"_test_every_version_has_a_way_forward",
 ]
 
 var failures: Array[String] = []
@@ -564,3 +568,84 @@ func _test_clearing_removes_the_backup_too() -> void:
 		check(not FileAccess.file_exists(path), "%s should be gone after clear()" % path)
 	check(save.peek().is_empty(), "and nothing should be resurrectable")
 	done("_test_clearing_removes_the_backup_too")
+
+
+# ── carrying a save forward ─────────────────────────────────────────────
+#
+# The format has had one version and no step has ever run. That is precisely
+# why these tests register their OWN steps and drive the real chain: machinery
+# nobody has exercised is decoration, and the day it first matters is the day
+# somebody has already shipped the build that needs it.
+#
+# _carry_forward() takes its target as an argument for this reason — production
+# passes the const, a test passes a version it invented, and both walk the same
+# code.
+
+
+## A save two versions behind arrives whole, in order, at the current shape.
+func _test_an_older_save_is_carried_forward() -> void:
+	var seen: Array[int] = []
+	save.steps = {
+		1: func(doc: Dictionary) -> Dictionary:
+			seen.append(1)
+			doc["state"]["added_by_step_one"] = "yes"
+			return doc,
+		2: func(doc: Dictionary) -> Dictionary:
+			seen.append(2)
+			doc["state"]["added_by_step_two"] = "yes"
+			return doc,
+	}
+	var doc := {"version": 1, "saved_at": 0, "state": {"screen": "map", "kept": "original"}}
+	var out: Dictionary = save._carry_forward(doc, 3)
+
+	check(not out.is_empty(), "a version 1 save should reach version 3 (%s)" % save.last_error)
+	check(seen == [1, 2], "the steps should run in order, once each — ran %s" % str(seen))
+	check(int(out.get("version", 0)) == 3, "the carried save should call itself version 3, got %s" % out.get("version"))
+	# The point of a migration is what it PRESERVES, not what it adds.
+	check(str(out["state"].get("kept", "")) == "original", "a field neither step touched should survive")
+	check(out["state"].has("added_by_step_one") and out["state"].has("added_by_step_two"),
+		"both steps should have left their mark")
+	save._register_steps()
+	done("_test_an_older_save_is_carried_forward")
+
+
+## A save from a LATER build is refused, and says so. There is nothing else to
+## do with it: this build cannot know what a future one meant by a field.
+func _test_a_newer_save_is_refused() -> void:
+	var doc := {"version": 9, "saved_at": 0, "state": {"screen": "map"}}
+	var out: Dictionary = save._carry_forward(doc, 1)
+	check(out.is_empty(), "a save from a newer build should be refused")
+	check(save.last_error.contains("newer build"),
+		"and should say why, in words a player could act on — got '%s'" % save.last_error)
+	done("_test_a_newer_save_is_refused")
+
+
+## A missing step is a refusal, not a half-migrated run. The failure a player
+## can recover from is "your save could not be read"; the one they cannot is a
+## run that loads and then behaves strangely.
+func _test_a_gap_in_the_chain_is_refused() -> void:
+	save.steps = {1: func(doc: Dictionary) -> Dictionary: return doc}
+	var doc := {"version": 1, "saved_at": 0, "state": {"screen": "map"}}
+	var out: Dictionary = save._carry_forward(doc, 3)
+	check(out.is_empty(), "a chain with no step from version 2 should refuse")
+	check(save.last_error.contains("carry"), "and should name the gap — got '%s'" % save.last_error)
+	save._register_steps()
+	done("_test_a_gap_in_the_chain_is_refused")
+
+
+## THE CHAIN IS UNBROKEN FOR EVERY VERSION THIS BUILD CLAIMS TO READ.
+##
+## Derived from VERSION rather than from a list somebody keeps in step by hand —
+## the failure this whole suite keeps finding. Bumping VERSION without adding
+## the step fails here, at the moment of the bump, rather than on a player's
+## machine.
+func _test_every_version_has_a_way_forward() -> void:
+	save._register_steps()
+	var missing: Array[String] = []
+	for v in range(1, save.VERSION):
+		if not save.steps.has(v):
+			missing.append(str(v))
+	check(missing.is_empty(),
+		"VERSION is %d, so a save at version(s) %s can arrive — and no step carries them forward. Add the step in Save._register_steps()."
+			% [save.VERSION, ", ".join(missing)])
+	done("_test_every_version_has_a_way_forward")
