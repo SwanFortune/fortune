@@ -23,9 +23,16 @@ func _ready() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	m.add_child(v)
 
-	v.add_child(UIKit.block(UIKit.tr_line(res.get("head")), 15, UIKit.GREEN if win else UIKit.RED))
-	v.add_child(UIKit.block(UIKit.tr_line(res.get("title")), 22, UIKit.INK))
+	# FILLED WITH THIS SITTER'S PRONOUN. These two lines are about one person by
+	# name, and English gets away with "leaves as they came" for anybody. French
+	# does not: the participle agrees, and the translation had to pick one, so
+	# every woman who walked out did it as "il est venu" — one line above the
+	# sentence that correctly said "Elle". The tokens and the tables were already
+	# here for the sign rules; this screen simply never used them.
 	var sitter: Dictionary = res.get("sitter", {})
+	var says: String = str(sitter.get("p", "they"))
+	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says), 15, UIKit.GREEN if win else UIKit.RED))
+	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("title")), says), 22, UIKit.INK))
 	var said_field: String = "win" if win else "fail"
 	v.add_child(UIKit.block(
 		I18n.sitter_field(sitter, said_field) if not sitter.is_empty() else res.get("said", ""),

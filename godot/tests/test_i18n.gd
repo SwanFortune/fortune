@@ -301,6 +301,29 @@ func _test_pronoun_tokens_are_filled() -> void:
 ## check that would have caught the missing fill() in the first place, so it
 ## covers every token-bearing field rather than just the one that was noticed.
 func _test_no_unfilled_tokens_anywhere() -> void:
+	# EVERY TOKEN A TRANSLATOR WROTE IS ONE THE TABLES CAN FILL. The loops below
+	# walk the CONTENT, which only covers tokens the English source put there —
+	# and a translation may need tokens the English does not. French writes
+	# "repart comme {s} est venu{e}" for a sentence whose English, "leaves as
+	# they came", needs no agreement at all. A typo in one of those, or a token
+	# no pronoun table defines, is left in place by fill() on purpose (so a
+	# mistake shows rather than blanking a sentence) and would reach the player
+	# as a literal {ee}.
+	var known := {}
+	for pk in content.pronouns:
+		for token in content.pronouns[pk]:
+			known[token] = true
+	var re := RegEx.create_from_string("\\{(\\w+)\\}")
+	for locale_key in content.registries:
+		if not str(locale_key).begins_with("locale_"):
+			continue
+		var table: Dictionary = content.registries[locale_key]
+		for key in table:
+			for m in re.search_all(str(table[key])):
+				var token: String = m.get_string(1)
+				check(known.has(token),
+					"%s/%s uses {%s}, which no pronoun table defines — it will be shown to the player exactly like that" % [locale_key, key, token])
+
 	for pronoun in ["she", "he", "they"]:
 		for sg in content.signs:
 			var out: String = i18n.fill(str(sg.get("rule", "")), pronoun)

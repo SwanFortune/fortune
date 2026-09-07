@@ -139,7 +139,15 @@ func _collect_sources() -> Dictionary:
 	for pk in content.pronouns:
 		var table: Dictionary = content.pronouns[pk]
 		for token in table:
-			_put(src, "pronoun/" + pk + "/" + token, table[token])
+			# EVEN WHEN THE ENGLISH IS EMPTY, which is the one place in this file
+			# where that is right. _put() drops an empty value everywhere else,
+			# because an empty source string is nothing to translate — but a
+			# pronoun token is a fixed slot, and empty in English is a statement:
+			# English has no agreement to make here. French does, and cannot say
+			# so unless the key is on the list. The `e` token was added to
+			# pronouns.json, was empty in English, and silently never reached a
+			# translator.
+			src["pronoun/" + pk + "/" + token] = str(table[token])
 	for role in content.jobs:
 		_put(src, "job/" + art.slug(role) + "/t", content.jobs[role].get("t", ""))
 		_put(src, "job/" + art.slug(role) + "/fl", content.jobs[role].get("fl", ""))

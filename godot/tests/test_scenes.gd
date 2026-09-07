@@ -195,6 +195,7 @@ func _visit_standalone() -> void:
 	await _test_a_screen_opens_at_the_top_and_the_wheel_moves_it()
 	await _test_the_very_first_launch()
 	await _test_every_event_says_everything_it_carries()
+	await _test_no_screen_shows_a_raw_token()
 	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
 	await _visit_scene("library", "res://scenes/Library.tscn")
 
@@ -278,6 +279,66 @@ func _test_the_reading_screens_are_centred() -> void:
 	root.size = restore_size
 	await process_frame
 	print("--- the pages of prose are centred and hold their measure ---")
+
+
+## NOTHING SHOWS A PLAYER A {token}.
+##
+## Pronoun tokens are filled at DISPLAY time, by whoever draws the sentence, and
+## a screen that forgets simply prints the braces. The existing check walks the
+## CONTENT — signs, twists, jobs — which only covers tokens the English source
+## put there. A TRANSLATION may need tokens the English does not: French writes
+## "repart comme {s} est venu{e}" for a sentence whose English, "leaves as they
+## came", needs no agreement at all, and the result screen was not filling
+## anything. Every woman who walked out of a French game did it as "il est
+## venu", one line above the sentence that correctly said "Elle".
+##
+## So this looks at the finished screens, in French, and refuses a brace. It is
+## the end-to-end half: the other check proves every token CAN be filled, this
+## one proves somebody actually did.
+##
+## Run in French deliberately — in English most of these sentences have no
+## tokens at all, so an English pass would prove nothing.
+func _test_no_screen_shows_a_raw_token() -> void:
+	var settings: Node = root.get_node("Settings")
+	var i18n: Node = root.get_node("I18n")
+	var before = settings.get_value("locale")
+	settings.set_value("locale", "fr")
+	i18n.reload()
+
+	# Every pronoun, on the screens that describe one person by name. A sitter's
+	# own `p` decides it, so the three are forced rather than waited for.
+	for pronoun in ["she", "he", "they"]:
+		for outcome in ["win", "lose"]:
+			run.state = run.fresh("token-%s" % pronoun)
+			run.pick_reader(0)
+			run.take_pick(0)
+			for i in run.state["options"].size():
+				if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+					run.choose(i)
+					break
+			var f: Dictionary = run.state["f"]
+			f["sitter"]["p"] = pronoun
+			if outcome == "win":
+				f["hp"] = f["max"]
+				run.win(f)
+			else:
+				f["turn"] = f["turns"]
+				f["hp"] = 0
+				run.lose(f, "left")
+			var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+			root.add_child(instance)
+			for i in 3:
+				await process_frame
+			for node in _all_of(instance, []):
+				if node is Label and (node as Label).text.contains("{"):
+					printerr("FAIL: the %s screen shows a raw token to a '%s' sitter: \"%s\""
+						% [outcome, pronoun, (node as Label).text.substr(0, 70)])
+			instance.queue_free()
+			await process_frame
+
+	settings.set_value("locale", before)
+	i18n.reload()
+	print("--- no screen shows a player a raw {token} ---")
 
 
 ## ALL TWELVE EVENTS, EVERY WORD THEY CARRY, ON THE SCREEN THAT OWNS IT — AND
