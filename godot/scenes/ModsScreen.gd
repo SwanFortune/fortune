@@ -135,12 +135,18 @@ func _records_line(p: Dictionary) -> String:
 	return I18n.t("%s record(s) in %s") % [p.get("records", 0), ", ".join(cats)]
 
 
-func _source_label(source: String) -> String:
+## Static because it is a pure function of the code, and because a test has to
+## be able to ask it what it says without standing a whole screen up.
+static func _source_label(source: String) -> String:
 	match source:
 		"base": return "shipped with the game"
 		"example": return "bundled example"
 		"user": return "your mods folder"
 		"workshop": return "Steam Workshop"
+		# A pack from a directory none of the four roots explains — today only
+		# reachable by pointing Workshop's simulation at a folder. Named rather
+		# than blamed on Steam; see ModLoader._source_of().
+		"elsewhere": return "loaded from elsewhere"
 	return source
 
 

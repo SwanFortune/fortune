@@ -234,7 +234,19 @@ func _source_of(pack_dir: String) -> String:
 		return "example"
 	if pack_dir.begins_with("user://mods"):
 		return "user"
-	return "workshop"
+	# NOT a fallthrough. This used to answer "workshop" for anything that was
+	# none of the three above, which is a guess printed as a fact on the one line
+	# a player reads to decide where to go and delete something. A Workshop
+	# item's folder is an absolute path Steam picks, so it cannot be recognised
+	# by its shape — only by having COME FROM Workshop, which is what this
+	# remembers. Anything else says so instead of blaming Steam.
+	if _from_workshop.has(pack_dir):
+		return "workshop"
+	return "elsewhere"
+
+
+## The paths Workshop reported during the last discovery pass; see _source_of().
+var _from_workshop: Dictionary = {}
 
 
 ## Returns pack directories in load order (base first, then example/user/workshop
@@ -249,7 +261,9 @@ func discover_pack_dirs() -> Array[String]:
 		_collect_subpacks("res://mods_example", extra)
 	_ensure_user_mods_dir()
 	_collect_subpacks("user://mods", extra)
+	_from_workshop.clear()
 	for p in Workshop.get_installed_item_paths():
+		_from_workshop[p] = true
 		_collect_one_pack(p, extra)
 
 	extra.sort_custom(func(a, b): return a.priority < b.priority)

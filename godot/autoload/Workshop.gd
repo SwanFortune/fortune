@@ -30,9 +30,53 @@ var is_available: bool = false
 ## Empty until real Steamworks calls populate it.
 var _installed_item_ids: Array[int] = []
 
+## THE STAND-IN FOR STEAM, so this path can be walked before Steam exists.
+##
+## Every method here has always returned "nothing installed" — which means the
+## branch of ModLoader.discover_pack_dirs() that reads them HAS NEVER ONCE RUN
+## WITH DATA IN IT. That is the exact shape this repository has been caught by
+## before: a test that passes, has never failed, and proves nothing. As it
+## stood, the first thing ever to exercise the Workshop path would have been a
+## player's machine on the day GodotSteam landed.
+##
+## A directory listed here is treated as a subscribed item's install folder,
+## with no other difference. It is seeded from PARLOUR_WORKSHOP_DIRS — paths
+## separated the way this platform separates PATH — so the whole thing can be
+## walked with a real folder and no App ID:
+##
+##   PARLOUR_WORKSHOP_DIRS=/tmp/an-item godot --path godot
+##
+## Two things make this safe to ship rather than a debug hatch to remember to
+## remove. It is only consulted while `is_available` is false, so real Steam can
+## never be masked by it; and what it produces is a plain directory path, which
+## is all a Workshop item ever is to the rest of the game — so what it exercises
+## is the real code, not a mock of it.
+const SIMULATED_ITEMS_PIN := "PARLOUR_WORKSHOP_DIRS"
+
+var simulated_item_paths: Array[String] = []
+
 
 func _ready() -> void:
 	_try_init_steamworks()
+	_read_simulated_items()
+
+
+## Steam hands back an ABSOLUTE path chosen by the client, not a res:// or
+## user:// one, so the separator has to be the platform's: a Windows item folder
+## begins "C:\", and splitting that on ":" would produce two paths and no pack.
+func _read_simulated_items() -> void:
+	simulated_item_paths.clear()
+	var pin := OS.get_environment(SIMULATED_ITEMS_PIN)
+	if pin.strip_edges() == "":
+		return
+	var sep := ";" if OS.get_name() == "Windows" else ":"
+	for path in pin.split(sep, false):
+		var trimmed := path.strip_edges()
+		if trimmed != "":
+			simulated_item_paths.append(trimmed)
+	if not simulated_item_paths.is_empty():
+		print("[Workshop] %s is set — %d simulated item(s): %s"
+			% [SIMULATED_ITEMS_PIN, simulated_item_paths.size(), ", ".join(simulated_item_paths)])
 
 
 ## Real implementation: call Steam.steamInit(), check Steam.isSteamRunning(),
@@ -54,6 +98,8 @@ func _try_init_steamworks() -> void:
 ##           paths.append(info.folder)
 ##   return paths
 func get_installed_item_paths() -> Array[String]:
+	if not is_available:
+		return simulated_item_paths.duplicate()
 	return []
 
 

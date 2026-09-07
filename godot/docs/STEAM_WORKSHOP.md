@@ -68,3 +68,48 @@ treats every path it returns exactly like any other pack directory (see
 `ModLoader.discover_pack_dirs()`). Once step 5 above returns real paths
 instead of an empty array, Workshop content loads with zero changes to the
 merge/loading logic — that was the point of stubbing the interface first.
+
+## Walking the Workshop path without Steam
+
+The paragraph above was a claim, and for a long time it was only a claim. The
+call to `Workshop.get_installed_item_paths()` had returned an empty array since
+the day it was written, so the lines in `discover_pack_dirs()` that turn a
+Workshop item into a pack **had never run with a path in them.** Every test of
+them passed, none of them had ever failed, and the first thing to exercise that
+code would have been a player's machine on the day GodotSteam landed.
+
+So there is a stand-in. Point `PARLOUR_WORKSHOP_DIRS` at one or more directories
+and each is treated exactly as a subscribed item's install folder:
+
+```
+PARLOUR_WORKSHOP_DIRS=/tmp/an-item godot --path godot
+```
+
+Separate several with the platform's PATH separator (`:`, or `;` on Windows,
+because a Windows item folder begins `C:\`). The directory needs a `mod.json`
+and nothing else — a Workshop item is an ordinary pack, which is the whole
+point.
+
+Two things keep this honest rather than making it a debug hatch:
+
+- it is consulted **only while `is_available` is false**, so real Steam can
+  never be masked by it;
+- what it produces is a plain directory path, which is all a Workshop item ever
+  is to the rest of the game. It exercises the real code, not a mock of it.
+
+`tests/test_modloader.gd` drives it to check the three cases that arrive on a
+real machine and could not be reached before: an item that loads and merges and
+is labelled as Steam's and can be switched off; an item Steam has reported but
+not finished downloading, or that was unsubscribed mid-session, which must be
+silently skipped rather than reported as a broken pack; and a pack from a
+directory none of the four roots explains, which must **not** be credited to
+Steam. That last one was a real bug — `_source_of()` knew three roots and
+answered "workshop" for everything else, so the Mods screen would have told a
+player that Steam installed a pack Steam had never heard of, on the one line
+they read to work out where to go and delete it.
+
+## Still not started
+
+The publish flow (point 6 above). Today the only way to distribute a pack is to
+share its folder; the Library's "save as a mod pack" writes one that is
+Workshop-ready as-is, but nothing uploads it.

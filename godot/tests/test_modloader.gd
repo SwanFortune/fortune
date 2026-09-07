@@ -43,6 +43,9 @@ const TESTS := [
 	"_test_a_bad_manifest_is_reported_once",
 	"_test_a_new_record_must_carry_what_the_base_records_carry",
 	"_test_an_override_may_restate_only_what_it_changes",
+	"_test_a_workshop_item_loads_like_any_other_pack",
+	"_test_a_workshop_item_that_is_not_there_changes_nothing",
+	"_test_a_pack_from_nowhere_does_not_blame_steam",
 ]
 
 ## Where the test packs are written. Under user://mods/ because that is a real
@@ -408,3 +411,150 @@ func _test_an_override_may_restate_only_what_it_changes() -> void:
 	check(not said.contains("Take Their Coat"),
 		"overriding a base card by restating one field is documented and must not be reported: %s" % said)
 	done("_test_an_override_may_restate_only_what_it_changes")
+
+
+# ── the Steam Workshop path ─────────────────────────────────────────────
+#
+# ModLoader has read Workshop.get_installed_item_paths() since the day it was
+# written, and that call has always returned an empty array. So the lines that
+# take a Workshop item and turn it into a pack HAD NEVER RUN WITH A PATH IN
+# THEM — a test that passes, has never failed, and proves nothing, which is the
+# shape this repository keeps being caught by. Without something like this, the
+# first thing ever to exercise that code would be a player's machine on the day
+# GodotSteam lands, with a folder Steam chose and nobody has looked at.
+#
+# Driven through Workshop.simulated_item_paths, which is the stand-in that
+# exists for exactly this (see autoload/Workshop.gd). What it produces is a
+# plain directory path, which is the whole of what a Workshop item ever is to
+# the rest of the game — so this exercises the real code rather than a mock of
+# it.
+
+## Where a simulated item is written: deliberately NOT under user://mods, so
+## that a pack found here can only have been found through Workshop. Under
+## user://mods it would load either way and the test would pass without the
+## path it is about ever running.
+const ITEM_ROOT := "user://zz_test_workshop"
+
+
+## Points Workshop at `paths` for one call to _load(), and puts it back. It is
+## an autoload, shared with everything else in this process — a probe that left
+## it set would quietly change what every later test in this file loads.
+func _load_with_workshop(paths: Array, disabled: Array = []) -> Dictionary:
+	var workshop: Node = root.get_node("Workshop")
+	var before: Array = workshop.simulated_item_paths.duplicate()
+	var typed: Array[String] = []
+	for p in paths:
+		typed.append(str(p))
+	workshop.simulated_item_paths = typed
+	var out := _load(disabled)
+	workshop.simulated_item_paths = before
+	return out
+
+
+func _pack_named(loaded: Dictionary, id: String) -> Dictionary:
+	for p in loaded["packs"]:
+		if str(p.get("id", "")) == id:
+			return p
+	return {}
+
+
+## A SUBSCRIBED ITEM IS A PACK LIKE ANY OTHER — the promise Workshop.gd's header
+## makes ("plugging in real data here is the entire integration surface"), which
+## nothing had ever checked. Its content merges, it is listed, it is labelled as
+## Steam's rather than as the player's own folder, and it can be switched off
+## from the Mods screen like anything else.
+func _test_a_workshop_item_loads_like_any_other_pack() -> void:
+	var dir := ITEM_ROOT.path_join("2914857001")   # Steam names them by item id
+	DirAccess.make_dir_recursive_absolute(dir)
+	_write(dir.path_join("mod.json"), JSON.stringify({
+		"id": "zz_test_subscribed", "name": "A Subscribed Pack", "files": ["cards.json"],
+	}, "  "))
+	# An OVERRIDE of a base card, so this says nothing about the new-record
+	# contract and everything about whether the pack was found at all.
+	_write(dir.path_join("cards.json"), JSON.stringify({
+		"cards_basics": [{"n": "Take Their Coat", "f": 41}],
+	}, "  "))
+
+	var without := _load()
+	check(_pack_named(without, "zz_test_subscribed").is_empty(),
+		"precondition: nothing outside Workshop should find this folder — if it does, this test proves nothing")
+
+	var loaded := _load_with_workshop([dir])
+	var rec := _pack_named(loaded, "zz_test_subscribed")
+	check(not rec.is_empty(), "a subscribed item should be discovered and listed as a pack")
+	check(str(rec.get("source", "")) == "workshop",
+		"and be labelled as Steam's, not the player's own folder — says '%s'" % rec.get("source", ""))
+	check(int(_find(loaded["registries"]["cards_basics"], "n", "Take Their Coat").get("f", 0)) == 41,
+		"its content should merge exactly like a pack from user://mods")
+	check(loaded["errors"].is_empty(), "a well-formed item should report nothing: %s" % [loaded["errors"]])
+
+	# And the Mods screen's switch works on it — a pack a player cannot turn off
+	# is a pack they have to unsubscribe from to test anything.
+	var off := _load_with_workshop([dir], ["zz_test_subscribed"])
+	check(int(_find(off["registries"]["cards_basics"], "n", "Take Their Coat").get("f", 0)) != 41,
+		"a disabled Workshop pack should contribute nothing")
+	check(not _pack_named(off, "zz_test_subscribed").is_empty(),
+		"but still be listed, so it can be switched back on")
+
+	_rm_rf(ITEM_ROOT)
+	done("_test_a_workshop_item_loads_like_any_other_pack")
+
+
+## THE HALF-DOWNLOADED CASE, which is the normal one at launch. Steam reports an
+## item before its files are on disk, and reports items that were unsubscribed
+## while the game was running. Both arrive here as a path to a folder that is
+## not there or holds nothing — and neither may be an error, a missing card, or
+## a warning on the console, because the player has done nothing wrong.
+func _test_a_workshop_item_that_is_not_there_changes_nothing() -> void:
+	var baseline := _load()
+	var empty := ITEM_ROOT.path_join("still_downloading")
+	DirAccess.make_dir_recursive_absolute(empty)   # exists, no mod.json yet
+
+	var loaded := _load_with_workshop([
+		ITEM_ROOT.path_join("unsubscribed_mid_session"),   # gone entirely
+		empty,
+		"/nowhere/at/all/1234",                            # an absolute path, as Steam gives
+	])
+	check(loaded["errors"].size() == baseline["errors"].size(),
+		"an item with nothing behind it must not be reported as a broken pack: %s" % [loaded["errors"]])
+	check(loaded["packs"].size() == baseline["packs"].size(),
+		"and must not be listed as a pack (%d vs %d)" % [loaded["packs"].size(), baseline["packs"].size()])
+	check(loaded["registries"]["cards_basics"].size() == baseline["registries"]["cards_basics"].size(),
+		"and must leave the game exactly as it was")
+
+	_rm_rf(ITEM_ROOT)
+	done("_test_a_workshop_item_that_is_not_there_changes_nothing")
+
+
+## A PACK FROM A DIRECTORY NOBODY EXPLAINS SAYS SO.
+##
+## _source_of() knew three roots and answered "workshop" for everything else, so
+## the Mods screen would tell a player that Steam had installed a pack that
+## Steam had never heard of — on the one line they read to work out where to go
+## and delete it. Reachable today by any future discovery root, and by the
+## simulation above; the fix is that a Workshop item is recognised by having
+## come from Workshop, not by the shape of its path.
+func _test_a_pack_from_nowhere_does_not_blame_steam() -> void:
+	var dir := ITEM_ROOT.path_join("hand_placed")
+	DirAccess.make_dir_recursive_absolute(dir)
+	_write(dir.path_join("mod.json"), JSON.stringify({
+		"id": "zz_test_elsewhere", "name": "From Nowhere", "files": [],
+	}, "  "))
+
+	# Found the way a future root would find it: handed to the loader directly,
+	# with Workshop reporting nothing.
+	var loader = load("res://autoload/ModLoader.gd").new()
+	loader.load_example_mods = false
+	loader.build_registries()
+	check(loader._source_of(dir) == "elsewhere",
+		"a path Workshop never reported must not be credited to Steam, says '%s'" % loader._source_of(dir))
+	check(loader._source_of("user://mods/whatever") == "user", "and the roots it does know still answer")
+	check(loader._source_of(loader.BASE_DIR) == "base", "including the base pack")
+
+	# The Mods screen has a word for it rather than printing the code.
+	var ModsScreen = load("res://scenes/ModsScreen.gd")
+	check(ModsScreen._source_label("elsewhere") != "elsewhere",
+		"the Mods screen should have a sentence for a pack from elsewhere, not the raw code")
+
+	_rm_rf(ITEM_ROOT)
+	done("_test_a_pack_from_nowhere_does_not_blame_steam")

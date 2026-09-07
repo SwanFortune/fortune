@@ -378,6 +378,7 @@ func _ui_strings() -> Array[String]:
 		"The game's own content. Always loaded, always first.",
 		"TURN OFF", "TURN ON", "RELOAD CONTENT",
 		"shipped with the game", "bundled example", "your mods folder", "Steam Workshop",
+		"loaded from elsewhere",
 		"Everything loaded cleanly.",
 		"%s problem(s). A pack that reports one is still loaded — only the offending record is skipped.",
 		"One folder per pack, each with a mod.json. Turn a pack off above rather than deleting it if you only want it gone for a while.",
