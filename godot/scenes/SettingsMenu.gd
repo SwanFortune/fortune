@@ -250,8 +250,9 @@ func _language_row() -> Control:
 	UIKit.style_button(opt)
 	var i := 0
 	var selected := 0
-	for code in I18n.LOCALES:
-		opt.add_item(I18n.LOCALES[code])
+	var languages := I18n.locales()
+	for code in languages:
+		opt.add_item(languages[code])
 		opt.set_item_metadata(i, code)
 		if code == I18n.current():
 			selected = i

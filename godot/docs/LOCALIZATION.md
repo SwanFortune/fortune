@@ -135,11 +135,20 @@ style choice. Prefer a form that does not inflect.
 
 ## Adding a language
 
-1. Add it to `LOCALES` in `autoload/I18n.gd` (e.g. `"es": "Español"`).
-2. `godot --headless --path godot -s tests/gen_locale_template.gd -- es`
-3. Add `"locale/es.json"` to the `files` list in `data/base/mod.json` — the
+No code is edited. A language is a file, exactly like a card is a file.
+
+1. `godot --headless --path godot -s tests/gen_locale_template.gd -- es`
+2. Add `"locale/es.json"` to the `files` list in `data/base/mod.json` — the
    loader only reads files a manifest lists.
+3. Put `"_language": "Español"` at the top of the `locale_es` table. That is the
+   name Settings will list it under, written in the language itself. Without it
+   the menu shows `es`, which is choosable and ugly.
 4. Fill it in.
+
+The offered languages are read from what actually loaded, so step 3 is what
+puts Spanish in the menu. Underscored keys are metadata, not strings: the
+template generator carries them over untouched, and the coverage figure ignores
+them.
 
 ## Mods can translate too
 
@@ -149,6 +158,14 @@ cards, or of the base game's strings — exactly the way it ships cards: a JSON
 file with a `locale_fr` key, listed in its `mod.json`. It only needs to
 include the keys it cares about. Higher-priority packs win, so a
 "better French" mod is a thing someone can just make.
+
+**And a whole new language, too.** This page used to say the sentence above
+while step 1 of "Adding a language" was "edit `autoload/I18n.gd`" — so a pack
+could improve a language and could not add one, and nobody would find out until
+they tried. The list of offered languages is derived from the loaded registries
+now: a pack that ships `locale_de` with a `_language` key puts German in the
+menu, with nothing in the game to change. `tests/test_i18n.gd` writes a real
+pack to the real mods directory and checks exactly that.
 
 ## Testing
 

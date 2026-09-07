@@ -34,6 +34,7 @@ func _initialize() -> void:
 	_test_pronoun_tokens_are_filled()
 	_test_no_unfilled_tokens_anywhere()
 	_test_every_t_call_is_on_the_checklist()
+	_test_a_pack_can_add_a_whole_language()
 
 	settings.set_value("locale", restore)
 	i18n.reload()
@@ -334,3 +335,79 @@ func _test_no_unfilled_tokens_anywhere() -> void:
 		for role in content.jobs:
 			var out3: String = i18n.fill(str(content.jobs[role].get("t", "")), pronoun)
 			check(not out3.contains("{"), "job %s leaves a raw token for '%s': %s" % [role, pronoun, out3])
+
+
+## A PACK CAN ADD A LANGUAGE, not merely improve one.
+##
+## docs/LOCALIZATION.md promises that "a mod ships translations exactly the way
+## it ships cards" — and it could not. A pack could add a `locale_de` table, the
+## loader would merge it like any other registry, and German would never appear
+## in Settings, because the list of offered languages was a const in I18n.gd
+## that only that file could change. Half a promise: a mod could make a better
+## French and could not make a German, and nobody would find out until they
+## tried.
+##
+## Driven end to end — a real pack written to the real mods directory, loaded
+## through the real loader — because every part of the claim is a seam between
+## two pieces, and the failure was that one of those seams did not exist.
+const FAKE_LANG := "zz"
+const FAKE_DIR := "user://mods/zz_test_language"
+
+
+func _test_a_pack_can_add_a_whole_language() -> void:
+	DirAccess.make_dir_recursive_absolute(FAKE_DIR)
+	_write_file(FAKE_DIR + "/mod.json", JSON.stringify({
+		"id": "zz.test.language", "name": "A Whole Language",
+		"version": "1.0.0", "files": ["locale.json"],
+	}, "  "))
+	_write_file(FAKE_DIR + "/locale.json", JSON.stringify({
+		"locale_" + FAKE_LANG: {
+			"_language": "Zzyzx",
+			"ui/SETTINGS": "ZZSETTINGS",
+		},
+	}, "  "))
+	content.reload()
+
+	var offered: Dictionary = i18n.locales()
+	check(offered.has(FAKE_LANG),
+		"a pack that ships a locale_%s table should put that language in the menu — offered: %s"
+			% [FAKE_LANG, str(offered.keys())])
+	# NAMED BY ITSELF. A menu that lists "zz" is a menu nobody can use.
+	check(str(offered.get(FAKE_LANG, "")) == "Zzyzx",
+		"the language should be listed under the name it gives itself, got '%s'" % offered.get(FAKE_LANG, ""))
+
+	# And it has to actually be selectable and actually translate.
+	_set_locale(FAKE_LANG)
+	check(i18n.current() == FAKE_LANG,
+		"the language should survive being chosen, got '%s'" % i18n.current())
+	check(i18n.t("SETTINGS") == "ZZSETTINGS",
+		"a string the pack translated should come back translated, got '%s'" % i18n.t("SETTINGS"))
+	# Everything it did NOT translate still falls back to English rather than
+	# blanking, which is the property that lets a language ship half-finished.
+	check(i18n.t("BACK") == "BACK",
+		"an untranslated string should fall back to English, got '%s'" % i18n.t("BACK"))
+
+	_set_locale("en")
+	_remove_dir(FAKE_DIR)
+	content.reload()
+	check(not i18n.locales().has(FAKE_LANG), "removing the pack should remove the language again")
+
+
+func _write_file(path: String, text: String) -> void:
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+
+
+func _remove_dir(path: String) -> void:
+	var d := DirAccess.open(path)
+	if d == null:
+		return
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		if not d.current_is_dir():
+			d.remove(name)
+		name = d.get_next()
+	d.list_dir_end()
+	DirAccess.remove_absolute(path)

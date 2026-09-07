@@ -121,14 +121,15 @@ func _godot_version() -> String:
 ## honest about.
 func _translation_lines() -> Array:
 	var out: Array = []
-	for code in I18n.LOCALES:
+	var languages := I18n.locales()
+	for code in languages:
 		if code == "en":
 			continue
 		var cov: Dictionary = I18n.coverage(str(code))
 		var total := int(cov.get("total", 0))
 		var done := int(cov.get("translated", 0))
 		var pct := 0 if total == 0 else int(round(100.0 * done / total))
-		out.append("· %s — %d%%" % [I18n.LOCALES[code], pct])
+		out.append("· %s — %d%%" % [languages[code], pct])
 	if out.is_empty():
 		out.append(I18n.t("English only."))
 	out.append(I18n.t("Translators: unfilled. See docs/LOCALIZATION.md."))

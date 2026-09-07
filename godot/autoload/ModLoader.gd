@@ -113,11 +113,12 @@ func build_registries() -> Dictionary:
 	return registries
 
 
-## Registries whose records are not content in this sense — keyed tables and
-## lookup lists rather than things with a name and a rule. Listed, because the
-## alternative is inferring it, and this file's whole subject is what happens
-## when the two disagree.
-const NOT_RECORDS := ["locale_fr", "locale_en"]
+## Locale tables are keyed strings, not records with a name and a rule, so the
+## contract below has nothing to say about them. Matched by prefix rather than
+## named: this was a list of two, `locale_fr` and `locale_en`, which a pack
+## shipping `locale_de` would have walked straight past — a hand-kept list that
+## the data can outgrow, in the one file whose whole subject is that.
+const NOT_RECORD_PREFIX := "locale_"
 
 
 ## EVERY RECORD A PACK ADDS CARRIES WHAT THE BASE GAME'S RECORDS CARRY.
@@ -150,7 +151,7 @@ const NOT_RECORDS := ["locale_fr", "locale_en"]
 ## the content they installed.
 func _check_against_the_base(registries: Dictionary) -> void:
 	for key in registries:
-		if key in NOT_RECORDS:
+		if str(key).begins_with(NOT_RECORD_PREFIX):
 			continue
 		var records = registries[key]
 		if not (records is Array) or records.is_empty() or not (records[0] is Dictionary):

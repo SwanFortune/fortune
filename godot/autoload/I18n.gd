@@ -23,12 +23,15 @@ extends Node
 
 signal locale_changed
 
-## Locales offered in Settings. "en" is the source language: the base JSON
-## and the .gd string literals ARE English, so it needs no locale file.
-const LOCALES := {
-	"en": "English",
-	"fr": "Français",
-}
+## The source language, which needs no locale file: the base JSON and the .gd
+## string literals ARE English.
+const SOURCE := "en"
+const SOURCE_NAME := "English"
+
+## The key a locale table uses to say what it is called, in itself. Underscored
+## like every other non-content key in this project's data, so nothing mistakes
+## it for a translation.
+const LANGUAGE_NAME_KEY := "_language"
 
 var _strings: Dictionary = {}
 
@@ -43,14 +46,45 @@ func _ready() -> void:
 	)
 
 
+## EVERY LANGUAGE THE GAME CAN ACTUALLY SPEAK, derived from what loaded rather
+## than from a list in this file.
+##
+## docs/LOCALIZATION.md promises that "a mod ships translations exactly the way
+## it ships cards" — and it could not. A pack could add a `locale_de` table, the
+## loader would merge it like any other registry, and German would never appear
+## in Settings, because the list of offered languages was a const here that only
+## this file could change. A mod could improve a language and not add one, which
+## is the half of the promise nobody would notice was missing until they tried.
+##
+## A language names ITSELF, in itself, through the `_language` key in its own
+## table — so the menu reads "Español" and not "es", with nothing here to edit.
+## A table that forgets to say gets its code, which is ugly enough to fix and
+## still lets the language be chosen.
+func locales() -> Dictionary:
+	var out := {SOURCE: SOURCE_NAME}
+	for key in Content.registries:
+		var code := str(key)
+		if not code.begins_with("locale_"):
+			continue
+		code = code.trim_prefix("locale_")
+		if code == SOURCE or code == "":
+			continue
+		var table = Content.registries[key]
+		var named := ""
+		if table is Dictionary:
+			named = str(table.get(LANGUAGE_NAME_KEY, ""))
+		out[code] = named if named.strip_edges() != "" else code
+	return out
+
+
 func current() -> String:
 	var loc: String = str(Settings.get_value("locale"))
-	return loc if LOCALES.has(loc) else "en"
+	return loc if locales().has(loc) else SOURCE
 
 
 func reload() -> void:
 	var loc := current()
-	_strings = {} if loc == "en" else Content.registries.get("locale_" + loc, {})
+	_strings = {} if loc == SOURCE else Content.registries.get("locale_" + loc, {})
 	# TranslationServer isn't used for lookups (this class owns them) but
 	# keeping it in step means any built-in Godot control that localizes
 	# itself — file dialogs, default button text — follows the same setting.
@@ -192,7 +226,16 @@ func coverage(loc: String) -> Dictionary:
 		return {"translated": 0, "total": 0}
 	var table: Dictionary = Content.registries.get("locale_" + loc, {})
 	var translated := 0
+	var total := 0
 	for k in table:
+		# Underscored keys are the table talking about ITSELF — `_language` is
+		# the name the menu shows — not strings anybody translated. Counting
+		# them inflates the number the credits screen prints, and this project
+		# has already been bitten once by a coverage figure that was measuring
+		# something other than what it said.
+		if str(k).begins_with("_"):
+			continue
+		total += 1
 		if str(table[k]).strip_edges() != "":
 			translated += 1
-	return {"translated": translated, "total": table.size()}
+	return {"translated": translated, "total": total}

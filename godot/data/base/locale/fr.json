@@ -941,6 +941,7 @@
     "ui/● marks a card you've changed": "● marks a card you've changed"
   },
   "locale_fr": {
+    "_language": "Français",
     "archetype/channel/name": "CANAL",
     "archetype/channel/text": "Trouver la force en soi.",
     "archetype/digging/name": "CREUSER",
