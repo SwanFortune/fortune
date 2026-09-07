@@ -38,7 +38,8 @@ is always runnable — art can land one piece at a time, in any order.
   source gives us headroom for a zoomed card-inspect view later.
 - A piece delivered in some other shape still works — it fills the window and
   loses whatever hangs over the edges — but 4:3 is the shape that loses
-  nothing.
+  nothing, and `tests/test_art.gd` will tell you the size was not the one asked
+  for rather than let it through quietly. See "Checking a delivery" below.
 - The window's shape lives in `UIKit.ART_WELL`; `tests/test_art.gd` fails if
   this line and that constant stop agreeing, so the number above cannot go
   stale without somebody being told.
@@ -73,6 +74,28 @@ assets/art/reader/serpentarius.png
 Accents are stripped from filenames on purpose so they stay portable across
 Windows/Mac/Linux and safe inside Steam Workshop archives — the accented name
 still displays correctly in-game, it's only the filename that's plain.
+
+### Checking a delivery
+
+From the repository root:
+
+```
+godot --headless --path godot -s tests/test_art.gd
+```
+
+It prints how many assets are missing, delivered or work-in-progress, and it
+names anything that will not reach the game:
+
+- **a file that is not a manifest id.** `card/pour_the_tea.png` with an
+  underscore, or a portrait dropped in `card/`, loads as nothing. The game shows
+  its placeholder and says nothing, so this is the mistake worth catching first.
+- **a size the spec did not ask for.** A card at 800×600 still works — it fills
+  the window — but it is scaled to get there and reads softer than it was drawn.
+- **a manifest entry marked `wip` or `final` with no file behind it**, which is
+  the same mistake from the other end.
+
+Every one of those is silent without this: the loader returns nothing, the
+screen draws what it drew before, and the file looks delivered.
 
 ---
 

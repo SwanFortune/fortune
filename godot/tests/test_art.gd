@@ -29,6 +29,7 @@ func _initialize() -> void:
 	await _test_the_card_holds_a_window_open()
 	_test_a_portrait_lands_in_the_same_slot()
 	_test_the_guide_states_the_window_it_gets()
+	_test_delivered_files_and_the_manifest_agree()
 
 	if failures.is_empty():
 		print("ALL PASS — art status: ", art.status_summary())
@@ -268,3 +269,106 @@ func _all_of(node: Node, out: Array) -> Array:
 ## checking too much rather than towards silently checking nothing.
 func _is_base(rec: Dictionary) -> bool:
 	return str(rec.get("_pack", "parlour.base")) == "parlour.base"
+
+
+## WHAT AN ILLUSTRATOR DELIVERS AND WHAT THE GAME EXPECTS ARE THE SAME THING.
+##
+## Seventy-nine assets will arrive over weeks, from somebody who is not going to
+## run this suite, and EVERY WAY OF GETTING IT WRONG IS SILENT. A file in the
+## wrong folder, a slug with an underscore where the manifest has a hyphen, a
+## .jpg, a card drawn at 800x600 — none of them error. The loader returns null,
+## the screen draws its placeholder, and the game looks exactly as it did
+## before the file arrived. The first way anybody finds out is by opening every
+## screen and noticing which pictures are still missing.
+##
+## Three things are reconciled: the files on disk, the manifest, and the spec.
+##
+##   - a file under assets/art/ whose path is no manifest id is a delivery
+##     nobody will ever see;
+##   - an entry the manifest calls delivered with no file behind it is the same
+##     mistake from the other end;
+##   - a delivered file whose size is not what the spec asks for will be scaled
+##     into the window and look softer than the artist drew it.
+##
+## The spec says which kinds it governs (`applies_to`), so the mapping from
+## "card" to 768x576 lives in the manifest beside the numbers, not in a list in
+## here that would fall out of step with it the first time a kind is added.
+##
+## PASSES ON AN EMPTY assets/art, which is the state today. This test is not
+## "art is finished"; it is "nothing has been delivered into a hole".
+func _test_delivered_files_and_the_manifest_agree() -> void:
+	var wanted := {}          # "card/pour-the-tea" -> the manifest entry
+	for id in art.manifest:
+		wanted[id] = art.manifest[id]
+
+	# The spec, by kind, read from the manifest.
+	var size_for := {}        # "card" -> Vector2i(768, 576)
+	for block_name in art.spec:
+		var block = art.spec[block_name]
+		if not (block is Dictionary) or not block.has("applies_to"):
+			continue
+		var wh: PackedStringArray = str(block.get("pixels", "")).split("x")
+		if wh.size() != 2 or not wh[0].is_valid_int() or not wh[1].is_valid_int():
+			check(false, "the %s spec's \"pixels\" is not <w>x<h>: '%s'" % [block_name, block.get("pixels", "")])
+			continue
+		for kind in block["applies_to"]:
+			size_for[str(kind)] = Vector2i(int(wh[0]), int(wh[1]))
+	check(not size_for.is_empty(), "no spec block says which kinds it applies_to — nothing can be checked against a size")
+
+	# ONLY THE KIND FOLDERS, and the kinds come from the manifest. The naming
+	# rule it states is "<kind>/<slug>.png under assets/art/", so anything at the
+	# top of that directory is not a commissioned asset — the game's own window
+	# icon lives there, and a rule that walked the whole tree reported it as a
+	# misnamed delivery. Derived rather than excepted: a manifest that invents a
+	# fourth kind is covered, and a file dropped loose at the top is still not.
+	var kinds := {}
+	for id in wanted:
+		kinds[str(wanted[id].get("kind", ""))] = true
+
+	var delivered := {}
+	var files: Array[String] = []
+	for kind in kinds:
+		files.append_array(_art_files("res://assets/art".path_join(str(kind))))
+	for path in files:
+		# assets/art/card/pour-the-tea.png -> card/pour-the-tea
+		var id := path.trim_prefix("res://assets/art/").get_basename()
+		if not wanted.has(id):
+			check(false, "%s is not a manifest id — the game will never look for it. Check the folder and the slug against data/base/art_manifest.json (ids use hyphens, and the apostrophe in a name is dropped, not kept)." % path)
+			continue
+		delivered[id] = true
+		var img := Image.new()
+		if img.load(path) != OK:
+			check(false, "%s could not be read as an image — the spec asks for PNG" % path)
+			continue
+		var kind := str(wanted[id].get("kind", ""))
+		if not size_for.has(kind):
+			continue
+		var want: Vector2i = size_for[kind]
+		if img.get_size() != want:
+			check(false, "%s is %dx%d, and the spec asks every %s for %dx%d — it will be scaled into the window and read softer than it was drawn"
+				% [path, img.get_size().x, img.get_size().y, kind, want.x, want.y])
+
+	# And from the other end: the manifest must not claim what is not there.
+	for id in wanted:
+		var status := str(wanted[id].get("status", "missing"))
+		if status != "missing" and not delivered.has(id):
+			check(false, "the manifest calls %s '%s' and there is no file at assets/art/%s.png" % [id, status, id])
+
+
+func _art_files(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return out
+	d.list_dir_begin()
+	var name := d.get_next()
+	while name != "":
+		var full := dir_path.path_join(name)
+		if d.current_is_dir():
+			if not name.begins_with("."):
+				out.append_array(_art_files(full))
+		elif not name.ends_with(".import") and not name.ends_with(".md") and not name.begins_with("."):
+			out.append(full)
+		name = d.get_next()
+	d.list_dir_end()
+	return out

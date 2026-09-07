@@ -963,6 +963,9 @@
   },
   "spec": {
     "card_art": {
+      "applies_to": [
+        "card"
+      ],
       "aspect": "4:3 landscape",
       "format": "PNG, RGBA, transparent background allowed",
       "notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
@@ -971,6 +974,10 @@
     },
     "naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
     "portrait_art": {
+      "applies_to": [
+        "sitter",
+        "reader"
+      ],
       "aspect": "3:4 portrait",
       "format": "PNG, RGBA",
       "notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
