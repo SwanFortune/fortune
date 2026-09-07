@@ -16,6 +16,24 @@ extends Node
 
 const AUDIO_ROOT := "res://assets/audio/"
 
+## WHAT A CUE'S `status` MAY SAY. The authority: both registries are checked
+## against this and so is docs/SOUND_GUIDE.md, because the vocabulary was
+## written down in three places and two of them already disagreed — the guide
+## offered "placeholder or final" while music.json's own comment offered
+## "placeholder | wip | final". A composer reading the guide would have had no
+## word for the take that exists but is not the one that ships.
+const STATUSES := {
+	"placeholder": "a synthesised stand-in from tests/gen_sounds.py, meant to be replaced",
+	"wip": "a real recording, but not the one that ships",
+	"final": "delivered",
+}
+
+## The status that means NOBODY HAS MADE THIS YET, and the answer assumed for an
+## entry that does not say. Conservative on purpose, the same way Art.UNDELIVERED
+## is "missing": a cue that forgets to declare itself is counted as outstanding
+## work rather than quietly credited as finished.
+const UNDELIVERED := "placeholder"
+
 ## The moments the game can announce, and what each one is FOR. This is the
 ## authority: data/base/sounds.json must cover exactly these keys and no
 ## others, which tests/test_audio.gd asserts — otherwise a renamed event would
@@ -142,14 +160,59 @@ func play(event: String) -> void:
 func _stream_for(event: String, rec: Dictionary) -> AudioStream:
 	if _cache.has(event):
 		return _cache[event]
-	var path: String = str(rec.get("file", ""))
-	if path == "":
-		path = AUDIO_ROOT + event + ".wav"
-	elif not path.begins_with("res://") and not path.begins_with("user://"):
-		path = AUDIO_ROOT + path
-	var stream: AudioStream = _load_stream(path)
+	var stream: AudioStream = _load_stream(sound_path(event, rec))
 	_cache[event] = stream
 	return stream
+
+
+## WHERE A CUE'S AUDIO LIVES, as a path, whether or not anything is there.
+##
+## Split out of the two loaders so that tests/test_audio.gd can reconcile the
+## files on disk against the registries by ASKING THE GAME WHERE IT LOOKS rather
+## than keeping its own copy of the naming rule. A second copy of a convention is
+## exactly how a delivered file ends up in a folder nothing ever reads: the copy
+## in the test would agree with the file and the game would still be silent.
+func sound_path(event: String, rec: Dictionary) -> String:
+	return _resolve(str(rec.get("file", "")), event, [".wav"])
+
+
+## The same for a looping cue, which may also arrive as an .ogg — a three-minute
+## track is worth compressing and a half-second door knock is not.
+func loop_path(cue: String, rec: Dictionary) -> String:
+	return _resolve(str(rec.get("file", "")), cue, [".wav", ".ogg"])
+
+
+## `file` wins if the entry states one: a res:// or user:// path is taken as-is
+## (that is how a mod points at its own folder), a bare filename resolves under
+## assets/audio/. With no `file`, the cue's own name plus each extension in turn,
+## the first that exists — and the FIRST OF THE LIST when none does, so a caller
+## reporting the gap names the file somebody was supposed to deliver instead of
+## an empty string.
+func _resolve(file: String, cue_name: String, extensions: Array) -> String:
+	if file != "":
+		if file.begins_with("res://") or file.begins_with("user://"):
+			return file
+		return AUDIO_ROOT + file
+	for ext in extensions:
+		var path: String = AUDIO_ROOT + cue_name + str(ext)
+		if FileAccess.file_exists(path):
+			return path
+	return AUDIO_ROOT + cue_name + str(extensions[0])
+
+
+## COUNTS BY STATUS across both registries — the one-shots and the loops are one
+## body of work to whoever is making them, and the credits screen says so in one
+## line. Same shape as Art.status_summary(), and read by the same code.
+func status_summary() -> Dictionary:
+	var out := {}
+	for registry in [Content.sounds, Content.music]:
+		for key in registry:
+			var rec = registry[key]
+			var st := UNDELIVERED
+			if rec is Dictionary:
+				st = str(rec.get("status", UNDELIVERED))
+			out[st] = int(out.get(st, 0)) + 1
+	return out
 
 
 ## Decodes an audio file from BYTES rather than going through load().
@@ -315,14 +378,7 @@ func _loop_stream(cue: String, rec: Dictionary) -> AudioStream:
 	var key := "loop:" + cue
 	if _cache.has(key):
 		return _cache[key]
-	var path: String = str(rec.get("file", ""))
-	if path == "":
-		path = AUDIO_ROOT + cue + ".wav"
-		if not FileAccess.file_exists(path):
-			path = AUDIO_ROOT + cue + ".ogg"
-	elif not path.begins_with("res://") and not path.begins_with("user://"):
-		path = AUDIO_ROOT + path
-	var stream := _load_stream(path)
+	var stream := _load_stream(loop_path(cue, rec))
 	if stream != null and bool(rec.get("loop", true)):
 		if stream is AudioStreamWAV:
 			var wav: AudioStreamWAV = stream

@@ -26,6 +26,10 @@ const TESTS := [
 	"_test_every_cue_resolves",
 	"_test_a_cue_is_idempotent_and_crossfades",
 	"_test_every_screen_asks_for_music_that_exists",
+	"_test_every_entry_states_a_known_status",
+	"_test_delivered_audio_and_the_registries_agree",
+	"_test_the_guide_states_the_same_vocabulary",
+	"_test_the_credits_count_the_audio_rather_than_claiming",
 ]
 
 var failures: Array[String] = []
@@ -200,3 +204,138 @@ func _test_every_screen_asks_for_music_that_exists() -> void:
 	# screen, so it is in neither table and still has to exist.
 	check(content.music.has("the_mayor"), "the mayor's own track should be registered")
 	done("_test_every_screen_asks_for_music_that_exists")
+
+
+## EVERY ENTRY SAYS WHETHER IT IS REAL YET, in a word the game knows.
+##
+## `status` is written into all seventeen entries and documented in Audio.gd's
+## header as the reason the field exists — and nothing read it, so a typo
+## ("finaal"), a missing field, or a fourth word somebody invented were all the
+## same as saying "placeholder" and all silent. The credits now count against
+## this field, which is the first thing that would have shown the mistake, and
+## only after it had shipped.
+func _test_every_entry_states_a_known_status() -> void:
+	for where in [["sounds.json", content.sounds], ["music.json", content.music]]:
+		for key in where[1]:
+			var rec: Dictionary = where[1][key]
+			var st := str(rec.get("status", ""))
+			check(st != "", "%s: '%s' does not say whether it is a placeholder or the real thing" % [where[0], key])
+			check(st == "" or audio.STATUSES.has(st),
+				"%s: '%s' is marked '%s', which is not one of %s" % [where[0], key, st, audio.STATUSES.keys()])
+	done("_test_every_entry_states_a_known_status")
+
+
+## WHAT A COMPOSER DELIVERS AND WHAT THE GAME PLAYS ARE THE SAME FILE.
+##
+## The exact counterpart of test_art.gd's manifest reconciliation, and it exists
+## for the same reason: seventeen cues will be recorded over weeks by somebody
+## who will not run this suite, and EVERY WAY OF GETTING IT WRONG IS SILENT. A
+## file named the_evening.ogg when the registry expects a name it has to look up,
+## a track dropped into assets/audio/music/ because that seemed tidier, a `file`
+## key pointing at a path that no longer exists — the loader returns null, the
+## contract at the top of Audio.gd turns that into silence, and the game sounds
+## exactly as it did before the file arrived.
+##
+## Two directions, and the first is the one nothing covered:
+##
+##   - a file under assets/audio/ that no cue names is a delivery nobody will
+##     ever hear. Every other test here starts from the registry and can only
+##     ever find cues with no file, never files with no cue;
+##   - an entry the registry calls delivered with no file behind it is the same
+##     mistake from the other end.
+##
+## The paths come from Audio.sound_path()/loop_path() — the game's own rule, not
+## a second copy of it in here that would agree with the wrong answer.
+##
+## PASSES ON AN EMPTY assets/audio, which is a state this is meant to survive.
+func _test_delivered_audio_and_the_registries_agree() -> void:
+	var wanted := {}          # path -> [cue name, entry, which registry]
+	for event in content.sounds:
+		wanted[audio.sound_path(event, content.sounds[event])] = [event, content.sounds[event], "sounds.json"]
+	for cue in content.music:
+		wanted[audio.loop_path(cue, content.music[cue])] = [cue, content.music[cue], "music.json"]
+
+	var delivered := {}
+	for path in _audio_files(audio.AUDIO_ROOT):
+		if not wanted.has(path):
+			check(false, ("%s is in assets/audio/ and no cue names it — the game will never play it. "
+				+ "A cue with no \"file\" is looked for at assets/audio/<cue>.wav (or .ogg for a loop), "
+				+ "so check the name against data/base/sounds.json and data/base/music.json.") % path)
+			continue
+		delivered[path] = true
+
+	for path in wanted:
+		var cue: String = str(wanted[path][0])
+		var status := str(wanted[path][1].get("status", audio.UNDELIVERED))
+		if status != audio.UNDELIVERED and not delivered.has(path):
+			check(false, "%s calls '%s' '%s' and there is no file at %s"
+				% [wanted[path][2], cue, status, path])
+	done("_test_delivered_audio_and_the_registries_agree")
+
+
+## THE GUIDE AND THE CODE OFFER THE SAME WORDS.
+##
+## docs/SOUND_GUIDE.md is what a composer reads and Audio.STATUSES is what the
+## game accepts, and they had already drifted: the guide said `status` was
+## "placeholder or final" while music.json's own comment offered a third,
+## `wip`. Somebody with a take recorded but not mixed had no word for it in the
+## document they were working from, and the word that does work was written down
+## somewhere they would never look.
+func _test_the_guide_states_the_same_vocabulary() -> void:
+	var guide := FileAccess.get_file_as_string("res://docs/SOUND_GUIDE.md")
+	check(guide != "", "docs/SOUND_GUIDE.md should be readable")
+	for st in audio.STATUSES:
+		check(guide.contains("`%s`" % st),
+			"docs/SOUND_GUIDE.md never offers `%s`, which is a status the game accepts" % st)
+	done("_test_the_guide_states_the_same_vocabulary")
+
+
+## The credits screen reports the audio it can SEE.
+##
+## Its "Music and sound" line was a sentence typed once, saying everything was a
+## placeholder — which is the sort of claim that is true when written and false
+## for the rest of the project. See Version._art_and_sound().
+func _test_the_credits_count_the_audio_rather_than_claiming() -> void:
+	# Autoload names do not resolve in a `-s` script — see CLAUDE.md. Both of
+	# these have to come through root.get_node().
+	var version: Node = root.get_node("Version")
+	var i18n: Node = root.get_node("I18n")
+	var summary: Dictionary = audio.status_summary()
+	var counted := 0
+	for st in summary:
+		counted += int(summary[st])
+	check(counted == content.sounds.size() + content.music.size(),
+		"the summary should count every cue in both registries: %d counted, %d registered"
+		% [counted, content.sounds.size() + content.music.size()])
+
+	var said := ""
+	for block in version.credits():
+		if str(block[0]) == i18n.t("ART AND SOUND"):
+			said = "\n".join(PackedStringArray(block[1]))
+	check(said != "", "the credits should still have an art-and-sound block")
+	check(said.contains(str(counted)),
+		"the credits should say how many cues there are (%d); they say:\n%s" % [counted, said])
+	done("_test_the_credits_count_the_audio_rather_than_claiming")
+
+
+## Everything under assets/audio/ that could be a delivery — recursive, because a
+## file dropped in a subfolder is a real way to get this wrong and is exactly the
+## case a flat listing would report as nothing at all. `.import` files are
+## Godot's, not the composer's.
+func _audio_files(dir_path: String) -> Array[String]:
+	var out: Array[String] = []
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return out
+	d.list_dir_begin()
+	var entry := d.get_next()
+	while entry != "":
+		var full := dir_path.path_join(entry)
+		if d.current_is_dir():
+			if not entry.begins_with("."):
+				out.append_array(_audio_files(full))
+		elif not entry.ends_with(".import") and not entry.ends_with(".md") and not entry.begins_with("."):
+			out.append(full)
+		entry = d.get_next()
+	d.list_dir_end()
+	return out

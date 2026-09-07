@@ -9,8 +9,11 @@ lands. Nothing here ever needs a code change.
 
 1. Look at `godot/data/base/sounds.json`. Every key is a moment in the game.
 2. Put your file at `godot/assets/audio/<key>.wav` (or `.ogg`, or `.mp3`).
-3. Set that entry's `"status"` to `"final"`.
-4. Run the tests. `tests/test_audio.gd` will tell you if it does not load.
+3. Set that entry's `"status"` to `"final"` (or `"wip"` while it is still a
+   rough take).
+4. Run the tests. `tests/test_audio.gd` will tell you if it does not load, if
+   the file is somewhere no cue looks for it, or if an entry claims a file that
+   is not there.
 
 You do not need to open the Godot editor and you do not need to import
 anything — the loader reads audio files from bytes at runtime, precisely so
@@ -59,8 +62,14 @@ the authority — `sounds.json` must cover exactly those keys and no others, and
 "card_lay": { "status": "final", "gain_db": -6.0, "pitch_jitter": 0.05 }
 ```
 
-- `status` — `placeholder` or `final`. Only bookkeeping; it does not change
-  playback. It is how anyone can see at a glance what is still stand-in.
+- `status` — `placeholder` → `wip` → `final`, and it must be one of those three
+  words (`tests/test_audio.gd` checks every entry against `Audio.STATUSES`, and
+  checks that this list and that one still say the same thing). `placeholder` is
+  a synthesised stand-in, `wip` is a real recording that is not yet the one that
+  ships, `final` is delivered. It does not change playback — but it is not only
+  bookkeeping either: the credits screen counts it, so a track marked `final`
+  with no file behind it is a claim the game makes to the player, and the same
+  test fails on it.
 - `file` — optional. Defaults to `assets/audio/<key>.wav`. A bare filename
   resolves under `assets/audio/`; a `res://` or `user://` path is taken as-is,
   which is how a mod points at its own folder.

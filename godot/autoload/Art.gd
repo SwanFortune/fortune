@@ -126,10 +126,17 @@ func reader_texture(reader: Dictionary) -> Texture2D:
 	return texture(reader_id(reader))
 
 
+## The status that means NOBODY HAS DRAWN THIS YET, and the answer assumed for an
+## entry that does not say. Named rather than spelt "missing" at each call site
+## because the credits count against it; see Audio.UNDELIVERED, which is the same
+## idea with a different word (art starts absent, sound starts as a stand-in).
+const UNDELIVERED := "missing"
+
+
 ## Counts by status, for a quick "how much art is done" readout.
 func status_summary() -> Dictionary:
 	var out := {}
 	for id in manifest:
-		var st: String = manifest[id].get("status", "missing")
+		var st: String = manifest[id].get("status", UNDELIVERED)
 		out[st] = int(out.get(st, 0)) + 1
 	return out
