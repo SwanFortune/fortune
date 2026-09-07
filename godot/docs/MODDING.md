@@ -122,6 +122,20 @@ base game's files. If the id is new, your record is appended. This is exactly
 how `ModLoader._merge_array_by_key()` works; read it if you want the precise
 mechanics.
 
+**Whole-record replacement has a sharp edge worth knowing.** A pack that
+changes one number by restating only that number gets a card with only that
+number: the rarity, the archetype, the flavour line and the spoken clause all
+go with the record you replaced. If you mean to tweak a card, restate the whole
+card. The Mods screen will not warn you about this one, because it is doing
+what this page says it does.
+
+**A record you INVENT is checked.** It has to carry the fields every base
+record of its kind carries — a `cards_minor` entry needs the eight things all
+thirty-one base minors have. That contract is not written down anywhere: it is
+read off the base content at load, so it follows the game rather than drifting
+behind it. A record that falls short still loads; the Mods screen names it, the
+field, and your pack.
+
 ### A rule and its flavour are two fields
 
 A sign and a job each say two things: what they are LIKE, and what they DO.

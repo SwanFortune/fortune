@@ -41,6 +41,8 @@ const TESTS := [
 	"_test_a_disabled_pack_contributes_nothing",
 	"_test_every_record_names_its_pack",
 	"_test_a_bad_manifest_is_reported_once",
+	"_test_a_new_record_must_carry_what_the_base_records_carry",
+	"_test_an_override_may_restate_only_what_it_changes",
 ]
 
 ## Where the test packs are written. Under user://mods/ because that is a real
@@ -361,3 +363,48 @@ func _test_a_bad_manifest_is_reported_once() -> void:
 	check(about_manifest > 0, "an unparseable manifest should be reported at all, got %s" % [errs])
 	check(about_manifest <= 2, "one broken manifest should not produce %d messages: %s" % [about_manifest, errs])
 	done("_test_a_bad_manifest_is_reported_once")
+
+
+## A CARD A PACK INVENTS MUST LOOK LIKE A CARD.
+##
+## There was no contract of any kind. A card with no `cost` is a free card; one
+## with no `el` has no element and scores as neutral; one with no `f` restores
+## nothing. None of that fails at load — it fails later, on a screen, as a card
+## that behaves oddly, and for a modder it fails on somebody else's machine.
+##
+## The contract is DERIVED: a field every base card carries is a field a card
+## requires. Not a schema written down beside the data, which is one more list
+## to fall out of step with it — add a field to all fifty-six base cards and
+## mods must supply it, with nothing to edit.
+func _test_a_new_record_must_carry_what_the_base_records_carry() -> void:
+	_pack("half_a_card", {"id": PREFIX + "half_a_card", "name": "Half A Card", "files": ["cards.json"]},
+		{"cards.json": {"cards_minor": [
+			# A name, a cost, and nothing else — the shape of a first attempt.
+			{"n": "A Half-Written Card", "cost": 1},
+		]}})
+	var loaded := _load()
+	var said := "\n".join(loaded.errors)
+	check(said.contains("A Half-Written Card"), "the incomplete card should be named in the load errors, got: %s" % said)
+	check(said.contains("\"f\"") or said.contains("\"el\""),
+		"and the error should name a field it is missing, got: %s" % said)
+	# Reported, not refused: the pack still loaded its card.
+	var found := false
+	for c in loaded.registries.get("cards_minor", []):
+		if str(c.get("n", "")) == "A Half-Written Card":
+			found = true
+	check(found, "a pack with one bad record should still load that record — the Mods screen is where a modder finds out, not a missing card")
+	done("_test_a_new_record_must_carry_what_the_base_records_carry")
+
+
+## AND AN OVERRIDE IS LEFT ALONE. A record whose key matches a base one replaces
+## it whole — docs/MODDING.md promises that — so restating only the field you
+## are changing is doing what the docs say you may. The contract above must not
+## turn a documented feature into an error.
+func _test_an_override_may_restate_only_what_it_changes() -> void:
+	_pack("cheap_coat", {"id": PREFIX + "cheap_coat", "name": "Cheap Coat", "files": ["cards.json"]},
+		{"cards.json": {"cards_basics": [{"n": "Take Their Coat", "cost": 0}]}})
+	var loaded := _load()
+	var said := "\n".join(loaded.errors)
+	check(not said.contains("Take Their Coat"),
+		"overriding a base card by restating one field is documented and must not be reported: %s" % said)
+	done("_test_an_override_may_restate_only_what_it_changes")

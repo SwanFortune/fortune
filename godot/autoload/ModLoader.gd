@@ -107,7 +107,120 @@ func build_registries() -> Dictionary:
 		packs.append(rec)
 		if enabled:
 			_load_pack_into(pack_dir, manifest, registries, rec)
+			if is_base:
+				_remember_what_the_base_defined(registries)
+	_check_against_the_base(registries)
 	return registries
+
+
+## Registries whose records are not content in this sense — keyed tables and
+## lookup lists rather than things with a name and a rule. Listed, because the
+## alternative is inferring it, and this file's whole subject is what happens
+## when the two disagree.
+const NOT_RECORDS := ["locale_fr", "locale_en"]
+
+
+## EVERY RECORD A PACK ADDS CARRIES WHAT THE BASE GAME'S RECORDS CARRY.
+##
+## There was no contract at all. A card missing `cost` is a free card; one
+## missing `el` has no element and quietly scores as neutral; one missing `f`
+## restores nothing. None of that fails at load — it fails later, on a screen,
+## as a card that behaves strangely, and for a modder it fails on somebody
+## else's machine.
+##
+## THE CONTRACT IS DERIVED, NOT WRITTEN DOWN. A hand-kept schema is one more
+## list to fall behind the data, which is the failure this project keeps
+## finding; and a schema written today would be wrong the first time a field is
+## added to the base game. So the base pack IS the schema: a field that every
+## base record of a kind carries is a field that kind requires. Add `patience`
+## to all thirteen readers and mods must supply it, with no schema to edit —
+## add it to twelve and it is optional, which is also the right answer.
+##
+## OVERRIDES ARE EXEMPT, and deliberately. A record whose key matches a base
+## one REPLACES it whole — docs/MODDING.md promises exactly that — so a pack
+## that changes a card's cost by restating only the cost is doing what it was
+## told it could. It is a sharp edge (the card loses its rarity, its flavour and
+## its spoken clause along with the fields nobody restated) but it is a
+## documented one, and quietly changing the merge rule underneath every existing
+## mod is not this check's business.
+##
+## Reported rather than refused. A pack with a malformed card should load its
+## other forty, and the Mods screen already puts load errors in front of the
+## player; dropping the pack would leave them with a game that quietly lacks
+## the content they installed.
+func _check_against_the_base(registries: Dictionary) -> void:
+	for key in registries:
+		if key in NOT_RECORDS:
+			continue
+		var records = registries[key]
+		if not (records is Array) or records.is_empty() or not (records[0] is Dictionary):
+			continue
+		var required := _fields_every_base_record_has(records)
+		if required.is_empty():
+			continue
+		var key_field: String = ARRAY_KEY_FIELDS.get(key, "")
+		var was_the_base_s: Dictionary = _base_keys.get(key, {})
+		for r in records:
+			if not (r is Dictionary) or str(r.get("_pack", BASE_ID)) == BASE_ID:
+				continue
+			if key_field != "" and was_the_base_s.has(r.get(key_field, null)):
+				continue  # an override; see the note above
+			for field in required:
+				if not r.has(field):
+					errors.append("%s: its %s entry \"%s\" has no \"%s\", which every %s in the base game has — it will load and then behave oddly"
+						% [r.get("_pack", "?"), key, _name_of(r), field, key])
+
+
+## The fields common to every base record of one kind. Empty when the kind has
+## no base records at all — a pack inventing a whole new registry has nothing to
+## be measured against, and that is allowed.
+func _fields_every_base_record_has(records: Array) -> Array:
+	var common: Dictionary = {}
+	var first := true
+	for r in records:
+		if not (r is Dictionary) or str(r.get("_pack", BASE_ID)) != BASE_ID:
+			continue
+		if first:
+			for k in r:
+				if not str(k).begins_with("_"):
+					common[k] = true
+			first = false
+			continue
+		for k in common.keys():
+			if not r.has(k):
+				common.erase(k)
+	return common.keys()
+
+
+## Which records the base game defined, by category and key, captured the moment
+## the base pack has loaded and before any mod has had a chance to replace one.
+## Afterwards there is no way to tell an override from a new record: replacement
+## leaves nothing of the original behind.
+var _base_keys: Dictionary = {}
+
+
+func _remember_what_the_base_defined(registries: Dictionary) -> void:
+	_base_keys = {}
+	for key in registries:
+		if not ARRAY_KEY_FIELDS.has(key):
+			continue
+		var records = registries[key]
+		if not (records is Array):
+			continue
+		var key_field: String = ARRAY_KEY_FIELDS[key]
+		var seen := {}
+		for r in records:
+			if r is Dictionary and r.has(key_field):
+				seen[r[key_field]] = true
+		_base_keys[key] = seen
+
+
+## Enough to find the record in a file. Most content is named; some is keyed.
+func _name_of(r: Dictionary) -> String:
+	for field in ["n", "name", "k", "title", "tag", "head"]:
+		if r.has(field):
+			return str(r[field])
+	return "(unnamed)"
 
 
 ## Which of the four discovery roots a pack came from, for the Mods screen —
