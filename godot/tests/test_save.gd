@@ -33,70 +33,29 @@
 ##
 ## Autoloads are fetched via get_node() — see the note at the top of
 ## tests/test_rules.gd for why the bare global names don't resolve here.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-const TESTS := [
-	"_test_roundtrip_on_map",
-	"_test_roundtrip_mid_fight",
-	"_test_numbers_stay_numbers",
-	"_test_content_is_re_resolved",
-	"_test_missing_card_is_dropped",
-	"_test_no_save_for_a_non_run",
-	"_test_corrupt_save_is_refused",
-	"_test_peek",
-	"_test_every_action_marks_the_run_dirty",
-	"_test_a_content_reload_reaches_a_live_run",
-	"_test_quitting_flushes_the_last_action",
-	"_test_the_write_is_atomic",
-	"_test_a_corrupt_save_falls_back_to_the_backup",
-	"_test_clearing_removes_the_backup_too",
-	"_test_an_older_save_is_carried_forward",
-	"_test_a_newer_save_is_refused",
-	"_test_a_gap_in_the_chain_is_refused",
-	"_test_every_version_has_a_way_forward",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var content: Node
 var run: Node
 var save: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	run = root.get_node("Run")
 	save = root.get_node("Save")
 	# Run._ready() sets state = fresh() on the first process frame and would
-	# clobber whatever a test just built. Wait it out up front.
-	await process_frame
+	# clobber whatever a test just built. The harness waits that frame out
+	# before setup() runs, which is why this is safe here.
 	content.reload()
 
-	for t in TESTS:
-		save.clear()
-		call(t)
-		# A GDScript runtime error aborts the function but sets no exit code,
-		# so a test that died half-way would otherwise report as passing.
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
+
+func before_each(_test_name: String) -> void:
 	save.clear()
 
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
 
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
+func teardown() -> void:
+	save.clear()
 
 
 ## Puts a run on the map with a reader chosen and the gift taken.
@@ -151,7 +110,7 @@ func _test_roundtrip_on_map() -> void:
 		"deck size should survive: %d vs %d" % [run.state["deck"].size(), before["deck"].size()])
 	check(str(run.state["reader"]["k"]) == str(before["reader"]["k"]), "reader should survive")
 	check(run.state["options"].size() == before["options"].size(), "the night's options should survive")
-	done("_test_roundtrip_on_map")
+	done()
 
 
 func _test_roundtrip_mid_fight() -> void:
@@ -200,7 +159,7 @@ func _test_roundtrip_mid_fight() -> void:
 		check(str(f.get(key)) == str(f_before[key]),
 			"the reading's %s should survive the save: '%s' came back as '%s'"
 				% [key, f_before[key], f.get(key)])
-	done("_test_roundtrip_mid_fight")
+	done()
 
 
 ## The whole reason this uses store_var and not JSON.
@@ -214,7 +173,7 @@ func _test_numbers_stay_numbers() -> void:
 	check(typeof(run.state["coin"]) == TYPE_INT, "coin should come back an int, got %s" % type_string(typeof(run.state["coin"])))
 	check(typeof(run.state["f"]["hp"]) == TYPE_INT, "hp should come back an int, got %s" % type_string(typeof(run.state["f"]["hp"])))
 	check(str(run.state["coin"]) == "7", "an int must not render as '7.0', got '%s'" % run.state["coin"])
-	done("_test_numbers_stay_numbers")
+	done()
 
 
 ## A run in progress must see content as it is NOW, not as it was when the run
@@ -239,7 +198,7 @@ func _test_content_is_re_resolved() -> void:
 			check(int(c["f"]) == original + 99,
 				"a card changed since the save should come back changed, got f=%s" % c["f"])
 	check(found > 0, "the edited card should still be in the restored deck")
-	done("_test_content_is_re_resolved")
+	done()
 
 
 ## A card from a pack the player has since switched off cannot be revived, so
@@ -257,7 +216,7 @@ func _test_missing_card_is_dropped() -> void:
 	check(run.state["deck"].size() == deck_size, "the rest of the deck should be untouched")
 	for c in run.state["deck"]:
 		check(str(c.get("uid", "")) != "ghost", "the unresolvable card should not survive")
-	done("_test_missing_card_is_dropped")
+	done()
 
 
 ## CONTINUE must never drop the player back into a finished run, or into the
@@ -276,7 +235,7 @@ func _test_no_save_for_a_non_run() -> void:
 	run.end_run("done")     # screen == "over"
 	save._write()
 	check(not save.has_save(), "a finished run should clear the save")
-	done("_test_no_save_for_a_non_run")
+	done()
 
 
 func _test_corrupt_save_is_refused() -> void:
@@ -301,7 +260,7 @@ func _test_corrupt_save_is_refused() -> void:
 	g.store_var({"version": save.VERSION + 1, "state": {"screen": "map"}}, false)
 	g.close()
 	check(not save.restore().get("ok", true), "a future-version save should be refused")
-	done("_test_corrupt_save_is_refused")
+	done()
 
 
 func _test_peek() -> void:
@@ -315,7 +274,7 @@ func _test_peek() -> void:
 	check(int(p["night"]) == 1, "peek should report night 1-based, got %s" % p.get("night"))
 	check(str(p["reader"]) != "", "peek should report which reader")
 	check(int(p["saved_at"]) > 0, "peek should report when it was saved")
-	done("_test_peek")
+	done()
 
 
 ## Plays a whole run and, after EVERY action, checks that a state which
@@ -354,7 +313,7 @@ func _test_every_action_marks_the_run_dirty() -> void:
 
 	check(checked > 200, "the driver should have exercised a few hundred actions, did %d" % checked)
 	save.clear()
-	done("_test_every_action_marks_the_run_dirty")
+	done()
 
 
 ## Runs one action and reports it if the state moved without arming a save.
@@ -420,7 +379,7 @@ func _test_a_content_reload_reaches_a_live_run() -> void:
 				pool = p
 	check(pool != "", "the starting deck's first card should be in a known pool")
 	if pool == "":
-		done("_test_a_content_reload_reaches_a_live_run")
+		done()
 		return
 
 	var edited: Dictionary = content.get_card(card_name).duplicate(true)
@@ -450,7 +409,7 @@ func _test_a_content_reload_reaches_a_live_run() -> void:
 	content.reload()
 	check(int(run.state["deck"][0].get("f", 0)) == before, "reverting should reach the run too")
 	save.clear()
-	done("_test_a_content_reload_reaches_a_live_run")
+	done()
 
 
 ## The last action before a quit must not be the one that gets lost.
@@ -478,7 +437,7 @@ func _test_quitting_flushes_the_last_action() -> void:
 	check(str(peeked.get("reader", "")) == str(run.state.get("reader", {}).get("k", "")),
 		"the flushed save should describe the live run, got %s" % [peeked])
 	save.clear()
-	done("_test_quitting_flushes_the_last_action")
+	done()
 
 
 ## Writing straight to the save file means that, for the length of the write,
@@ -509,7 +468,7 @@ func _test_the_write_is_atomic() -> void:
 	check(not save.peek().is_empty(), "and the real save is still readable")
 	DirAccess.remove_absolute(save.TMP_PATH)
 	save.clear()
-	done("_test_the_write_is_atomic")
+	done()
 
 
 ## The backup earns its place here. Refusing a corrupt save while a good one
@@ -550,7 +509,7 @@ func _test_a_corrupt_save_falls_back_to_the_backup() -> void:
 	check(save.peek().is_empty(), "a future-version save is refused outright")
 	check(not save.restored_from_backup, "and does not silently fall back to an older run")
 	save.clear()
-	done("_test_a_corrupt_save_falls_back_to_the_backup")
+	done()
 
 
 ## Clearing has to take the backup with it. A stale backup left behind is a run
@@ -567,7 +526,7 @@ func _test_clearing_removes_the_backup_too() -> void:
 	for path in [save.PATH, save.BACKUP_PATH, save.TMP_PATH]:
 		check(not FileAccess.file_exists(path), "%s should be gone after clear()" % path)
 	check(save.peek().is_empty(), "and nothing should be resurrectable")
-	done("_test_clearing_removes_the_backup_too")
+	done()
 
 
 # ── carrying a save forward ─────────────────────────────────────────────
@@ -606,7 +565,7 @@ func _test_an_older_save_is_carried_forward() -> void:
 	check(out["state"].has("added_by_step_one") and out["state"].has("added_by_step_two"),
 		"both steps should have left their mark")
 	save._register_steps()
-	done("_test_an_older_save_is_carried_forward")
+	done()
 
 
 ## A save from a LATER build is refused, and says so. There is nothing else to
@@ -617,7 +576,7 @@ func _test_a_newer_save_is_refused() -> void:
 	check(out.is_empty(), "a save from a newer build should be refused")
 	check(save.last_error.contains("newer build"),
 		"and should say why, in words a player could act on — got '%s'" % save.last_error)
-	done("_test_a_newer_save_is_refused")
+	done()
 
 
 ## A missing step is a refusal, not a half-migrated run. The failure a player
@@ -630,7 +589,7 @@ func _test_a_gap_in_the_chain_is_refused() -> void:
 	check(out.is_empty(), "a chain with no step from version 2 should refuse")
 	check(save.last_error.contains("carry"), "and should name the gap — got '%s'" % save.last_error)
 	save._register_steps()
-	done("_test_a_gap_in_the_chain_is_refused")
+	done()
 
 
 ## THE CHAIN IS UNBROKEN FOR EVERY VERSION THIS BUILD CLAIMS TO READ.
@@ -648,4 +607,4 @@ func _test_every_version_has_a_way_forward() -> void:
 	check(missing.is_empty(),
 		"VERSION is %d, so a save at version(s) %s can arrive — and no step carries them forward. Add the step in Save._register_steps()."
 			% [save.VERSION, ", ".join(missing)])
-	done("_test_every_version_has_a_way_forward")
+	done()

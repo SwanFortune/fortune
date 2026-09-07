@@ -75,9 +75,10 @@ godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code c
 godot --headless --path godot -s tests/test_modloader.gd       # pack discovery, merge rules, every error path
 godot --headless --path godot -s tests/test_boot.gd            # the game actually starts
 godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
+godot --headless --path godot -s tests/test_the_suite.gd       # every test method declared is a test method run
 ```
 
-All twenty-one should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
+All twenty-two should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The

@@ -3,43 +3,138 @@
 ## Drives a fight to completion by always laying the first affordable card and
 ## reading as soon as nothing more fits (or hand is empty), which won't always
 ## win, but must never crash and must always reach a res/win/lose state.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-var failures: Array[String] = []
 var content: Node
 var run: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	run = root.get_node("Run")
 	content.reload()
 	run.state = run.fresh()
 
-	_test_fresh_state()
-	_test_pick_reader_and_gift()
-	_test_start_fight_and_play_one_reading()
-	_test_full_encounter_to_resolution()
-	_test_named_cards_and_marks_resolve()
-	_test_the_plan_is_the_night()
-	_test_a_seed_is_a_run()
-	_test_taking_it_back()
-	_test_the_ladder()
-	_test_the_ledger_and_the_ending()
 
-	if failures.is_empty():
-		print("ALL PASS")
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
+func _test_fresh_state() -> void:
+	check(run.state["screen"] == "sign", "fresh() should start on the sign-select screen")
+	check(run.state["deck"].size() == 9, "fresh() base deck should be 7 basics + 2 reader cards = 9, got %d" % run.state["deck"].size())
+	check(run.state["options"].size() >= 1, "fresh() should populate at least one map option")
+	done()
 
 
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
+func _test_pick_reader_and_gift() -> void:
+	run.pick_reader(0)  # Aries
+	check(run.state["reader"]["k"] == "aries", "pick_reader(0) should select Aries")
+	check(run.state["screen"] == "pick", "picking a reader should move to the gift pick screen")
+	check(run.state["pick"]["kind"] == "gift", "the post-pick screen should be the starting gift")
+	check(run.state["pick"]["opts"].size() == 2, "the gift should offer 2 neighbour-element cards, got %d" % run.state["pick"]["opts"].size())
+	run.take_pick(0)
+	check(run.state["deck"].size() == 10, "taking the gift should bring the deck to 10 cards, got %d" % run.state["deck"].size())
+	check(run.state["screen"] == "map", "after the gift the screen should be the map")
+	done()
 
+
+func _test_start_fight_and_play_one_reading() -> void:
+	var sitter_opt = null
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			sitter_opt = o
+			break
+	check(sitter_opt != null, "there should be a sitter option on the map")
+	if sitter_opt == null:
+		done()
+		return
+	run.choose(run.state["options"].find(sitter_opt))
+	check(run.state["screen"] == "read", "choosing a sitter should move to the read screen")
+	var f: Dictionary = run.state["f"]
+	check(f["hand"].size() > 0, "starting a fight should draw a hand")
+	check(int(f["energy"]) == int(f["energyMax"]), "energy should be full at the start of a reading")
+
+	# Lay whatever's affordable, then read.
+	var laid_any := false
+	for c in f["hand"].duplicate():
+		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
+			laid_any = true
+			break
+	check(laid_any, "should be able to lay at least one starting card")
+	check(run.state["f"]["cross"].size() == 1, "laying a card should move it into cross")
+	run.read_it()
+	check(run.state["screen"] in ["read", "over"], "after read_it the screen should still be read (or over, if the whole run ended) got %s" % run.state["screen"])
+	done()
+
+
+## The plan, the deck and who is at the door — enough of a run to tell two
+## apart.
+func _shape_of(st: Dictionary) -> String:
+	var bits: Array = []
+	for slot in st.get("plan", []):
+		bits.append(str(slot.get("offers", [])))
+	for c in st.get("deck", []):
+		bits.append(str(c.get("n", "")))
+	for o in st.get("options", []):
+		bits.append(str(o.get("sitter", {}).get("name", o.get("kind", ""))))
+	return "|".join(bits)
+
+
+## Plays an entire encounter to either a win (res.kind=='win') or a loss
+## (screen becomes 'map' after advance(), or 'over' if the run ended), always
+## laying the cheapest affordable card and reading once nothing more fits.
+func _test_full_encounter_to_resolution() -> void:
+	run.state = run.fresh()
+	run.pick_reader(2)  # Gemini
+	run.take_pick(0)
+	var sitter_opt = null
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			sitter_opt = o
+			break
+	run.choose(run.state["options"].find(sitter_opt))
+
+	var guard := 0
+	while run.state["screen"] == "read" and guard < 500:
+		guard += 1
+		var f: Dictionary = run.state["f"]
+		if f.is_empty():
+			break
+		var played := false
+		for c in f["hand"]:
+			if int(c.get("cost", 0)) <= int(f["energy"]):
+				run.lay_card(c["uid"])
+				played = true
+				break
+		if not played:
+			if f["cross"].is_empty():
+				# Genuinely stuck: no affordable card in hand and nothing laid
+				# yet this reading. read_it() no-ops on an empty cross (matches
+				# the source's own readIt() guard), so there is nothing left to
+				# do — this can happen late in a long encounter once enough
+				# exhaust:true cards have thinned the deck below hand size.
+				break
+			run.read_it()
+	check(guard < 500, "encounter should resolve within 500 lay/read steps, not loop forever")
+
+	if run.state["screen"] != "read" or run.state["f"].is_empty():
+		pass  # fight ended some other way (win/lose already resolved below, or run ended)
+	elif run.state["res"].is_empty():
+		done()
+		return  # stuck with an empty hand/cross — a legitimate rare edge case, not a failure
+
+	if not run.state["res"].is_empty():
+		var res: Dictionary = run.state["res"]
+		check(res["kind"] in ["win", "lose"], "resolved encounter should have a win or lose result")
+		if res["kind"] == "win":
+			run.after_res()
+			check(run.state["screen"] == "pick", "winning should move to a reward pick screen")
+			check(run.state["pick"]["kind"] == "reward", "the post-win pick should be a reward")
+			run.skip_pick()
+			check(run.state["screen"] in ["map", "over"], "skipping the reward should advance to the map (or end the run)")
+		else:
+			run.after_res()
+			check(run.state["screen"] == "over", "losing should end the run")
+			check(run.state["over"]["head"] != "", "end-of-run screen should be populated")
+	done()
 
 ## AN EVENT THAT NAMES A CARD HAS TO NAME A CARD THAT EXISTS.
 ##
@@ -88,6 +183,7 @@ func _test_named_cards_and_marks_resolve() -> void:
 		check(str(deck[-1].get("n", "")) == "Pour The Tea",
 			"the card added was '%s', not the one the option named" % deck[-1].get("n", ""))
 		check(deck[-1].has("uid"), "a card taken by name still needs its own uid")
+	done()
 
 
 ## THE AGENDA HAS TO BE TELLING THE TRUTH.
@@ -126,8 +222,10 @@ func _test_the_plan_is_the_night() -> void:
 			if want != actual:
 				printerr("FAIL: night %d, %s — the agenda promises %s and the hour offers %s"
 					% [night + 1, plan[step].get("at", "?"), want, actual])
+				done()
 				return
 	check(true, "every hour offers what the agenda promised")
+	done()
 
 
 ## A SEED IS A RUN. The whole point of showing one is that handing it to
@@ -156,19 +254,7 @@ func _test_a_seed_is_a_run() -> void:
 		run.state = run.fresh("")
 		picked[str(run.state.get("seed", ""))] = true
 	check(picked.size() > 1, "an empty seed box should not produce the same run every time")
-
-
-## The plan, the deck and who is at the door — enough of a run to tell two
-## apart.
-func _shape_of(st: Dictionary) -> String:
-	var bits: Array = []
-	for slot in st.get("plan", []):
-		bits.append(str(slot.get("offers", [])))
-	for c in st.get("deck", []):
-		bits.append(str(c.get("n", "")))
-	for o in st.get("options", []):
-		bits.append(str(o.get("sitter", {}).get("name", o.get("kind", ""))))
-	return "|".join(bits)
+	done()
 
 
 ## TAKING BACK THE LAST CARD HAS TO PUT EVERYTHING BACK.
@@ -195,6 +281,7 @@ func _test_taking_it_back() -> void:
 			laid = true
 			break
 	if not laid:
+		done()
 		return  # nothing affordable; a rare deal, not a failure
 	check(run.can_unlay(), "a card has been laid and it should be possible to take it back")
 	run.unlay()
@@ -208,6 +295,7 @@ func _test_taking_it_back() -> void:
 			break
 	run.read_it()
 	check(not run.can_unlay(), "a reading has been read; the cards in it are said")
+	done()
 
 
 ## THE LADDER ONLY GOES UP. Every rung is cumulative, so a higher level must
@@ -245,6 +333,7 @@ func _test_the_ladder() -> void:
 	# And the lowest rung changes nothing: level 0 is the game as written.
 	run.state = run.fresh("a fixed evening", 0)
 	check(run.level_fx().is_empty(), "level 0 should be the game exactly as it is")
+	done()
 
 
 ## THE ENDING IS ABOUT THE PEOPLE. Every sitter who sits down goes on the run's
@@ -296,105 +385,5 @@ func _test_the_ledger_and_the_ending() -> void:
 		check(str(ledger[0].get("name", "")) == who, "the ledger recorded the wrong person")
 		check(str(ledger[0].get("outcome", "")) == "left", "they left as they came and the ledger says otherwise")
 		check(str(ledger[0].get("said", "")) != "", "the ledger should carry their own closing line")
+	done()
 
-
-func _test_fresh_state() -> void:
-	check(run.state["screen"] == "sign", "fresh() should start on the sign-select screen")
-	check(run.state["deck"].size() == 9, "fresh() base deck should be 7 basics + 2 reader cards = 9, got %d" % run.state["deck"].size())
-	check(run.state["options"].size() >= 1, "fresh() should populate at least one map option")
-
-
-func _test_pick_reader_and_gift() -> void:
-	run.pick_reader(0)  # Aries
-	check(run.state["reader"]["k"] == "aries", "pick_reader(0) should select Aries")
-	check(run.state["screen"] == "pick", "picking a reader should move to the gift pick screen")
-	check(run.state["pick"]["kind"] == "gift", "the post-pick screen should be the starting gift")
-	check(run.state["pick"]["opts"].size() == 2, "the gift should offer 2 neighbour-element cards, got %d" % run.state["pick"]["opts"].size())
-	run.take_pick(0)
-	check(run.state["deck"].size() == 10, "taking the gift should bring the deck to 10 cards, got %d" % run.state["deck"].size())
-	check(run.state["screen"] == "map", "after the gift the screen should be the map")
-
-
-func _test_start_fight_and_play_one_reading() -> void:
-	var sitter_opt = null
-	for o in run.state["options"]:
-		if o["kind"] in ["sitter", "elite"]:
-			sitter_opt = o
-			break
-	check(sitter_opt != null, "there should be a sitter option on the map")
-	if sitter_opt == null:
-		return
-	run.choose(run.state["options"].find(sitter_opt))
-	check(run.state["screen"] == "read", "choosing a sitter should move to the read screen")
-	var f: Dictionary = run.state["f"]
-	check(f["hand"].size() > 0, "starting a fight should draw a hand")
-	check(int(f["energy"]) == int(f["energyMax"]), "energy should be full at the start of a reading")
-
-	# Lay whatever's affordable, then read.
-	var laid_any := false
-	for c in f["hand"].duplicate():
-		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
-			run.lay_card(c["uid"])
-			laid_any = true
-			break
-	check(laid_any, "should be able to lay at least one starting card")
-	check(run.state["f"]["cross"].size() == 1, "laying a card should move it into cross")
-	run.read_it()
-	check(run.state["screen"] in ["read", "over"], "after read_it the screen should still be read (or over, if the whole run ended) got %s" % run.state["screen"])
-
-
-## Plays an entire encounter to either a win (res.kind=='win') or a loss
-## (screen becomes 'map' after advance(), or 'over' if the run ended), always
-## laying the cheapest affordable card and reading once nothing more fits.
-func _test_full_encounter_to_resolution() -> void:
-	run.state = run.fresh()
-	run.pick_reader(2)  # Gemini
-	run.take_pick(0)
-	var sitter_opt = null
-	for o in run.state["options"]:
-		if o["kind"] in ["sitter", "elite"]:
-			sitter_opt = o
-			break
-	run.choose(run.state["options"].find(sitter_opt))
-
-	var guard := 0
-	while run.state["screen"] == "read" and guard < 500:
-		guard += 1
-		var f: Dictionary = run.state["f"]
-		if f.is_empty():
-			break
-		var played := false
-		for c in f["hand"]:
-			if int(c.get("cost", 0)) <= int(f["energy"]):
-				run.lay_card(c["uid"])
-				played = true
-				break
-		if not played:
-			if f["cross"].is_empty():
-				# Genuinely stuck: no affordable card in hand and nothing laid
-				# yet this reading. read_it() no-ops on an empty cross (matches
-				# the source's own readIt() guard), so there is nothing left to
-				# do — this can happen late in a long encounter once enough
-				# exhaust:true cards have thinned the deck below hand size.
-				break
-			run.read_it()
-	check(guard < 500, "encounter should resolve within 500 lay/read steps, not loop forever")
-
-	if run.state["screen"] != "read" or run.state["f"].is_empty():
-		pass  # fight ended some other way (win/lose already resolved below, or run ended)
-	elif run.state["res"].is_empty():
-		return  # stuck with an empty hand/cross — a legitimate rare edge case, not a failure
-
-	if not run.state["res"].is_empty():
-		var res: Dictionary = run.state["res"]
-		check(res["kind"] in ["win", "lose"], "resolved encounter should have a win or lose result")
-		if res["kind"] == "win":
-			run.after_res()
-			check(run.state["screen"] == "pick", "winning should move to a reward pick screen")
-			check(run.state["pick"]["kind"] == "reward", "the post-win pick should be a reward")
-			run.skip_pick()
-			check(run.state["screen"] in ["map", "over"], "skipping the reward should advance to the map (or end the run)")
-		else:
-			run.after_res()
-			check(run.state["screen"] == "over", "losing should end the run")
-			check(run.state["over"]["head"] != "", "end-of-run screen should be populated")

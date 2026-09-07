@@ -11,68 +11,21 @@
 ## as global script identifiers, so the bare names aren't resolvable from
 ## this particular file (they work fine from ordinary scene scripts, which
 ## load only after the game has finished booting).
-extends SceneTree
+extends "res://tests/harness.gd"
 
-## Every test method, called in order. Listed rather than hand-called so the
-## "did it actually finish?" guard below can't fall out of step with the calls.
-const TESTS := [
-	"_test_content_loaded",
-	"_test_mod_pack_merged",
-	"_test_pack_can_be_disabled",
-	"_test_simulate_basic_line",
-	"_test_simulate_shield_denial",
-	"_test_simulate_wall_growth",
-	"_test_simulate_reader_opener_passive",
-	"_test_simulate_white_cap",
-	"_test_simulate_norepeat_sign",
-	"_test_auto_text",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var content: Node
 var rules: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	rules = root.get_node("Rules")
-	# A -s script's _initialize() runs before autoloads' own _ready() has had a
-	# chance to fire (no frame has been processed yet), so Content's registries
-	# would still be empty here. Force the load explicitly rather than relying
-	# on node-lifecycle timing that doesn't apply in this headless entry point.
+	# Loaded explicitly rather than trusted to node lifecycle: this used to run
+	# before any frame had been processed, when the registries were still empty.
+	# The harness awaits a frame first, so this is now belt and braces — and it
+	# is the cheap half of the pair.
 	content.reload()
-
 	print("[test] Content load errors: ", content.load_errors)
-	for t in TESTS:
-		call(t)
-		# A GDScript runtime error (reading a property that no longer exists,
-		# say) aborts the function it happens in, prints SCRIPT ERROR, and then
-		# lets execution carry on in the caller with no exception to catch and
-		# no exit code set. A test that died half-way therefore used to report
-		# ALL PASS — which is exactly how a stale reference in
-		# _test_mod_pack_merged survived several commits. Each test signs off at
-		# its own last line; anything that didn't reach it is a failure.
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
-
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-## Last line of every test method: see the guard in _initialize().
-func done(name: String) -> void:
-	finished[name] = true
 
 
 func _test_content_loaded() -> void:
@@ -87,7 +40,7 @@ func _test_content_loaded() -> void:
 	check(content.sitters.size() == 9, "expected 9 sitters, got %d" % content.sitters.size())
 	check(content.has_card("Pour The Tea"), "base card Pour The Tea should be loaded")
 	check(content.cards_basics.size() == 7, "expected 7 basic cards, got %d" % content.cards_basics.size())
-	done("_test_content_loaded")
+	done()
 
 
 func _test_mod_pack_merged() -> void:
@@ -95,7 +48,7 @@ func _test_mod_pack_merged() -> void:
 		"the load_example_mods setting must be on for this test run")
 	check(content.has_card("Warm The Cup"), "example mod's new card should have merged in")
 	check(content.has_card("Pour The Tea"), "merging a mod pack should not drop base cards")
-	done("_test_mod_pack_merged")
+	done()
 
 
 ## The Mods screen's one real power: switching a pack off has to actually
@@ -127,7 +80,7 @@ func _test_pack_can_be_disabled() -> void:
 	settings.set_value("disabled_mods", restore)
 	content.reload()
 	check(content.has_card("Warm The Cup"), "re-enabling should bring the pack back")
-	done("_test_pack_can_be_disabled")
+	done()
 
 
 func _mk_run_ctx(reader_key: String, marks: Array = []) -> Dictionary:
@@ -156,7 +109,7 @@ func _test_simulate_basic_line() -> void:
 	check(sim["rows"][1]["total"] == 3, "palm should score 3 (earth, off-element), got %s" % sim["rows"][1]["total"])
 	check(sim["gross"] == 8, "gross should be 8, got %s" % sim["gross"])
 	check(sim["hpAfter"] == 8, "hpAfter should be 8 (denial=0), got %s" % sim["hpAfter"])
-	done("_test_simulate_basic_line")
+	done()
 
 
 ## Taurus sitter (shield fx): a numeric wall absorbs the first `denial` points
@@ -177,7 +130,7 @@ func _test_simulate_shield_denial() -> void:
 	check(sim["pierced"] == 5, "pierced should be 5, got %s" % sim["pierced"])
 	check(sim["absorbed"] == 3, "absorbed should be 3, got %s" % sim["absorbed"])
 	check(sim["applied"] == 5, "applied should be 5 (pierce bypasses the wall), got %s" % sim["applied"])
-	done("_test_simulate_shield_denial")
+	done()
 
 
 ## next_wall(): the port's own rule (NOT in the source), driven by the
@@ -219,7 +172,7 @@ func _test_simulate_wall_growth() -> void:
 	var sim: Dictionary = rules.simulate(ctx, fight)
 	check(sim["shieldNext"] == rules.next_wall(fight, sim),
 		"shieldNext must equal what Run will set the wall to, got %s" % sim["shieldNext"])
-	done("_test_simulate_wall_growth")
+	done()
 
 
 ## Virgo reader (fx:'white'): elementless cards restore +3, but only the first
@@ -247,7 +200,7 @@ func _test_simulate_white_cap() -> void:
 		"the 2nd elementless card takes it only within the cap, got %s" % sim["rows"][1]["total"])
 	check(sim["rows"][2]["total"] == 1 + (amt if cap > 2 else 0),
 		"the 3rd elementless card is past the cap and takes nothing, got %s" % sim["rows"][2]["total"])
-	done("_test_simulate_white_cap")
+	done()
 
 
 ## Aries reader has fx:'opener' -> first card spoken restores +2 (on top of
@@ -263,7 +216,7 @@ func _test_simulate_reader_opener_passive() -> void:
 	check(opener >= 1, "the opener trait should be worth something, got %d" % opener)
 	check(sim["rows"][0]["total"] == 3 + opener,
 		"the opener passive should add %d to the first card, got %s" % [opener, sim["rows"][0]["total"]])
-	done("_test_simulate_reader_opener_passive")
+	done()
 
 
 ## Virgo (norepeat fx): a sign already spoken in this reading restores nothing
@@ -276,11 +229,11 @@ func _test_simulate_norepeat_sign() -> void:
 	var sim: Dictionary = rules.simulate(ctx, fight)
 	check(sim["rows"][0]["total"] == 3, "first water card should score normally (3), got %s" % sim["rows"][0]["total"])
 	check(sim["rows"][1]["total"] == 0, "second water card should score 0 under norepeat, got %s" % sim["rows"][1]["total"])
-	done("_test_simulate_norepeat_sign")
+	done()
 
 
 func _test_auto_text() -> void:
 	var name_card: Dictionary = content.get_card("Say Their Name")
 	var text: String = rules.auto_text(name_card)
 	check(text == "Straight through their denial.", "auto_text for a pierce card, got: %s" % text)
-	done("_test_auto_text")
+	done()

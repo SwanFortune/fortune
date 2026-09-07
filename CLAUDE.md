@@ -33,6 +33,17 @@ shipped at least three that passed for the wrong reason, including one whose
 needle matched its own definition and one that read the buggy ordering back out
 of the file and agreed with it.
 
+**A test file is `extends "res://tests/harness.gd"`** (`godot/tests/harness.gd`). It gives you `check()`
+and the `_test_` methods run because they EXIST — there is no list to add them
+to, which is how methods once sat in `godot/tests/test_save.gd` being counted as coverage
+and never running. End every one with `done()`: a runtime error aborts its own
+method and returns to the caller with no exception and no exit code, so without
+that line the checks below the error vanish and the file still says ALL PASS.
+Override `setup()`, `before_each()`, `after_each()`, `teardown()`, `summary()`.
+`godot/tests/test_the_suite.gd` checks all of this, and `godot/tests/test_scenes.gd` is the
+one file not yet on the harness — it interleaves its tests with the scene visits
+that set them up.
+
 **When a checklist is maintained by hand, it will fall behind.** The README's
 test list, the locale's UI strings, the art manifest: each one quietly stopped
 listing things, and each fix was to DERIVE the list and add a check that the
@@ -99,7 +110,7 @@ a doc comment that mentions the idiom once added a real key to the template.
 ## Before committing
 
 ```
-cd godot && tests/run_all.sh          # all twenty files
+cd godot && tests/run_all.sh          # every tests/test_*.gd, globbed
 tests/smoke_export.sh                 # the EXPORTED binary, walked with real keys
 ```
 

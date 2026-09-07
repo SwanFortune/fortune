@@ -6,48 +6,27 @@
 ## edit made in-game becomes a real mod pack, that pack is loaded by the
 ## ordinary mod path, and the edited value is what the game actually uses.
 ## Reverting has to put the base value back just as completely.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-var failures: Array[String] = []
 var content: Node
 var edits: Node
 var rules: Node
 
 
-func _initialize() -> void:
+## Start from a clean slate so a leftover pack from a previous run — or a real
+## player's edits, if this is ever run against a live user dir — cannot make the
+## assertions below lie. Put back the same way at the end.
+func setup() -> void:
 	content = root.get_node("Content")
 	edits = root.get_node("CardEdits")
 	rules = root.get_node("Rules")
-	await process_frame
-
-	# Start from a clean slate so a leftover pack from a previous run (or a
-	# real player's edits, if this is ever run against a live user dir)
-	# doesn't make the assertions below lie.
 	edits.revert_all()
 	content.reload()
 
-	_test_starts_clean()
-	_test_edit_reaches_live_content()
-	_test_edit_is_a_real_mod_pack()
-	_test_generated_text_follows_the_edit()
-	_test_revert_restores_base()
-	_test_revert_all_removes_the_pack()
 
+func teardown() -> void:
 	edits.revert_all()
 	content.reload()
-
-	if failures.is_empty():
-		print("ALL PASS")
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
 
 
 func _base_restore() -> int:
@@ -57,6 +36,7 @@ func _base_restore() -> int:
 func _test_starts_clean() -> void:
 	check(edits.edit_count() == 0, "should start with no edits, had %d" % edits.edit_count())
 	check(_base_restore() == 3, "Pour The Tea's base restore should be 3, got %d" % _base_restore())
+	done()
 
 
 func _test_edit_reaches_live_content() -> void:
@@ -67,6 +47,7 @@ func _test_edit_reaches_live_content() -> void:
 	check(_base_restore() == 99, "after editing, live content should report 99, got %d" % _base_restore())
 	check(edits.has_edit("cards_minor", "Pour The Tea"), "the card should be marked as edited")
 	check(edits.edit_count() == 1, "exactly one edit expected, got %d" % edits.edit_count())
+	done()
 
 
 ## The whole point of the design: this is not a private save format, it's a
@@ -75,12 +56,14 @@ func _test_edit_is_a_real_mod_pack() -> void:
 	var manifest_path: String = edits.PACK_DIR.path_join("mod.json")
 	check(FileAccess.file_exists(manifest_path), "the pack should have a mod.json")
 	if not FileAccess.file_exists(manifest_path):
+		done()
 		return
 	var f := FileAccess.open(manifest_path, FileAccess.READ)
 	var manifest = JSON.parse_string(f.get_as_text())
 	f.close()
 	check(typeof(manifest) == TYPE_DICTIONARY, "mod.json should parse as an object")
 	if typeof(manifest) != TYPE_DICTIONARY:
+		done()
 		return
 	check(manifest.get("id", "") == edits.PACK_ID, "manifest id should be %s" % edits.PACK_ID)
 	check(int(manifest.get("priority", 0)) == edits.PRIORITY, "pack should carry its high priority so it wins over other mods")
@@ -95,6 +78,7 @@ func _test_edit_is_a_real_mod_pack() -> void:
 	check(doc["cards_minor"].size() == 1, "only the edited card should be written, got %d" % doc["cards_minor"].size())
 	check(doc["cards_minor"][0]["n"] == "Pour The Tea", "the written card should be the edited one")
 	check(not doc["cards_minor"][0].has("uid"), "a runtime uid must never be baked into a saved card")
+	done()
 
 
 ## Card text is generated from mechanics, so an edit to a mechanical field
@@ -107,6 +91,7 @@ func _test_generated_text_follows_the_edit() -> void:
 	content.reload()
 	var text: String = rules.auto_text(content.get_card("Pour The Tea"))
 	check(text.contains("three"), "generated text should mention drawing three, got: %s" % text)
+	done()
 
 
 func _test_revert_restores_base() -> void:
@@ -116,6 +101,7 @@ func _test_revert_restores_base() -> void:
 	check(not edits.has_edit("cards_minor", "Pour The Tea"), "the card should no longer be marked edited")
 	var text: String = rules.auto_text(content.get_card("Pour The Tea"))
 	check(text.contains("one"), "reverted card should draw one again, got: %s" % text)
+	done()
 
 
 ## With nothing edited the pack should stop existing entirely, rather than
@@ -130,3 +116,4 @@ func _test_revert_all_removes_the_pack() -> void:
 	check(not FileAccess.file_exists(edits.PACK_DIR.path_join("cards_minor.json")), "pool file should be gone too")
 	content.reload()
 	check(int(content.get_card("Ask Them Why").get("cost", -1)) == 1, "base cost should be restored after revert_all")
+	done()

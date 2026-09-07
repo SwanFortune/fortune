@@ -28,66 +28,27 @@
 ##
 ## Autoloads are fetched via get_node() — see the note at the top of
 ## tests/test_rules.gd for why the bare global names don't resolve here.
-extends SceneTree
-
-const TESTS := [
-	"_test_a_pack_overrides_by_key",
-	"_test_a_pack_extends_a_pool",
-	"_test_dict_categories_merge_key_by_key",
-	"_test_scalar_categories_are_replaced_whole",
-	"_test_priority_decides_who_wins",
-	"_test_every_error_is_reported_and_the_pack_still_loads",
-	"_test_a_broken_pack_leaves_the_base_game_intact",
-	"_test_a_disabled_pack_contributes_nothing",
-	"_test_every_record_names_its_pack",
-	"_test_a_bad_manifest_is_reported_once",
-	"_test_a_new_record_must_carry_what_the_base_records_carry",
-	"_test_an_override_may_restate_only_what_it_changes",
-	"_test_a_workshop_item_loads_like_any_other_pack",
-	"_test_a_workshop_item_that_is_not_there_changes_nothing",
-	"_test_a_pack_from_nowhere_does_not_blame_steam",
-]
+extends "res://tests/harness.gd"
 
 ## Where the test packs are written. Under user://mods/ because that is a real
 ## discovery root — a pack the loader finds the same way it finds a player's.
 const ROOT := "user://mods"
 const PREFIX := "zz_test_"
 
-var failures: Array[String] = []
-var finished: Dictionary = {}
 
-
-func _initialize() -> void:
-	await process_frame
+func setup() -> void:
 	_clean()   # in case a previous run died before its own cleanup
 
-	for t in TESTS:
-		call(t)
-		_clean()
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
 
+func after_each(_test_name: String) -> void:
+	_clean()
+
+
+func teardown() -> void:
 	# The autoloaded Content still holds registries built from whatever packs
 	# existed when a test was mid-flight. Put it back to the real thing so a
 	# suite runner that continues in this process is not left with test cards.
 	root.get_node("Content").reload()
-
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
 
 
 # ── building packs on disk ──────────────────────────────────────────────
@@ -184,7 +145,7 @@ func _test_a_pack_overrides_by_key() -> void:
 	check(int(_find(rows, "n", target).get("f", 0)) == was + 50,
 		"'%s' should carry the pack's value, got %s" % [target, _find(rows, "n", target).get("f")])
 	check(after["errors"].is_empty(), "a well-formed pack should report nothing: %s" % [after["errors"]])
-	done("_test_a_pack_overrides_by_key")
+	done()
 
 
 func _test_a_pack_extends_a_pool() -> void:
@@ -196,7 +157,7 @@ func _test_a_pack_extends_a_pool() -> void:
 	var rows: Array = after["registries"]["cards_basics"]
 	check(rows.size() == before + 1, "a new id should be appended (%d -> %d)" % [before, rows.size()])
 	check(not _find(rows, "n", "A Card Nobody Shipped").is_empty(), "and be findable by name")
-	done("_test_a_pack_extends_a_pool")
+	done()
 
 
 ## A dict category merges KEY BY KEY. Whole-value replacement here would mean a
@@ -212,7 +173,7 @@ func _test_dict_categories_merge_key_by_key() -> void:
 	var after: Dictionary = _load()["registries"]["fx"]
 	check(after.size() == base.size(), "the other fx must survive (%d -> %d)" % [base.size(), after.size()])
 	check(str(after.get(target, {}).get("t", "")) == "REPLACED BY A TEST", "and the named one is replaced")
-	done("_test_dict_categories_merge_key_by_key")
+	done()
 
 
 ## A scalar category is one record, so the last pack to define it wins outright
@@ -226,7 +187,7 @@ func _test_scalar_categories_are_replaced_whole() -> void:
 	var after: Dictionary = _load()["registries"]["boss"]
 	check(str(after.get("name", "")) == "A Test Boss", "the later pack's boss should win")
 	check(not after.has("role"), "and win WHOLE — no field left over from the one it replaced")
-	done("_test_scalar_categories_are_replaced_whole")
+	done()
 
 
 ## Two packs touching the same card: the higher `priority` loads later and wins.
@@ -245,7 +206,7 @@ func _test_priority_decides_who_wins() -> void:
 	var row := _find(out["registries"]["cards_basics"], "n", target)
 	check(int(row.get("f", 0)) == 111, "priority 10 should beat priority 1, got f=%s" % row.get("f"))
 	check(str(row.get("_pack", "")) == PREFIX + "aaa_high", "and the stamp should say so, got '%s'" % row.get("_pack"))
-	done("_test_priority_decides_who_wins")
+	done()
 
 
 # ── the error paths ─────────────────────────────────────────────────────
@@ -278,7 +239,7 @@ func _test_every_error_is_reported_and_the_pack_still_loads() -> void:
 		"the good file in a pack with four broken ones must still load")
 	check(not _find(rows, "n", "Also Survives").is_empty(),
 		"and so must the good half of a file with one unrecognised key")
-	done("_test_every_error_is_reported_and_the_pack_still_loads")
+	done()
 
 
 ## A pack can be as broken as it likes; the game it is modding still has to be
@@ -298,7 +259,7 @@ func _test_a_broken_pack_leaves_the_base_game_intact() -> void:
 			check(now.size() == was.size(), "%s lost records to a broken pack (%d -> %d)" % [category, was.size(), now.size()])
 		elif typeof(was) == TYPE_DICTIONARY:
 			check(now.size() == was.size(), "%s lost keys to a broken pack (%d -> %d)" % [category, was.size(), now.size()])
-	done("_test_a_broken_pack_leaves_the_base_game_intact")
+	done()
 
 
 ## Switching a pack off in the Mods screen has to mean it contributes nothing,
@@ -328,7 +289,7 @@ func _test_a_disabled_pack_contributes_nothing() -> void:
 	var no_base := _load(["parlour.base"])
 	check(not no_base["registries"].get("cards_basics", []).is_empty(),
 		"the base pack must not be disableable")
-	done("_test_a_disabled_pack_contributes_nothing")
+	done()
 
 
 ## Provenance. tests/test_art.gd scopes its manifest check with this stamp, and
@@ -348,7 +309,7 @@ func _test_every_record_names_its_pack() -> void:
 	for p in out["packs"]:
 		if str(p.get("id", "")) == PREFIX + "stamped":
 			check(int(p.get("records", 0)) == 1, "the pack list should count 1 record, says %s" % p.get("records"))
-	done("_test_every_record_names_its_pack")
+	done()
 
 
 ## A manifest that will not parse is ONE problem, and the Mods screen counts
@@ -365,7 +326,7 @@ func _test_a_bad_manifest_is_reported_once() -> void:
 			about_manifest += 1
 	check(about_manifest > 0, "an unparseable manifest should be reported at all, got %s" % [errs])
 	check(about_manifest <= 2, "one broken manifest should not produce %d messages: %s" % [about_manifest, errs])
-	done("_test_a_bad_manifest_is_reported_once")
+	done()
 
 
 ## A CARD A PACK INVENTS MUST LOOK LIKE A CARD.
@@ -396,7 +357,7 @@ func _test_a_new_record_must_carry_what_the_base_records_carry() -> void:
 		if str(c.get("n", "")) == "A Half-Written Card":
 			found = true
 	check(found, "a pack with one bad record should still load that record — the Mods screen is where a modder finds out, not a missing card")
-	done("_test_a_new_record_must_carry_what_the_base_records_carry")
+	done()
 
 
 ## AND AN OVERRIDE IS LEFT ALONE. A record whose key matches a base one replaces
@@ -410,7 +371,7 @@ func _test_an_override_may_restate_only_what_it_changes() -> void:
 	var said := "\n".join(loaded.errors)
 	check(not said.contains("Take Their Coat"),
 		"overriding a base card by restating one field is documented and must not be reported: %s" % said)
-	done("_test_an_override_may_restate_only_what_it_changes")
+	done()
 
 
 # ── the Steam Workshop path ─────────────────────────────────────────────
@@ -497,7 +458,7 @@ func _test_a_workshop_item_loads_like_any_other_pack() -> void:
 		"but still be listed, so it can be switched back on")
 
 	_rm_rf(ITEM_ROOT)
-	done("_test_a_workshop_item_loads_like_any_other_pack")
+	done()
 
 
 ## THE HALF-DOWNLOADED CASE, which is the normal one at launch. Steam reports an
@@ -523,7 +484,7 @@ func _test_a_workshop_item_that_is_not_there_changes_nothing() -> void:
 		"and must leave the game exactly as it was")
 
 	_rm_rf(ITEM_ROOT)
-	done("_test_a_workshop_item_that_is_not_there_changes_nothing")
+	done()
 
 
 ## A PACK FROM A DIRECTORY NOBODY EXPLAINS SAYS SO.
@@ -557,4 +518,4 @@ func _test_a_pack_from_nowhere_does_not_blame_steam() -> void:
 		"the Mods screen should have a sentence for a pack from elsewhere, not the raw code")
 
 	_rm_rf(ITEM_ROOT)
-	done("_test_a_pack_from_nowhere_does_not_blame_steam")
+	done()

@@ -15,56 +15,20 @@
 ##     only worth having if the sounds are actually split between them, and a
 ##     sound on the wrong bus is exactly the kind of thing nobody notices until
 ##     someone turns a slider down and the wrong things go quiet.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-const TESTS := [
-	"_test_events_and_registry_agree",
-	"_test_every_sound_resolves",
-	"_test_missing_and_unknown_are_silent",
-	"_test_registry_is_moddable",
-	"_test_events_reach_the_right_bus",
-	"_test_every_cue_resolves",
-	"_test_a_cue_is_idempotent_and_crossfades",
-	"_test_every_screen_asks_for_music_that_exists",
-	"_test_every_entry_states_a_known_status",
-	"_test_delivered_audio_and_the_registries_agree",
-	"_test_the_guide_states_the_same_vocabulary",
-	"_test_the_credits_count_the_audio_rather_than_claiming",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var content: Node
 var audio: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	audio = root.get_node("Audio")
-	await process_frame
 	content.reload()
 
-	for t in TESTS:
-		call(t)
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
 
-	if failures.is_empty():
-		print("ALL PASS — %d sounds registered" % content.sounds.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
+func summary() -> String:
+	return "%d sound(s) and %d cue(s) registered" % [content.sounds.size(), content.music.size()]
 
 
 ## The drift guard. Audio.EVENTS is the authority on what the game announces;
@@ -77,14 +41,14 @@ func _test_events_and_registry_agree() -> void:
 	for key in content.sounds:
 		check(audio.EVENTS.has(key),
 			"sounds.json has '%s' but nothing fires it — dead registry entry" % key)
-	done("_test_events_and_registry_agree")
+	done()
 
 
 func _test_every_sound_resolves() -> void:
 	for event in content.sounds:
 		var stream = audio._stream_for(event, content.sounds[event])
 		check(stream != null, "'%s' resolves to nothing — check its file" % event)
-	done("_test_every_sound_resolves")
+	done()
 
 
 ## The whole point of the fallback: no audio present must be a quiet game, not
@@ -98,7 +62,7 @@ func _test_missing_and_unknown_are_silent() -> void:
 	check(stream == null, "a missing file should resolve to null, got %s" % stream)
 	audio.play("ghost")
 	check(true, "reaching here at all means neither call errored")
-	done("_test_missing_and_unknown_are_silent")
+	done()
 
 
 ## `sounds` rides the ordinary content pipeline, so a mod repoints one the same
@@ -121,7 +85,7 @@ func _test_registry_is_moddable() -> void:
 	var bare: AudioStream = audio._stream_for("x", {"file": "card_lay.wav"})
 	check(bare != null, "a bare filename should resolve under assets/audio/")
 	audio.reload()
-	done("_test_registry_is_moddable")
+	done()
 
 
 ## Interface moments on the UI bus, everything else on SFX. Played for real
@@ -137,7 +101,7 @@ func _test_events_reach_the_right_bus() -> void:
 		var want := "UI" if audio.UI_EVENTS.has(event) else "SFX"
 		check(voice.bus == want, "'%s' should play on %s, played on %s" % [event, want, voice.bus])
 		check(AudioServer.get_bus_index(voice.bus) >= 0, "bus '%s' should exist" % voice.bus)
-	done("_test_events_reach_the_right_bus")
+	done()
 
 
 ## THE LOOPING HALF. Same promise as the one-shots: every cue the registry lists
@@ -151,7 +115,7 @@ func _test_every_cue_resolves() -> void:
 			"%s should say whether it is music or ambience, got '%s'" % [cue, rec.get("kind", "")])
 		check(audio._loop_stream(cue, rec) != null,
 			"%s is in the registry and resolves to nothing — it would play silence" % cue)
-	done("_test_every_cue_resolves")
+	done()
 
 
 ## ASKING FOR WHAT IS ALREADY PLAYING MUST COST NOTHING. Nav cues on every
@@ -186,7 +150,7 @@ func _test_a_cue_is_idempotent_and_crossfades() -> void:
 	check(str(audio.playing["music"]) == "the_table",
 		"an unwritten cue should change nothing, went to '%s'" % audio.playing["music"])
 	audio.hush()
-	done("_test_a_cue_is_idempotent_and_crossfades")
+	done()
 
 
 ## EVERY SCREEN'S CUE NAMES A REAL TRACK. Nav's table is written by hand and a
@@ -203,7 +167,7 @@ func _test_every_screen_asks_for_music_that_exists() -> void:
 	# The mayor's track is asked for by who is at the door rather than by a
 	# screen, so it is in neither table and still has to exist.
 	check(content.music.has("the_mayor"), "the mayor's own track should be registered")
-	done("_test_every_screen_asks_for_music_that_exists")
+	done()
 
 
 ## EVERY ENTRY SAYS WHETHER IT IS REAL YET, in a word the game knows.
@@ -222,7 +186,7 @@ func _test_every_entry_states_a_known_status() -> void:
 			check(st != "", "%s: '%s' does not say whether it is a placeholder or the real thing" % [where[0], key])
 			check(st == "" or audio.STATUSES.has(st),
 				"%s: '%s' is marked '%s', which is not one of %s" % [where[0], key, st, audio.STATUSES.keys()])
-	done("_test_every_entry_states_a_known_status")
+	done()
 
 
 ## WHAT A COMPOSER DELIVERS AND WHAT THE GAME PLAYS ARE THE SAME FILE.
@@ -270,7 +234,7 @@ func _test_delivered_audio_and_the_registries_agree() -> void:
 		if status != audio.UNDELIVERED and not delivered.has(path):
 			check(false, "%s calls '%s' '%s' and there is no file at %s"
 				% [wanted[path][2], cue, status, path])
-	done("_test_delivered_audio_and_the_registries_agree")
+	done()
 
 
 ## THE GUIDE AND THE CODE OFFER THE SAME WORDS.
@@ -287,7 +251,7 @@ func _test_the_guide_states_the_same_vocabulary() -> void:
 	for st in audio.STATUSES:
 		check(guide.contains("`%s`" % st),
 			"docs/SOUND_GUIDE.md never offers `%s`, which is a status the game accepts" % st)
-	done("_test_the_guide_states_the_same_vocabulary")
+	done()
 
 
 ## The credits screen reports the audio it can SEE.
@@ -315,7 +279,7 @@ func _test_the_credits_count_the_audio_rather_than_claiming() -> void:
 	check(said != "", "the credits should still have an art-and-sound block")
 	check(said.contains(str(counted)),
 		"the credits should say how many cues there are (%d); they say:\n%s" % [counted, said])
-	done("_test_the_credits_count_the_audio_rather_than_claiming")
+	done()
 
 
 ## Everything under assets/audio/ that could be a delivery — recursive, because a

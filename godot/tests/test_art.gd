@@ -6,49 +6,28 @@
 ## and everything else resolves to null WITHOUT erroring, so every UI caller
 ## can fall back to its placeholder. If this passes, the game is safe to run
 ## at any point between zero art and complete art.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-var failures: Array[String] = []
 var content: Node
 var art: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	art = root.get_node("Art")
-	await process_frame
 	content.reload()
 	art.reload()
 
-	_test_manifest_loaded()
-	_test_slug_matches_generator()
-	_test_missing_art_is_null_not_error()
-	_test_delivered_art_loads()
-	_test_every_manifest_id_is_resolvable()
-	_test_unimported_file_loads()
-	await _test_the_card_holds_a_window_open()
-	_test_a_portrait_lands_in_the_same_slot()
-	_test_the_guide_states_the_window_it_gets()
-	_test_delivered_files_and_the_manifest_agree()
 
-	if failures.is_empty():
-		print("ALL PASS — art status: ", art.status_summary())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
+func summary() -> String:
+	return "art status: %s" % [art.status_summary()]
 
 
 func _test_manifest_loaded() -> void:
 	check(not art.manifest.is_empty(), "art manifest should load")
 	check(art.spec.has("card_art"), "manifest should carry the card_art spec")
 	check(art.spec.has("portrait_art"), "manifest should carry the portrait_art spec")
+	done()
 
 
 ## Art.slug() and gen_art_manifest.gd's _slug() are separate copies of the
@@ -61,6 +40,7 @@ func _test_slug_matches_generator() -> void:
 	check(art.slug("Père Renaud") == "pere-renaud", "accented two-word slug, got %s" % art.slug("Père Renaud"))
 	check(art.slug("Stand Up Mid-Sentence") == "stand-up-mid-sentence", "hyphenated slug, got %s" % art.slug("Stand Up Mid-Sentence"))
 	check(art.slug("The Widow's Wedding Band") == "the-widows-wedding-band", "apostrophe slug, got %s" % art.slug("The Widow's Wedding Band"))
+	done()
 
 
 func _test_missing_art_is_null_not_error() -> void:
@@ -68,6 +48,7 @@ func _test_missing_art_is_null_not_error() -> void:
 	check(not undelivered.is_empty(), "Ask Them Why should exist in content")
 	check(art.card_texture(undelivered) == null, "an undelivered card should resolve to null, not a texture")
 	check(art.texture("card/does-not-exist-at-all") == null, "an id absent from the manifest should resolve to null")
+	done()
 
 
 ## Depends on tests/gen_test_art.gd having been run (it writes two gradient
@@ -78,6 +59,7 @@ func _test_delivered_art_loads() -> void:
 	var entry: Dictionary = art.manifest.get("card/pour-the-tea", {})
 	if entry.get("status", "missing") == "missing":
 		print("  (skipping delivered-art check: card/pour-the-tea is still 'missing')")
+		done()
 		return
 	var tea: Dictionary = content.get_card("Pour The Tea")
 	var tex = art.card_texture(tea)
@@ -88,36 +70,7 @@ func _test_delivered_art_loads() -> void:
 	var perrot: Dictionary = content.get_sitter("Mme Perrot")
 	if art.manifest.get("sitter/mme-perrot", {}).get("status", "missing") != "missing":
 		check(art.sitter_texture(perrot) != null, "sitter/mme-perrot is marked delivered so it should load")
-
-
-## The loader has to read a file the editor has never imported.
-##
-## This is the case that actually matters and the one nothing was covering:
-## art delivered after the fact and dropped into assets/art/, or shipped by a
-## mod in user://mods/, has no .import file and no converted resource under
-## .godot/imported/ — and a mod's never can, since the import pipeline only
-## covers res:// assets known at export time. Art.gd used ResourceLoader.exists()
-## + load(), which works for exactly the art that has been through the editor
-## and nothing else. The delivered-art check above cannot catch that, because
-## it skips entirely while every asset is still "missing" — which is always,
-## until the artist delivers.
-##
-## Writes its own file to user:// and cleans up, so it needs no committed art.
-func _test_unimported_file_loads() -> void:
-	var path := "user://_test_unimported.png"
-	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.4, 0.2, 0.6))
-	check(img.save_png(path) == OK, "could not write the test image")
-
-	var tex = art._load_texture(path)
-	check(tex != null, "a file the editor never imported must still load")
-	if tex != null:
-		check(tex.get_width() == 8 and tex.get_height() == 8,
-			"loaded texture should be 8x8, got %dx%d" % [tex.get_width(), tex.get_height()])
-
-	check(art._load_texture("user://_definitely_not_here.png") == null,
-		"a missing file should be null, not an error")
-	DirAccess.remove_absolute(path)
+	done()
 
 
 ## Every id the manifest lists must be resolvable without throwing, whatever
@@ -148,6 +101,38 @@ func _test_every_manifest_id_is_resolvable() -> void:
 	for r in content.readers:
 		if _is_base(r):
 			check(art.manifest.has(art.reader_id(r)), "manifest missing id for reader %s" % r["k"])
+	done()
+
+
+## The loader has to read a file the editor has never imported.
+##
+## This is the case that actually matters and the one nothing was covering:
+## art delivered after the fact and dropped into assets/art/, or shipped by a
+## mod in user://mods/, has no .import file and no converted resource under
+## .godot/imported/ — and a mod's never can, since the import pipeline only
+## covers res:// assets known at export time. Art.gd used ResourceLoader.exists()
+## + load(), which works for exactly the art that has been through the editor
+## and nothing else. The delivered-art check above cannot catch that, because
+## it skips entirely while every asset is still "missing" — which is always,
+## until the artist delivers.
+##
+## Writes its own file to user:// and cleans up, so it needs no committed art.
+func _test_unimported_file_loads() -> void:
+	var path := "user://_test_unimported.png"
+	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0.4, 0.2, 0.6))
+	check(img.save_png(path) == OK, "could not write the test image")
+
+	var tex = art._load_texture(path)
+	check(tex != null, "a file the editor never imported must still load")
+	if tex != null:
+		check(tex.get_width() == 8 and tex.get_height() == 8,
+			"loaded texture should be 8x8, got %dx%d" % [tex.get_width(), tex.get_height()])
+
+	check(art._load_texture("user://_definitely_not_here.png") == null,
+		"a missing file should be null, not an error")
+	DirAccess.remove_absolute(path)
+	done()
 
 
 ## THE ART WINDOW IS HELD OPEN, AND NOTHING IS DRAWN OVER IT.
@@ -163,6 +148,7 @@ func _test_the_card_holds_a_window_open() -> void:
 	var card: Dictionary = content.get_card("Turn The Top Card")
 	check(not card.is_empty(), "the deck should still have a Turn The Top Card to draw")
 	if card.is_empty():
+		done()
 		return
 
 	var face: Control = UIKitScript.card_face(card, Callable(), true, false)
@@ -194,6 +180,7 @@ func _test_the_card_holds_a_window_open() -> void:
 				"nothing may be drawn over the card's art window — %s (%s) overlaps it" % [c.name, r])
 	face.queue_free()
 	await process_frame
+	done()
 
 
 ## A DELIVERED PORTRAIT TAKES THE SAME ROOM AS THE PLACEHOLDER IT REPLACES.
@@ -207,6 +194,7 @@ func _test_a_portrait_lands_in_the_same_slot() -> void:
 	var sitter: Dictionary = content.get_sitter("Mme Perrot")
 	check(not sitter.is_empty(), "Mme Perrot should still be in the village")
 	if sitter.is_empty():
+		done()
 		return
 	var img := Image.create(768, 1024, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.5, 0.4, 0.3))
@@ -222,6 +210,7 @@ func _test_a_portrait_lands_in_the_same_slot() -> void:
 		"the portrait slot should be the 3:4 the guide asks for, got %s" % slot)
 	placeholder.free()
 	delivered.free()
+	done()
 
 
 ## The window's shape and the shape the guide asks an artist to draw must be the
@@ -246,6 +235,7 @@ func _test_the_guide_states_the_window_it_gets() -> void:
 			found = true
 			break
 	check(found, "docs/ART_GUIDE.md should ask for card art in the window's own %.2f:1 shape" % [1.0 / want])
+	done()
 
 
 func _find(node: Node, named: String) -> Control:
@@ -353,6 +343,7 @@ func _test_delivered_files_and_the_manifest_agree() -> void:
 		var status := str(wanted[id].get("status", "missing"))
 		if status != "missing" and not delivered.has(id):
 			check(false, "the manifest calls %s '%s' and there is no file at assets/art/%s.png" % [id, status, id])
+	done()
 
 
 func _art_files(dir_path: String) -> Array[String]:

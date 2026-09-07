@@ -28,7 +28,7 @@
 ## Both are exact on any machine. The one timing check left is deliberately
 ## enormous — it is there to catch something going quadratic, not to police
 ## milliseconds.
-extends SceneTree
+extends "res://tests/harness.gd"
 
 ## Loose on purpose. The Library measures ~220ms here; a runner half the speed
 ## of this one still has an order of magnitude of room. Anything over this is
@@ -36,27 +36,22 @@ extends SceneTree
 const ABSURD_MS := 2000.0
 
 var content: Node
-var failures: Array[String] = []
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
-	await process_frame
 	content.reload()
+	# A previous run, or a real player's Library edits on this machine, would
+	# otherwise be measured as part of the cost.
 	root.get_node("CardEdits").revert_all()
 	content.reload()
+	# A headless root is 64px wide and every geometry measurement below would be
+	# meaningless at that size. See CLAUDE.md.
 	root.size = Vector2i(1280, 720)
 
-	await _test_screens_do_not_leave_nodes_behind()
-	await _test_a_keystroke_does_not_rebuild_the_list()
-	await _test_selecting_a_card_leaves_the_other_rows_alone()
-	await _test_no_screen_takes_absurdly_long_to_build()
 
-	for f in failures:
-		printerr("FAIL: ", f)
-	if failures.is_empty():
-		print("ALL PASS — the interface rebuilds only what changed")
-	quit(1 if not failures.is_empty() else 0)
+func summary() -> String:
+	return "the interface rebuilds only what changed"
 
 
 ## NOTHING IS LEFT BEHIND WHEN A SCREEN GOES.
@@ -108,6 +103,7 @@ func _test_screens_do_not_leave_nodes_behind() -> void:
 	if counts[counts.size() - 1] > counts[0]:
 		failures.append("building and freeing the reading screen leaves nodes behind: %s orphans after each round of three — an unparented Node is never collected, so this grows for as long as the game is open"
 			% str(counts))
+	done()
 
 
 func _library() -> Node:
@@ -132,6 +128,7 @@ func _test_a_keystroke_does_not_rebuild_the_list() -> void:
 		failures.append("the Library has no search box to type in")
 		instance.queue_free()
 		await process_frame
+		done()
 		return
 	# Four keystrokes, as a player types them. Each one used to build the whole
 	# list and throw it away.
@@ -151,6 +148,7 @@ func _test_a_keystroke_does_not_rebuild_the_list() -> void:
 		failures.append("after the typing settled the list still shows %d of %d rows — the search does not narrow anything" % [after, before])
 	instance.queue_free()
 	await process_frame
+	done()
 
 
 ## Moving the selection moves a coloured border. It used to rebuild every row in
@@ -166,6 +164,7 @@ func _test_selecting_a_card_leaves_the_other_rows_alone() -> void:
 		failures.append("only %d cards in the Library — this test needs a list to leave alone" % rows.size())
 		instance.queue_free()
 		await process_frame
+		done()
 		return
 
 	var before := {}
@@ -191,6 +190,7 @@ func _test_selecting_a_card_leaves_the_other_rows_alone() -> void:
 		failures.append("selecting a card did not change which card is selected")
 	instance.queue_free()
 	await process_frame
+	done()
 
 
 ## The catch-all. Not a budget — a tripwire for something having gone quadratic.
@@ -226,6 +226,7 @@ func _test_no_screen_takes_absurdly_long_to_build() -> void:
 			failures.append("%s took %.0fms to build (the tripwire is %.0fms) — that is not slow, that is a different algorithm" % [label, took, ABSURD_MS])
 		else:
 			print("  %-14s %6.1f ms" % [label, took])
+	done()
 
 
 func _search_field(node: Node) -> LineEdit:

@@ -24,72 +24,31 @@
 ##   - EVERY setting MOVES SOMETHING. This file's header has always claimed the
 ##     settings screen has no decorative rows on it, and nothing checked the
 ##     claim — see _test_every_setting_moves_something().
-extends SceneTree
+extends "res://tests/harness.gd"
 
-const TESTS := [
-	"_test_rebind_and_reset",
-	"_test_rebind_leaves_the_gamepad_alone",
-	"_test_containers_are_copied_out",
-	"_test_unknown_key_is_refused",
-	"_test_every_setting_is_reachable",
-	"_test_every_setting_moves_something",
-	"_test_the_game_speeds_are_four_and_all_work",
-	"_test_choice_defaults_are_valid_choices",
-	"_test_a_bad_stored_choice_falls_back",
-	"_test_legacy_fullscreen_migrates",
-	"_test_the_buses_exist_and_the_volumes_reach_them",
-	"_test_reset_puts_everything_back",
-	"_test_every_action_has_a_gamepad_button",
-	"_test_the_interface_scales_with_the_window",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var settings: Node
 
+## The player's own settings file, put back in teardown(). These tests write
+## deliberately broken files and call reset_to_defaults(), and a suite that
+## silently wipes the settings on a development machine is a bad neighbour.
+var _saved_settings := ""
 
-func _initialize() -> void:
+
+func setup() -> void:
 	settings = root.get_node("Settings")
-	await process_frame
-
-	# These tests write deliberately broken settings files and call
-	# reset_to_defaults(), so the whole file is put back afterwards rather than
-	# a key at a time — a test suite that silently wipes the player's settings
-	# is a bad neighbour on a development machine.
-	var saved := ""
 	if FileAccess.file_exists(settings.PATH):
-		saved = FileAccess.get_file_as_string(settings.PATH)
+		_saved_settings = FileAccess.get_file_as_string(settings.PATH)
 
-	for t in TESTS:
-		call(t)
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
 
-	if saved != "":
+func teardown() -> void:
+	if _saved_settings != "":
 		var f := FileAccess.open(settings.PATH, FileAccess.WRITE)
-		f.store_string(saved)
+		f.store_string(_saved_settings)
 		f.close()
 	else:
 		DirAccess.remove_absolute(settings.PATH)
 	settings.load_from_disk()
 	settings._apply_all()
-
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
 
 
 func _keys_of(action: String) -> Array:
@@ -113,7 +72,7 @@ func _test_rebind_and_reset() -> void:
 	# startup — applying an override erases them from the InputMap.
 	settings.clear_keybind("parlour_read")
 	check(_keys_of("parlour_read").has(KEY_R), "clearing should restore R, got %s" % str(_keys_of("parlour_read")))
-	done("_test_rebind_and_reset")
+	done()
 
 
 ## A player rebinding a key must not lose their controller button for it.
@@ -132,7 +91,7 @@ func _test_rebind_leaves_the_gamepad_alone() -> void:
 	check(pads_after == pads_before,
 		"rebinding the key should leave %d gamepad event(s) alone, got %d" % [pads_before, pads_after])
 	settings.clear_keybind("parlour_read")
-	done("_test_rebind_leaves_the_gamepad_alone")
+	done()
 
 
 ## get_value() hands out Arrays and Dictionaries by value. One of those
@@ -149,7 +108,7 @@ func _test_containers_are_copied_out() -> void:
 	d["not_an_action"] = 1
 	check(not settings.get_value("keybinds").has("not_an_action"),
 		"mutating a returned Dictionary must not reach the stored value")
-	done("_test_containers_are_copied_out")
+	done()
 
 
 func _test_unknown_key_is_refused() -> void:
@@ -158,7 +117,7 @@ func _test_unknown_key_is_refused() -> void:
 	print("--- the next two errors are expected: setting and reading a key that does not exist ---")
 	settings.set_value("no_such_setting", 3)
 	check(settings.get_value("no_such_setting") == null, "an unknown key should read back null")
-	done("_test_unknown_key_is_refused")
+	done()
 
 
 ## The screen and the registry have to agree in both directions. This is the
@@ -175,7 +134,7 @@ func _test_every_setting_is_reachable() -> void:
 			seen[key] = section["id"]
 	for key in settings.DEFS:
 		check(seen.has(key), "setting '%s' is in no section — nothing can reach it" % key)
-	done("_test_every_setting_is_reachable")
+	done()
 
 
 ## Each choice setting's DEFAULT has to be one of its choices, or a fresh
@@ -258,7 +217,7 @@ func _test_every_setting_moves_something() -> void:
 	UIKit.refresh_look()
 	i18n.reload()
 	content.reload()
-	done("_test_every_setting_moves_something")
+	done()
 
 
 ## FOUR GAME SPEEDS, AND EVERY ONE OF THEM DOES SOMETHING.
@@ -295,7 +254,7 @@ func _test_the_game_speeds_are_four_and_all_work() -> void:
 			% UIKit.dur(1.0))
 
 	settings.set_value("animation_scale", before)
-	done("_test_the_game_speeds_are_four_and_all_work")
+	done()
 
 
 func _test_choice_defaults_are_valid_choices() -> void:
@@ -305,7 +264,7 @@ func _test_choice_defaults_are_valid_choices() -> void:
 			"'%s' defaults to %s, which is not one of its choices" % [pair[0], settings.default_for(pair[0])])
 	# available_resolutions() must never hand the screen an empty dropdown.
 	check(not settings.available_resolutions().is_empty(), "there is always at least one offered resolution")
-	done("_test_choice_defaults_are_valid_choices")
+	done()
 
 
 ## A hand-edited or version-skewed settings.cfg holding a value that is not a
@@ -321,7 +280,7 @@ func _test_a_bad_stored_choice_falls_back() -> void:
 		"an unknown window mode falls back to the default, got '%s'" % settings.get_value("window_mode"))
 	check(settings.get_value("vsync") == "on",
 		"an unknown vsync mode falls back to the default, got '%s'" % settings.get_value("vsync"))
-	done("_test_a_bad_stored_choice_falls_back")
+	done()
 
 
 ## Settings files outlive the code that wrote them. Someone who had turned
@@ -342,7 +301,7 @@ func _test_legacy_fullscreen_migrates() -> void:
 	settings.load_from_disk()
 	check(settings.get_value("window_mode") == "borderless",
 		"an explicit window_mode wins over the legacy key, got '%s'" % settings.get_value("window_mode"))
-	done("_test_legacy_fullscreen_migrates")
+	done()
 
 
 ## The three volume sliders are only worth having if they drive three separate
@@ -372,7 +331,7 @@ func _test_the_buses_exist_and_the_volumes_reach_them() -> void:
 	settings.set_value("muted", true)
 	check(AudioServer.is_bus_mute(AudioServer.get_bus_index("Master")), "mute should mute Master")
 	settings.set_value("muted", false)
-	done("_test_the_buses_exist_and_the_volumes_reach_them")
+	done()
 
 
 ## reset_to_defaults() has to put back EVERY key, not the handful whose apply
@@ -386,7 +345,7 @@ func _test_reset_puts_everything_back() -> void:
 	for key in settings.DEFS:
 		check(settings.get_value(key) == settings.default_for(key),
 			"'%s' should be back to its default, got %s" % [key, settings.get_value(key)])
-	done("_test_reset_puts_everything_back")
+	done()
 
 
 ## The controls pane says, in as many words, that the game is playable on a
@@ -424,7 +383,7 @@ func _test_every_action_has_a_gamepad_button() -> void:
 		check(after.size() == before.size(),
 			"rebinding '%s' changed its gamepad buttons (%d -> %d)" % [action, before.size(), after.size()])
 		settings.clear_keybind(action)
-	done("_test_every_action_has_a_gamepad_button")
+	done()
 
 
 ## The video settings are only worth having if the interface actually scales
@@ -466,4 +425,4 @@ func _test_the_interface_scales_with_the_window() -> void:
 	check(is_equal_approx(vp.content_scale_factor, 1.25),
 		"ui_scale should drive content_scale_factor, got %s" % vp.content_scale_factor)
 	settings.set_value("ui_scale", settings.default_for("ui_scale"))
-	done("_test_the_interface_scales_with_the_window")
+	done()

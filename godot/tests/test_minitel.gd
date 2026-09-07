@@ -18,23 +18,8 @@
 ##   - a code naming a stat or an event that does not exist is REPORTED. The
 ##     recurring failure this port keeps recording is content that silently
 ##     does nothing; a mod that misspells an event title should hear about it.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-const TESTS := [
-	"_test_normalise",
-	"_test_refusals",
-	"_test_a_code_is_recorded_once",
-	"_test_repeatable_codes",
-	"_test_grants_lever",
-	"_test_arms_lever",
-	"_test_secret_events_stay_out_of_the_ordinary_pool",
-	"_test_codes_can_gate_an_unlock",
-	"_test_broken_codes_are_reported",
-	"_test_each_screen_line_has_its_own_key",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var content: Node
 var run: Node
 var profile: Node
@@ -42,38 +27,23 @@ var minitel: Node
 var i18n: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	run = root.get_node("Run")
 	profile = root.get_node("Profile")
 	minitel = root.get_node("Minitel")
 	i18n = root.get_node("I18n")
-	await process_frame
 	content.reload()
 
-	for t in TESTS:
-		profile.reset()
-		call(t)
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
+
+## Every test starts from a player who has typed nothing, and the last one puts
+## the real profile back — this is the autoloaded Profile, not a copy.
+func before_each(_test_name: String) -> void:
 	profile.reset()
 
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
 
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
+func teardown() -> void:
+	profile.reset()
 
 
 func _test_normalise() -> void:
@@ -87,7 +57,7 @@ func _test_normalise() -> void:
 	# Wrong lengths and non-letters are not codes at all.
 	for raw in ["", "OEI", "OEILS", "3615", "OE1L", "OEI!"]:
 		check(minitel.normalise(raw) == "", "'%s' is not a four-letter code" % raw)
-	done("_test_normalise")
+	done()
 
 
 ## Every wrong thing gets its own answer, and none of them is an empty screen.
@@ -104,7 +74,7 @@ func _test_refusals() -> void:
 
 	for res in [wrong_prefix, short_code, no_such]:
 		check(not res["lines"].is_empty(), "every answer prints something — a blank tube reads as a broken machine")
-	done("_test_refusals")
+	done()
 
 
 func _test_a_code_is_recorded_once() -> void:
@@ -117,7 +87,7 @@ func _test_a_code_is_recorded_once() -> void:
 	check(minitel.entered() == ["OEIL"], "and must not record it twice, got %s" % [minitel.entered()])
 	# The service's own text still prints — you can re-read what it said.
 	check(second["lines"].size() > 1, "an already-dialled service should still show its screen")
-	done("_test_a_code_is_recorded_once")
+	done()
 
 
 ## `repeatable` exists so a code can be a thing you do rather than a thing you
@@ -133,7 +103,7 @@ func _test_repeatable_codes() -> void:
 	check(minitel.entered() == ["SOUS"], "still recorded once, got %s" % [minitel.entered()])
 
 	codes["SOUS"] = restore
-	done("_test_repeatable_codes")
+	done()
 
 
 func _test_grants_lever() -> void:
@@ -146,7 +116,7 @@ func _test_grants_lever() -> void:
 	check(int(profile.get_stat("best_faith")) == 10, "grants should add to the stat, got %s" % profile.get_stat("best_faith"))
 
 	codes["SOUS"] = restore
-	done("_test_grants_lever")
+	done()
 
 
 func _test_arms_lever() -> void:
@@ -158,7 +128,7 @@ func _test_arms_lever() -> void:
 		check(bool(armed[0].get("secret", false)), "what it armed should be a secret event")
 		check(str(armed[0].get("title", "")) == "The number nobody answers",
 			"got '%s'" % armed[0].get("title", ""))
-	done("_test_arms_lever")
+	done()
 
 
 ## The load-bearing one. A `secret` event must be unreachable until a code
@@ -198,7 +168,7 @@ func _test_secret_events_stay_out_of_the_ordinary_pool() -> void:
 					seen = true
 	check(promised, "once armed, a night's plan should eventually have a secret hour in it")
 	check(seen, "once armed, the secret event should eventually be offered on the map")
-	done("_test_secret_events_stay_out_of_the_ordinary_pool")
+	done()
 
 
 ## The third lever needs no code of its own: Profile.meets() already reads the
@@ -212,7 +182,7 @@ func _test_codes_can_gate_an_unlock() -> void:
 	# reader to finish a run with.
 	var text: String = profile.unlock_text(cond)
 	check(text.contains("3615"), "the unlock line should tell you to dial, got '%s'" % text)
-	done("_test_codes_can_gate_an_unlock")
+	done()
 
 
 ## A code that names a stat or an event that is not there is a content mistake,
@@ -237,7 +207,7 @@ func _test_broken_codes_are_reported() -> void:
 		"a list stat should survive a code trying to add to it")
 
 	codes.erase("BRKN")
-	done("_test_broken_codes_are_reported")
+	done()
 
 
 ## A service's screen is an ARRAY, and each line needs its own translation key.
@@ -263,4 +233,4 @@ func _test_each_screen_line_has_its_own_key() -> void:
 
 	i18n._strings = saved
 	codes["SOUS"] = restore
-	done("_test_each_screen_line_has_its_own_key")
+	done()

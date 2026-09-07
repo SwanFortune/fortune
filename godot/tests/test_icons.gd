@@ -19,49 +19,16 @@
 ##
 ## Autoloads are fetched via get_node() — see the note at the top of
 ## tests/test_rules.gd for why the bare global names don't resolve here.
-extends SceneTree
+extends "res://tests/harness.gd"
 
-const TESTS := [
-	"_test_every_icon_actually_draws",
-	"_test_the_base_content_is_fully_illustrated",
-	"_test_an_unknown_icon_is_null_rather_than_blank",
-	"_test_colour_reaches_the_drawing",
-	"_test_icons_are_cached",
-]
-
-var failures: Array[String] = []
-var finished: Dictionary = {}
 var content: Node
 var icons: Node
 
 
-func _initialize() -> void:
+func setup() -> void:
 	content = root.get_node("Content")
 	icons = root.get_node("Icons")
-	await process_frame
 	content.reload()
-
-	for t in TESTS:
-		call(t)
-		if not finished.has(t):
-			failures.append("%s aborted before finishing — see the SCRIPT ERROR above" % t)
-
-	if failures.is_empty():
-		print("ALL PASS — %d test methods" % TESTS.size())
-		quit(0)
-	else:
-		for f in failures:
-			printerr("FAIL: ", f)
-		quit(1)
-
-
-func check(cond: bool, label: String) -> void:
-	if not cond:
-		failures.append(label)
-
-
-func done(name: String) -> void:
-	finished[name] = true
 
 
 ## How many pixels an icon actually puts on the canvas. A blank result is the
@@ -91,7 +58,7 @@ func _test_every_icon_actually_draws() -> void:
 			# or nearly-blank result is what a broken path looks like.
 			check(_ink(tex) > 20, "%s/%s rendered blank or nearly so (%d pixels)" % [kind, name, _ink(tex)])
 	check(total >= 28, "the base pack should carry the source's whole icon set, found %d" % total)
-	done("_test_every_icon_actually_draws")
+	done()
 
 
 ## Every element, every sign and every reader's planet in the BASE content has
@@ -111,7 +78,7 @@ func _test_the_base_content_is_fully_illustrated() -> void:
 		var planet := str(r.get("planet", ""))
 		if planet != "":
 			check(icons.has("planet", planet), "planet '%s' (%s) has no icon" % [planet, r.get("k")])
-	done("_test_the_base_content_is_fully_illustrated")
+	done()
 
 
 ## The contract every caller relies on: no icon means null, so the UI can fall
@@ -124,7 +91,7 @@ func _test_an_unknown_icon_is_null_rather_than_blank() -> void:
 	check(not icons.has("sign", "no_such_sign"), "has() should agree")
 	# A zero or negative size is a caller bug, not a reason to crash.
 	check(icons.texture("element", "fire", 0, Color.WHITE) == null, "a zero size should be null")
-	done("_test_an_unknown_icon_is_null_rather_than_blank")
+	done()
 
 
 ## The colour has to reach the drawing. It did not, for a while: SVG treats an
@@ -135,7 +102,7 @@ func _test_colour_reaches_the_drawing() -> void:
 	var red: Texture2D = icons.texture("element", "fire", 32, Color(1, 0, 0))
 	check(red != null and _ink(red) > 20, "a red icon should draw")
 	if red == null:
-		done("_test_colour_reaches_the_drawing")
+		done()
 		return
 	var img := red.get_image()
 	var found_red := false
@@ -145,7 +112,7 @@ func _test_colour_reaches_the_drawing() -> void:
 			if px.a > 0.5 and px.r > 0.5 and px.g < 0.3 and px.b < 0.3:
 				found_red = true
 	check(found_red, "the requested colour should appear in the drawing")
-	done("_test_colour_reaches_the_drawing")
+	done()
 
 
 ## Rasterising an SVG is not free and a card face asks for the same badge many
@@ -160,4 +127,4 @@ func _test_icons_are_cached() -> void:
 	icons.reload()
 	var d: Texture2D = icons.texture("element", "water", 24, Color.WHITE)
 	check(d != null and d != a, "reload() should have dropped the cache")
-	done("_test_icons_are_cached")
+	done()
