@@ -78,7 +78,7 @@ godot --headless --path godot -s tests/test_icons.gd           # the vector icon
 godot --headless --path godot -s tests/test_the_suite.gd       # every test method declared is a test method run
 ```
 
-All twenty-two should print `ALL PASS` / `SCENE SWEEP DONE`. Several of them
+All twenty-two should print `ALL PASS`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The

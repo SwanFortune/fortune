@@ -40,9 +40,10 @@ and never running. End every one with `done()`: a runtime error aborts its own
 method and returns to the caller with no exception and no exit code, so without
 that line the checks below the error vanish and the file still says ALL PASS.
 Override `setup()`, `before_each()`, `after_each()`, `teardown()`, `summary()`.
-`godot/tests/test_the_suite.gd` checks all of this, and `godot/tests/test_scenes.gd` is the
-one file not yet on the harness — it interleaves its tests with the scene visits
-that set them up.
+`godot/tests/test_the_suite.gd` checks all of this: that every declared test is
+reached, that nothing shadows the harness, and that the harness still derives —
+the last by comparing the engine's method table against the file read off the
+disk as text, two derivations asked to agree.
 
 **When a checklist is maintained by hand, it will fall behind.** The README's
 test list, the locale's UI strings, the art manifest: each one quietly stopped

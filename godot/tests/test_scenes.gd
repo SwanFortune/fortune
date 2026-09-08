@@ -9,34 +9,37 @@
 ## This prints a marker before/after each scene and relies on Godot's own
 ## SCRIPT ERROR / ERROR output surfacing between markers — grep the output
 ## for "ERROR" rather than trusting exit code alone.
-extends SceneTree
+extends "res://tests/harness.gd"
 
 var content: Node
 var run: Node
 
+## Every setting this file could have changed, taken before the first test and
+## checked back in teardown(). Several tests here change text_scale and
+## high_contrast on purpose — they have to, since the only way to check a look
+## setting reaches the interface is to build a screen under it — and Settings
+## writes straight to disk. That is not hypothetical: a text_scale of 1.3 was
+## left behind once and quietly rendered every screenshot at the wrong size
+## until somebody noticed the words looked big.
+var _settings_before: Dictionary = {}
 
-func _initialize() -> void:
+
+func setup() -> void:
 	content = root.get_node("Content")
 	run = root.get_node("Run")
-	# See screenshot.gd's _initialize() comment: Run._ready() (state =
-	# fresh()) is deferred to the first process frame, and this script awaits
-	# frames later on — without waiting one out first, that deferred _ready()
-	# would fire mid-sweep and silently reset whatever state the current
-	# _visit() just built. Order happened to make this harmless today (the
-	# first visit is "sign", which wants fresh() anyway) but that's luck, not
-	# a guarantee against future reordering.
-	await process_frame
 	content.reload()
-	# What the player's settings looked like before this file touched anything.
-	# Several tests here change text_scale and high_contrast on purpose — they
-	# have to, since the only way to check a look setting reaches the interface
-	# is to build a screen under it — and Settings writes straight to disk, so a
-	# test that forgets to put one back leaves it changed for the game and for
-	# every tool. That is not hypothetical: a text_scale of 1.3 was left behind
-	# once and quietly rendered every screenshot at the wrong size until somebody
-	# noticed the words looked big.
-	var settings_before := _settings_snapshot()
+	_settings_before = _settings_snapshot()
 
+
+func teardown() -> void:
+	_check_settings_put_back(_settings_before)
+
+
+## EVERY SCREEN A RUN CAN BE ON, built against the state that reaches it.
+##
+## Declared first because it runs first, which is the harness's whole rule: the
+## order these are written in is the order they run in.
+func _test_every_screen_in_a_run_builds() -> void:
 	await _visit("sign", func(): run.state = run.fresh())
 
 	await _visit("pick (gift)", func():
@@ -105,16 +108,9 @@ func _initialize() -> void:
 		run.after_res()
 	)
 
-	await _visit_standalone()
-	await _test_keyboard_can_play()
-	_test_settings_return_path()
-	_check_settings_put_back(settings_before)
-
-	print("SCENE SWEEP DONE")
-	quit(0)
+	done()
 
 
-## Every setting this file could have changed, by name and value.
 func _settings_snapshot() -> Dictionary:
 	var settings: Node = root.get_node("Settings")
 	var out := {}
@@ -132,7 +128,7 @@ func _check_settings_put_back(before: Dictionary) -> void:
 	if moved.is_empty():
 		print("--- the player's settings are as they were found ---")
 		return
-	printerr("FAIL: this test left the player's settings changed on disk: %s" % ", ".join(moved))
+	check(false, "this test left the player's settings changed on disk: %s" % ", ".join(moved))
 
 
 ## The menus are not reachable from Run.state's "screen" field — they are
@@ -140,7 +136,12 @@ func _check_settings_put_back(before: Dictionary) -> void:
 ## _ready() went unchecked. That matters most for the main menu, which now has
 ## real branching in it (a resumable save, no save, an unreadable one) and for
 ## the mods screen, which reads pack metadata that only exists after a load.
-func _visit_standalone() -> void:
+## THE MENUS, which are not reachable from Run.state's "screen" field — they are
+## screens, not run states — so the sweep above never built them and their
+## _ready() went unchecked. That matters most for the main menu, which has real
+## branching in it (a resumable save, no save, an unreadable one) and for the
+## mods screen, which reads pack metadata that only exists after a load.
+func _test_the_menus_and_the_saved_game_build() -> void:
 	var save: Node = root.get_node("Save")
 
 	save.clear()
@@ -165,261 +166,281 @@ func _visit_standalone() -> void:
 
 	await _visit_scene("mods", "res://scenes/ModsScreen.tscn")
 	await _visit_scene("minitel", "res://scenes/MinitelScreen.tscn")
-	await _test_minitel_screen_dials()
+	done()
+
+
+## The Minitel screen's own wiring. test_minitel.gd drives the autoload
+## directly and so would pass with an ENVOI button connected to nothing —
+## which is precisely the shape of bug a screen this thin can have. Presses
+## the real button and checks the code came out the other end.
+func _test_minitel_screen_dials() -> void:
+	var profile: Node = root.get_node("Profile")
+	var minitel: Node = root.get_node("Minitel")
+	var before: Array = minitel.entered()
+
+	var instance: Node = load("res://scenes/MinitelScreen.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+
+	# TYPING STARTS AT THE PREFIX. The gesture is "dial 3615, then four
+	# letters", and both halves are typed — Minitel.submit() refuses a wrong
+	# prefix. Landing on the code field means a player types four letters,
+	# presses ENVOI, and is turned away over a field they were never shown.
+	var focused: Control = instance.get_viewport().gui_get_focus_owner()
+	if focused != instance._prefix_field:
+		check(false, "the minitel opens with focus on %s, not the 3615 field — the code is the second half of the gesture"
+			% ("nothing" if focused == null else str(focused)))
+	# And Enter on the prefix carries on to the code rather than doing nothing.
+	instance._prefix_field.text_submitted.emit("3615")
+	await process_frame
+	if instance.get_viewport().gui_get_focus_owner() != instance._code_field:
+		check(false, "Enter on the 3615 field does not move to the code — the gesture stalls half way")
+
+	instance._prefix_field.text = "3615"
+	instance._code_field.text = "oeil"
+	# I18n by get_node(), not by its global name: this script is compiled by
+	# `godot -s` BEFORE the autoloads are registered, so the bare identifier
+	# does not resolve here. Same trap as autoload/Nav.gd's header describes.
+	var envoi := _find_button(instance, root.get_node("I18n").t("ENVOI"))
+	if envoi == null:
+		check(false, "the minitel screen has no ENVOI button")
+	else:
+		envoi.pressed.emit()
+		await process_frame
+		if not minitel.entered().has("OEIL"):
+			check(false, "pressing ENVOI did not dial — the screen is not wired to Minitel.submit()")
+		else:
+			print("--- minitel screen dials (%s) ---" % [minitel.entered()])
+
+	instance.queue_free()
+	await process_frame
+	profile.set_stat("codes_entered", before)
+	done()
+
+
+## The two pages of prose. Built here; what is ON them is checked further down.
+func _test_the_reference_screens_build() -> void:
 	await _visit_scene("how to play", "res://scenes/HowToPlay.tscn")
 	await _visit_scene("credits", "res://scenes/Credits.tscn")
-	_test_the_rules_screen_matches_the_engine()
-	await _test_a_failing_save_is_visible_to_the_player()
-	await _test_the_overlays_are_modal()
-	await _test_the_marks_are_on_the_hands()
-	await _test_the_last_card_floats()
-	await _test_the_raised_card_is_not_clipped()
-	_test_the_sitters_are_different_people()
-	await _test_the_screens_read_the_live_content()
-	await _test_somebody_knocks()
-	await _test_the_reading_shows_its_own_maths()
-	await _test_the_reading_is_read_out_once()
-	await _test_an_events_own_words_are_shown()
-	await _test_every_settings_section_builds()
-	await _test_look_settings_reach_a_built_screen()
-	await _test_the_hand_stays_on_screen()
-	await _test_a_spent_reading_can_still_be_played()
-	await _test_an_offered_card_shows_its_price()
-	await _test_the_reading_is_a_sentence()
-	await _test_the_rule_is_visible_and_the_flavour_is_not()
-	await _test_the_agenda_names_the_whole_hour()
-	await _test_a_readings_tally_reads_as_pairs()
-	await _test_the_reading_screens_are_centred()
-	await _test_the_library_always_shows_a_card()
-	await _test_editing_a_card_does_not_destroy_the_control()
-	await _test_a_screen_opens_at_the_top_and_the_wheel_moves_it()
-	await _test_the_very_first_launch()
-	await _test_every_event_says_everything_it_carries()
-	await _test_no_screen_shows_a_raw_token()
-	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
-	await _visit_scene("library", "res://scenes/Library.tscn")
+	done()
 
 
-## THE PAGES OF PROSE SIT IN THE MIDDLE OF THE SCREEN, AND ARE THE WIDTH THEY
-## MEANT TO BE.
-##
-## Two bugs, one measurement, and neither of them shows up in any test that only
-## asks whether a screen built:
-##
-##   1. the rules, the credits and the mods list all held their text to a
-##      readable measure and then pinned it to the left margin, so four hundred
-##      pixels of a 1280 canvas — and nine hundred of an ultrawide one — were
-##      empty while the words sat in the corner;
-##   2. the fix for that, on its first attempt, dropped the width the column was
-##      relying on, and a ScrollContainer leaves its child at minimum width
-##      unless the child asks to fill. Minimum width for a wrapping label is one
-##      character, so the whole rules screen came out as a vertical stripe of
-##      single letters. It still built. It still had every label, every string
-##      and every button, so a structural test called it fine.
-##
-## Both are the same measurement: where is the text, and how wide. The union of
-## the wrapping labels' rectangles gives it. Its centre must be near the canvas
-## centre — that is (1) — and its width must be a real measure rather than a
-## stripe or a full-bleed sprawl, which is (2) and also catches the original
-## bug's opposite, a page that gave up and used the whole window.
-##
-## Checked at the shipping canvas and at an ultrawide one, because the centring
-## has to survive a resize: it is recomputed on the parent's `resized` signal,
-## and a version that only ran once at build time would pass the first and fail
-## the second.
-const CENTRED_SLACK := 60.0
+## The rules screen explains the element wheel, and a rules screen that
+## explains the game wrongly is worse than none: a player follows it, loses,
+## and concludes the game cheats. It is built from Content.ring rather than
+## from a sentence, and this checks that Content.ring is genuinely what
+## Rules.link_of() walks — the two could only be told apart by asking the
+## engine, which is what this does.
+func _test_the_rules_screen_matches_the_engine() -> void:
+	var rules: Node = root.get_node("Rules")
+	var ring: Array = content.ring
+	if ring.size() < 2:
+		check(false, "the element ring is too short to check")
+		done()
+		return
 
-func _test_the_reading_screens_are_centred() -> void:
-	var restore_size: Vector2i = root.size
-	var pages := {
-		"how to play": "res://scenes/HowToPlay.tscn",
-		"credits": "res://scenes/Credits.tscn",
-		"mods": "res://scenes/ModsScreen.tscn",
-	}
-	# The window the game ships at, and an ultrawide. With canvas_items stretch
-	# the second one buys canvas WIDTH, so it is the shape that makes an
-	# off-centre column look worst and the one a build-time-only fix fails at.
-	for window: Vector2i in [Vector2i(1280, 720), Vector2i(2560, 1080)]:
-		root.size = window
-		await process_frame
-		var canvas: Vector2 = root.get_visible_rect().size
-		for label: String in pages:
-			var instance: Node = load(pages[label]).instantiate()
-			root.add_child(instance)
-			for i in 3:
-				await process_frame
-			var box := Rect2()
-			var found := false
-			for node in _all_of(instance, []):
-				if not (node is Label):
-					continue
-				var l: Label = node
-				if l.autowrap_mode == TextServer.AUTOWRAP_OFF or l.text.strip_edges() == "":
-					continue
-				var r := Rect2(l.global_position, l.size)
-				box = r if not found else box.merge(r)
-				found = true
-			instance.queue_free()
-			await process_frame
-			if not found:
-				printerr("FAIL: %s at %dx%d has no wrapping text at all" % [label, window.x, window.y])
-				continue
-			var off: float = absf(box.get_center().x - canvas.x * 0.5)
-			if off > CENTRED_SLACK:
-				printerr("FAIL: %s at %dx%d puts its text %.0fpx off centre (column %.0f..%.0f in a %.0f-wide canvas) — the page reads as cropped"
-					% [label, window.x, window.y, off, box.position.x, box.end.x, canvas.x])
-			# A stripe of single letters at one end, a full-bleed page at the
-			# other. Both are pages nobody can read a line of.
-			if box.size.x < 400.0:
-				printerr("FAIL: %s at %dx%d is %.0fpx wide — the column collapsed to its minimum instead of holding a measure"
-					% [label, window.x, window.y, box.size.x])
-			elif box.size.x > canvas.x - 100.0:
-				printerr("FAIL: %s at %dx%d spans %.0fpx of a %.0f-wide canvas — the line is too long to read"
-					% [label, window.x, window.y, box.size.x, canvas.x])
-	root.size = restore_size
+	var ctx := {}
+	var fight := {}
+	var wrong := 0
+	for i in ring.size():
+		var from := str(ring[i])
+		var to := str(ring[(i + 1) % ring.size()])
+		# Following the ring forward is a TURN — the exact claim the screen
+		# makes in its own words.
+		if rules.link_of(ctx, fight, from, {"el": to}) != "turn":
+			check(false, "the rules screen says %s -> %s is a turn; the engine says '%s'"
+				% [from, to, rules.link_of(ctx, fight, from, {"el": to})])
+			wrong += 1
+		if rules.link_of(ctx, fight, from, {"el": from}) != "same":
+			check(false, "the rules screen says repeating %s is 'same'; the engine disagrees" % from)
+			wrong += 1
+	if wrong == 0:
+		print("--- the rules screen's wheel matches the engine (%d elements) ---" % ring.size())
+	done()
+
+
+## A run that cannot be written to disk has to SAY SO, on screen, where the
+## player is.
+##
+## This was the quietest failure left in the project. A full disk or a
+## read-only save directory made every write fail; Save set last_error and
+## pushed a console warning, and the player — mid-run, nowhere near a console —
+## was told nothing. They played three nights, closed the game, and the run was
+## gone: no CONTINUE on the menu, and no explanation ever, since last_error
+## does not survive a relaunch.
+##
+## Checked by rendering the real screen and reading the labels, not by testing
+## the flag. The flag was already being set correctly; what was missing was
+## anyone showing it.
+func _test_a_failing_save_is_visible_to_the_player() -> void:
+	var save: Node = root.get_node("Save")
+	save.clear()
+	# A DIRECTORY where the save file belongs: every FileAccess.open(WRITE)
+	# fails, which is what a full or read-only disk looks like from here.
+	DirAccess.make_dir_recursive_absolute(save.PATH)
+
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	print("--- the next WARNING is expected: a deliberately unwritable save ---")
+	save._write()
+	if not save.write_failed:
+		check(false, "precondition — the write was supposed to fail and did not")
+		DirAccess.remove_absolute(save.PATH)
+		done()
+		return
+
+	var instance: Node = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
 	await process_frame
-	print("--- the pages of prose are centred and hold their measure ---")
+	await process_frame
+	var warned := _text_of(instance).contains("NOT BEING SAVED")
+	if not warned:
+		check(false, "the run cannot be saved and no screen says so — the player loses it silently")
+	else:
+		print("--- an unwritable save is on screen ---")
+	instance.queue_free()
+	await process_frame
 
+	# And it goes away once writing works again, rather than sticking around
+	# and training the player to ignore it.
+	DirAccess.remove_absolute(save.PATH)
+	save._write()
+	if save.write_failed:
+		check(false, "the warning did not clear after a successful write")
+	else:
+		instance = load("res://scenes/Map.tscn").instantiate()
+		root.add_child(instance)
+		await process_frame
+		if _text_of(instance).contains("NOT BEING SAVED"):
+			check(false, "the warning is still on screen after a successful write")
+		instance.queue_free()
+		await process_frame
+	save.clear()
 
-## NOTHING SHOWS A PLAYER A {token}.
-##
-## Pronoun tokens are filled at DISPLAY time, by whoever draws the sentence, and
-## a screen that forgets simply prints the braces. The existing check walks the
-## CONTENT — signs, twists, jobs — which only covers tokens the English source
-## put there. A TRANSLATION may need tokens the English does not: French writes
-## "repart comme {s} est venu{e}" for a sentence whose English, "leaves as they
-## came", needs no agreement at all, and the result screen was not filling
-## anything. Every woman who walked out of a French game did it as "il est
-## venu", one line above the sentence that correctly said "Elle".
-##
-## So this looks at the finished screens, in French, and refuses a brace. It is
-## the end-to-end half: the other check proves every token CAN be filled, this
-## one proves somebody actually did.
-##
-## Run in French deliberately — in English most of these sentences have no
-## tokens at all, so an English pass would prove nothing.
-func _test_no_screen_shows_a_raw_token() -> void:
+	# The same news at the menu, where the OTHER two stores live. If user:// is
+	# unwritable then settings and unlocks are not persisting either, and a
+	# player would otherwise just notice their options resetting every launch
+	# with no idea why.
 	var settings: Node = root.get_node("Settings")
-	var i18n: Node = root.get_node("I18n")
-	var before = settings.get_value("locale")
-	settings.set_value("locale", "fr")
-	i18n.reload()
-
-	# Every pronoun, on the screens that describe one person by name. A sitter's
-	# own `p` decides it, so the three are forced rather than waited for.
-	for pronoun in ["she", "he", "they"]:
-		for outcome in ["win", "lose"]:
-			run.state = run.fresh("token-%s" % pronoun)
-			run.pick_reader(0)
-			run.take_pick(0)
-			for i in run.state["options"].size():
-				if run.state["options"][i]["kind"] in ["sitter", "elite"]:
-					run.choose(i)
-					break
-			var f: Dictionary = run.state["f"]
-			f["sitter"]["p"] = pronoun
-			if outcome == "win":
-				f["hp"] = f["max"]
-				run.win(f)
-			else:
-				f["turn"] = f["turns"]
-				f["hp"] = 0
-				run.lose(f, "left")
-			var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
-			root.add_child(instance)
-			for i in 3:
-				await process_frame
-			for node in _all_of(instance, []):
-				if node is Label and (node as Label).text.contains("{"):
-					printerr("FAIL: the %s screen shows a raw token to a '%s' sitter: \"%s\""
-						% [outcome, pronoun, (node as Label).text.substr(0, 70)])
-			instance.queue_free()
-			await process_frame
-
-	settings.set_value("locale", before)
-	i18n.reload()
-	print("--- no screen shows a player a raw {token} ---")
+	var profile: Node = root.get_node("Profile")
+	for path in [settings.PATH, profile.PATH]:
+		DirAccess.remove_absolute(path)
+		DirAccess.make_dir_recursive_absolute(path)
+	print("--- the next two WARNINGs are expected: deliberately unwritable config ---")
+	settings.save_to_disk()
+	profile.save_to_disk()
+	if settings.last_error == "" or profile.last_error == "":
+		check(false, "a failed config write was not recorded (settings '%s', profile '%s')"
+			% [settings.last_error, profile.last_error])
+	instance = load("res://scenes/MainMenu.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	if not _text_of(instance).contains("NOTHING IS BEING SAVED"):
+		check(false, "settings and unlocks are not persisting and the menu does not say so")
+	else:
+		print("--- an unwritable user:// is on screen at the menu ---")
+	instance.queue_free()
+	await process_frame
+	for path in [settings.PATH, profile.PATH]:
+		DirAccess.remove_absolute(path)
+	settings.save_to_disk()
+	profile.save_to_disk()
+	done()
 
 
-## ALL TWELVE EVENTS, EVERY WORD THEY CARRY, ON THE SCREEN THAT OWNS IT — AND
-## IN THE PLAYER'S LANGUAGE.
-##
-## An event is twelve pieces of writing in twelve shapes, and only one had ever
-## been on a screen. Two things were wrong and neither could be seen from the
-## English build or from the coverage number.
-##
-##   - THE MAP SHOWED THE WRONG SENTENCE. An event carries a `body` (the
-##     situation: "Twenty minutes before the next one knocks.") and a `line`
-##     (the choice: "Spend them on yourself or on the money."). The prototype
-##     puts `body` on the map row and `line` on the screen you get to; the port
-##     put `line` in both, so the map said what the next screen was about to say
-##     and the other sentence was shown nowhere in the game.
-##   - EVERY EVENT WAS IN ENGLISH IN A FRENCH BUILD. Content is keyed by slug
-##     (event/your-own-chair-for-once/line) and both screens looked it up as an
-##     interface string (ui/"Spend them on yourself…"), which exists for no
-##     locale, so the fallback English was shown. Around a hundred and thirty
-##     translated strings, correct in the file, read by nobody — with the
-##     coverage counter at a hundred per cent, because the table was complete
-##     and the lookup was in the wrong table.
-##
-## So this asks each screen for the fields that screen owns, walking the events
-## rather than naming them, and then asks the same question in French: no line
-## may come back as the English source when a translation exists. That second
-## half is the one that generalises — it is a check that the two key schemes
-## have not been mixed up again, anywhere on these screens.
-const EVENT_HEAD := 24
+## The deck and marks panels are MODAL — drawn over an in-run screen that is
+## still live underneath. Everything that makes a modal a modal was missing,
+## and each failure was silent:
+##   - focus stayed on the card behind the scrim, so a keyboard or gamepad
+##     player who opened their deck and pressed Confirm played a card they
+##     could not see. That is worse than a dead highlight;
+##   - pressing D again opened a SECOND deck on top of the first;
+##   - Escape closed nothing;
+##   - the reading's own READ IT shortcut still fired underneath.
+## Driven through RunHeader.handle_shortcut(), which is the same entry point
+## the in-run screens call from their _unhandled_input.
+func _test_the_overlays_are_modal() -> void:
+	# load() at call time, NOT preload(). preload() resolves while this test
+	# script is being compiled, which is before `godot -s` has registered the
+	# autoloads — and RunHeader refers to Run, UIKit and I18n. Preloading it
+	# here did not merely fail locally: it left RunHeader.gd compiled to
+	# nothing for the whole process, so every in-run screen lost its header and
+	# six unrelated cases in this file started failing. Fifth time this trap has
+	# been hit in this port; see autoload/Content.gd's header.
+	var RunHeaderScript := load("res://scenes/RunHeader.gd")
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for i in run.state["options"].size():
+		if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+			run.choose(i)
+			break
 
+	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var before: Control = instance.get_viewport().gui_get_focus_owner()
+	if before == null:
+		check(false, "precondition — the reading screen focused nothing to begin with")
+		instance.queue_free()
+		await process_frame
+		done()
+		return
 
-func _test_every_event_says_everything_it_carries() -> void:
-	var i18n: Node = root.get_node("I18n")
-	var settings: Node = root.get_node("Settings")
-	var before_locale = settings.get_value("locale")
-	var missing: Array[String] = []
-	var english: Array[String] = []
+	var deck := InputEventAction.new()
+	deck.action = "parlour_deck"
+	deck.pressed = true
 
-	for locale in ["en", "fr"]:
-		settings.set_value("locale", locale)
-		i18n.reload()
-		for e in content.events:
-			var title := str(e.get("title", "?"))
-			var id: String = "event/" + str(root.get_node("Art").slug(title))
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	await process_frame
+	var layer: Node = RunHeaderScript.open_overlay(instance)
+	var inside: Control = instance.get_viewport().gui_get_focus_owner()
+	if layer == null:
+		check(false, "the deck shortcut opened no overlay")
+	elif inside == null or not layer.is_ancestor_of(inside):
+		check(false, "opening the deck left focus outside it (%s) — Confirm would act on the hidden screen" % inside)
+	else:
+		print("--- the deck overlay takes focus ---")
 
-			# The choice screen owns head, title, line, and every option.
-			var shown := await _pick_screen_text(e)
-			var want := {"head": "head", "title": "title", "line": "body"}
-			for field: String in want:
-				_expect(missing, english, shown, i18n, locale, id, field,
-					str(e.get(field, "")), "%s (the choice screen)" % title)
-			var oi := 0
-			for o in e.get("opts", []):
-				# An option that hands over a card or a mark shows THAT name, not
-				# its own — `c.n || o.name` in the prototype (v23 ~1981), and the
-				# port follows it. Asserting the option's name there would be
-				# asserting a divergence from the source into place.
-				var names_itself: bool = not (o.has("card") or o.has("mark"))
-				for field in ["kind", "name", "text"]:
-					if field == "name" and not names_itself:
-						continue
-					_expect(missing, english, shown, i18n, locale,
-						"%s/opt%d" % [id, oi], field, str(o.get(field, "")),
-						"%s option %d (the choice screen)" % [title, oi])
-				oi += 1
+	# An in-run shortcut must not reach the screen behind a modal.
+	var read := InputEventAction.new()
+	read.action = "parlour_read"
+	read.pressed = true
+	if not RunHeaderScript.handle_shortcut(read, instance):
+		check(false, "READ IT was not swallowed while an overlay was open")
 
-			# The map row owns the other sentence.
-			var row := await _map_row_text(e)
-			_expect(missing, english, shown_or(row), i18n, locale, id, "body",
-				str(e.get("body", "")), "%s (the map row)" % title)
+	# A second press closes rather than stacking, and puts focus back.
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	await process_frame
+	if RunHeaderScript.open_overlay(instance) != null:
+		check(false, "pressing the deck shortcut twice stacked a second overlay")
+	elif instance.get_viewport().gui_get_focus_owner() != before:
+		check(false, "closing the deck did not put focus back where it came from")
+	else:
+		print("--- closing it restores focus ---")
 
-	settings.set_value("locale", before_locale)
-	i18n.reload()
-	if not missing.is_empty():
-		printerr("FAIL: %d thing(s) an event says never reach the player: %s"
-			% [missing.size(), " · ".join(missing.slice(0, 3))])
-	if not english.is_empty():
-		printerr("FAIL: %d line(s) show the English source in a French build — the translation exists and the screen looks it up under the wrong scheme: %s"
-			% [english.size(), " · ".join(english.slice(0, 3))])
-	if missing.is_empty() and english.is_empty():
-		print("--- all %d events say every word they carry, on the right screen, in both languages ---" % content.events.size())
+	# And so does ui_cancel.
+	RunHeaderScript.handle_shortcut(deck, instance)
+	await process_frame
+	var cancel := InputEventAction.new()
+	cancel.action = "ui_cancel"
+	cancel.pressed = true
+	RunHeaderScript.handle_shortcut(cancel, instance)
+	await process_frame
+	await process_frame
+	if RunHeaderScript.open_overlay(instance) != null:
+		check(false, "ui_cancel did not close the overlay")
+	else:
+		print("--- ui_cancel closes it ---")
+
+	instance.queue_free()
+	await process_frame
+	done()
 
 
 ## Passthrough, so the call above reads as one line. (GDScript has no way to
@@ -476,400 +497,6 @@ func _map_row_text(e: Dictionary) -> String:
 	return text
 
 
-## THE STATE EVERY PLAYER SEES FIRST, AND THE ONLY ONE NEVER RENDERED.
-##
-## Every screen in this file was built against a profile with forty-five runs in
-## it, because that is the profile this machine has. Nobody's first launch looks
-## like that: no runs finished, no readers taken to the end, no best of anything,
-## no difficulty ever cleared. That is the state where a per-run average divides
-## by zero, where "the hardest week you have finished" names a rung nobody has
-## cleared, and where a page of records is a page of noughts.
-##
-## So: the profile is emptied, every screen that reads it is built, and the
-## records page is asked to admit that it is empty. The suite's runner fails on
-## any unexpected ERROR line, so a division by zero or a null in a fresh-profile
-## branch is caught by building the screen at all — which is the point, since
-## none of these screens had ever been built this way.
-##
-## The profile is put back afterwards, values and all. It is the player's real
-## file on a real machine, and a test that costs somebody forty-five evenings is
-## not a test anybody will run twice.
-func _test_the_very_first_launch() -> void:
-	var profile: Node = root.get_node("Profile")
-	var kept: Dictionary = profile._values.duplicate(true)
-	profile._values.clear()
-
-	var screens := {
-		"records": "res://scenes/Records.tscn",
-		"main menu": "res://scenes/MainMenu.tscn",
-		"sign": "res://scenes/SignSelect.tscn",
-		"credits": "res://scenes/Credits.tscn",
-	}
-	run.state = run.fresh()
-	for label: String in screens:
-		var instance: Node = load(screens[label]).instantiate()
-		root.add_child(instance)
-		for i in 3:
-			await process_frame
-		_check_focus("first launch: " + label, instance)
-		if label == "records":
-			var i18n: Node = root.get_node("I18n")
-			var empty_line: String = i18n.t("Nothing here yet. The first evening you see through writes this page.")
-			var said := false
-			for node in _all_of(instance, []):
-				if node is Label and (node as Label).text == empty_line:
-					said = true
-					break
-			if not said:
-				printerr("FAIL: on a fresh profile the records page shows a dozen noughts and does not say it is empty")
-			# And it must not report a difficulty as cleared when none has been.
-			var hardest := _row_text(instance, i18n.t("Hardest week finished"))
-			if hardest.contains("0 ·"):
-				printerr("FAIL: a fresh profile's records claim a hardest week finished (%s) when no run has been finished at all" % hardest)
-		instance.queue_free()
-		await process_frame
-
-	profile._values = kept
-	profile.save_to_disk()
-	print("--- the screens a first launch shows are built and honest ---")
-
-
-## A SCREEN OPENS AT THE TOP OF ITSELF, AND THE WHEEL MOVES IT.
-##
-## Two claims nobody had ever asked out loud, both broken, and the first one by
-## the fix for something else. Turning on ScrollContainer.follow_focus — which a
-## keyboard player needs, since Godot will not hand focus to a control that is
-## off screen — made every long screen open somewhere other than its beginning:
-## focus_first defers itself by a frame, which is enough for the tree but not
-## for a GridContainer still working out how tall thirteen reader tiles in two
-## columns are, so the scroll measured against a height it was about to outgrow
-## and clamped to the far end. The sign screen opened on readers seven to
-## thirteen with the FIRST one focused ninety pixels above the top edge. The
-## mods screen opened with its first pack's title cut off.
-##
-## Neither shows up in a test that builds a screen and reads its labels: every
-## string was there, correct and translated, on a page nobody would have
-## scrolled back up.
-##
-## The wheel half is here because it is the other way a player moves a long
-## page and the arrow keys are the only one the suite had ever pressed. A screen
-## whose scroll is driven entirely by focus would pass every other check and be
-## unusable with a mouse.
-func _test_a_screen_opens_at_the_top_and_the_wheel_moves_it() -> void:
-	var pages := {
-		"sign": "res://scenes/SignSelect.tscn",
-		"mods": "res://scenes/ModsScreen.tscn",
-		"library": "res://scenes/Library.tscn",
-		"how to play": "res://scenes/HowToPlay.tscn",
-		"credits": "res://scenes/Credits.tscn",
-		"records": "res://scenes/Records.tscn",
-	}
-	run.state = run.fresh()
-	# A REAL CANVAS. Headless starts 64px wide, and earlier tests in this sweep
-	# set and restore their own window — so without this the scroll's rect is a
-	# few pixels across, the wheel event is pushed at a point outside it, and the
-	# page reports itself unscrollable by mouse when it is not. Measured: the
-	# same two screens passed standalone and failed inside the sweep.
-	var restore_size: Vector2i = root.size
-	root.size = Vector2i(1280, 720)
-	await process_frame
-	for label: String in pages:
-		var instance: Node = load(pages[label]).instantiate()
-		root.add_child(instance)
-		# Five, not two: focus_first defers, and the scroll it corrects defers
-		# once more behind it. Reading at four frames measured the wrong number.
-		for i in 5:
-			await process_frame
-
-		var scroll := _tallest_scroll(instance)
-		if scroll == null:
-			printerr("FAIL: %s has no scrolling region — this test is measuring the wrong screen" % label)
-			instance.queue_free()
-			await process_frame
-			continue
-		var over: float = scroll.get_v_scroll_bar().max_value - scroll.size.y
-		if scroll.scroll_vertical != 0:
-			printerr("FAIL: %s opens %dpx down its own content (of %dpx scrollable) — the top of the page is above the screen before the player has touched anything"
-				% [label, scroll.scroll_vertical, int(over)])
-		if over <= 0.0:
-			# Nothing to scroll: the wheel has nothing to prove here.
-			instance.queue_free()
-			await process_frame
-			continue
-
-		var before := scroll.scroll_vertical
-		var wheel := InputEventMouseButton.new()
-		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
-		wheel.pressed = true
-		wheel.position = scroll.get_global_rect().get_center()
-		wheel.global_position = wheel.position
-		root.push_input(wheel)
-		for i in 3:
-			await process_frame
-		if scroll.scroll_vertical <= before:
-			printerr("FAIL: the wheel does nothing on %s — %dpx of it are below the fold and a mouse cannot reach them"
-				% [label, int(over)])
-		instance.queue_free()
-		await process_frame
-	root.size = restore_size
-	await process_frame
-	print("--- every long screen opens at its top, and the wheel moves it ---")
-
-
-## The scrolling region a player would call "the page" — the biggest one, since
-## the Library has two side by side and the smaller is the editor.
-func _tallest_scroll(node: Node) -> ScrollContainer:
-	var best: ScrollContainer = null
-	for n in _all_of(node, []):
-		if n is ScrollContainer and (best == null or (n as ScrollContainer).size.y > best.size.y):
-			best = n
-	return best
-
-
-## CHANGING A NUMBER DOES NOT DESTROY THE CONTROL YOU CHANGED IT WITH.
-##
-## Every edit wrote the card and then rebuilt the whole editor — which freed the
-## very spin box whose value_changed handler was running. With a mouse, the next
-## click of a series landed on a node that no longer existed; with a keyboard,
-## the focus ended up on nothing that was on the screen any more, so a player was
-## thrown out of the panel after every press.
-##
-## Both halves are asserted, because either alone is passable by accident. The
-## control has to survive — an editor that rebuilds itself fails that. And the
-## readouts have to follow the number — an editor that refreshes NOTHING passes
-## the first half trivially, and is a screen where the card face and the printed
-## text quietly stop matching the values under them.
-##
-## The stamp is the readout under test: an untouched card carries no CHANGED,
-## and one edit is enough to earn it.
-func _test_editing_a_card_does_not_destroy_the_control() -> void:
-	var edits: Node = root.get_node("CardEdits")
-	# From a clean slate, and put back afterwards: this writes a real mod pack to
-	# the user directory, exactly as the screen does for a player.
-	edits.revert_all()
-	content.reload()
-
-	var instance: Node = load("res://scenes/Library.tscn").instantiate()
-	root.add_child(instance)
-	for i in 3:
-		await process_frame
-
-	var spin := _first_of_class(instance.get("_editor_box"), "SpinBox") as SpinBox
-	if spin == null:
-		printerr("FAIL: the library's editor has no spin box to change")
-		instance.queue_free()
-		return
-	# A SPIN BOX CANNOT TAKE THE FOCUS — focus_mode NONE, and grab_focus() on it
-	# warns and does nothing. What a player is actually on is the LineEdit
-	# inside, which is what this has to hold on to.
-	var field_edit := spin.get_line_edit()
-	field_edit.grab_focus()
-	await process_frame
-	var held := field_edit.get_instance_id()
-
-	spin.value = spin.value + 1
-	for i in 4:
-		await process_frame
-
-	if not is_instance_id_valid(held):
-		printerr("FAIL: changing a card's number freed the control that changed it")
-	var owner := root.gui_get_focus_owner()
-	if owner == null or owner.get_instance_id() != held:
-		printerr("FAIL: changing a card's number moved the focus off the field being edited (now %s) — a keyboard player is thrown out of the panel on every press"
-			% ("nothing" if owner == null else owner.get_class()))
-
-	# I18n by node, not by bare name: an autoload's global identifier does not
-	# resolve in a `godot -s` script. See Content.gd's header.
-	var i18n: Node = root.get_node("I18n")
-	var changed_word: String = i18n.t("CHANGED")
-	var stamped := false
-	for node in _all_of(instance.get("_editor_box"), []):
-		if node is Label and (node as Label).text.contains(changed_word):
-			stamped = true
-			break
-	if not stamped:
-		printerr("FAIL: a card was edited and the editor never said CHANGED — the readouts do not follow the numbers under them")
-
-	instance.queue_free()
-	await process_frame
-	edits.revert_all()
-	content.reload()
-	print("--- editing a card leaves the control you are using alone ---")
-
-
-## THE LIBRARY ALWAYS HAS A CARD OPEN, AND IT IS ONE THE LIST IS SHOWING.
-##
-## Half the screen is the editor, and it opened on "Pick a card on the left to
-## edit it." — six hundred pixels of black explaining that the screen is empty.
-## It also went back to that the moment a filter moved the selected card out of
-## the list, so choosing a pool you were not already looking at blanked the
-## editor with nothing said about why.
-##
-## The invariant that fixes both is one sentence: the selected card is a card
-## the list is currently showing. Checked at every pool, because the filters are
-## how the selection gets lost, and by reading the editor rather than the
-## variable — a selection the editor has not caught up with is the same bug from
-## the player's side.
-func _test_the_library_always_shows_a_card() -> void:
-	var edits: Node = root.get_node("CardEdits")
-	var instance: Node = load("res://scenes/Library.tscn").instantiate()
-	root.add_child(instance)
-	for i in 3:
-		await process_frame
-
-	var filters: Array = ["all"]
-	filters.append_array(edits.POOLS)
-	for pool: String in filters:
-		instance._pool_filter = pool
-		instance._rebuild_list()
-		await process_frame
-
-		var name: String = instance._selected_name
-		if name == "":
-			printerr("FAIL: the library shows no card at all with the '%s' filter" % pool)
-			continue
-		var listed := false
-		for r in instance._visible_rows():
-			if r["pool"] == instance._selected_pool and str(r["card"]["n"]) == name:
-				listed = true
-				break
-		if not listed:
-			printerr("FAIL: the library's '%s' filter leaves '%s' open in the editor, and that card is not in the list beside it"
-				% [pool, name])
-		# And the editor is actually showing it, not merely pointed at it.
-		var shown := false
-		for node in _all_of(instance._editor_box, []):
-			if node is Label and (node as Label).text.contains(name):
-				shown = true
-				break
-		if not shown:
-			printerr("FAIL: with the '%s' filter the library has '%s' selected but its editor does not name it — the right-hand half is blank or stale"
-				% [pool, name])
-	instance.queue_free()
-	await process_frame
-	print("--- the library always has a card open, from the list beside it ---")
-
-
-## The rules screen explains the element wheel, and a rules screen that
-## explains the game wrongly is worse than none: a player follows it, loses,
-## and concludes the game cheats. It is built from Content.ring rather than
-## from a sentence, and this checks that Content.ring is genuinely what
-## Rules.link_of() walks — the two could only be told apart by asking the
-## engine, which is what this does.
-func _test_the_rules_screen_matches_the_engine() -> void:
-	var rules: Node = root.get_node("Rules")
-	var ring: Array = content.ring
-	if ring.size() < 2:
-		printerr("FAIL: the element ring is too short to check")
-		return
-
-	var ctx := {}
-	var fight := {}
-	var wrong := 0
-	for i in ring.size():
-		var from := str(ring[i])
-		var to := str(ring[(i + 1) % ring.size()])
-		# Following the ring forward is a TURN — the exact claim the screen
-		# makes in its own words.
-		if rules.link_of(ctx, fight, from, {"el": to}) != "turn":
-			printerr("FAIL: the rules screen says %s -> %s is a turn; the engine says '%s'"
-				% [from, to, rules.link_of(ctx, fight, from, {"el": to})])
-			wrong += 1
-		if rules.link_of(ctx, fight, from, {"el": from}) != "same":
-			printerr("FAIL: the rules screen says repeating %s is 'same'; the engine disagrees" % from)
-			wrong += 1
-	if wrong == 0:
-		print("--- the rules screen's wheel matches the engine (%d elements) ---" % ring.size())
-
-
-## A run that cannot be written to disk has to SAY SO, on screen, where the
-## player is.
-##
-## This was the quietest failure left in the project. A full disk or a
-## read-only save directory made every write fail; Save set last_error and
-## pushed a console warning, and the player — mid-run, nowhere near a console —
-## was told nothing. They played three nights, closed the game, and the run was
-## gone: no CONTINUE on the menu, and no explanation ever, since last_error
-## does not survive a relaunch.
-##
-## Checked by rendering the real screen and reading the labels, not by testing
-## the flag. The flag was already being set correctly; what was missing was
-## anyone showing it.
-func _test_a_failing_save_is_visible_to_the_player() -> void:
-	var save: Node = root.get_node("Save")
-	save.clear()
-	# A DIRECTORY where the save file belongs: every FileAccess.open(WRITE)
-	# fails, which is what a full or read-only disk looks like from here.
-	DirAccess.make_dir_recursive_absolute(save.PATH)
-
-	run.state = run.fresh()
-	run.pick_reader(0)
-	run.take_pick(0)
-	print("--- the next WARNING is expected: a deliberately unwritable save ---")
-	save._write()
-	if not save.write_failed:
-		printerr("FAIL: precondition — the write was supposed to fail and did not")
-		DirAccess.remove_absolute(save.PATH)
-		return
-
-	var instance: Node = load("res://scenes/Map.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	await process_frame
-	var warned := _text_of(instance).contains("NOT BEING SAVED")
-	if not warned:
-		printerr("FAIL: the run cannot be saved and no screen says so — the player loses it silently")
-	else:
-		print("--- an unwritable save is on screen ---")
-	instance.queue_free()
-	await process_frame
-
-	# And it goes away once writing works again, rather than sticking around
-	# and training the player to ignore it.
-	DirAccess.remove_absolute(save.PATH)
-	save._write()
-	if save.write_failed:
-		printerr("FAIL: the warning did not clear after a successful write")
-	else:
-		instance = load("res://scenes/Map.tscn").instantiate()
-		root.add_child(instance)
-		await process_frame
-		if _text_of(instance).contains("NOT BEING SAVED"):
-			printerr("FAIL: the warning is still on screen after a successful write")
-		instance.queue_free()
-		await process_frame
-	save.clear()
-
-	# The same news at the menu, where the OTHER two stores live. If user:// is
-	# unwritable then settings and unlocks are not persisting either, and a
-	# player would otherwise just notice their options resetting every launch
-	# with no idea why.
-	var settings: Node = root.get_node("Settings")
-	var profile: Node = root.get_node("Profile")
-	for path in [settings.PATH, profile.PATH]:
-		DirAccess.remove_absolute(path)
-		DirAccess.make_dir_recursive_absolute(path)
-	print("--- the next two WARNINGs are expected: deliberately unwritable config ---")
-	settings.save_to_disk()
-	profile.save_to_disk()
-	if settings.last_error == "" or profile.last_error == "":
-		printerr("FAIL: a failed config write was not recorded (settings '%s', profile '%s')"
-			% [settings.last_error, profile.last_error])
-	instance = load("res://scenes/MainMenu.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	if not _text_of(instance).contains("NOTHING IS BEING SAVED"):
-		printerr("FAIL: settings and unlocks are not persisting and the menu does not say so")
-	else:
-		print("--- an unwritable user:// is on screen at the menu ---")
-	instance.queue_free()
-	await process_frame
-	for path in [settings.PATH, profile.PATH]:
-		DirAccess.remove_absolute(path)
-	settings.save_to_disk()
-	profile.save_to_disk()
-
-
 ## THE MARKS ARE ON THE HANDS, and they have to stay there.
 ##
 ## The reading screen draws the reader's own hands holding the fan, with every
@@ -894,7 +521,7 @@ func _test_the_marks_are_on_the_hands() -> void:
 		kinds[str(m.get("kind", ""))] = true
 	for kind in kinds:
 		if not TableScript.KINDS.has(kind):
-			printerr("FAIL: marks.json has kind '%s' and the hands cannot draw it — it would be invisible" % kind)
+			check(false, "marks.json has kind '%s' and the hands cannot draw it — it would be invisible" % kind)
 
 	# A hand is four fingers; ask for more of everything than fits on one.
 	var band := 120.0
@@ -910,7 +537,7 @@ func _test_the_marks_are_on_the_hands() -> void:
 			worn.append({"kind": kind, "n": "%s %d" % [kind, i]})
 	var places: Array = TableScript.mark_places(worn, palm, fingers, band, 1.0)
 	if places.size() != worn.size():
-		printerr("FAIL: %d marks went onto the hands and %d came back — %d are invisible"
+		check(false, "%d marks went onto the hands and %d came back — %d are invisible"
 			% [worn.size(), places.size(), worn.size() - places.size()])
 
 	# Two marks of one kind must not land on the same spot: stacked exactly, the
@@ -919,14 +546,14 @@ func _test_the_marks_are_on_the_hands() -> void:
 	for p in places:
 		var key := "%s@%d,%d" % [p["kind"], roundi(p["at"].x), roundi(p["at"].y)]
 		if seen.has(key):
-			printerr("FAIL: two %s marks are drawn at the same point — one hides the other" % p["kind"])
+			check(false, "two %s marks are drawn at the same point — one hides the other" % p["kind"])
 		seen[key] = true
 
 	# And a kind nobody draws draws nothing, rather than a guess.
 	var invented: Array = TableScript.mark_places(
 		[{"kind": "SOMETHING_A_MOD_INVENTED"}], palm, fingers, band, 1.0)
 	if not invented.is_empty():
-		printerr("FAIL: an unknown mark kind was given a place on the hands")
+		check(false, "an unknown mark kind was given a place on the hands")
 
 	# The hands have to be drawn IN FRONT of the cards. Behind them they are a
 	# picture of hands near a fan, which is the version this replaced — and the
@@ -946,7 +573,7 @@ func _test_the_marks_are_on_the_hands() -> void:
 	await process_frame
 	var scroll := _first_of_class(instance, "ScrollContainer")
 	if scroll == null:
-		printerr("FAIL: the reading screen has no card scroller to hold")
+		check(false, "the reading screen has no card scroller to hold")
 	else:
 		var stack := scroll.get_parent()
 		var hands_i := -1
@@ -954,11 +581,12 @@ func _test_the_marks_are_on_the_hands() -> void:
 			if stack.get_child(i) != scroll:
 				hands_i = i
 		if hands_i < scroll.get_index():
-			printerr("FAIL: the hands are drawn behind the cards, so nothing looks held")
+			check(false, "the hands are drawn behind the cards, so nothing looks held")
 		else:
 			print("--- the marks are on the hands, and the hands are in front of the cards ---")
 	instance.queue_free()
 	await process_frame
+	done()
 
 
 ## THE LAST CARD FLOATS. When the hand is down to one, the card is lifted clear
@@ -1007,7 +635,7 @@ func _test_the_last_card_floats() -> void:
 			if not f.is_empty() and f["hand"].size() >= count:
 				break
 		if f.is_empty() or f["hand"].size() < count:
-			printerr("FAIL: precondition — wanted %d cards in hand, no seed in eight dealt that many" % count)
+			check(false, "precondition — wanted %d cards in hand, no seed in eight dealt that many" % count)
 			continue
 		f["hand"] = f["hand"].slice(0, count)
 		var alone := count == 1
@@ -1020,7 +648,7 @@ func _test_the_last_card_floats() -> void:
 		var face := _first_focusable_panel(instance)
 		var hands := instance.find_child("Hands", true, false)
 		if face == null or hands == null:
-			printerr("FAIL: with %d card(s) in hand there is no card face (%s) or no hands (%s)"
+			check(false, "with %d card(s) in hand there is no card face (%s) or no hands (%s)"
 				% [count, face, hands])
 			instance.queue_free()
 			await process_frame
@@ -1028,9 +656,9 @@ func _test_the_last_card_floats() -> void:
 
 		var want: Vector2 = UIKitScript.card_face_size()
 		if alone and (absf(face.size.x - want.x) > 1.0 or absf(face.size.y - want.y) > 1.0):
-			printerr("FAIL: the floating card is %s, not the %s every other card is" % [face.size, want])
+			check(false, "the floating card is %s, not the %s every other card is" % [face.size, want])
 		if alone and not face.has_focus():
-			printerr("FAIL: the floating card never took focus — it cannot be played without a mouse")
+			check(false, "the floating card never took focus — it cannot be played without a mouse")
 
 		# Where the fingertips actually reach, read from the drawing's own
 		# geometry. x is irrelevant to a tip's height, so it is left at zero.
@@ -1041,14 +669,25 @@ func _test_the_last_card_floats() -> void:
 			tip_y = minf(tip_y, finger[2].y)
 		var card_bottom: float = face.global_position.y + face.size.y
 		if alone and tip_y <= card_bottom:
-			printerr("FAIL: the fingertips reach %.0f and the floating card ends at %.0f — it is being held, not floating"
+			check(false, "the fingertips reach %.0f and the floating card ends at %.0f — it is being held, not floating"
 				% [tip_y, card_bottom])
 		if not alone and tip_y >= card_bottom:
-			printerr("FAIL: the fingertips stop at %.0f, below the cards at %.0f — the fan is not held by anything"
+			check(false, "the fingertips stop at %.0f, below the cards at %.0f — the fan is not held by anything"
 				% [tip_y, card_bottom])
 		instance.queue_free()
 		await process_frame
 	print("--- the last card floats above open hands; a fan is held by closed ones ---")
+	done()
+
+
+## The scrolling region a player would call "the page" — the biggest one, since
+## the Library has two side by side and the smaller is the editor.
+func _tallest_scroll(node: Node) -> ScrollContainer:
+	var best: ScrollContainer = null
+	for n in _all_of(node, []):
+		if n is ScrollContainer and (best == null or (n as ScrollContainer).size.y > best.size.y):
+			best = n
+	return best
 
 
 ## THE CARD YOU ARE POINTING AT IS NOT CUT IN HALF.
@@ -1078,7 +717,8 @@ func _test_the_raised_card_is_not_clipped() -> void:
 	# Two or more, so the fan branch runs. One card alone is _lift(), which has
 	# no scroll box around it and cannot be clipped by one.
 	if f["hand"].size() < 2:
-		printerr("FAIL: precondition — wanted a fan, was dealt %d card(s)" % f["hand"].size())
+		check(false, "precondition — wanted a fan, was dealt %d card(s)" % f["hand"].size())
+		done()
 		return
 
 	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
@@ -1088,9 +728,10 @@ func _test_the_raised_card_is_not_clipped() -> void:
 
 	var face := _first_focusable_panel(instance)
 	if face == null:
-		printerr("FAIL: no card face on the reading screen at all")
+		check(false, "no card face on the reading screen at all")
 		instance.queue_free()
 		await process_frame
+		done()
 		return
 
 	# The box that does the clipping, found by walking up from the card rather
@@ -1104,9 +745,10 @@ func _test_the_raised_card_is_not_clipped() -> void:
 			break
 		walk = walk.get_parent()
 	if clipper == null:
-		printerr("FAIL: the fan is not inside a ScrollContainer any more — this test is measuring nothing")
+		check(false, "the fan is not inside a ScrollContainer any more — this test is measuring nothing")
 		instance.queue_free()
 		await process_frame
+		done()
 		return
 
 	# Where the top edge goes when the card comes up. Scale is about a pivot on
@@ -1125,11 +767,174 @@ func _test_the_raised_card_is_not_clipped() -> void:
 	var raised_top: float = resting_top - face.size.y * (lift - 1.0)
 	var clip_top: float = clipper.global_position.y
 	if raised_top < clip_top - 0.5:
-		printerr("FAIL: a %.0fpx card resting at y=%.0f reaches y=%.0f when raised, and the box clips at y=%.0f — %.0fpx of it, cost and restore included, is cut off"
+		check(false, "a %.0fpx card resting at y=%.0f reaches y=%.0f when raised, and the box clips at y=%.0f — %.0fpx of it, cost and restore included, is cut off"
 			% [face.size.y, resting_top, raised_top, clip_top, clip_top - raised_top])
 	instance.queue_free()
 	await process_frame
 	print("--- the card under the pointer comes up inside its box, not through the top of it ---")
+	done()
+
+
+## THE VILLAGERS ARE DIFFERENT PEOPLE, AND THE SAME ONES EVERY TIME.
+##
+## The sitter portrait is drawn rather than painted, and it takes its hair,
+## colouring, face width and moustache from a hash of who the sitter is. Two
+## things about that fail silently and both would be bad:
+##
+##   - ask for the wrong field and every hash is the hash of "", so ten
+##     villagers are one villager drawn ten times. This is not hypothetical: the
+##     first version asked sitters for a `k` they do not have;
+##   - use a hash with no promise attached — String.hash(), say — and the whole
+##     village quietly rearranges its faces on a Godot upgrade. Someone you have
+##     met twenty times is suddenly a stranger, and nothing in the game changed.
+##
+## So: the hash is pinned to known values, and the faces are counted.
+func _test_the_sitters_are_different_people() -> void:
+	# load(), not preload() — see _test_the_overlays_are_modal().
+	var UIKitScript := load("res://scenes/UIKit.gd")
+
+	# Pinned. If these move, every face in the game moved with them — which is
+	# allowed, but it is a decision, not something to discover later.
+	const PINNED := {"Mme Perrot/THE LAUNDRESS": 905259117, "Guillaume/THE POSTMAN": 54687178}
+	for key: String in PINNED:
+		var got: int = UIKitScript._stable_hash(key)
+		if got != PINNED[key]:
+			check(false, "the face hash for '%s' changed (%d, was %d) — every villager now looks like someone else"
+				% [key, got, PINNED[key]])
+
+	# Built through the REAL portrait, which is what reads the sitter's fields.
+	var faces := {}
+	for st in content.sitters:
+		var first: Control = UIKitScript.sitter_portrait(st, 0.5)
+		var again: Control = UIKitScript.sitter_portrait(st, 0.9)
+		var a: Dictionary = first.get_meta("face", {})
+		if a != again.get_meta("face", {}):
+			check(false, "%s does not look the same twice in a row" % st.get("name", "?"))
+		if a.is_empty():
+			check(false, "the portrait for %s carries no face at all" % st.get("name", "?"))
+			continue
+		faces["%d/%s/%s/%s/%s" % [a["style"], a["skin"], a["hair"], a["cloth"], a["width"]]] = true
+		first.free()
+		again.free()
+
+	# Not "all distinct" — a hash may honestly collide, and demanding otherwise
+	# would be a test of luck. Most of them, though: if the count collapses, the
+	# hash is being fed something constant.
+	var want: int = maxi(1, int(content.sitters.size() * 0.7))
+	if faces.size() < want:
+		check(false, "%d sitters produce only %d different faces (wanted %d) — they are all the same person"
+			% [content.sitters.size(), faces.size(), want])
+	else:
+		print("--- %d sitters, %d faces ---" % [content.sitters.size(), faces.size()])
+	done()
+
+
+## THE RULES SCREEN KNOWS ABOUT THE LADDER, AND THE MAP DRAWS THE AGENDA.
+##
+## Two screens that are built from live data and would go quietly stale
+## otherwise. The rules screen's whole premise is that it explains the game by
+## READING it rather than by restating it, so a rung added to difficulty.json
+## and never mentioned is exactly the drift it exists to prevent. And the agenda
+## is only worth having if it is on screen: an hour missing from the page is a
+## plan the player cannot use, and nothing else in the game would notice.
+func _test_the_screens_read_the_live_content() -> void:
+	var instance: Node = load("res://scenes/HowToPlay.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	var rules_text := _text_of(instance)
+	for rung in content.difficulty:
+		if int(rung.get("n", 0)) == 0:
+			continue
+		if not rules_text.contains(str(rung.get("name", ""))):
+			check(false, "difficulty rung '%s' exists and the rules screen has never heard of it"
+				% rung.get("name", "?"))
+	instance.queue_free()
+	await process_frame
+
+	run.state = run.fresh("a fixed evening")
+	run.pick_reader(0)
+	run.take_pick(0)
+	instance = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	var map_text := _text_of(instance)
+	var plan: Array = run.state.get("plan", [])
+	check_not_empty(plan, "the night should have a plan")
+	for slot in plan:
+		if not map_text.contains(str(slot.get("at", ""))):
+			check(false, "the night runs to %s and the agenda does not show that hour" % slot.get("at", "?"))
+			break
+	# And the last half-hour of the last night is the Mayor, said out loud —
+	# the one thing a player most needs to be able to plan against.
+	instance.queue_free()
+	await process_frame
+	run.state["night"] = 2
+	run.state["step"] = 0
+	run.state["plan"] = run.make_plan(2)
+	instance = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	await process_frame
+	await process_frame
+	if not _text_of(instance).contains(load("res://scenes/Map.gd").PROMISE["boss"]):
+		check(false, "the mayor is at the end of the last night and the agenda does not say so")
+	instance.queue_free()
+	await process_frame
+	print("--- the rules screen and the agenda are reading the live content ---")
+	done()
+
+
+## SOMEBODY KNOCKS. The map screen asks "who knocks tonight?", a run is sixteen
+## knocks long and it ends the night the knocking stops — and for the whole port
+## nothing ever knocked.
+##
+## Three things, each of which fails in silence:
+##
+##   - the knock has to HAPPEN. It is a timer inside a scene; nothing else in
+##     the game would notice if it stopped firing;
+##   - it has to happen with ANIMATION TURNED OFF too. Turning off motion should
+##     not make the game go quiet, and the easy version of this feature is one
+##     early return that does exactly that;
+##   - it must not TAKE THE SCREEN AWAY. The options have to be there and
+##     focused from the first frame, or a player on their fortieth night is
+##     waiting on a cutscene to let them click.
+func _test_somebody_knocks() -> void:
+	var audio: Node = root.get_node("Audio")
+	var settings: Node = root.get_node("Settings")
+	var was: float = float(settings.get_value("animation_scale"))
+
+	for motion: bool in [true, false]:
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		run.state = run.fresh()
+		run.pick_reader(0)
+		run.take_pick(0)
+		audio.played.erase("knock")
+
+		var instance: Node = load("res://scenes/Map.tscn").instantiate()
+		root.add_child(instance)
+		await process_frame
+		await process_frame
+
+		# Before waiting for a single knock: the choices are here and one of
+		# them is focused. This is the assertion that the beat is a beat.
+		var focused: Control = instance.get_viewport().gui_get_focus_owner()
+		if focused == null or not instance.is_ancestor_of(focused):
+			check(false, "the map is knocking and nothing is focused — the player is waiting on it")
+
+		# The first knock is at t=0, so it has already fired; the rest are
+		# timers, and this is a real display-less frame loop, so wait them out.
+		await create_timer(1.0).timeout
+		var heard := int(audio.played.get("knock", 0))
+		var want: int = load("res://scenes/Map.gd").KNOCKS.size() if motion else 1
+		if heard < want:
+			check(false, "%d knock(s) with motion %s, wanted %d — nobody is at the door"
+				% [heard, "on" if motion else "off", want])
+		instance.queue_free()
+		await process_frame
+
+	settings.set_value("animation_scale", was)
+	print("--- somebody knocks, with the animations on and off ---")
+	done()
 
 
 ## YOU CAN SEE WHAT YOUR PLAY WILL DO BEFORE YOU COMMIT TO IT.
@@ -1208,11 +1013,11 @@ func _test_the_reading_shows_its_own_maths() -> void:
 	# numbers.
 	var composure := _row_text(instance, i18n.t("Composure"))
 	if expect_land >= 1 and not composure.contains("+%d" % expect_land):
-		printerr("FAIL: this reading would restore %d and the composure row says '%s'"
+		check(false, "this reading would restore %d and the composure row says '%s'"
 			% [expect_land, composure.strip_edges()])
 	var piles := _line_containing(instance, i18n.t("Left to draw"))
 	if not piles.contains("%s %d" % [i18n.t("Left to draw"), draw_left]):
-		printerr("FAIL: %d cards are left to draw and the line says '%s'" % [draw_left, piles.strip_edges()])
+		check(false, "%d cards are left to draw and the line says '%s'" % [draw_left, piles.strip_edges()])
 
 	# A CARD IS READABLE WITHOUT A POINTER. Driven by focusing a card outright
 	# rather than by reading whatever focus_first happened to land on: where
@@ -1226,142 +1031,21 @@ func _test_the_reading_shows_its_own_maths() -> void:
 			card = node
 			break
 	if card == null:
-		printerr("FAIL: no playable card in the hand to read")
+		check(false, "no playable card in the hand to read")
 	else:
 		card.grab_focus()
 		await process_frame
 		var tip: String = card.tooltip_text
 		var opening: String = tip.split("\n")[0].substr(0, 20) if tip != "" else ""
 		if opening == "":
-			printerr("FAIL: a card in hand carries no text at all, so there is nothing to show")
+			check(false, "a card in hand carries no text at all, so there is nothing to show")
 		elif not _text_of(instance).contains(opening):
-			printerr("FAIL: the focused card says '%s...' and nothing on screen does — its text is mouse-only"
+			check(false, "the focused card says '%s...' and nothing on screen does — its text is mouse-only"
 				% opening)
 	instance.queue_free()
 	await process_frame
 	print("--- the reading prices itself before you commit ---")
-
-
-## Every Label in the row that begins with `caption`, joined. A "row" is an
-## HBoxContainer, which is what stat_row() builds.
-func _row_text(node: Node, caption: String) -> String:
-	if node is HBoxContainer:
-		var first := ""
-		for child in node.get_children():
-			if child is Label:
-				first = (child as Label).text
-				break
-		if first == caption:
-			return _text_of(node)
-	for child in node.get_children():
-		var found := _row_text(child, caption)
-		if found != "":
-			return found
-	return ""
-
-
-## The one Label containing `needle`, or "".
-## THE AGENDA TELLS THE TRUTH ABOUT AN HOUR.
-##
-## It named the single heaviest thing on offer, and every hour but the last also
-## has somebody at the door — so an hour holding a caller AND the apothecary
-## read as "the apothecary" and nothing else. Three of those in a row is an
-## ordinary night, and it made the plan down the left of the map look like a
-## shopping list while hiding the only question the hour asks: answer the door,
-## or spend the half hour on yourself.
-func _test_the_agenda_names_the_whole_hour() -> void:
-	run.state = run.fresh("agenda")
-	run.pick_reader(0)
-	run.take_pick(0)
-	# A hand-built plan, so this tests the agenda and not the odds: hour 2 holds
-	# a caller and the apothecary, and both have to be on the line.
-	var plan: Array = run.state["plan"]
-	plan[2] = {"at": plan[2].get("at", "21:00"), "offers": ["sitter", "shop"]}
-	run.state["plan"] = plan
-
-	var instance: Node = load("res://scenes/Map.tscn").instantiate()
-	root.add_child(instance)
-	for i in 3:
-		await process_frame
-	# get_node, not the bare autoload name: this file is run by `godot -s`.
-	var i18n: Node = root.get_node("I18n")
-	# EVERY hour but the last holds at least one caller, so every promise that
-	# names a break has to name the callers too. Asked of all of them rather
-	# than of one, which is both stronger and immune to which hour the plan
-	# happened to put the shop in.
-	var caller: String = i18n.t("a caller")
-	var callers: String = i18n.t("%d callers") % 2
-	for break_name in [i18n.t("the apothecary"), i18n.t("an evening off")]:
-		for node in _all_of(instance, []):
-			var l := node as Label
-			if l == null or not l.text.contains(str(break_name)):
-				continue
-			if not (l.text.contains(caller) or l.text.contains(callers.substr(2))):
-				printerr("FAIL: an hour holding a caller and %s should name both — the agenda says \"%s\""
-					% [break_name, l.text])
-	instance.queue_free()
-	await process_frame
-	print("--- the agenda names everything an hour holds ---")
-
-
-## A READING'S TALLY READS AS PAIRS.
-##
-## The rows were EXPAND_FILL across the whole screen, so on a 1280 window
-## "Composure" sat at the left margin and "36 / 36" eleven hundred pixels away
-## at the right, with the teacup and the Minitel drawn between them — and the
-## number half over the artwork. Geometry, not wording, so it is checked as
-## geometry: the label and its number have to be near enough to read as one line.
-func _test_a_readings_tally_reads_as_pairs() -> void:
-	# A REAL WINDOW. A headless root is 64 wide, in which everything fits and
-	# nothing is ever too far from anything, so this measures nothing at all
-	# until the window is the shape a player has. Same reason the hand-overflow
-	# test sets one.
-	var restore_size: Vector2i = root.size
-	root.size = Vector2i(
-		int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280)),
-		int(ProjectSettings.get_setting("display/window/size/viewport_height", 720)))
-	await process_frame
-	run.state = run.fresh("tally")
-	run.pick_reader(0)
-	run.take_pick(0)
-	for o in run.state["options"]:
-		if o["kind"] in ["sitter", "elite"]:
-			run.choose(run.state["options"].find(o))
-			break
-	var f: Dictionary = run.state["f"]
-	f["hp"] = f["max"]
-	run.win(f)
-
-	var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
-	root.add_child(instance)
-	for i in 3:
-		await process_frame
-	var found := false
-	for node in _all_of(instance, []):
-		var l := node as Label
-		if l == null or not l.text.contains(str(root.get_node("I18n").t("Composure"))):
-			continue
-		found = true
-		var row := l.get_parent() as Control
-		if row == null or row.size.x > root.size.x * 0.6:
-			printerr("FAIL: the tally row is %s wide in a %s window — the number is not next to its words"
-				% [row.size.x if row != null else -1, root.size.x])
-	if not found:
-		printerr("FAIL: the result screen should show the composure the reading reached")
-	instance.queue_free()
-	root.size = restore_size
-	await process_frame
-	print("--- a reading's tally reads as pairs ---")
-
-
-func _line_containing(node: Node, needle: String) -> String:
-	if node is Label and (node as Label).text.contains(needle):
-		return (node as Label).text
-	for child in node.get_children():
-		var found := _line_containing(child, needle)
-		if found != "":
-			return found
-	return ""
+	done()
 
 
 ## THE READING IS READ OUT — and, crucially, is resolved EXACTLY ONCE.
@@ -1402,52 +1086,30 @@ func _test_the_reading_is_read_out_once() -> void:
 
 		if motion:
 			if _turn_now() != turn_before:
-				printerr("FAIL: READ IT resolved the reading before reading it out — nobody sees the ledger")
+				check(false, "READ IT resolved the reading before reading it out — nobody sees the ledger")
 			if reveal == null:
-				printerr("FAIL: READ IT with motion on shows no ledger at all")
+				check(false, "READ IT with motion on shows no ledger at all")
 			# Everything a player can do in that window ends the SAME reading.
 			instance._read_it()
 			instance._read_it()
 			await process_frame
 			var after := _turn_now()
 			if after == turn_before:
-				printerr("FAIL: pressing READ IT during the ledger did not finish the reading")
+				check(false, "pressing READ IT during the ledger did not finish the reading")
 			elif after > turn_before + 1:
-				printerr("FAIL: the reading advanced %d turns from one READ IT — it resolved more than once"
+				check(false, "the reading advanced %d turns from one READ IT — it resolved more than once"
 					% (after - turn_before))
 		else:
 			if _turn_now() == turn_before:
-				printerr("FAIL: with motion off READ IT did not resolve — the player is waiting on nothing")
+				check(false, "with motion off READ IT did not resolve — the player is waiting on nothing")
 			if reveal != null:
-				printerr("FAIL: motion is off and the ledger is animating anyway")
+				check(false, "motion is off and the ledger is animating anyway")
 		instance.queue_free()
 		await process_frame
 
 	settings.set_value("animation_scale", was)
 	print("--- the reading is read out, and resolves exactly once ---")
-
-
-## The reading number, or -1 once the encounter itself has ended (a reading big
-## enough to mend them takes the fight with it, and there is no `f` left to ask).
-func _turn_now() -> int:
-	if not run.state.get("res", {}).is_empty():
-		return -1
-	return int(run.state.get("f", {}).get("turn", -2))
-
-
-## A reading with everything affordable already laid, ready for READ IT.
-func _lay_a_reading() -> void:
-	run.state = run.fresh()
-	run.pick_reader(0)
-	run.take_pick(0)
-	for o in run.state["options"]:
-		if o["kind"] in ["sitter", "elite"]:
-			run.choose(run.state["options"].find(o))
-			break
-	var f: Dictionary = run.state["f"]
-	for c in f["hand"].duplicate():
-		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
-			run.lay_card(c["uid"])
+	done()
 
 
 ## AN OPTION'S OWN WORDS ARE ON THE ROW. Several of the events hand over a card
@@ -1463,7 +1125,8 @@ func _test_an_events_own_words_are_shown() -> void:
 				wanted[e.get("title", "?")] = str(o["text"])
 				break
 	if wanted.is_empty():
-		printerr("FAIL: no event hands over a card or mark with anything to say — nothing to check")
+		check(false, "no event hands over a card or mark with anything to say — nothing to check")
+		done()
 		return
 
 	for title: String in wanted:
@@ -1482,300 +1145,13 @@ func _test_an_events_own_words_are_shown() -> void:
 			# The first few words are enough, and survive wrapping.
 			var opening: String = str(wanted[title]).substr(0, 28)
 			if not _text_of(instance).contains(opening):
-				printerr("FAIL: '%s' says \'%s...\' about what it gives, and the row does not show it"
+				check(false, "'%s' says \'%s...\' about what it gives, and the row does not show it"
 					% [title, opening])
 			instance.queue_free()
 			await process_frame
 			break
 	print("--- %d event(s) hand over a card or a mark and get to say why ---" % wanted.size())
-
-
-## SOMEBODY KNOCKS. The map screen asks "who knocks tonight?", a run is sixteen
-## knocks long and it ends the night the knocking stops — and for the whole port
-## nothing ever knocked.
-##
-## Three things, each of which fails in silence:
-##
-##   - the knock has to HAPPEN. It is a timer inside a scene; nothing else in
-##     the game would notice if it stopped firing;
-##   - it has to happen with ANIMATION TURNED OFF too. Turning off motion should
-##     not make the game go quiet, and the easy version of this feature is one
-##     early return that does exactly that;
-##   - it must not TAKE THE SCREEN AWAY. The options have to be there and
-##     focused from the first frame, or a player on their fortieth night is
-##     waiting on a cutscene to let them click.
-func _test_somebody_knocks() -> void:
-	var audio: Node = root.get_node("Audio")
-	var settings: Node = root.get_node("Settings")
-	var was: float = float(settings.get_value("animation_scale"))
-
-	for motion: bool in [true, false]:
-		settings.set_value("animation_scale", 1.0 if motion else 0.0)
-		run.state = run.fresh()
-		run.pick_reader(0)
-		run.take_pick(0)
-		audio.played.erase("knock")
-
-		var instance: Node = load("res://scenes/Map.tscn").instantiate()
-		root.add_child(instance)
-		await process_frame
-		await process_frame
-
-		# Before waiting for a single knock: the choices are here and one of
-		# them is focused. This is the assertion that the beat is a beat.
-		var focused: Control = instance.get_viewport().gui_get_focus_owner()
-		if focused == null or not instance.is_ancestor_of(focused):
-			printerr("FAIL: the map is knocking and nothing is focused — the player is waiting on it")
-
-		# The first knock is at t=0, so it has already fired; the rest are
-		# timers, and this is a real display-less frame loop, so wait them out.
-		await create_timer(1.0).timeout
-		var heard := int(audio.played.get("knock", 0))
-		var want: int = load("res://scenes/Map.gd").KNOCKS.size() if motion else 1
-		if heard < want:
-			printerr("FAIL: %d knock(s) with motion %s, wanted %d — nobody is at the door"
-				% [heard, "on" if motion else "off", want])
-		instance.queue_free()
-		await process_frame
-
-	settings.set_value("animation_scale", was)
-	print("--- somebody knocks, with the animations on and off ---")
-
-
-## THE RULES SCREEN KNOWS ABOUT THE LADDER, AND THE MAP DRAWS THE AGENDA.
-##
-## Two screens that are built from live data and would go quietly stale
-## otherwise. The rules screen's whole premise is that it explains the game by
-## READING it rather than by restating it, so a rung added to difficulty.json
-## and never mentioned is exactly the drift it exists to prevent. And the agenda
-## is only worth having if it is on screen: an hour missing from the page is a
-## plan the player cannot use, and nothing else in the game would notice.
-func _test_the_screens_read_the_live_content() -> void:
-	var instance: Node = load("res://scenes/HowToPlay.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	var rules_text := _text_of(instance)
-	for rung in content.difficulty:
-		if int(rung.get("n", 0)) == 0:
-			continue
-		if not rules_text.contains(str(rung.get("name", ""))):
-			printerr("FAIL: difficulty rung '%s' exists and the rules screen has never heard of it"
-				% rung.get("name", "?"))
-	instance.queue_free()
-	await process_frame
-
-	run.state = run.fresh("a fixed evening")
-	run.pick_reader(0)
-	run.take_pick(0)
-	instance = load("res://scenes/Map.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	await process_frame
-	var map_text := _text_of(instance)
-	var plan: Array = run.state.get("plan", [])
-	check_not_empty(plan, "the night should have a plan")
-	for slot in plan:
-		if not map_text.contains(str(slot.get("at", ""))):
-			printerr("FAIL: the night runs to %s and the agenda does not show that hour" % slot.get("at", "?"))
-			break
-	# And the last half-hour of the last night is the Mayor, said out loud —
-	# the one thing a player most needs to be able to plan against.
-	instance.queue_free()
-	await process_frame
-	run.state["night"] = 2
-	run.state["step"] = 0
-	run.state["plan"] = run.make_plan(2)
-	instance = load("res://scenes/Map.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	await process_frame
-	if not _text_of(instance).contains(load("res://scenes/Map.gd").PROMISE["boss"]):
-		printerr("FAIL: the mayor is at the end of the last night and the agenda does not say so")
-	instance.queue_free()
-	await process_frame
-	print("--- the rules screen and the agenda are reading the live content ---")
-
-
-func check_not_empty(a: Array, why: String) -> void:
-	if a.is_empty():
-		printerr("FAIL: " + why)
-
-
-## THE VILLAGERS ARE DIFFERENT PEOPLE, AND THE SAME ONES EVERY TIME.
-##
-## The sitter portrait is drawn rather than painted, and it takes its hair,
-## colouring, face width and moustache from a hash of who the sitter is. Two
-## things about that fail silently and both would be bad:
-##
-##   - ask for the wrong field and every hash is the hash of "", so ten
-##     villagers are one villager drawn ten times. This is not hypothetical: the
-##     first version asked sitters for a `k` they do not have;
-##   - use a hash with no promise attached — String.hash(), say — and the whole
-##     village quietly rearranges its faces on a Godot upgrade. Someone you have
-##     met twenty times is suddenly a stranger, and nothing in the game changed.
-##
-## So: the hash is pinned to known values, and the faces are counted.
-func _test_the_sitters_are_different_people() -> void:
-	# load(), not preload() — see _test_the_overlays_are_modal().
-	var UIKitScript := load("res://scenes/UIKit.gd")
-
-	# Pinned. If these move, every face in the game moved with them — which is
-	# allowed, but it is a decision, not something to discover later.
-	const PINNED := {"Mme Perrot/THE LAUNDRESS": 905259117, "Guillaume/THE POSTMAN": 54687178}
-	for key: String in PINNED:
-		var got: int = UIKitScript._stable_hash(key)
-		if got != PINNED[key]:
-			printerr("FAIL: the face hash for '%s' changed (%d, was %d) — every villager now looks like someone else"
-				% [key, got, PINNED[key]])
-
-	# Built through the REAL portrait, which is what reads the sitter's fields.
-	var faces := {}
-	for st in content.sitters:
-		var first: Control = UIKitScript.sitter_portrait(st, 0.5)
-		var again: Control = UIKitScript.sitter_portrait(st, 0.9)
-		var a: Dictionary = first.get_meta("face", {})
-		if a != again.get_meta("face", {}):
-			printerr("FAIL: %s does not look the same twice in a row" % st.get("name", "?"))
-		if a.is_empty():
-			printerr("FAIL: the portrait for %s carries no face at all" % st.get("name", "?"))
-			continue
-		faces["%d/%s/%s/%s/%s" % [a["style"], a["skin"], a["hair"], a["cloth"], a["width"]]] = true
-		first.free()
-		again.free()
-
-	# Not "all distinct" — a hash may honestly collide, and demanding otherwise
-	# would be a test of luck. Most of them, though: if the count collapses, the
-	# hash is being fed something constant.
-	var want: int = maxi(1, int(content.sitters.size() * 0.7))
-	if faces.size() < want:
-		printerr("FAIL: %d sitters produce only %d different faces (wanted %d) — they are all the same person"
-			% [content.sitters.size(), faces.size(), want])
-	else:
-		print("--- %d sitters, %d faces ---" % [content.sitters.size(), faces.size()])
-
-
-## The card faces are PanelContainers that take focus; every other focusable
-## thing on the reading screen is a Button. Nothing else identifies a card.
-func _first_focusable_panel(node: Node) -> Control:
-	if node is PanelContainer and (node as Control).focus_mode == Control.FOCUS_ALL:
-		return node
-	for child in node.get_children():
-		var found := _first_focusable_panel(child)
-		if found != null:
-			return found
-	return null
-
-
-func _first_of_class(node: Node, cls: String) -> Node:
-	if node.is_class(cls):
-		return node
-	for child in node.get_children():
-		var found := _first_of_class(child, cls)
-		if found != null:
-			return found
-	return null
-
-
-## Every Label's text in a built screen, joined — for asserting that something
-## a player must see is actually rendered somewhere.
-func _text_of(node: Node) -> String:
-	var out := ""
-	if node is Label:
-		out += (node as Label).text + "\n"
-	for child in node.get_children():
-		out += _text_of(child)
-	return out
-
-
-## The deck and marks panels are MODAL — drawn over an in-run screen that is
-## still live underneath. Everything that makes a modal a modal was missing,
-## and each failure was silent:
-##   - focus stayed on the card behind the scrim, so a keyboard or gamepad
-##     player who opened their deck and pressed Confirm played a card they
-##     could not see. That is worse than a dead highlight;
-##   - pressing D again opened a SECOND deck on top of the first;
-##   - Escape closed nothing;
-##   - the reading's own READ IT shortcut still fired underneath.
-## Driven through RunHeader.handle_shortcut(), which is the same entry point
-## the in-run screens call from their _unhandled_input.
-func _test_the_overlays_are_modal() -> void:
-	# load() at call time, NOT preload(). preload() resolves while this test
-	# script is being compiled, which is before `godot -s` has registered the
-	# autoloads — and RunHeader refers to Run, UIKit and I18n. Preloading it
-	# here did not merely fail locally: it left RunHeader.gd compiled to
-	# nothing for the whole process, so every in-run screen lost its header and
-	# six unrelated cases in this file started failing. Fifth time this trap has
-	# been hit in this port; see autoload/Content.gd's header.
-	var RunHeaderScript := load("res://scenes/RunHeader.gd")
-	run.state = run.fresh()
-	run.pick_reader(0)
-	run.take_pick(0)
-	for i in run.state["options"].size():
-		if run.state["options"][i]["kind"] in ["sitter", "elite"]:
-			run.choose(i)
-			break
-
-	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	await process_frame
-	var before: Control = instance.get_viewport().gui_get_focus_owner()
-	if before == null:
-		printerr("FAIL: precondition — the reading screen focused nothing to begin with")
-		instance.queue_free()
-		await process_frame
-		return
-
-	var deck := InputEventAction.new()
-	deck.action = "parlour_deck"
-	deck.pressed = true
-
-	RunHeaderScript.handle_shortcut(deck, instance)
-	await process_frame
-	await process_frame
-	var layer: Node = RunHeaderScript.open_overlay(instance)
-	var inside: Control = instance.get_viewport().gui_get_focus_owner()
-	if layer == null:
-		printerr("FAIL: the deck shortcut opened no overlay")
-	elif inside == null or not layer.is_ancestor_of(inside):
-		printerr("FAIL: opening the deck left focus outside it (%s) — Confirm would act on the hidden screen" % inside)
-	else:
-		print("--- the deck overlay takes focus ---")
-
-	# An in-run shortcut must not reach the screen behind a modal.
-	var read := InputEventAction.new()
-	read.action = "parlour_read"
-	read.pressed = true
-	if not RunHeaderScript.handle_shortcut(read, instance):
-		printerr("FAIL: READ IT was not swallowed while an overlay was open")
-
-	# A second press closes rather than stacking, and puts focus back.
-	RunHeaderScript.handle_shortcut(deck, instance)
-	await process_frame
-	await process_frame
-	if RunHeaderScript.open_overlay(instance) != null:
-		printerr("FAIL: pressing the deck shortcut twice stacked a second overlay")
-	elif instance.get_viewport().gui_get_focus_owner() != before:
-		printerr("FAIL: closing the deck did not put focus back where it came from")
-	else:
-		print("--- closing it restores focus ---")
-
-	# And so does ui_cancel.
-	RunHeaderScript.handle_shortcut(deck, instance)
-	await process_frame
-	var cancel := InputEventAction.new()
-	cancel.action = "ui_cancel"
-	cancel.pressed = true
-	RunHeaderScript.handle_shortcut(cancel, instance)
-	await process_frame
-	await process_frame
-	if RunHeaderScript.open_overlay(instance) != null:
-		printerr("FAIL: ui_cancel did not close the overlay")
-	else:
-		print("--- ui_cancel closes it ---")
-
-	instance.queue_free()
-	await process_frame
+	done()
 
 
 ## The settings screen shows one section at a time, so the sweep above only
@@ -1818,6 +1194,25 @@ func _test_every_settings_section_builds() -> void:
 	instance.queue_free()
 	await process_frame
 	print("--- all %d settings sections build and keep focus ---" % settings.SECTIONS.size())
+	done()
+
+
+## Every Label in the row that begins with `caption`, joined. A "row" is an
+## HBoxContainer, which is what stat_row() builds.
+func _row_text(node: Node, caption: String) -> String:
+	if node is HBoxContainer:
+		var first := ""
+		for child in node.get_children():
+			if child is Label:
+				first = (child as Label).text
+				break
+		if first == caption:
+			return _text_of(node)
+	for child in node.get_children():
+		var found := _row_text(child, caption)
+		if found != "":
+			return found
+	return ""
 
 
 ## text_scale and high_contrast are read by UIKit, which a headless Settings
@@ -1835,19 +1230,20 @@ func _test_look_settings_reach_a_built_screen() -> void:
 	var big := await _sample_label(1.3, true)
 
 	if plain.is_empty() or big.is_empty():
-		printerr("FAIL: could not find a Label to measure on the main menu")
+		check(false, "could not find a Label to measure on the main menu")
 	else:
 		if int(big["size"]) <= int(plain["size"]):
-			printerr("FAIL: text_scale 1.3 did not enlarge the interface (%d -> %d px)" % [plain["size"], big["size"]])
+			check(false, "text_scale 1.3 did not enlarge the interface (%d -> %d px)" % [plain["size"], big["size"]])
 		else:
 			print("--- text_scale reaches the screen (%d -> %d px) ---" % [plain["size"], big["size"]])
 		if big["color"] == plain["color"]:
-			printerr("FAIL: high_contrast did not change the palette (both %s)" % plain["color"])
+			check(false, "high_contrast did not change the palette (both %s)" % plain["color"])
 		else:
 			print("--- high_contrast reaches the screen (%s -> %s) ---" % [plain["color"], big["color"]])
 
 	settings.set_value("text_scale", restore_scale)
 	settings.set_value("high_contrast", restore_hc)
+	done()
 
 
 ## THE HAND CANNOT BE PUSHED OFF THE BOTTOM OF THE WINDOW.
@@ -1935,15 +1331,26 @@ func _test_the_hand_stays_on_screen() -> void:
 			instance.queue_free()
 			await process_frame
 		if tried == 0:
-			printerr("FAIL: precondition — no reading with a fan was dealt at text_scale %.2f" % scale)
+			check(false, "precondition — no reading with a fan was dealt at text_scale %.2f" % scale)
 		elif lost > 0:
-			printerr("FAIL: at text_scale %.2f, %d of %d readings put the hand off the bottom of a %dx%d window (worst %.0fpx) — those cards cannot be played"
+			check(false, "at text_scale %.2f, %d of %d readings put the hand off the bottom of a %dx%d window (worst %.0fpx) — those cards cannot be played"
 				% [scale, lost, tried, window.x, window.y, worst])
 	settings.set_value("text_scale", restore_scale)
 	settings.set_value("hand_size", restore_hand)
 	root.size = restore_size
 	await process_frame
 	print("--- the hand stays on the table at every interface size ---")
+	done()
+
+
+func _line_containing(node: Node, needle: String) -> String:
+	if node is Label and (node as Label).text.contains(needle):
+		return (node as Label).text
+	for child in node.get_children():
+		var found := _line_containing(child, needle)
+		if found != "":
+			return found
+	return ""
 
 
 ## A READING WITH NO ENERGY LEFT IS STILL PLAYABLE WITHOUT A MOUSE.
@@ -1994,16 +1401,40 @@ func _test_a_spent_reading_can_still_be_played() -> void:
 		checked += 1
 		var focused: Control = instance.get_viewport().gui_get_focus_owner()
 		if focused == null:
-			printerr("FAIL: a reading with %d unaffordable card(s) and no energy left focused nothing — there is no way to reach READ IT without a mouse"
+			check(false, "a reading with %d unaffordable card(s) and no energy left focused nothing — there is no way to reach READ IT without a mouse"
 				% f["hand"].size())
 		elif not instance.is_ancestor_of(focused):
-			printerr("FAIL: focus went outside the reading screen (%s)" % focused)
+			check(false, "focus went outside the reading screen (%s)" % focused)
 		instance.queue_free()
 		await process_frame
 	if checked == 0:
-		printerr("FAIL: precondition — no reading ran out of energy with cards still in hand, so this checked nothing")
+		check(false, "precondition — no reading ran out of energy with cards still in hand, so this checked nothing")
 	else:
 		print("--- a reading with the energy spent still has somewhere to put focus (%d checked) ---" % checked)
+	done()
+
+
+## The reading number, or -1 once the encounter itself has ended (a reading big
+## enough to mend them takes the fight with it, and there is no `f` left to ask).
+func _turn_now() -> int:
+	if not run.state.get("res", {}).is_empty():
+		return -1
+	return int(run.state.get("f", {}).get("turn", -2))
+
+
+## A reading with everything affordable already laid, ready for READ IT.
+func _lay_a_reading() -> void:
+	run.state = run.fresh()
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	for c in f["hand"].duplicate():
+		if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
+			run.lay_card(c["uid"])
 
 
 ## A CARD YOU ARE OFFERED SAYS WHAT IT COSTS AND WHAT IT RESTORES.
@@ -2027,7 +1458,8 @@ func _test_an_offered_card_shows_its_price() -> void:
 			plain = c
 			break
 	if plain.is_empty():
-		printerr("FAIL: precondition — no plain card in the content to offer")
+		check(false, "precondition — no plain card in the content to offer")
+		done()
 		return
 
 	run.state = run.fresh("offer")
@@ -2063,10 +1495,11 @@ func _test_an_offered_card_shows_its_price() -> void:
 	await process_frame
 
 	if said == "":
-		printerr("FAIL: '%s' costs %s and restores %s, and no line on the offer says both"
+		check(false, "'%s' costs %s and restores %s, and no line on the offer says both"
 			% [plain.get("n", "?"), cost, restore])
 	else:
 		print("--- a card you are offered says what it costs and what it restores ('%s') ---" % said.strip_edges())
+	done()
 
 
 ## THE READING IS A SENTENCE SOMEBODY SAYS, not a row of card names.
@@ -2089,7 +1522,8 @@ func _test_the_reading_is_a_sentence() -> void:
 			break
 	var f: Dictionary = run.state["f"]
 	if f.is_empty():
-		printerr("FAIL: precondition — no encounter to read")
+		check(false, "precondition — no encounter to read")
+		done()
 		return
 	# Two cards at least, so the joining is exercised rather than just the
 	# single-clause case.
@@ -2100,7 +1534,8 @@ func _test_the_reading_is_a_sentence() -> void:
 			laid += 1
 	f = run.state["f"]
 	if f["cross"].size() < 2:
-		printerr("FAIL: precondition — could only lay %d card(s)" % f["cross"].size())
+		check(false, "precondition — could only lay %d card(s)" % f["cross"].size())
+		done()
 		return
 
 	var instance: Node = load("res://scenes/Reading.tscn").instantiate()
@@ -2117,7 +1552,8 @@ func _test_the_reading_is_a_sentence() -> void:
 	for c in f["cross"]:
 		var said: String = i18n_node.card_spoken(c).to_lower()
 		if said == "":
-			printerr("FAIL: '%s' has no spoken clause at all" % c.get("n", "?"))
+			check(false, "'%s' has no spoken clause at all" % c.get("n", "?"))
+			done()
 			return
 		want.append(said)
 
@@ -2140,10 +1576,12 @@ func _test_the_reading_is_a_sentence() -> void:
 	await process_frame
 
 	if spoken == "":
-		printerr("FAIL: nothing on the reading says %s as one line — the reading is a list of cards, not a sentence"
+		check(false, "nothing on the reading says %s as one line — the reading is a list of cards, not a sentence"
 			% str(want))
+		done()
 		return
 	print("--- the reading reads back as one sentence: \"%s\" ---" % spoken)
+	done()
 
 
 ## THE RULE IS ON THE BOARD; ONLY THE FLAVOUR IS ON THE HOVER.
@@ -2166,15 +1604,15 @@ func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
 
 	for sign in content.signs:
 		if str(sign.get("rule", "")).strip_edges() == "":
-			printerr("FAIL: sign '%s' has no rule — its mechanic would be invisible" % sign.get("k", "?"))
+			check(false, "sign '%s' has no rule — its mechanic would be invisible" % sign.get("k", "?"))
 		if str(sign.get("fl", "")).strip_edges() == "":
-			printerr("FAIL: sign '%s' has no flavour, so its hover says nothing" % sign.get("k", "?"))
+			check(false, "sign '%s' has no flavour, so its hover says nothing" % sign.get("k", "?"))
 	for role in content.jobs:
 		var job: Dictionary = content.jobs[role]
 		if str(job.get("t", "")).strip_edges() == "":
-			printerr("FAIL: job '%s' has no mechanic text" % role)
+			check(false, "job '%s' has no mechanic text" % role)
 		if str(job.get("fl", "")).strip_edges() == "":
-			printerr("FAIL: job '%s' has no flavour, so its hover says nothing" % role)
+			check(false, "job '%s' has no flavour, so its hover says nothing" % role)
 
 	run.state = run.fresh("split")
 	run.pick_reader(0)
@@ -2185,7 +1623,8 @@ func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
 			break
 	var f: Dictionary = run.state["f"]
 	if f.is_empty():
-		printerr("FAIL: precondition — no encounter")
+		check(false, "precondition — no encounter")
+		done()
 		return
 	var s: Dictionary = f["sitter"]
 	var role_name := str(s.get("role", ""))
@@ -2204,12 +1643,611 @@ func _test_the_rule_is_visible_and_the_flavour_is_not() -> void:
 	await process_frame
 
 	if job_rule != "" and not screen.contains(job_rule):
-		printerr("FAIL: the job does '%s' and the reading screen never says so" % job_rule)
+		check(false, "the job does '%s' and the reading screen never says so" % job_rule)
 	if not screen.contains(sign_rule):
-		printerr("FAIL: the sign does '%s' and the reading screen never says so" % sign_rule)
+		check(false, "the sign does '%s' and the reading screen never says so" % sign_rule)
 	if sign_flavour != "" and screen.contains(sign_flavour):
-		printerr("FAIL: '%s' is flavour and is printed on the board — it belongs on the hover" % sign_flavour)
+		check(false, "'%s' is flavour and is printed on the board — it belongs on the hover" % sign_flavour)
 	print("--- the job and the sign show their rule, and keep their flavour for the hover ---")
+	done()
+
+
+func check_not_empty(a: Array, why: String) -> void:
+	check(not a.is_empty(), why)
+
+
+## The one Label containing `needle`, or "".
+## THE AGENDA TELLS THE TRUTH ABOUT AN HOUR.
+##
+## It named the single heaviest thing on offer, and every hour but the last also
+## has somebody at the door — so an hour holding a caller AND the apothecary
+## read as "the apothecary" and nothing else. Three of those in a row is an
+## ordinary night, and it made the plan down the left of the map look like a
+## shopping list while hiding the only question the hour asks: answer the door,
+## or spend the half hour on yourself.
+func _test_the_agenda_names_the_whole_hour() -> void:
+	run.state = run.fresh("agenda")
+	run.pick_reader(0)
+	run.take_pick(0)
+	# A hand-built plan, so this tests the agenda and not the odds: hour 2 holds
+	# a caller and the apothecary, and both have to be on the line.
+	var plan: Array = run.state["plan"]
+	plan[2] = {"at": plan[2].get("at", "21:00"), "offers": ["sitter", "shop"]}
+	run.state["plan"] = plan
+
+	var instance: Node = load("res://scenes/Map.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	# get_node, not the bare autoload name: this file is run by `godot -s`.
+	var i18n: Node = root.get_node("I18n")
+	# EVERY hour but the last holds at least one caller, so every promise that
+	# names a break has to name the callers too. Asked of all of them rather
+	# than of one, which is both stronger and immune to which hour the plan
+	# happened to put the shop in.
+	var caller: String = i18n.t("a caller")
+	var callers: String = i18n.t("%d callers") % 2
+	for break_name in [i18n.t("the apothecary"), i18n.t("an evening off")]:
+		for node in _all_of(instance, []):
+			var l := node as Label
+			if l == null or not l.text.contains(str(break_name)):
+				continue
+			if not (l.text.contains(caller) or l.text.contains(callers.substr(2))):
+				check(false, "an hour holding a caller and %s should name both — the agenda says \"%s\""
+					% [break_name, l.text])
+	instance.queue_free()
+	await process_frame
+	print("--- the agenda names everything an hour holds ---")
+	done()
+
+
+## The card faces are PanelContainers that take focus; every other focusable
+## thing on the reading screen is a Button. Nothing else identifies a card.
+func _first_focusable_panel(node: Node) -> Control:
+	if node is PanelContainer and (node as Control).focus_mode == Control.FOCUS_ALL:
+		return node
+	for child in node.get_children():
+		var found := _first_focusable_panel(child)
+		if found != null:
+			return found
+	return null
+
+
+func _first_of_class(node: Node, cls: String) -> Node:
+	if node.is_class(cls):
+		return node
+	for child in node.get_children():
+		var found := _first_of_class(child, cls)
+		if found != null:
+			return found
+	return null
+
+
+## Every Label's text in a built screen, joined — for asserting that something
+## a player must see is actually rendered somewhere.
+func _text_of(node: Node) -> String:
+	var out := ""
+	if node is Label:
+		out += (node as Label).text + "\n"
+	for child in node.get_children():
+		out += _text_of(child)
+	return out
+
+
+## A READING'S TALLY READS AS PAIRS.
+##
+## The rows were EXPAND_FILL across the whole screen, so on a 1280 window
+## "Composure" sat at the left margin and "36 / 36" eleven hundred pixels away
+## at the right, with the teacup and the Minitel drawn between them — and the
+## number half over the artwork. Geometry, not wording, so it is checked as
+## geometry: the label and its number have to be near enough to read as one line.
+func _test_a_readings_tally_reads_as_pairs() -> void:
+	# A REAL WINDOW. A headless root is 64 wide, in which everything fits and
+	# nothing is ever too far from anything, so this measures nothing at all
+	# until the window is the shape a player has. Same reason the hand-overflow
+	# test sets one.
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(
+		int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280)),
+		int(ProjectSettings.get_setting("display/window/size/viewport_height", 720)))
+	await process_frame
+	run.state = run.fresh("tally")
+	run.pick_reader(0)
+	run.take_pick(0)
+	for o in run.state["options"]:
+		if o["kind"] in ["sitter", "elite"]:
+			run.choose(run.state["options"].find(o))
+			break
+	var f: Dictionary = run.state["f"]
+	f["hp"] = f["max"]
+	run.win(f)
+
+	var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+	var found := false
+	for node in _all_of(instance, []):
+		var l := node as Label
+		if l == null or not l.text.contains(str(root.get_node("I18n").t("Composure"))):
+			continue
+		found = true
+		var row := l.get_parent() as Control
+		if row == null or row.size.x > root.size.x * 0.6:
+			check(false, "the tally row is %s wide in a %s window — the number is not next to its words"
+				% [row.size.x if row != null else -1, root.size.x])
+	if not found:
+		check(false, "the result screen should show the composure the reading reached")
+	instance.queue_free()
+	root.size = restore_size
+	await process_frame
+	print("--- a reading's tally reads as pairs ---")
+	done()
+
+
+func _test_the_reading_screens_are_centred() -> void:
+	var restore_size: Vector2i = root.size
+	var pages := {
+		"how to play": "res://scenes/HowToPlay.tscn",
+		"credits": "res://scenes/Credits.tscn",
+		"mods": "res://scenes/ModsScreen.tscn",
+	}
+	# The window the game ships at, and an ultrawide. With canvas_items stretch
+	# the second one buys canvas WIDTH, so it is the shape that makes an
+	# off-centre column look worst and the one a build-time-only fix fails at.
+	for window: Vector2i in [Vector2i(1280, 720), Vector2i(2560, 1080)]:
+		root.size = window
+		await process_frame
+		var canvas: Vector2 = root.get_visible_rect().size
+		for label: String in pages:
+			var instance: Node = load(pages[label]).instantiate()
+			root.add_child(instance)
+			for i in 3:
+				await process_frame
+			var box := Rect2()
+			var found := false
+			for node in _all_of(instance, []):
+				if not (node is Label):
+					continue
+				var l: Label = node
+				if l.autowrap_mode == TextServer.AUTOWRAP_OFF or l.text.strip_edges() == "":
+					continue
+				var r := Rect2(l.global_position, l.size)
+				box = r if not found else box.merge(r)
+				found = true
+			instance.queue_free()
+			await process_frame
+			if not found:
+				check(false, "%s at %dx%d has no wrapping text at all" % [label, window.x, window.y])
+				continue
+			var off: float = absf(box.get_center().x - canvas.x * 0.5)
+			if off > CENTRED_SLACK:
+				check(false, "%s at %dx%d puts its text %.0fpx off centre (column %.0f..%.0f in a %.0f-wide canvas) — the page reads as cropped"
+					% [label, window.x, window.y, off, box.position.x, box.end.x, canvas.x])
+			# A stripe of single letters at one end, a full-bleed page at the
+			# other. Both are pages nobody can read a line of.
+			if box.size.x < 400.0:
+				check(false, "%s at %dx%d is %.0fpx wide — the column collapsed to its minimum instead of holding a measure"
+					% [label, window.x, window.y, box.size.x])
+			elif box.size.x > canvas.x - 100.0:
+				check(false, "%s at %dx%d spans %.0fpx of a %.0f-wide canvas — the line is too long to read"
+					% [label, window.x, window.y, box.size.x, canvas.x])
+	root.size = restore_size
+	await process_frame
+	print("--- the pages of prose are centred and hold their measure ---")
+	done()
+
+
+## THE LIBRARY ALWAYS HAS A CARD OPEN, AND IT IS ONE THE LIST IS SHOWING.
+##
+## Half the screen is the editor, and it opened on "Pick a card on the left to
+## edit it." — six hundred pixels of black explaining that the screen is empty.
+## It also went back to that the moment a filter moved the selected card out of
+## the list, so choosing a pool you were not already looking at blanked the
+## editor with nothing said about why.
+##
+## The invariant that fixes both is one sentence: the selected card is a card
+## the list is currently showing. Checked at every pool, because the filters are
+## how the selection gets lost, and by reading the editor rather than the
+## variable — a selection the editor has not caught up with is the same bug from
+## the player's side.
+func _test_the_library_always_shows_a_card() -> void:
+	var edits: Node = root.get_node("CardEdits")
+	var instance: Node = load("res://scenes/Library.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+
+	var filters: Array = ["all"]
+	filters.append_array(edits.POOLS)
+	for pool: String in filters:
+		instance._pool_filter = pool
+		instance._rebuild_list()
+		await process_frame
+
+		var name: String = instance._selected_name
+		if name == "":
+			check(false, "the library shows no card at all with the '%s' filter" % pool)
+			continue
+		var listed := false
+		for r in instance._visible_rows():
+			if r["pool"] == instance._selected_pool and str(r["card"]["n"]) == name:
+				listed = true
+				break
+		if not listed:
+			check(false, "the library's '%s' filter leaves '%s' open in the editor, and that card is not in the list beside it"
+				% [pool, name])
+		# And the editor is actually showing it, not merely pointed at it.
+		var shown := false
+		for node in _all_of(instance._editor_box, []):
+			if node is Label and (node as Label).text.contains(name):
+				shown = true
+				break
+		if not shown:
+			check(false, "with the '%s' filter the library has '%s' selected but its editor does not name it — the right-hand half is blank or stale"
+				% [pool, name])
+	instance.queue_free()
+	await process_frame
+	print("--- the library always has a card open, from the list beside it ---")
+	done()
+
+
+## CHANGING A NUMBER DOES NOT DESTROY THE CONTROL YOU CHANGED IT WITH.
+##
+## Every edit wrote the card and then rebuilt the whole editor — which freed the
+## very spin box whose value_changed handler was running. With a mouse, the next
+## click of a series landed on a node that no longer existed; with a keyboard,
+## the focus ended up on nothing that was on the screen any more, so a player was
+## thrown out of the panel after every press.
+##
+## Both halves are asserted, because either alone is passable by accident. The
+## control has to survive — an editor that rebuilds itself fails that. And the
+## readouts have to follow the number — an editor that refreshes NOTHING passes
+## the first half trivially, and is a screen where the card face and the printed
+## text quietly stop matching the values under them.
+##
+## The stamp is the readout under test: an untouched card carries no CHANGED,
+## and one edit is enough to earn it.
+func _test_editing_a_card_does_not_destroy_the_control() -> void:
+	var edits: Node = root.get_node("CardEdits")
+	# From a clean slate, and put back afterwards: this writes a real mod pack to
+	# the user directory, exactly as the screen does for a player.
+	edits.revert_all()
+	content.reload()
+
+	var instance: Node = load("res://scenes/Library.tscn").instantiate()
+	root.add_child(instance)
+	for i in 3:
+		await process_frame
+
+	var spin := _first_of_class(instance.get("_editor_box"), "SpinBox") as SpinBox
+	if spin == null:
+		check(false, "the library's editor has no spin box to change")
+		instance.queue_free()
+		done()
+		return
+	# A SPIN BOX CANNOT TAKE THE FOCUS — focus_mode NONE, and grab_focus() on it
+	# warns and does nothing. What a player is actually on is the LineEdit
+	# inside, which is what this has to hold on to.
+	var field_edit := spin.get_line_edit()
+	field_edit.grab_focus()
+	await process_frame
+	var held := field_edit.get_instance_id()
+
+	spin.value = spin.value + 1
+	for i in 4:
+		await process_frame
+
+	if not is_instance_id_valid(held):
+		check(false, "changing a card's number freed the control that changed it")
+	var owner := root.gui_get_focus_owner()
+	if owner == null or owner.get_instance_id() != held:
+		check(false, "changing a card's number moved the focus off the field being edited (now %s) — a keyboard player is thrown out of the panel on every press"
+			% ("nothing" if owner == null else owner.get_class()))
+
+	# I18n by node, not by bare name: an autoload's global identifier does not
+	# resolve in a `godot -s` script. See Content.gd's header.
+	var i18n: Node = root.get_node("I18n")
+	var changed_word: String = i18n.t("CHANGED")
+	var stamped := false
+	for node in _all_of(instance.get("_editor_box"), []):
+		if node is Label and (node as Label).text.contains(changed_word):
+			stamped = true
+			break
+	if not stamped:
+		check(false, "a card was edited and the editor never said CHANGED — the readouts do not follow the numbers under them")
+
+	instance.queue_free()
+	await process_frame
+	edits.revert_all()
+	content.reload()
+	print("--- editing a card leaves the control you are using alone ---")
+	done()
+
+
+## A SCREEN OPENS AT THE TOP OF ITSELF, AND THE WHEEL MOVES IT.
+##
+## Two claims nobody had ever asked out loud, both broken, and the first one by
+## the fix for something else. Turning on ScrollContainer.follow_focus — which a
+## keyboard player needs, since Godot will not hand focus to a control that is
+## off screen — made every long screen open somewhere other than its beginning:
+## focus_first defers itself by a frame, which is enough for the tree but not
+## for a GridContainer still working out how tall thirteen reader tiles in two
+## columns are, so the scroll measured against a height it was about to outgrow
+## and clamped to the far end. The sign screen opened on readers seven to
+## thirteen with the FIRST one focused ninety pixels above the top edge. The
+## mods screen opened with its first pack's title cut off.
+##
+## Neither shows up in a test that builds a screen and reads its labels: every
+## string was there, correct and translated, on a page nobody would have
+## scrolled back up.
+##
+## The wheel half is here because it is the other way a player moves a long
+## page and the arrow keys are the only one the suite had ever pressed. A screen
+## whose scroll is driven entirely by focus would pass every other check and be
+## unusable with a mouse.
+func _test_a_screen_opens_at_the_top_and_the_wheel_moves_it() -> void:
+	var pages := {
+		"sign": "res://scenes/SignSelect.tscn",
+		"mods": "res://scenes/ModsScreen.tscn",
+		"library": "res://scenes/Library.tscn",
+		"how to play": "res://scenes/HowToPlay.tscn",
+		"credits": "res://scenes/Credits.tscn",
+		"records": "res://scenes/Records.tscn",
+	}
+	run.state = run.fresh()
+	# A REAL CANVAS. Headless starts 64px wide, and earlier tests in this sweep
+	# set and restore their own window — so without this the scroll's rect is a
+	# few pixels across, the wheel event is pushed at a point outside it, and the
+	# page reports itself unscrollable by mouse when it is not. Measured: the
+	# same two screens passed standalone and failed inside the sweep.
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(1280, 720)
+	await process_frame
+	for label: String in pages:
+		var instance: Node = load(pages[label]).instantiate()
+		root.add_child(instance)
+		# Five, not two: focus_first defers, and the scroll it corrects defers
+		# once more behind it. Reading at four frames measured the wrong number.
+		for i in 5:
+			await process_frame
+
+		var scroll := _tallest_scroll(instance)
+		if scroll == null:
+			check(false, "%s has no scrolling region — this test is measuring the wrong screen" % label)
+			instance.queue_free()
+			await process_frame
+			continue
+		var over: float = scroll.get_v_scroll_bar().max_value - scroll.size.y
+		if scroll.scroll_vertical != 0:
+			check(false, "%s opens %dpx down its own content (of %dpx scrollable) — the top of the page is above the screen before the player has touched anything"
+				% [label, scroll.scroll_vertical, int(over)])
+		if over <= 0.0:
+			# Nothing to scroll: the wheel has nothing to prove here.
+			instance.queue_free()
+			await process_frame
+			continue
+
+		var before := scroll.scroll_vertical
+		var wheel := InputEventMouseButton.new()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = true
+		wheel.position = scroll.get_global_rect().get_center()
+		wheel.global_position = wheel.position
+		root.push_input(wheel)
+		for i in 3:
+			await process_frame
+		if scroll.scroll_vertical <= before:
+			check(false, "the wheel does nothing on %s — %dpx of it are below the fold and a mouse cannot reach them"
+				% [label, int(over)])
+		instance.queue_free()
+		await process_frame
+	root.size = restore_size
+	await process_frame
+	print("--- every long screen opens at its top, and the wheel moves it ---")
+	done()
+
+
+## THE STATE EVERY PLAYER SEES FIRST, AND THE ONLY ONE NEVER RENDERED.
+##
+## Every screen in this file was built against a profile with forty-five runs in
+## it, because that is the profile this machine has. Nobody's first launch looks
+## like that: no runs finished, no readers taken to the end, no best of anything,
+## no difficulty ever cleared. That is the state where a per-run average divides
+## by zero, where "the hardest week you have finished" names a rung nobody has
+## cleared, and where a page of records is a page of noughts.
+##
+## So: the profile is emptied, every screen that reads it is built, and the
+## records page is asked to admit that it is empty. The suite's runner fails on
+## any unexpected ERROR line, so a division by zero or a null in a fresh-profile
+## branch is caught by building the screen at all — which is the point, since
+## none of these screens had ever been built this way.
+##
+## The profile is put back afterwards, values and all. It is the player's real
+## file on a real machine, and a test that costs somebody forty-five evenings is
+## not a test anybody will run twice.
+func _test_the_very_first_launch() -> void:
+	var profile: Node = root.get_node("Profile")
+	var kept: Dictionary = profile._values.duplicate(true)
+	profile._values.clear()
+
+	var screens := {
+		"records": "res://scenes/Records.tscn",
+		"main menu": "res://scenes/MainMenu.tscn",
+		"sign": "res://scenes/SignSelect.tscn",
+		"credits": "res://scenes/Credits.tscn",
+	}
+	run.state = run.fresh()
+	for label: String in screens:
+		var instance: Node = load(screens[label]).instantiate()
+		root.add_child(instance)
+		for i in 3:
+			await process_frame
+		_check_focus("first launch: " + label, instance)
+		if label == "records":
+			var i18n: Node = root.get_node("I18n")
+			var empty_line: String = i18n.t("Nothing here yet. The first evening you see through writes this page.")
+			var said := false
+			for node in _all_of(instance, []):
+				if node is Label and (node as Label).text == empty_line:
+					said = true
+					break
+			if not said:
+				check(false, "on a fresh profile the records page shows a dozen noughts and does not say it is empty")
+			# And it must not report a difficulty as cleared when none has been.
+			var hardest := _row_text(instance, i18n.t("Hardest week finished"))
+			if hardest.contains("0 ·"):
+				check(false, "a fresh profile's records claim a hardest week finished (%s) when no run has been finished at all" % hardest)
+		instance.queue_free()
+		await process_frame
+
+	profile._values = kept
+	profile.save_to_disk()
+	print("--- the screens a first launch shows are built and honest ---")
+	done()
+
+
+func _test_every_event_says_everything_it_carries() -> void:
+	var i18n: Node = root.get_node("I18n")
+	var settings: Node = root.get_node("Settings")
+	var before_locale = settings.get_value("locale")
+	var missing: Array[String] = []
+	var english: Array[String] = []
+
+	for locale in ["en", "fr"]:
+		settings.set_value("locale", locale)
+		i18n.reload()
+		for e in content.events:
+			var title := str(e.get("title", "?"))
+			var id: String = "event/" + str(root.get_node("Art").slug(title))
+
+			# The choice screen owns head, title, line, and every option.
+			var shown := await _pick_screen_text(e)
+			var want := {"head": "head", "title": "title", "line": "body"}
+			for field: String in want:
+				_expect(missing, english, shown, i18n, locale, id, field,
+					str(e.get(field, "")), "%s (the choice screen)" % title)
+			var oi := 0
+			for o in e.get("opts", []):
+				# An option that hands over a card or a mark shows THAT name, not
+				# its own — `c.n || o.name` in the prototype (v23 ~1981), and the
+				# port follows it. Asserting the option's name there would be
+				# asserting a divergence from the source into place.
+				var names_itself: bool = not (o.has("card") or o.has("mark"))
+				for field in ["kind", "name", "text"]:
+					if field == "name" and not names_itself:
+						continue
+					_expect(missing, english, shown, i18n, locale,
+						"%s/opt%d" % [id, oi], field, str(o.get(field, "")),
+						"%s option %d (the choice screen)" % [title, oi])
+				oi += 1
+
+			# The map row owns the other sentence.
+			var row := await _map_row_text(e)
+			_expect(missing, english, shown_or(row), i18n, locale, id, "body",
+				str(e.get("body", "")), "%s (the map row)" % title)
+
+	settings.set_value("locale", before_locale)
+	i18n.reload()
+	if not missing.is_empty():
+		check(false, "%d thing(s) an event says never reach the player: %s"
+			% [missing.size(), " · ".join(missing.slice(0, 3))])
+	if not english.is_empty():
+		check(false, "%d line(s) show the English source in a French build — the translation exists and the screen looks it up under the wrong scheme: %s"
+			% [english.size(), " · ".join(english.slice(0, 3))])
+	if missing.is_empty() and english.is_empty():
+		print("--- all %d events say every word they carry, on the right screen, in both languages ---" % content.events.size())
+	done()
+
+
+## NOTHING SHOWS A PLAYER A {token}.
+##
+## Pronoun tokens are filled at DISPLAY time, by whoever draws the sentence, and
+## a screen that forgets simply prints the braces. The existing check walks the
+## CONTENT — signs, twists, jobs — which only covers tokens the English source
+## put there. A TRANSLATION may need tokens the English does not: French writes
+## "repart comme {s} est venu{e}" for a sentence whose English, "leaves as they
+## came", needs no agreement at all, and the result screen was not filling
+## anything. Every woman who walked out of a French game did it as "il est
+## venu", one line above the sentence that correctly said "Elle".
+##
+## So this looks at the finished screens, in French, and refuses a brace. It is
+## the end-to-end half: the other check proves every token CAN be filled, this
+## one proves somebody actually did.
+##
+## Run in French deliberately — in English most of these sentences have no
+## tokens at all, so an English pass would prove nothing.
+func _test_no_screen_shows_a_raw_token() -> void:
+	var settings: Node = root.get_node("Settings")
+	var i18n: Node = root.get_node("I18n")
+	var before = settings.get_value("locale")
+	settings.set_value("locale", "fr")
+	i18n.reload()
+
+	# Every pronoun, on the screens that describe one person by name. A sitter's
+	# own `p` decides it, so the three are forced rather than waited for.
+	for pronoun in ["she", "he", "they"]:
+		for outcome in ["win", "lose"]:
+			run.state = run.fresh("token-%s" % pronoun)
+			run.pick_reader(0)
+			run.take_pick(0)
+			for i in run.state["options"].size():
+				if run.state["options"][i]["kind"] in ["sitter", "elite"]:
+					run.choose(i)
+					break
+			var f: Dictionary = run.state["f"]
+			f["sitter"]["p"] = pronoun
+			if outcome == "win":
+				f["hp"] = f["max"]
+				run.win(f)
+			else:
+				f["turn"] = f["turns"]
+				f["hp"] = 0
+				run.lose(f, "left")
+			var instance: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+			root.add_child(instance)
+			for i in 3:
+				await process_frame
+			for node in _all_of(instance, []):
+				if node is Label and (node as Label).text.contains("{"):
+					check(false, "the %s screen shows a raw token to a '%s' sitter: \"%s\""
+						% [outcome, pronoun, (node as Label).text.substr(0, 70)])
+			instance.queue_free()
+			await process_frame
+
+	settings.set_value("locale", before)
+	i18n.reload()
+	print("--- no screen shows a player a raw {token} ---")
+	done()
+
+
+## ALL TWELVE EVENTS, EVERY WORD THEY CARRY, ON THE SCREEN THAT OWNS IT — AND
+## IN THE PLAYER'S LANGUAGE.
+##
+## An event is twelve pieces of writing in twelve shapes, and only one had ever
+## been on a screen. Two things were wrong and neither could be seen from the
+## English build or from the coverage number.
+##
+##   - THE MAP SHOWED THE WRONG SENTENCE. An event carries a `body` (the
+##     situation: "Twenty minutes before the next one knocks.") and a `line`
+##     (the choice: "Spend them on yourself or on the money."). The prototype
+##     puts `body` on the map row and `line` on the screen you get to; the port
+##     put `line` in both, so the map said what the next screen was about to say
+##     and the other sentence was shown nowhere in the game.
+##   - EVERY EVENT WAS IN ENGLISH IN A FRENCH BUILD. Content is keyed by slug
+##     (event/your-own-chair-for-once/line) and both screens looked it up as an
+##     interface string (ui/"Spend them on yourself…"), which exists for no
+##     locale, so the fallback English was shown. Around a hundred and thirty
+##     translated strings, correct in the file, read by nobody — with the
+##     coverage counter at a hundred per cent, because the table was complete
+##     and the lookup was in the wrong table.
+##
+## So this asks each screen for the fields that screen owns, walking the events
+## rather than naming them, and then asks the same question in French: no line
+## may come back as the English source when a translation exists. That second
+## half is the one that generalises — it is a check that the two key schemes
+## have not been mixed up again, anywhere on these screens.
+const EVENT_HEAD := 24
 
 
 ## Builds the main menu under the given look settings and reports the first
@@ -2240,54 +2278,43 @@ func _first_label(node: Node) -> Label:
 	return null
 
 
-## The Minitel screen's own wiring. test_minitel.gd drives the autoload
-## directly and so would pass with an ENVOI button connected to nothing —
-## which is precisely the shape of bug a screen this thin can have. Presses
-## the real button and checks the code came out the other end.
-func _test_minitel_screen_dials() -> void:
-	var profile: Node = root.get_node("Profile")
-	var minitel: Node = root.get_node("Minitel")
-	var before: Array = minitel.entered()
+## The last two, built after everything that changes a look setting has run and
+## put it back — a screen built under somebody else's leftover text_scale would
+## be a screen nobody ships.
+func _test_the_settings_and_library_screens_build() -> void:
+	await _visit_scene("settings", "res://scenes/SettingsMenu.tscn")
+	await _visit_scene("library", "res://scenes/Library.tscn")
+	done()
 
-	var instance: Node = load("res://scenes/MinitelScreen.tscn").instantiate()
-	root.add_child(instance)
-	await process_frame
-	await process_frame
 
-	# TYPING STARTS AT THE PREFIX. The gesture is "dial 3615, then four
-	# letters", and both halves are typed — Minitel.submit() refuses a wrong
-	# prefix. Landing on the code field means a player types four letters,
-	# presses ENVOI, and is turned away over a field they were never shown.
-	var focused: Control = instance.get_viewport().gui_get_focus_owner()
-	if focused != instance._prefix_field:
-		printerr("FAIL: the minitel opens with focus on %s, not the 3615 field — the code is the second half of the gesture"
-			% ("nothing" if focused == null else str(focused)))
-	# And Enter on the prefix carries on to the code rather than doing nothing.
-	instance._prefix_field.text_submitted.emit("3615")
-	await process_frame
-	if instance.get_viewport().gui_get_focus_owner() != instance._code_field:
-		printerr("FAIL: Enter on the 3615 field does not move to the code — the gesture stalls half way")
-
-	instance._prefix_field.text = "3615"
-	instance._code_field.text = "oeil"
-	# I18n by get_node(), not by its global name: this script is compiled by
-	# `godot -s` BEFORE the autoloads are registered, so the bare identifier
-	# does not resolve here. Same trap as autoload/Nav.gd's header describes.
-	var envoi := _find_button(instance, root.get_node("I18n").t("ENVOI"))
-	if envoi == null:
-		printerr("FAIL: the minitel screen has no ENVOI button")
-	else:
-		envoi.pressed.emit()
-		await process_frame
-		if not minitel.entered().has("OEIL"):
-			printerr("FAIL: pressing ENVOI did not dial — the screen is not wired to Minitel.submit()")
-		else:
-			print("--- minitel screen dials (%s) ---" % [minitel.entered()])
-
-	instance.queue_free()
-	await process_frame
-	profile.set_stat("codes_entered", before)
-
+## THE PAGES OF PROSE SIT IN THE MIDDLE OF THE SCREEN, AND ARE THE WIDTH THEY
+## MEANT TO BE.
+##
+## Two bugs, one measurement, and neither of them shows up in any test that only
+## asks whether a screen built:
+##
+##   1. the rules, the credits and the mods list all held their text to a
+##      readable measure and then pinned it to the left margin, so four hundred
+##      pixels of a 1280 canvas — and nine hundred of an ultrawide one — were
+##      empty while the words sat in the corner;
+##   2. the fix for that, on its first attempt, dropped the width the column was
+##      relying on, and a ScrollContainer leaves its child at minimum width
+##      unless the child asks to fill. Minimum width for a wrapping label is one
+##      character, so the whole rules screen came out as a vertical stripe of
+##      single letters. It still built. It still had every label, every string
+##      and every button, so a structural test called it fine.
+##
+## Both are the same measurement: where is the text, and how wide. The union of
+## the wrapping labels' rectangles gives it. Its centre must be near the canvas
+## centre — that is (1) — and its width must be a real measure rather than a
+## stripe or a full-bleed sprawl, which is (2) and also catches the original
+## bug's opposite, a page that gave up and used the whole window.
+##
+## Checked at the shipping canvas and at an ultrawide one, because the centring
+## has to survive a resize: it is recomputed on the parent's `resized` signal,
+## and a version that only ran once at build time would pass the first and fail
+## the second.
+const CENTRED_SLACK := 60.0
 
 func _find_button(node: Node, text: String) -> Button:
 	if node is Button and (node as Button).text == text:
@@ -2339,7 +2366,7 @@ func _test_keyboard_can_play() -> void:
 	var laid_before: int = run.state["f"]["cross"].size()
 	var focused: Control = instance.get_viewport().gui_get_focus_owner()
 	if focused == null:
-		printerr("FAIL: the reading screen focused nothing, so ui_accept has nowhere to land")
+		check(false, "the reading screen focused nothing, so ui_accept has nowhere to land")
 	else:
 		var press := InputEventAction.new()
 		press.action = "ui_accept"
@@ -2348,12 +2375,13 @@ func _test_keyboard_can_play() -> void:
 		await process_frame
 		var laid_after: int = run.state["f"]["cross"].size()
 		if laid_after <= laid_before:
-			printerr("FAIL: ui_accept on a focused card laid nothing (%d -> %d) — the hand is mouse-only" % [laid_before, laid_after])
+			check(false, "ui_accept on a focused card laid nothing (%d -> %d) — the hand is mouse-only" % [laid_before, laid_after])
 		else:
 			print("--- keyboard can lay a card (%d -> %d) ---" % [laid_before, laid_after])
 
 	instance.queue_free()
 	await process_frame
+	done()
 
 
 ## Every screen has to leave keyboard focus somewhere, or the first Tab or
@@ -2375,15 +2403,15 @@ func _check_focus(label: String, instance: Node) -> void:
 	var focused: Control = instance.get_viewport().gui_get_focus_owner()
 	if focused == null:
 		if not NO_CONTROLS.has(label):
-			printerr("FAIL: %s left nothing focused — keyboard and gamepad players cannot start here" % label)
+			check(false, "%s left nothing focused — keyboard and gamepad players cannot start here" % label)
 	elif not instance.is_ancestor_of(focused):
-		printerr("FAIL: %s focused a node outside itself (%s)" % [label, focused])
+		check(false, "%s focused a node outside itself (%s)" % [label, focused])
 	elif focused is BaseButton and (focused as BaseButton).disabled:
 		# Godot places focus on a disabled Button quite happily, so "something
 		# is focused" is not enough — a player pressing Confirm on arrival would
 		# get nothing and have no way to know why. The settings rail disables
 		# its selected entry, which put it first in line for focus.
-		printerr("FAIL: %s focused a DISABLED control (%s) — pressing Confirm there does nothing" % [label, focused])
+		check(false, "%s focused a DISABLED control (%s) — pressing Confirm there does nothing" % [label, focused])
 
 
 ## EVERY SCREEN A RUN CAN BE ON HAS A WAY OFF IT.
@@ -2411,7 +2439,7 @@ func _check_way_out(label: String, instance: Node) -> void:
 		if node.is_in_group(UIKitScript.WAY_OUT):
 			out.append(node)
 	if out.is_empty():
-		printerr("FAIL: %s has no way back to the main menu — from here the Library, the Minitel and QUIT are all unreachable" % label)
+		check(false, "%s has no way back to the main menu — from here the Library, the Minitel and QUIT are all unreachable" % label)
 		return
 	# Present is not the same as usable. Disabled is the one this can really
 	# check: UIKit.button() connects a sound wrapper to every button it makes, so
@@ -2420,9 +2448,9 @@ func _check_way_out(label: String, instance: Node) -> void:
 	# named honestly rather than treated as proof the exit goes anywhere.
 	for node in out:
 		if node is BaseButton and (node as BaseButton).disabled:
-			printerr("FAIL: %s has a way out that is disabled" % label)
+			check(false, "%s has a way out that is disabled" % label)
 		elif node is BaseButton and (node as BaseButton).pressed.get_connections().is_empty():
-			printerr("FAIL: %s has a way-out control that nothing at all is connected to (%s)" % [label, node])
+			check(false, "%s has a way-out control that nothing at all is connected to (%s)" % [label, node])
 
 
 ## EVERY SCREEN IS SOMEWHERE. The game is set in one room and every screen is a
@@ -2440,11 +2468,11 @@ func _check_way_out(label: String, instance: Node) -> void:
 func _check_room(label: String, instance: Node) -> void:
 	var room := instance.find_child("Room", true, false)
 	if room == null:
-		printerr("FAIL: %s has no room behind it — it is a flat rectangle with widgets on it" % label)
+		check(false, "%s has no room behind it — it is a flat rectangle with widgets on it" % label)
 		return
 	var siblings: int = room.get_parent().get_child_count()
 	if room.get_index() > 1:
-		printerr("FAIL: %s draws its room at position %d of %d — it is over the screen, not behind it"
+		check(false, "%s draws its room at position %d of %d — it is over the screen, not behind it"
 			% [label, room.get_index(), siblings])
 
 
@@ -2468,11 +2496,11 @@ func _check_styled(label: String, instance: Node) -> void:
 		if node is CheckBox or node is CheckButton:
 			continue
 		if node is Button and not (node as Button).has_theme_stylebox_override("normal"):
-			printerr("FAIL: %s has an unstyled Button ('%s') — it is wearing Godot's grey default"
+			check(false, "%s has an unstyled Button ('%s') — it is wearing Godot's grey default"
 				% [label, (node as Button).text])
 			return
 		if node is LineEdit and not (node as LineEdit).has_theme_stylebox_override("normal"):
-			printerr("FAIL: %s has an unstyled LineEdit — it is wearing Godot's grey default" % label)
+			check(false, "%s has an unstyled LineEdit — it is wearing Godot's grey default" % label)
 			return
 
 
@@ -2493,10 +2521,11 @@ func _test_settings_return_path() -> void:
 	nav.settings_return_scene = ""
 	nav.goto_settings("res://scenes/Map.tscn")
 	if nav.settings_return_scene != "res://scenes/Map.tscn":
-		printerr("FAIL: Nav should record the return scene, got '%s'" % nav.settings_return_scene)
+		check(false, "Nav should record the return scene, got '%s'" % nav.settings_return_scene)
 	else:
 		print("--- settings return path OK ---")
 	nav.settings_return_scene = ""
+	done()
 
 
 func _visit(label: String, setup: Callable) -> void:
