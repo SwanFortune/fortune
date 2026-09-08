@@ -21,7 +21,13 @@
 #   1. the build starts and is still alive at the end;
 #   2. the console carries nothing but the known environment complaints;
 #   3. EVERY STEP CHANGES THE SCREEN. A key that reaches nothing leaves the
-#      frame identical, which is what a scene that failed to load looks like.
+#      frame identical, which is what a scene that failed to load looks like;
+#   4. WHAT IS ACTUALLY IN THE PACK. Every .json the content pipeline reads and
+#      every locale table, present by the exact path the game asks for — and
+#      tests/* absent, which this file's own header claims and nothing checked.
+#      Added after the shipped build turned out to have no sound at all: the
+#      pack carries a converted .sample and not the .wav, and Audio.gd reads
+#      bytes by path on purpose. See tests/pck_contents.py.
 set -u
 
 cd "$(dirname "$0")/.."
@@ -84,6 +90,29 @@ if [ -n "$noise" ]; then
   echo "  FAIL  the exported build printed something unexpected:"
   printf '%s\n' "$noise" | sed 's/^/        /'
   fails=$((fails + $(printf '%s\n' "$noise" | wc -l)))
+fi
+
+# WHAT THE PACK CARRIES. Cheap, exact, and the only check here that can say
+# WHY a screen is wrong rather than that it is.
+if ! python3 tests/pck_contents.py "$BIN" > "$OUT/pck.txt" 2>"$OUT/pck.err"; then
+  echo "  FAIL  could not read the pack: $(cat "$OUT/pck.err")"
+  fails=$((fails + 1))
+else
+  before=$fails
+  for want in $(cd . && ls data/base/*.json data/base/locale/*.json); do
+    grep -qx "$want" "$OUT/pck.txt" || {
+      echo "  FAIL  $want is not in the exported pack — the build ships without it"
+      fails=$((fails + 1))
+    }
+  done
+  if grep -q "^tests/" "$OUT/pck.txt"; then
+    echo "  FAIL  the pack carries tests/ — exclude_filter is not doing its job"
+    fails=$((fails + 1))
+  fi
+  # Only when nothing above it failed — an "ok" printed under its own failures
+  # is the kind of output that gets skimmed and believed.
+  [ "$fails" -eq "$before" ] && \
+    echo "  ok    the pack carries $(wc -l < "$OUT/pck.txt") files, content and locale among them, and no tests/"
 fi
 
 prev=""

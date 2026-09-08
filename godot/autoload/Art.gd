@@ -42,6 +42,31 @@ func reload() -> void:
 		return
 	manifest = parsed.get("assets", {})
 	spec = parsed.get("spec", {})
+	_say_what_does_not_resolve()
+
+
+## AN ASSET THE MANIFEST CALLS DELIVERED AND NOTHING CAN LOAD IS WORTH ONE LINE.
+##
+## Silent today: all seventy-nine are `missing`, which is not a problem, it is
+## the state of the project. It says nothing until somebody claims otherwise —
+## and then it says it in the build where it matters, because tests/run_all.sh
+## and tests/smoke_export.sh both fail on an unexpected warning.
+##
+## This is here because the same bug in Audio shipped: the exported build could
+## not see any of its .wav files and every cue was silent, and the only reason
+## it was caught before release rather than after is that somebody listed what
+## the binary actually contains. Art has the identical shape and no symptom yet,
+## because nothing has been drawn.
+func _say_what_does_not_resolve() -> void:
+	var blank: Array[String] = []
+	for id in manifest:
+		if str(manifest[id].get("status", UNDELIVERED)) == UNDELIVERED:
+			continue
+		if texture(str(id)) == null:
+			blank.append(str(id))
+	if not blank.is_empty():
+		push_warning("[Art] %d asset(s) are marked delivered and load nothing: %s"
+			% [blank.size(), ", ".join(blank)])
 
 
 ## "Pour The Tea" -> "pour-the-tea". Must match gen_art_manifest.gd's _slug()
@@ -104,9 +129,19 @@ func texture(id: String) -> Texture2D:
 ## pair worked only for art that had been through the editor, which is the one
 ## case that was never going to be the interesting one. This path works for
 ## both, and is why "drop the PNG in and it appears" is actually true.
+## THE SAME TWO STEPS AS Audio._load_stream(), for the same reason and against a
+## bug that has not happened yet. An export does not carry the .png either — the
+## importer converts it to a .ctex and the original is not in the pack — so the
+## day the illustrator's first drawing lands, FileAccess.file_exists() is false
+## in the shipped build and every card falls back to its placeholder. In the
+## source tree it would look perfect. That is the audio bug exactly, and the
+## only reason it was found there first is that the audio already exists.
 func _load_texture(path: String) -> Texture2D:
 	if not FileAccess.file_exists(path):
-		return null
+		if not ResourceLoader.exists(path):
+			return null
+		var res = ResourceLoader.load(path)
+		return res if res is Texture2D else null
 	var img := Image.new()
 	if img.load(path) != OK or img.is_empty():
 		push_warning("[Art] %s could not be read as an image." % path)

@@ -125,12 +125,44 @@ func _ready() -> void:
 		_loops[channel] = pair
 		_at[channel] = 0
 
+	# EXPLICITLY, not through the signal above. Content is earlier in the
+	# autoload order, so it has already loaded and already emitted `reloaded` by
+	# the time this runs — connecting to a signal that has finished firing means
+	# reload() does not happen at boot at all. That was harmless while it only
+	# cleared an empty cache, and is not harmless now that it is also the check.
+	_say_what_does_not_resolve()
+
 
 ## Drops every cached stream, so a mod repointing a sound takes effect on the
 ## next play rather than at the next launch. Wired to Content.reloaded in
 ## _ready(), so no caller has to remember it.
 func reload() -> void:
 	_cache.clear()
+	_say_what_does_not_resolve()
+
+
+## A CUE THE REGISTRY LISTS AND NOTHING CAN PLAY IS WORTH ONE LINE.
+##
+## The missing-file contract at the top of this file is deliberate and stays:
+## the game must run with no audio at all. But "a missing file is silence"
+## quietly covers a second case it was never meant to — a cue that IS supposed
+## to have a file, whose file the build did not carry — and that case is
+## indistinguishable from working, by design, in the one place it matters most.
+##
+## So the contract keeps its promise at PLAY time and this says so once at LOAD
+## time. tests/run_all.sh and tests/smoke_export.sh both fail on an unexpected
+## warning, which means the exported artefact is now checked for this too.
+func _say_what_does_not_resolve() -> void:
+	var quiet: Array[String] = []
+	for event in Content.sounds:
+		if _load_stream(sound_path(event, Content.sounds[event])) == null:
+			quiet.append(event)
+	for cue in Content.music:
+		if _load_stream(loop_path(cue, Content.music[cue])) == null:
+			quiet.append(cue)
+	if not quiet.is_empty():
+		push_warning("[Audio] %d registered cue(s) resolve to no file and will be silent: %s"
+			% [quiet.size(), ", ".join(quiet)])
 
 
 ## Plays `event`. Unknown events, missing files and an empty registry are all
@@ -226,7 +258,7 @@ func status_summary() -> Dictionary:
 ## true rather than nearly true.
 func _load_stream(path: String) -> AudioStream:
 	if not FileAccess.file_exists(path):
-		return null
+		return _imported(path)
 	match path.get_extension().to_lower():
 		"wav":
 			return _load_wav(path)
@@ -238,6 +270,33 @@ func _load_stream(path: String) -> AudioStream:
 			return mp3 if not mp3.data.is_empty() else null
 	push_warning("[Audio] %s is not a format this loads (wav, ogg, mp3)." % path)
 	return null
+
+
+## THE OTHER HALF OF THE PROMISE, and the half that was missing.
+##
+## Reading bytes is what makes a file dropped into assets/audio/ — or shipped by
+## a mod in user://mods/ — play without going near the editor. It is also why
+## THE SHIPPED GAME HAD NO SOUND AT ALL. An export does not carry the .wav: the
+## importer converts it, the pack holds assets/audio/coin.wav.import and a
+## .sample under .godot/imported/, and assets/audio/coin.wav itself is not in
+## there. So FileAccess.file_exists() was false for all seventeen cues, and the
+## missing-file contract at the top of this file turned that into silence —
+## exactly as designed, for a case it was never meant to cover.
+##
+## Nothing caught it because the suite runs from the source tree, where the .wav
+## is a real file. It was found by listing what the exported binary actually
+## contains and comparing that with what the game asks for at runtime.
+##
+## Not fixable in the build: `include_filter` does not force the raw form of a
+## file the importer already handles, `.gdignore` takes it out of the export
+## altogether, and the `importer="keep"` sidecar is in .gitignore as a
+## regenerated file, so it would not survive a clone. It belongs here anyway —
+## the imported resource IS the file, in the form that build carries.
+func _imported(path: String) -> AudioStream:
+	if not ResourceLoader.exists(path):
+		return null
+	var res = ResourceLoader.load(path)
+	return res if res is AudioStream else null
 
 
 ## Minimal RIFF/WAVE reader — enough for uncompressed PCM, which is what every
