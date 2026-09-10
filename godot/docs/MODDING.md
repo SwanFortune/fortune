@@ -116,18 +116,41 @@ each record is merged by:
 | `shop` | object | (whole-value override) | `shop.json` |
 
 For an array registry merged "by field": if your record's id (e.g. a card's
-`n`) matches an existing record, yours **replaces** it — this is how a
-balance-patch mod overrides an existing card's numbers without touching the
-base game's files. If the id is new, your record is appended. This is exactly
-how `ModLoader._merge_array_by_key()` works; read it if you want the precise
-mechanics.
+`n`) matches an existing record, **your fields are laid over it** — you supply
+what you are changing and inherit the rest. That is how a balance patch works:
 
-**Whole-record replacement has a sharp edge worth knowing.** A pack that
-changes one number by restating only that number gets a card with only that
-number: the rarity, the archetype, the flavour line and the spoken clause all
-go with the record you replaced. If you mean to tweak a card, restate the whole
-card. The Mods screen will not warn you about this one, because it is doing
-what this page says it does.
+```json
+{ "cards_basics": [ { "n": "Take Their Coat", "cost": 0 } ] }
+```
+
+is a card that costs nothing and is otherwise the card the base game ships,
+including any field the base game adds to it after you write this. If the id is
+new, your record is appended instead. `ModLoader._merge_array_by_key()` is the
+precise mechanics.
+
+**Nested values are taken whole, not merged into.** A card's `e` is its
+effects, so `"e": { "faith": 4 }` means the effects are now exactly that —
+otherwise there would be no way to take an effect away.
+
+**To take a field away, name it in `_remove`.** `"_remove": ["fl"]` gives the
+card no flavour line, as against omitting `fl`, which keeps the base game's.
+Note that setting a field to `null` sets it to null — `"el": null` is how the
+seven neutral cards say they have no element, so null is a value here, not a
+way of deleting one.
+
+**To replace a record outright, say so:** `"_replace": true` in the record
+restores whole-record replacement, and the record then has to carry everything
+a record of its kind carries — see the contract below, which will tell you what
+you dropped.
+
+> This used to be the only behaviour, and this page called it a sharp edge and
+> told you to restate the whole card. Both halves were worse than they read. A
+> patch restating one number produced a card with only that number — no element,
+> no faith, no flavour, no load error, a blank card in the deck. And restating
+> the whole card, as advised, froze it: a mod written before the base game grew
+> a field kept overriding that card without one for ever, and a missing spoken
+> clause makes a reading say "and Take Their Coat" in the middle of a sentence.
+> A full restate is a copy, and a copy stops tracking what it copied.
 
 **A record you INVENT is checked.** It has to carry the fields every base
 record of its kind carries — a `cards_minor` entry needs the eight things all

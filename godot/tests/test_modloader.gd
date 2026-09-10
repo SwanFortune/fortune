@@ -128,8 +128,9 @@ func _find(rows: Array, key_field: String, value: String) -> Dictionary:
 
 # ── the merge rules ─────────────────────────────────────────────────────
 
-## Reusing an existing id REPLACES that record. This is how a balance patch
-## retunes a card without shipping a copy of the base game.
+## Reusing an existing id PATCHES that record — this one restates several
+## fields, which is the ordinary case; that the ones it leaves out survive is
+## _test_an_override_inherits_the_rest_of_the_record below.
 func _test_a_pack_overrides_by_key() -> void:
 	var base := _load()
 	var before: Array = base["registries"]["cards_basics"]
@@ -360,10 +361,98 @@ func _test_a_new_record_must_carry_what_the_base_records_carry() -> void:
 	done()
 
 
-## AND AN OVERRIDE IS LEFT ALONE. A record whose key matches a base one replaces
-## it whole — docs/MODDING.md promises that — so restating only the field you
-## are changing is doing what the docs say you may. The contract above must not
-## turn a documented feature into an error.
+## AN OVERRIDE INHERITS WHAT IT DOES NOT MENTION.
+##
+## The behaviour this replaced was measured before it was changed, and it was
+## worse than the docs made it sound: `{"n": "Take Their Coat", "cost": 0}`
+## loaded as exactly that — no element, no faith, no flavour, no spoken clause,
+## and no load error. A blank card, in the deck, playable, worth nothing.
+func _test_an_override_inherits_the_rest_of_the_record() -> void:
+	var before: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(not before.is_empty(), "precondition: the base game should ship Take Their Coat")
+
+	_pack("patch", {}, {"cards.json": {"cards_basics": [{"n": "Take Their Coat", "cost": 0}]}})
+	var after: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(int(after.get("cost", -1)) == 0, "the field it changed should change, got %s" % after.get("cost"))
+	for field in before:
+		if field == "cost" or str(field).begins_with("_"):
+			continue
+		check(after.has(field) and after[field] == before[field],
+			"a one-field patch must not take \"%s\" with it — was %s, now %s"
+			% [field, before.get(field), after.get(field)])
+	done()
+
+
+## AND IT TRACKS THE BASE GAME AFTERWARDS, which is the reason for the change
+## rather than a nicety.
+##
+## Whole-record replacement made every override a COPY, and a copy stops
+## tracking what it copied: a balance patch written before the base game grew a
+## field kept overriding that card without one for ever. Measured too — dropping
+## `sp` makes the spoken clause fall back to the card's NAME, so a reading says
+## "and Take Their Coat" in the middle of a sentence, with no error anywhere.
+## Simulated here by a patch that restates the card as it was before a field
+## existed; the field has to survive.
+func _test_an_override_does_not_freeze_the_record_it_patches() -> void:
+	var before: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(before.has("sp"), "precondition: the base card should carry a spoken clause")
+	var stale: Dictionary = before.duplicate(true)
+	stale.erase("sp")
+	stale.erase("_pack")
+	stale["f"] = 9
+
+	_pack("stale", {}, {"cards.json": {"cards_basics": [stale]}})
+	var after: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(int(after.get("f", -1)) == 9, "the patch should still apply, f is %s" % after.get("f"))
+	check(str(after.get("sp", "")) == str(before["sp"]),
+		"a field the patch predates must survive it — '%s' became '%s'" % [before["sp"], after.get("sp", "")])
+	done()
+
+
+## THE TWO WAYS OUT: `_remove` lists fields to drop, `_replace` restores
+## whole-record replacement for a record that means it. Neither may reach the
+## content, and neither may be a value the data could already carry.
+func _test_a_field_can_be_removed_and_a_record_replaced_outright() -> void:
+	_pack("remove", {}, {"cards.json": {"cards_basics": [{"n": "Take Their Coat", "_remove": ["fl"]}]}})
+	var stripped: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(not stripped.has("fl"), "a listed field should be removed, still says %s" % stripped.get("fl"))
+	check(stripped.has("el"), "and nothing else should go with it")
+	check(not stripped.has("_remove"), "and the list must not reach the content")
+	# `null` is a VALUE here, not a sentinel: seven base cards are neutral and say
+	# so with "el": null. The first version of this used null to mean "remove"
+	# and erased the element of every card the Library writes back.
+	_clean()
+	# ON A CARD THAT IS ALREADY THERE, or this measures nothing: a name the pool
+	# does not have is APPENDED, which never goes through the patch path at all.
+	# The first version of this used a card from another pool and passed just as
+	# happily with the null-as-sentinel bug put back.
+	_pack("nulled", {}, {"cards.json": {"cards_basics": [{"n": "Take Their Coat", "fl": null}]}})
+	var nulled: Dictionary = _find(_load()["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(nulled.has("fl") and nulled["fl"] == null,
+		"a field set to null should BE null, not gone — got has=%s value=%s"
+		% [nulled.has("fl"), nulled.get("fl", "<gone>")])
+	_clean()
+
+	_pack("wholesale", {}, {"cards.json": {"cards_basics": [
+		{"n": "Take Their Coat", "cost": 0, "_replace": true},
+	]}})
+	var loaded := _load()
+	var replaced: Dictionary = _find(loaded["registries"]["cards_basics"], "n", "Take Their Coat")
+	check(not replaced.has("fl"), "_replace should start from nothing, kept %s" % replaced.get("fl"))
+	check(not replaced.has("_replace"), "and the flag must not reach the content")
+	# Starting from nothing means the base-content contract now has something to
+	# say, which is the point: the one way to arrive incomplete is to ask for it.
+	check("\n".join(loaded["errors"]).contains("Take Their Coat"),
+		"a _replace that drops required fields should be reported: %s" % [loaded["errors"]])
+	done()
+
+
+## AND AN OVERRIDE IS LEFT ALONE BY THE CONTRACT. Restating only the field you
+## are changing is the documented way to patch a card, so the "every record
+## carries what the base records carry" check must not call it broken. It no
+## longer needs an exemption to manage that — a patched record has inherited the
+## base record's fields by the time it is checked — but the promise is the same
+## one and it is worth a test of its own.
 func _test_an_override_may_restate_only_what_it_changes() -> void:
 	_pack("cheap_coat", {"id": PREFIX + "cheap_coat", "name": "Cheap Coat", "files": ["cards.json"]},
 		{"cards.json": {"cards_basics": [{"n": "Take Their Coat", "cost": 0}]}})

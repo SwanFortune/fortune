@@ -107,8 +107,6 @@ func build_registries() -> Dictionary:
 		packs.append(rec)
 		if enabled:
 			_load_pack_into(pack_dir, manifest, registries, rec)
-			if is_base:
-				_remember_what_the_base_defined(registries)
 	_check_against_the_base(registries)
 	return registries
 
@@ -137,13 +135,12 @@ const NOT_RECORD_PREFIX := "locale_"
 ## to all thirteen readers and mods must supply it, with no schema to edit —
 ## add it to twelve and it is optional, which is also the right answer.
 ##
-## OVERRIDES ARE EXEMPT, and deliberately. A record whose key matches a base
-## one REPLACES it whole — docs/MODDING.md promises exactly that — so a pack
-## that changes a card's cost by restating only the cost is doing what it was
-## told it could. It is a sharp edge (the card loses its rarity, its flavour and
-## its spoken clause along with the fields nobody restated) but it is a
-## documented one, and quietly changing the merge rule underneath every existing
-## mod is not this check's business.
+## EVERY RECORD, INCLUDING OVERRIDES. Overrides used to be exempt because they
+## had to be: replacement was wholesale, so a balance patch restating one number
+## reached here with one number and this would have called it broken. Since
+## _laid_over() an override inherits what it does not mention, so it satisfies
+## the contract for free — and the only way to reach here incomplete is to have
+## asked for it with `"_replace": true`.
 ##
 ## Reported rather than refused. A pack with a malformed card should load its
 ## other forty, and the Mods screen already puts load errors in front of the
@@ -159,13 +156,18 @@ func _check_against_the_base(registries: Dictionary) -> void:
 		var required := _fields_every_base_record_has(records)
 		if required.is_empty():
 			continue
-		var key_field: String = ARRAY_KEY_FIELDS.get(key, "")
-		var was_the_base_s: Dictionary = _base_keys.get(key, {})
+		# NO EXEMPTION FOR OVERRIDES ANY MORE. There used to be one, and it was
+		# forced: replacement was wholesale, so a balance patch legitimately
+		# restating one number arrived here missing everything else and this
+		# would have called it broken. Now an override is laid OVER the base
+		# record — see _laid_over() — so by the time it is checked it carries
+		# what the base carried, and the contract applies to every record
+		# equally. The one way to arrive here incomplete is `"_replace": true`,
+		# which is a record saying it means to start from nothing; that is
+		# exactly when somebody should be told what it dropped.
 		for r in records:
 			if not (r is Dictionary) or str(r.get("_pack", BASE_ID)) == BASE_ID:
 				continue
-			if key_field != "" and was_the_base_s.has(r.get(key_field, null)):
-				continue  # an override; see the note above
 			for field in required:
 				if not r.has(field):
 					errors.append("%s: its %s entry \"%s\" has no \"%s\", which every %s in the base game has — it will load and then behave oddly"
@@ -191,29 +193,6 @@ func _fields_every_base_record_has(records: Array) -> Array:
 			if not r.has(k):
 				common.erase(k)
 	return common.keys()
-
-
-## Which records the base game defined, by category and key, captured the moment
-## the base pack has loaded and before any mod has had a chance to replace one.
-## Afterwards there is no way to tell an override from a new record: replacement
-## leaves nothing of the original behind.
-var _base_keys: Dictionary = {}
-
-
-func _remember_what_the_base_defined(registries: Dictionary) -> void:
-	_base_keys = {}
-	for key in registries:
-		if not ARRAY_KEY_FIELDS.has(key):
-			continue
-		var records = registries[key]
-		if not (records is Array):
-			continue
-		var key_field: String = ARRAY_KEY_FIELDS[key]
-		var seen := {}
-		for r in records:
-			if r is Dictionary and r.has(key_field):
-				seen[r[key_field]] = true
-		_base_keys[key] = seen
 
 
 ## Enough to find the record in a file. Most content is named; some is keyed.
@@ -459,8 +438,84 @@ func _merge_array_by_key(target: Array, incoming: Array, key_field: String, pack
 			target.append(rec)
 			continue
 		var id = rec[key_field]
-		if index_of.has(id):
-			target[index_of[id]] = rec
-		else:
+		if not index_of.has(id):
 			index_of[id] = target.size()
-			target.append(rec)
+			target.append(_without_the_flags(rec))
+			continue
+		var at: int = index_of[id]
+		if bool(rec.get(REPLACE_FIELD, false)):
+			target[at] = _without_the_flags(rec)
+		else:
+			target[at] = _laid_over(target[at], rec)
+
+
+## AN OVERRIDE SUPPLIES WHAT IT CHANGES, and inherits the rest.
+##
+## This used to be `target[at] = rec` — the record replaced the one it matched,
+## whole. That was documented, and docs/MODDING.md called it a sharp edge and
+## told a modder to restate the whole card. Both halves of that were measured
+## before this changed, and both are worse than they read:
+##
+##   - a balance patch that restates one number got a card that was ONLY that
+##     number. `{"n": "Take Their Coat", "cost": 0}` loaded as exactly that: no
+##     element, no faith, no effects, no flavour, and NO LOAD ERROR. A blank
+##     card, in the deck, playable, worth nothing;
+##   - and doing what the docs said instead is worse in the long run, because
+##     restating the whole card FREEZES it at the version it was copied from.
+##     A mod written before the base game grew `sp` keeps overriding the card
+##     without one for ever; the spoken clause then falls back to the card's
+##     NAME, so a reading says "and Take Their Coat" in the middle of a
+##     sentence. Measured, silent, and no error either.
+##
+## The second is the one that decided it. A full restate is a COPY of the base
+## record, and a copy stops tracking what it copied — which is the failure this
+## repository keeps finding in hand-kept lists, arriving here by another door.
+## Laying the patch over the base instead means an override tracks the base for
+## everything it does not mention, which is what a balance patch means.
+##
+## Nested values are taken whole rather than merged into. `"e"` is a card's
+## effects, and "the effects are now exactly this" has to stay sayable — merging
+## a level down would make removing one effect impossible.
+##
+## TWO ESCAPES, both explicit and both underscored like every other bookkeeping
+## key here, and both stripped before the record reaches content:
+##
+##   - `"_remove": ["fl"]` takes fields away;
+##   - `"_replace": true` restores wholesale replacement for a record that really
+##     does mean to start from nothing.
+##
+## THE FIRST ONE WAS `"fl": null` AND THAT WAS WRONG. It reads better and it
+## overloads a value this content already uses: seven base cards are neutral and
+## say so with `"el": null`, so the Library's own pack — which writes the card
+## back whole — had its element erased by the rule meant to help it. The suite
+## caught it, once the check below stopped exempting overrides. A sentinel has
+## to be something the data cannot already mean.
+const REPLACE_FIELD := "_replace"
+const REMOVE_FIELD := "_remove"
+
+
+func _laid_over(base: Dictionary, patch: Dictionary) -> Dictionary:
+	var out: Dictionary = base.duplicate(true)
+	for k in patch:
+		if str(k) == REPLACE_FIELD or str(k) == REMOVE_FIELD:
+			continue
+		out[k] = patch[k]
+	for k in _asked_to_remove(patch):
+		out.erase(k)
+	return out
+
+
+## A record as it should reach the content: its own fields, minus anything it
+## asked to drop, minus the two flags themselves.
+func _without_the_flags(rec: Dictionary) -> Dictionary:
+	var out: Dictionary = rec.duplicate(true)
+	for k in _asked_to_remove(rec):
+		out.erase(k)
+	out.erase(REPLACE_FIELD)
+	out.erase(REMOVE_FIELD)
+	return out
+
+
+func _asked_to_remove(rec: Dictionary) -> Array:
+	var listed = rec.get(REMOVE_FIELD, [])
+	return listed if listed is Array else []
