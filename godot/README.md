@@ -76,9 +76,10 @@ godot --headless --path godot -s tests/test_modloader.gd       # pack discovery,
 godot --headless --path godot -s tests/test_boot.gd            # the game actually starts
 godot --headless --path godot -s tests/test_icons.gd           # the vector icons rasterise and are complete
 godot --headless --path godot -s tests/test_the_suite.gd       # every test method declared is a test method run
+godot --headless --path godot -s tests/test_against_the_prototype.gd  # the engine against the prototype's own simulate()
 ```
 
-All twenty-two should print `ALL PASS`. Several of them
+All twenty-three should print `ALL PASS`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The

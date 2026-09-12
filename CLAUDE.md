@@ -16,6 +16,15 @@ Neither is built or run. Do not edit them.
 "the locale is at 100%" were both false while everything said otherwise. If the
 code makes a claim about itself, write the thing that checks it.
 
+**The specification is executable — run it, do not transcribe it.**
+`godot/tests/test_against_the_prototype.gd` puts random readings through both
+`Rules.gd` and the prototype's own `simulate()`, which
+`godot/tests/prototype_bridge.js` cuts out of the .html at run time (never a
+copy — a copy stops tracking what it copied). It needs `node`, and skips with a
+note when there is none; anything else that stops it working is a failure, not
+a skip. It found a wall the port regrew from the wrong number, which had been
+quietly halving what a piercing reader does since the port began.
+
 **Render the screen and look at it.** `godot/tests/screenshot.gd` boots any screen
 under Xvfb and saves a PNG:
 

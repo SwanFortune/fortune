@@ -6,6 +6,34 @@ to an end-of-run screen — built to prove the architecture and the mod/Workshop
 story, not to be the finished game. Below is what changed on the way over,
 and what's deliberately not here yet.
 
+## The wall the port regrew from the wrong number
+
+Not a judgment call — a plain bug, and it is here because it hid among the
+judgment calls for the whole of the port.
+
+`shieldNext` is what a sitter's denial wall grows to for their next reading. The
+prototype grows it from the wall the reading actually faced, which is the
+sitter's denial AFTER a piercing reader has gone through it. `Rules.next_wall()`
+grew it from the raw figure, so in the port a reader whose entire trait is going
+through walls never wore one down: it came back at full height every reading,
+for ever, while in the prototype piercing compounds across a fight.
+
+Nothing caught it. It is invisible in a single reading — every other field of
+every reading agreed — and it only shows as a fight that goes longer than it
+should. It is very likely why pierce measured "at the bare floor, the same win
+rate as a reader with no trait at all"; the compensation added at the time
+(`pierce.spare`) was treating the symptom.
+
+Found by tests/test_against_the_prototype.gd on its first run: 215 of 2000
+random readings disagreed, all of them on this one field. Measured afterwards on
+a fixed seed, Scorpio goes from 47.4% to 59.0% and the whole field tightens from
+a 36-point spread to 32. `spare` is still load-bearing — without it Scorpio
+drops to 24%, under the floor — so both stay.
+
+The empty reading keeps growing from the raw wall, which is the prototype's own
+asymmetry between its blank branch and its main one, and reads as intended
+rather than as a slip: you pierce nothing by saying nothing.
+
 ## How this was ported
 
 Read directly from `project/Parlour v23.dc.html` and `project/HANDOFF.md`
