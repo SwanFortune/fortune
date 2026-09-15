@@ -22,8 +22,11 @@ code makes a claim about itself, write the thing that checks it.
 `godot/tests/prototype_bridge.js` cuts out of the .html at run time (never a
 copy — a copy stops tracking what it copied). It needs `node`, and skips with a
 note when there is none; anything else that stops it working is a failure, not
-a skip. It found a wall the port regrew from the wrong number, which had been
-quietly halving what a piercing reader does since the port began.
+a skip. It covers `simulate()` and `autoText()` — the arithmetic and the words printed
+on every card. It found a wall the port regrew from the wrong number, which had
+been quietly halving what a piercing reader does since the port began, and a
+card text that printed "+0 more if you say it first." where the specification
+says nothing at all.
 
 **Render the screen and look at it.** `godot/tests/screenshot.gd` boots any screen
 under Xvfb and saves a PNG:

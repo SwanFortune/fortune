@@ -44,6 +44,10 @@ extends "res://tests/harness.gd"
 ## runs, and still under a second.
 const CASES := 2000
 
+## Fewer than the readings: a card's text has no ordering or carry-over, so the
+## shapes run out faster.
+const CARDS := 600
+
 const BRIDGE := "res://tests/prototype_bridge.js"
 
 ## Every trait the engine asks `has()` about, plus nothing. Derived from what
@@ -88,7 +92,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s) agreed with the prototype, field for field" % _cases.size()
+	return "%d reading(s) and %d card(s) agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -144,18 +148,113 @@ func _test_the_bridge_is_reading_the_specification() -> void:
 	done()
 
 
+## WHAT IS PRINTED ON EVERY CARD, against the prototype's autoText().
+##
+## The other half of the specification, and the half a player actually reads.
+## Fifty-six cards' mechanical text is generated rather than written, so a
+## divergence here is not one wrong card — it is every card of that shape, on
+## the face, in the hand's hint line, and on every shop and reward row.
+##
+## Compared in English, where I18n.t() returns its own key unchanged; the port
+## routes every fragment through it so a French build does not say "Piochez
+## two", which is a translation decision and not a difference in what is said.
+func _test_the_printed_card_text_matches_the_prototype() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var cards: Array = []
+	for _i in CARDS:
+		cards.append(_a_printable_card())
+	var theirs := _ask_the_prototype(cards.map(func(c): return {"kind": "autoText", "card": c}))
+	check(theirs.size() == cards.size(), "the bridge printed %d of %d cards" % [theirs.size(), cards.size()])
+
+	var shown := 0
+	for i in min(theirs.size(), cards.size()):
+		var mine: String = rules.auto_text(cards[i])
+		var spec := str(theirs[i])
+		if mine == spec:
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		check(false, "card %d reads differently:\n  the card: %s\n  the port: '%s'\n  the spec: '%s'"
+			% [i, JSON.stringify(cards[i]), mine, spec])
+	if shown > 3:
+		check(false, "%d cards of %d read differently; the first three are above" % [shown, cards.size()])
+	done()
+
+
+## THE GLYPHS ARE THE PROTOTYPE'S GLYPHS. autoText() prints them into the card
+## text on both sides, so if elements.json and the prototype's EL ever disagreed
+## the comparison above would fail for a reason that has nothing to do with the
+## generator. Asked directly, so the answer says which it is.
+func _test_the_elements_carry_the_prototypes_glyphs() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var answer := _ask_the_prototype([{"kind": "elements"}])
+	check(answer.size() == 1, "the bridge should have handed back one element table")
+	if answer.is_empty():
+		done()
+		return
+	var theirs: Dictionary = answer[0]
+	for key in theirs:
+		var mine: Dictionary = content.elements.get(key, {})
+		check(not mine.is_empty(), "the prototype has an element '%s' and the port does not" % key)
+		check(str(mine.get("glyph", "")) == str(theirs[key].get("glyph", "")),
+			"%s: the port's glyph is '%s', the prototype's is '%s'"
+			% [key, mine.get("glyph", ""), theirs[key].get("glyph", "")])
+	check(content.elements.size() == theirs.size(),
+		"the port has %d elements and the prototype %d" % [content.elements.size(), theirs.size()])
+	done()
+
+
+## One card, for its PRINTED text. Every field autoText() reads, and zeros on
+## purpose: JS omits a sentence for a falsey number and the port was asking
+## whether the key is present, which are the same thing until a card carries 0.
+func _a_printable_card() -> Dictionary:
+	var c := {}
+	var roll := randf()
+	if roll < 0.15:
+		c["wild"] = true
+	elif roll < 0.30:
+		c["chroma"] = true
+	elif roll < 0.40:
+		c["any"] = true
+	c["el"] = ELS[randi() % ELS.size()]
+	for field in ["bonusFlat", "opener", "closer", "solo", "perLaid", "next", "energy", "draw", "coin", "turn"]:
+		if randf() < 0.22:
+			c[field] = randi() % 4          # 0 included, and that is the point
+	if randf() < 0.25:
+		c["follows"] = "same" if randf() < 0.5 else "turn"
+		c["bonus"] = randi() % 5
+	if randf() < 0.15:
+		c["perEl"] = ELS[randi() % ELS.size()]
+		c["perAmt"] = randi() % 4
+	for flag in ["bank", "pierce", "exhaust"]:
+		if randf() < 0.18:
+			c[flag] = true
+	return c
+
+
 # ── the two engines ─────────────────────────────────────────────────────
 
 func _what_the_prototype_says(cases: Array) -> Array:
+	var for_them: Array = []
+	for one in cases:
+		for_them.append({"state": one["state"], "f": one["f"]})
+	return _ask_the_prototype(for_them)
+
+
+func _ask_the_prototype(questions: Array) -> Array:
 	var here := ProjectSettings.globalize_path("user://")
 	var cases_path := here.path_join("prototype_cases.json")
 	var out_path := here.path_join("prototype_out.json")
 
-	var for_them: Array = []
-	for one in cases:
-		for_them.append({"state": one["state"], "f": one["f"]})
 	var f := FileAccess.open("user://prototype_cases.json", FileAccess.WRITE)
-	f.store_string(JSON.stringify(for_them))
+	f.store_string(JSON.stringify(questions))
 	f.close()
 
 	# IS NODE HERE AT ALL — asked separately, and this is not a detail. The first

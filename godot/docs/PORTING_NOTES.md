@@ -6,6 +6,24 @@ to an end-of-run screen — built to prove the architecture and the mod/Workshop
 story, not to be the finished game. Below is what changed on the way over,
 and what's deliberately not here yet.
 
+## A card that printed a zero the specification never prints
+
+`Rules.auto_text()` generates the mechanical text of all fifty-six cards, and it
+asked whether a field was PRESENT where `autoText()` asks whether the number is
+TRUTHY. The same thing until a card carries 0, and then the port printed
+"+0 more if you say it first.", "Restores 0 more if it is the only thing you
+say." and "No energy back." — that last one reaching a word the specification
+can never print, since "no" sits at the head of its number list only to be
+skipped over.
+
+The Library is safe: it turns a 0 into an erased field before saving. But its
+own panel reads "set a value to 0 to remove that effect from the card entirely",
+which teaches precisely the idiom that fails when somebody writes a pack by
+hand — and hand-written packs are what docs/MODDING.md is for.
+
+Found by tests/test_against_the_prototype.gd the first time it was pointed at
+autoText(): 304 of 600 generated cards read differently, every one of them this.
+
 ## The wall the port regrew from the wrong number
 
 Not a judgment call — a plain bug, and it is here because it hid among the

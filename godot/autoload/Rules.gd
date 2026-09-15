@@ -386,6 +386,25 @@ func fx_audit() -> Array[String]:
 ## read "Restores 9 more if it is the only thing you say." in the middle of an
 ## otherwise French sentence. The format strings are the keys, which is the
 ## source-as-key scheme used everywhere else.
+## A NUMBER A CARD DOES NOT CARRY, and zero is not carrying it.
+##
+## This asked whether the key was PRESENT, and the prototype asks whether the
+## number is truthy. Same thing until a card says 0, and then the port printed
+## "+0 more if you say it first." and "No energy back." — that last one reaching
+## a word ("no", at the head of the number list) that the specification can
+## never print, because it only formats a number it has already found truthy.
+##
+## Reached by a mod, not by the Library: the Library turns a 0 into an erased
+## field before it saves (Library.gd, the SpinBox's value_changed). But its own
+## panel says "set a value to 0 to remove that effect from the card entirely",
+## which teaches exactly the idiom that does NOT work when a pack is written by
+## hand — and hand-written packs are the thing docs/MODDING.md exists for.
+## Found by tests/test_against_the_prototype.gd — 304 of 600 generated cards
+## read differently, every one of them this.
+func _says(card: Dictionary, key: String) -> bool:
+	return int(card.get(key, 0)) != 0
+
+
 func auto_text(card: Dictionary) -> String:
 	var el: Dictionary = Content.elements
 	var glyph_of = func(k): return el.get(k, {}).get("glyph", "")
@@ -404,30 +423,30 @@ func auto_text(card: Dictionary) -> String:
 		p.append(I18n.t("Counts as whatever your element is now."))
 	if card.get("any", false):
 		p.append(I18n.t("Reads as whatever element they answer to."))
-	if card.has("bonusFlat"):
+	if _says(card, "bonusFlat"):
 		p.append(I18n.t("Restores %d more.") % card["bonusFlat"])
-	if card.has("follows") and card.has("bonus"):
+	if card.has("follows") and _says(card, "bonus"):
 		var target_el: String = card.get("el", "") if card["follows"] == "same" else prev_el.get(card.get("el", ""), "")
 		p.append(I18n.t("+%d more if it follows %s.") % [card["bonus"], glyph_of.call(target_el)])
-	if card.has("opener"):
+	if _says(card, "opener"):
 		p.append(I18n.t("+%d more if you say it first.") % card["opener"])
-	if card.has("closer"):
+	if _says(card, "closer"):
 		p.append(I18n.t("+%d more if you say it last.") % card["closer"])
-	if card.has("solo"):
+	if _says(card, "solo"):
 		p.append(I18n.t("Restores %d more if it is the only thing you say.") % card["solo"])
-	if card.has("perLaid"):
+	if _says(card, "perLaid"):
 		p.append(I18n.t("Restores %d more for every card said before it.") % card["perLaid"])
-	if card.has("perEl") and card.has("perAmt"):
+	if card.has("perEl") and _says(card, "perAmt"):
 		p.append(I18n.t("+%d for every other %s in the reading.") % [card["perAmt"], glyph_of.call(card["perEl"])])
-	if card.has("next"):
+	if _says(card, "next"):
 		p.append(I18n.t("Whatever you say next restores %d more.") % card["next"])
-	if card.has("energy"):
+	if _says(card, "energy"):
 		p.append(I18n.t("%s energy back.") % capw.call(word.call(int(card["energy"]))))
-	if card.has("draw"):
+	if _says(card, "draw"):
 		p.append(I18n.t("Draw %s.") % word.call(int(card["draw"])))
-	if card.has("coin"):
+	if _says(card, "coin"):
 		p.append(I18n.t("%s centimes.") % capw.call(word.call(int(card["coin"]))))
-	if card.has("turn"):
+	if _says(card, "turn"):
 		p.append(I18n.t("One reading longer.") if card["turn"] == 1 else I18n.t("%s readings longer.") % capw.call(word.call(int(card["turn"]))))
 	if card.get("bank", false):
 		p.append(I18n.t("Restores faith instead of composure."))
