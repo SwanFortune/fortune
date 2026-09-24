@@ -48,6 +48,9 @@ const CASES := 2000
 ## shapes run out faster.
 const CARDS := 600
 
+## Each one carries every content table across to node, so fewer than the cards.
+const AUDITS := 150
+
 const BRIDGE := "res://tests/prototype_bridge.js"
 
 ## Every trait the engine asks `has()` about, plus nothing. Derived from what
@@ -92,7 +95,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s), %d card(s), the pronouns and the ladder agreed with the prototype" % [_cases.size(), CARDS]
+	return "%d reading(s), %d card(s), the pronouns, the ladder and the content audit agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -360,6 +363,116 @@ func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
 	done()
 
 
+## THE CONTENT AUDIT, against the prototype's fxAudit().
+##
+## This is the check a mod author is told to run (tests/test_content_audit.gd)
+## after writing a pack, so what it lets through is what reaches a player. Fed
+## the shipped tables with a few records broken on purpose each time — an fx that
+## does not exist, one borrowed from the wrong kind of record, an elemental one
+## with its element missing, empty, or null, an fx that is null — and the two
+## lists of complaints must be the same list, in the same order, word for word.
+func _test_the_content_audit_complains_as_the_prototype_does() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var shipped := {
+		"readers": content.readers, "relics": content.relics, "marks": content.marks,
+		"signs": content.signs, "jobs": content.jobs, "fx": content.fx,
+	}
+	# The shipped fx registry, not the emptied one setup() leaves for simulate().
+	shipped["fx"] = _fx_before
+
+	var worlds: Array = []
+	var questions: Array = []
+	for _i in AUDITS:
+		var w := _a_broken_world(shipped)
+		worlds.append(w)
+		questions.append({"kind": "fxAudit", "FX": w["fx"], "READERS": w["readers"], "RELICS": w["relics"],
+			"MARKS": w["marks"], "SIGNS": w["signs"], "JOBS": w["jobs"]})
+	var theirs := _ask_the_prototype(questions)
+	check(theirs.size() == worlds.size(), "the bridge audited %d of %d worlds" % [theirs.size(), worlds.size()])
+
+	var complained := 0
+	var shown := 0
+	for i in min(theirs.size(), worlds.size()):
+		var w: Dictionary = worlds[i]
+		content.readers = w["readers"]
+		content.relics = w["relics"]
+		content.marks = w["marks"]
+		content.signs = w["signs"]
+		content.jobs = w["jobs"]
+		content.fx = w["fx"]
+		var mine: Array = Array(rules.fx_audit())
+		var spec: Array = theirs[i]
+		if not spec.is_empty():
+			complained += 1
+		if mine == spec:
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		check(false, "world %d is audited differently:\n  the port: %s\n  the spec: %s"
+			% [i, JSON.stringify(mine), JSON.stringify(spec)])
+	for key in shipped:
+		content.set(key, shipped[key])
+	content.fx = {}
+	if shown > 3:
+		check(false, "%d worlds of %d are audited differently; the first three are above" % [shown, worlds.size()])
+	# A breaker that never breaks anything compares two empty lists forever.
+	check(complained > worlds.size() / 2,
+		"only %d of %d broken worlds drew a complaint from the prototype — the breaker is not breaking" % [complained, worlds.size()])
+	done()
+
+
+## The shipped content with one to three records broken. The ways to break one
+## are the ways the audit knows about, plus the values JavaScript and GDScript
+## disagree about: an empty string and a null.
+func _a_broken_world(shipped: Dictionary) -> Dictionary:
+	var w: Dictionary = shipped.duplicate(true)
+	var fx_keys: Array = w["fx"].keys().filter(func(k): return not str(k).begins_with("_"))
+	var tables := ["readers", "relics", "marks", "signs", "jobs"]
+	for _n in 1 + randi() % 3:
+		var table: String = tables[randi() % tables.size()]
+		var rec: Dictionary
+		if table == "jobs":
+			var keys: Array = w["jobs"].keys()
+			if keys.is_empty():
+				continue
+			rec = w["jobs"][keys[randi() % keys.size()]]
+		else:
+			if w[table].is_empty():
+				continue
+			rec = w[table][randi() % w[table].size()]
+		match randi() % 4:
+			0:
+				rec["fx"] = fx_keys[randi() % fx_keys.size()]
+			1:
+				rec["fx"] = ["typo", "", null][randi() % 3]
+			2:
+				rec.erase("fx")
+			_:
+				# Elemental fx are the only ones that read `el`/`dead`, and only on
+				# the kind of record they belong to — anywhere else the audit stops
+				# at "belongs to" and never looks. So aim one at its own kind.
+				var kind: String = {"signs": "sign", "jobs": "job"}.get(table, "trait")
+				var elemental: Array = fx_keys.filter(func(k):
+					return w["fx"][k].get("needsEl", false) and w["fx"][k].get("on", "") == kind)
+				if not elemental.is_empty():
+					rec["fx"] = elemental[randi() % elemental.size()]
+		for field in ["el", "dead"]:
+			match randi() % 5:
+				0:
+					rec.erase(field)
+				1:
+					rec[field] = ""
+				2:
+					rec[field] = null
+				3:
+					rec[field] = ELS[randi() % ELS.size()]
+	return w
+
+
 ## Every field the specification returns, in the port's answer and equal to it.
 ## Numbers as numbers, and anything else as canonical JSON so a nested elite
 ## twist is compared whole.
@@ -426,7 +539,10 @@ func _ask_the_prototype(questions: Array) -> Array:
 	var out_path := here.path_join("prototype_out.json")
 
 	var f := FileAccess.open("user://prototype_cases.json", FileAccess.WRITE)
-	f.store_string(JSON.stringify(questions))
+	# sort_keys OFF. Godot sorts by default, and the prototype walks a table like
+	# JOBS in the order its keys arrive — so a sorted transport reorders what the
+	# spec reports and blames the port for it.
+	f.store_string(JSON.stringify(questions, "", false))
 	f.close()
 
 	# IS NODE HERE AT ALL — asked separately, and this is not a detail. The first

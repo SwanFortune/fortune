@@ -40,12 +40,12 @@ noticing, and it is the one thing none of this can stand in for.
 
 **The run flow is not differential-tested.**
 `tests/test_against_the_prototype.gd` runs the specification's own `simulate()`,
-`autoText()`, `fill()`/`PRON` and `scaleSitter()` against the port. What it does
-not reach is the run flow — `startFight`, `resolveRead`, `advance` — which is
-stateful where those four are pure, so it needs a way to put both engines in the
-same state and step them together. `grep -n "Mirrors\|Port of" -r
-godot/autoload` lists what the port claims to mirror; anything on that list and
-not in the bridge's `METHODS`/`FUNCTIONS` is still unchecked.
+`autoText()`, `fill()`/`PRON`, `scaleSitter()` and `fxAudit()` against the port.
+What it does not reach is the run flow — `startFight`, `resolveRead`, `advance`
+— which is stateful where those are pure, so it needs a way to put both engines
+in the same state and step them together. `grep -n "Mirrors\|Port of" -r
+godot/autoload` lists what the port claims to mirror; the bridge's `METHODS`,
+`PURE_METHODS` and `FUNCTIONS` list what is checked.
 
 ## Deliberately not done, so nobody redoes the analysis
 

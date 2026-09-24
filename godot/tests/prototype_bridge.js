@@ -94,18 +94,32 @@ function engine() {
 	return factory();
 }
 
+// fxAudit() reads six content tables that are globals in the prototype. Those
+// tables are CONTENT, which the port loads from data/base/ and a mod can
+// change, so they are handed in with each case rather than cut out of the
+// .html: what is under test is the audit's logic, over the same data on both
+// sides.
+const AUDIT_TABLES = ['FX', 'READERS', 'RELICS', 'MARKS', 'SIGNS', 'JOBS'];
+
+function auditor() {
+	const src = fs.readFileSync(SPEC, 'utf8');
+	return new Function(...AUDIT_TABLES, cut(src, 'fxAudit', 'function') + '\nreturn fxAudit();');
+}
+
 function main() {
 	const [, , casesPath, outPath] = process.argv;
 	if (!casesPath || !outPath) {
 		throw new Error('usage: prototype_bridge.js <cases.json> <out.json>');
 	}
 	const proto = engine();
+	const audit = auditor();
 	const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
 		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
 		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'fxAudit') return audit(...AUDIT_TABLES.map((t) => one[t]));
 		if (one.kind === 'scaleSitter') return proto.scaleSitter(one.sitter, one.night, one.step);
 		proto.state = one.state;
 		return proto.simulate(one.f);

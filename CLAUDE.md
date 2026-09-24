@@ -27,9 +27,9 @@ code makes a claim about itself, write the thing that checks it.
 `godot/tests/prototype_bridge.js` cuts out of the .html at run time (never a
 copy — a copy stops tracking what it copied). It needs `node`, and skips with a
 note when there is none; anything else that stops it working is a failure, not
-a skip. It covers `simulate()`, `autoText()`, `fill()` and `scaleSitter()` — the
-arithmetic, the words printed on every card, the pronouns in every sign rule,
-and the difficulty ladder. It found a wall the port regrew from the wrong number, which had
+a skip. It covers `simulate()`, `autoText()`, `fill()`, `scaleSitter()` and `fxAudit()` —
+the arithmetic, the words printed on every card, the pronouns in every sign
+rule, the difficulty ladder, and the audit a mod author is told to run. It found a wall the port regrew from the wrong number, which had
 been quietly halving what a piercing reader does since the port began, and a
 card text that printed "+0 more if you say it first." where the specification
 says nothing at all.

@@ -351,14 +351,32 @@ func fx_audit() -> Array[String]:
 	var bad: Array[String] = []
 	var fx: Dictionary = Content.fx
 
+	# TRUTHY, the way the prototype asks `!(e.el || e.dead)` — not PRESENT. An
+	# element written as "" is no element: the engine finds nothing to match it
+	# against, so the relic quietly does nothing, and this is the one check that
+	# could have said so. The same presence-for-truthiness slip as _says() below.
+	var says = func(v) -> bool:
+		match typeof(v):
+			TYPE_NIL:
+				return false
+			TYPE_STRING, TYPE_STRING_NAME:
+				return v != ""
+			TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+				return bool(v)
+		return true
+
 	var check_list = func(list: Array, on: String, name_fn: Callable):
 		for e in list:
-			var key: String = e.get("fx", "")
+			# A pack can write "fx": null. Typed straight into a String that was a
+			# script error, which aborted the audit's own loop and dropped the very
+			# record it was there to report. The prototype prints it as "".
+			var raw = e.get("fx")
+			var key: String = str(raw) if says.call(raw) else ""
 			if not fx.has(key):
 				bad.append("%s → unknown fx \"%s\"" % [name_fn.call(e), key])
 			elif fx[key].get("on", "") != on:
 				bad.append("%s → fx \"%s\" belongs to %s" % [name_fn.call(e), key, fx[key]["on"]])
-			elif fx[key].get("needsEl", false) and e.get("el", null) == null and e.get("dead", null) == null:
+			elif fx[key].get("needsEl", false) and not (says.call(e.get("el")) or says.call(e.get("dead"))):
 				bad.append("%s → fx \"%s\" needs an element" % [name_fn.call(e), key])
 
 	check_list.call(Content.readers, "trait", func(r): return r.get("sign", r.get("k", "?")))
