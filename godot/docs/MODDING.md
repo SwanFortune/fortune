@@ -289,6 +289,10 @@ four capital letters, no accents, since that is all the terminal accepts:
 - `screen` — what the terminal prints, one string per line; `""` is a blank
   row. This is prose, so it is translatable, under the ids
   `minitel/LUNE/screen0`, `screen1`, … (one key per line).
+- `pages` — further screens after the first, each a list of lines like
+  `screen`, turned with the SUITE and RETOUR keys (the tube prints "1/2" in its
+  corner). Translatable under `minitel/LUNE/p1_0`, `p1_1`, … for the second
+  page, `p2_…` for the third.
 - `grants` — `{stat, add}`, adding to a **numeric** `Profile.STATS` key.
 - `arms` — the `title` of an event carrying `"secret": true`. A secret event is
   held out of the ordinary map pool entirely, so it can only ever be met by a

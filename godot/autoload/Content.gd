@@ -62,6 +62,8 @@ var haptics: Dictionary
 var gestures: Dictionary
 ## How a drawn card comes off the deck — Feel.deal(), scenes/Deck.gd.
 var deal: Dictionary
+## How the Minitel's tube behaves — data/base/minitel.json, Minitel.gd.
+var terminal: Dictionary
 var card_states: Array
 ## The room remembers — data/base/room.json, drawn by scenes/RoomTraces.gd.
 var props: Dictionary
@@ -131,6 +133,7 @@ func reload() -> void:
 	haptics = registries.get("haptics", {})
 	gestures = registries.get("gestures", {})
 	deal = registries.get("deal", {})
+	terminal = registries.get("terminal", {})
 	card_states = registries.get("card_states", [])
 	props = registries.get("props", {})
 	spots = registries.get("spots", {})

@@ -197,6 +197,12 @@ func _collect_sources() -> Dictionary:
 		var lines: Array = content.minitel_codes[code].get("screen", [])
 		for li in lines.size():
 			_put(src, "minitel/%s/screen%d" % [code, li], lines[li])
+		# And every page after the first (Minitel.pages()).
+		var more = content.minitel_codes[code].get("pages", [])
+		for p in (more if more is Array else []).size():
+			if more[p] is Array:
+				for li in more[p].size():
+					_put(src, "minitel/%s/p%d_%d" % [code, p + 1, li], more[p][li])
 	# The card archetypes' one-line descriptions — the source's own words for
 	# what each family of card is for. Shown in a card's tooltip.
 	# WHAT BECOMES OF THE VILLAGE. Four endings, three paragraphs each, and the

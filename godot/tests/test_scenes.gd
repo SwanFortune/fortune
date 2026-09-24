@@ -649,6 +649,124 @@ func _test_every_mark_worn_is_on_the_screen() -> void:
 	done()
 
 
+## THE HANDS ARE STILL ON THE TABLE WHEN IT IS OVER, and they say how it went:
+## they open when the person goes home whole, and sink when they leave as they
+## came. The `open` and `sink` gestures were written before any screen had
+## hands to play them on, and sat in feel.json playing on nothing.
+func _test_the_hands_say_how_it_went() -> void:
+	var feel: Node = root.get_node("Feel")
+	var settings: Node = root.get_node("Settings")
+	var speed_before = settings.get_value("animation_scale")
+	settings.set_value("animation_scale", 1.0)
+	root.size = Vector2i(1280, 720)
+	for win in [true, false]:
+		run.state = run.fresh("how-it-went")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		if win:
+			f["hp"] = f["max"]
+			run.win(f)
+		else:
+			f["turn"] = f["turns"]
+			f["hp"] = 0
+			run.lose(f, "left")
+		var screen: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+		root.add_child(screen)
+		await create_timer(0.2).timeout
+		var hands: Control = screen.find_child("Hands", true, false)
+		check(hands != null, "the result screen should have the player's hands on it (win %s)" % win)
+		var want := "open" if win else "sink"
+		check(feel.gesture_on("left") == want and feel.gesture_on("right") == want,
+			"%s: the hands should %s, they are doing '%s' / '%s'" % ["a win" if win else "a loss", want, feel.gesture_on("left"), feel.gesture_on("right")])
+		if hands != null:
+			var screen_rect := Rect2(Vector2.ZERO, hands.get_viewport_rect().size)
+			for p in _worn_on(hands):
+				check(screen_rect.has_point(hands.get_global_transform() * (p["at"] as Vector2)), "a mark on the result screen's hands is off the screen")
+		screen.queue_free()
+		await process_frame
+	settings.set_value("animation_scale", speed_before)
+	done()
+
+
+func _worn_on(hands: Control) -> Array:
+	return load("res://scenes/Table.gd").worn(hands.size, run.state.get("marks", []) + content.marks, hands.span, hands.reach)
+
+
+## THE MINITEL ON THE TABLE opens the Minitel, and the reading is still there
+## when you come back from it. What would go wrong quietly:
+##   - the machine's hot spot covering something you act on — READ IT runs the
+##     width of the table, the Minitel stands at its right-hand end;
+##   - coming back to a different fight, or to the menu;
+##   - coming back to the hand being dealt a second time: the cards drawn by
+##     the last action stay marked as just drawn until the next one.
+func _test_the_minitel_on_the_table_is_a_minitel() -> void:
+	var restore_size: Vector2i = root.size
+	var feel: Node = root.get_node("Feel")
+	var settings: Node = root.get_node("Settings")
+	var speed_before = settings.get_value("animation_scale")
+	settings.set_value("animation_scale", 1.0)
+	for window in [Vector2i(1280, 720), Vector2i(1280, 960)]:
+		root.size = window
+		run.state = run.fresh("the-machine")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var hand_before: Array = run.state["f"]["hand"].map(func(c): return c["uid"])
+		root.get_tree().change_scene_to_file("res://scenes/Reading.tscn")
+		for i in 4:
+			await process_frame
+		var reading: Node = root.get_tree().current_scene
+		var machine: Control = reading.find_child("MinitelOnTheTable", true, false)
+		check(machine != null, "the reading should have the Minitel on its table")
+		if machine == null:
+			continue
+		var r := machine.get_global_rect()
+		check(Rect2(Vector2.ZERO, reading.get_viewport_rect().size).encloses(r), "at %s the Minitel's hot spot %s is off the screen" % [window, r])
+		for n in reading.find_children("*", "Control", true, false):
+			if n == machine or not (n as Control).is_visible_in_tree() or n.is_queued_for_deletion():
+				continue
+			var acts: bool = n is BaseButton or n is LineEdit or ((n as Control).focus_mode == Control.FOCUS_ALL and n is PanelContainer)
+			if acts and (n as Control).get_global_rect().intersects(r):
+				check(false, "at %s the Minitel's hot spot covers '%s' (%s)" % [window, n.get("text") if n.get("text") else n.name, (n as Control).get_global_rect()])
+		# Wait out the deal, then go to the machine and come back.
+		await create_timer(1.2).timeout
+		machine.pressed.emit()
+		for i in 3:
+			await process_frame
+		check(root.get_tree().current_scene != null and root.get_tree().current_scene.scene_file_path == "res://scenes/MinitelScreen.tscn",
+			"pressing the Minitel should turn to the terminal")
+		var backs := [0]
+		var count_backs := func(n: Node) -> void:
+			if n.has_meta(feel.DEALT_BACK):
+				backs[0] += 1
+		feel._layer.child_entered_tree.connect(count_backs)
+		root.get_tree().current_scene._back()
+		for i in 4:
+			await process_frame
+		feel._layer.child_entered_tree.disconnect(count_backs)
+		var back_to: Node = root.get_tree().current_scene
+		check(back_to != null and back_to.scene_file_path == "res://scenes/Reading.tscn", "BACK should return to the reading, went to %s" % (back_to.scene_file_path if back_to else "nothing"))
+		check(run.state["f"]["hand"].map(func(c): return c["uid"]) == hand_before, "the fight should be the one that was left")
+		check(backs[0] == 0, "coming back should not deal the hand again, %d cards flew" % backs[0])
+		check(root.get_node("Nav").minitel_return_scene == "", "the way back should be forgotten once taken")
+	var last: Node = root.get_tree().current_scene
+	if last != null:
+		last.queue_free()
+	await process_frame
+	settings.set_value("animation_scale", speed_before)
+	root.size = restore_size
+	print("--- the Minitel on the table opens the terminal, and BACK finds the reading as it was ---")
+	done()
+
+
 ## A CARD DRAWN COMES OFF THE DECK. The pile is on the table as thick as what
 ## is left to draw; each card just drawn flies from it face down and turns over
 ## in its place in the hand (Feel.deal()). What that must not cost:
@@ -676,6 +794,9 @@ func _test_a_drawn_card_is_dealt_from_the_deck() -> void:
 				run.choose(run.state["options"].find(o))
 				break
 		var f: Dictionary = run.state["f"]
+		# What the reading remembers having dealt — the same fight built twice
+		# here, once per motion setting.
+		load("res://scenes/Reading.gd")._dealt = ""
 		# Every back that takes off, counted as it is made: headless frames are
 		# long enough that the first can have landed before anything looks.
 		var backs := [0]

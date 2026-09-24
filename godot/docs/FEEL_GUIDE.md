@@ -196,7 +196,9 @@ keyframed like a `keys` motion, with their own values:
 
 `rest` is what the hands do when nothing else is asked of them, and loops.
 A moment starts a gesture with `"hands"`: `wall_absorb` flinches,
-`card_lay` lays, `reading_resolve` offers. **A gesture starts and ends at rest**
+`card_lay` lays, `reading_resolve` offers, and on the result screen, where the
+hands are still on the table, `sitter_win` opens them and `sitter_lose` lets
+them sink. **A gesture starts and ends at rest**
 — every value back to 0 or 1 — or the hands jump when it starts or stay lifted
 after it; `tests/test_feel.gd` checks every one.
 

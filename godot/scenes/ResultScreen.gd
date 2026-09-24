@@ -3,6 +3,8 @@ extends Control
 ## Loaded by path, not by `class_name` — a bare name does not resolve on a fresh
 ## clone. See autoload/Content.gd's header for why, and never change these back.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
+const Reading := preload("res://scenes/Reading.gd")
 
 ## How wide the reading's tally is allowed to be. Wide enough for the longest
 ## label and its number, narrow enough that they read as one line.
@@ -20,6 +22,16 @@ func _ready() -> void:
 
 	var root := UIKit.root_control()
 	add_child(root)
+	# YOUR HANDS, still on the table, with nothing in them now: the reading is
+	# over. They open when the person goes home whole and sink when they leave
+	# as they came (the `open` and `sink` gestures, started by the moment
+	# below). The same band the reading draws them in, so they have not moved.
+	var hands: Control = Table.hands(Run.state.get("marks", []),
+		func() -> Vector2: return Vector2(root.size.x * 0.34, root.size.x * 0.66), Reading.OPEN_REACH)
+	var band := (Reading.HELD_HEIGHT - Reading.CARD_BAND + Reading.HAND_OVERLAP) * UIKit.card_scale()
+	hands.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hands.offset_top = -band
+	root.add_child(hands)
 	var m := UIKit.margin(48)
 	root.add_child(m)
 	var v := UIKit.vbox(14)

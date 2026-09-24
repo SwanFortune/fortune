@@ -77,6 +77,7 @@ var _fx_before: Dictionary = {}
 var _wall_before: Dictionary = {}
 var _cases: Array = []
 var _theirs: Array = []
+var _codes_before: Array = []
 
 
 func setup() -> void:
@@ -89,6 +90,14 @@ func setup() -> void:
 	_wall_before = content.denial_wall.duplicate(true)
 	content.fx = {}
 	content.denial_wall = {}
+	# A PLAYER WHO HAS DIALLED NOTHING. The prototype has no Minitel, and a code
+	# this machine's player once dialled can arm a secret event, which the map
+	# then offers — every night "differed" from the specification, three
+	# hundred of three hundred, the day a screenshot dialled 3615 OEIL on the
+	# machine the suite ran on. The profile is the real one; put it back after.
+	var profile: Node = root.get_node("Profile")
+	_codes_before = Array(profile.get_stat("codes_entered")).duplicate()
+	profile.set_stat("codes_entered", [])
 
 	_cases = _invent(CASES)
 	_theirs = _what_the_prototype_says(_cases)
@@ -97,6 +106,7 @@ func setup() -> void:
 func teardown() -> void:
 	content.fx = _fx_before
 	content.denial_wall = _wall_before
+	root.get_node("Profile").set_stat("codes_entered", _codes_before)
 	content.reload()
 
 

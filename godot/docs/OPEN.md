@@ -60,8 +60,7 @@ The hands now draw about three quarters as big as before. Bigger is a few lines
 (`HELD_HEIGHT` in `scenes/Reading.gd`, the proportions at the top of the hands
 in `scenes/Table.gd`), and the cost is the middle of the reading scrolling at
 720p. `tests/test_scenes.gd` holds every mark inside the window whichever way it
-goes. The `open` and `sink` gestures in `feel.json` are not played by anything
-yet: a sitter going home is shown on the result screen, which has no hands on it.
+goes.
 
 **Nobody has heard the sound.** The exported build was mute for the whole of the
 port — every cue resolved to a file that was not in the pack — and that was

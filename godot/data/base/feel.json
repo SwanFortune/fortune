@@ -10,8 +10,8 @@
     "card_exhaust":    { "particles": "embers", "color": "element" },
     "wall_absorb":     { "motion": "jolt", "haptic": "thud", "hands": "flinch" },
     "reading_resolve": { "particles": "bloom", "color": "#8FBF73", "motion": "pop", "haptic": "swell", "hands": "offer" },
-    "sitter_win":      { "particles": "bloom", "color": "#D4B038", "haptic": "swell" },
-    "sitter_lose":     { "motion": "lean", "haptic": "fall" },
+    "sitter_win":      { "particles": "bloom", "color": "#D4B038", "haptic": "swell", "hands": "open" },
+    "sitter_lose":     { "motion": "lean", "haptic": "fall", "hands": "sink" },
     "knock":           { "haptic": "knock" },
     "coin":            { "particles": "coins", "color": "#D4B038", "haptic": "tick" }
   },

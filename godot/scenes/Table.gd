@@ -409,6 +409,17 @@ static func _draw_minitel(c: Control, s: Vector2) -> void:
 ## leaves empty: the left third, from the bars down to the hand label, is solid
 ## text. These two spots are clear in every layout the screen produces.
 const MINITEL_AT := Vector2(0.875, 0.535)
+
+
+## Where the Minitel's body and screen are on a room of size `s` — not the
+## keyboard, which sits low enough to run under whatever the screen puts at the
+## bottom of the table. The same measurements _draw_minitel() draws with, for
+## the reading screen to put a hand on it.
+static func minitel_rect(s: Vector2) -> Rect2:
+	var u := s.y * 0.30
+	var at := s * MINITEL_AT
+	var body_bottom := at.y - u * 0.17
+	return Rect2(at.x - u * 0.40, body_bottom - u * 0.62, u * 0.80, u * 0.62)
 const TEACUP_AT := Vector2(0.635, 0.435)
 
 

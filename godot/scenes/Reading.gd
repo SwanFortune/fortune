@@ -113,6 +113,8 @@ func _ready() -> void:
 	# player without a mouse cannot reach READ IT to end the turn.
 	UIKit.focus_first(focus_on, self)
 	_deal_in()
+	# Last, so it is over the page's containers: the machine on the table.
+	root.add_child(_the_minitel())
 
 
 ## WHO IS SITTING THERE: their portrait, their name and job, their element, and
@@ -707,13 +709,71 @@ func _span_of(cards: Array, origin: Control) -> Vector2:
 	return Vector2(left - at, right - at)
 
 
+## THE MINITEL ON THE TABLE IS A MINITEL. The room draws it (Table.gd); this
+## puts a hand on it: pointing at it lights its screen, and pressing it turns to
+## the machine — the terminal, with the reading waiting behind it and BACK
+## returning to it as it was. A thing in the room that does what it is, rather
+## than a menu that happens to have its name.
+##
+## Its size follows the room's, which is the screen's, every time the screen
+## changes shape.
+func _the_minitel() -> Control:
+	var b := Button.new()
+	b.name = "MinitelOnTheTable"
+	b.flat = true
+	b.focus_mode = Control.FOCUS_ALL
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = I18n.t("The Minitel. Dial 3615.")
+	b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var place := func() -> void:
+		var r := Table.minitel_rect(get_viewport_rect().size)
+		b.position = r.position
+		b.size = r.size
+	place.call()
+	get_viewport().size_changed.connect(place)
+	# Lit while a pointer or the focus is on it: the tube glows, the way it
+	# would if you leaned toward it.
+	b.draw.connect(func():
+		if b.is_hovered() or b.has_focus():
+			var glass := Rect2(b.size * Vector2(0.14, 0.12), b.size * Vector2(0.72, 0.62))
+			for i in 4:
+				b.draw_rect(glass.grow(float(i) * 3.0), Color(0.36, 0.70, 0.41, 0.10 - float(i) * 0.02))
+			b.draw_rect(glass, Color(0.63, 0.94, 0.68, 0.35), false, 1.5))
+	for sig in ["mouse_entered", "mouse_exited", "focus_entered", "focus_exited"]:
+		b.connect(sig, b.queue_redraw)
+	b.pressed.connect(func():
+		Audio.play("ui_press")
+		Nav.goto_minitel(scene_file_path))
+	return b
+
+
 ## Face down from the moment it is built, before anything can focus it: focus
 ## comes before the deal, and a card raised by it is a card shown early.
 func _will_deal(face: Control) -> void:
 	_to_deal.append(face)
-	if not UIKit.motion_off():
+	if not UIKit.motion_off() and not _already_dealt():
 		face.set_meta("_dealing", true)
 		face.scale.x = 0.0
+
+
+## WHAT HAS BEEN DEALT ALREADY. `_justDrawn` says which cards the last action
+## drew, and it stays said until the next action — so a screen rebuilt with no
+## action between (back from the Minitel, the settings, F12) would deal the
+## same hand a second time. Remembered across rebuilds, by the moment of the
+## fight it was dealt at: the turn, the cards laid so far, and what was drawn.
+static var _dealt := ""
+
+
+func _deal_key() -> String:
+	var f: Dictionary = Run.state.get("f", {})
+	return "%s|%s|%s|%s" % [Run.state.get("seed", ""), f.get("turn", 0), f.get("cross", []).size(), f.get("_justDrawn", [])]
+
+
+func _already_dealt() -> bool:
+	return _dealt == _deal_key()
 
 
 ## THE CARDS JUST DRAWN COME OFF THE DECK, one after another, and turn over in
@@ -723,8 +783,9 @@ func _will_deal(face: Control) -> void:
 func _deal_in() -> void:
 	var faces := _to_deal
 	_to_deal = []
-	if faces.is_empty():
+	if faces.is_empty() or _already_dealt():
 		return
+	_dealt = _deal_key()
 	# With motion off the cards are simply there; the click of each still is.
 	if UIKit.motion_off():
 		for face in faces:
