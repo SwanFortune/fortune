@@ -6,6 +6,11 @@ nearly did.
 
 ## Where things are
 
+`godot/docs/OPEN.md` is what has NOT been done — the decisions waiting on a
+person, the checks an agent can pick up next, and the things deliberately left
+alone with the reason why. Read it before deciding what to work on, and delete
+from it what you finish.
+
 The game is `godot/`. `project/` is the browser prototype it was ported from and
 is still the specification; `chats/` is the design conversation behind it.
 Neither is built or run. Do not edit them.
