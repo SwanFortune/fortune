@@ -38,14 +38,22 @@ noticing, and it is the one thing none of this can stand in for.
 
 ## An agent can pick these up
 
-**The run flow is not differential-tested.**
-`tests/test_against_the_prototype.gd` runs the specification's own `simulate()`,
-`autoText()`, `fill()`/`PRON`, `scaleSitter()` and `fxAudit()` against the port.
-What it does not reach is the run flow — `startFight`, `resolveRead`, `advance`
-— which is stateful where those are pure, so it needs a way to put both engines
-in the same state and step them together. `grep -n "Mirrors\|Port of" -r
-godot/autoload` lists what the port claims to mirror; the bridge's `METHODS`,
-`PURE_METHODS` and `FUNCTIONS` list what is checked.
+**Three parts of the run flow are not differential-tested.**
+`tests/test_against_the_prototype.gd` now plays whole fights through the
+prototype's `startFight()`/`beginTurn()`/`resolveRead()`/`win()`/`lose()`. Not
+reached yet, and each for a reason worth knowing before starting:
+
+- **Laying a card** (`_lay`): energy, draw-on-lay and exhaust. The fight test
+  puts cards down directly, so none of that is compared.
+- **`advance()`/`makeOptions()`**: the port plans a whole night at once
+  (`Run.make_plan()`) where the prototype rolls each knock, deliberately. What
+  can still be compared is the shape — which hours can be elite, when the shop
+  appears, the boss on the last knock of the last night.
+- **`endRun()`**: the port's endings come from `endings.json` rather than four
+  score tiers, deliberately, so only the run's totals are comparable.
+
+The bridge's `METHODS`, `PURE_METHODS`, `FUNCTIONS` and `FLOW_METHODS` list what
+is checked.
 
 ## Deliberately not done, so nobody redoes the analysis
 

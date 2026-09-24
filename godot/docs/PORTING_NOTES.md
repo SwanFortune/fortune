@@ -24,33 +24,38 @@ hand — and hand-written packs are what docs/MODDING.md is for.
 Found by tests/test_against_the_prototype.gd the first time it was pointed at
 autoText(): 304 of 600 generated cards read differently, every one of them this.
 
-## The wall the port regrew from the wrong number
+## The wall that followed a field nobody reads
 
-Not a judgment call — a plain bug, and it is here because it hid among the
-judgment calls for the whole of the port.
+This section used to be called "The wall the port regrew from the wrong
+number", and it described a fix that was itself the bug. What is true:
 
-`shieldNext` is what a sitter's denial wall grows to for their next reading. The
-prototype grows it from the wall the reading actually faced, which is the
-sitter's denial AFTER a piercing reader has gone through it. `Rules.next_wall()`
-grew it from the raw figure, so in the port a reader whose entire trait is going
-through walls never wore one down: it came back at full height every reading,
-for ever, while in the prototype piercing compounds across a fight.
+In the prototype a piercing reader takes 4 off the wall FOR THE READING — the
+wall a reading faces is `max(0, f.denial - 4)` — and the wall then regrows from
+its own height: `resolveRead()` (~2185) does `f.denial += f.denialUp`, and so
+does the prototype's own balance sim, `simFight()` (~1647). Pierce goes through
+a wall; it does not knock it down.
 
-Nothing caught it. It is invisible in a single reading — every other field of
-every reading agreed — and it only shows as a fight that goes longer than it
-should. It is very likely why pierce measured "at the bare floor, the same win
-rate as a reader with no trait at all"; the compensation added at the time
-(`pierce.spare`) was treating the symptom.
+The prototype's `simulate()` also returns `shieldNext: denial + f.denialUp`,
+computed from the PIERCED figure. Nothing reads it. v20 showed it as a preview
+("denial after this"), which disagreed with its own resolveRead; v22 removed the
+preview and left the field. When the differential first compared every field of
+`simulate()`, this one disagreed on 215 of 2000 readings, and `next_wall()` was
+changed to grow from the pierced figure to match — making pierce COMPOUND. A
+pierce mark held a Pisces wall at 4 for a whole fight where the prototype grows
+it 4, 8 … 28, and against Taurus the wall shrank every reading: fights the
+prototype loses, the port won.
 
-Found by tests/test_against_the_prototype.gd on its first run: 215 of 2000
-random readings disagreed, all of them on this one field. Measured afterwards on
-a fixed seed, Scorpio goes from 47.4% to 59.0% and the whole field tightens from
-a 36-point spread to 32. `spare` is still load-bearing — without it Scorpio
-drops to 24%, under the floor — so both stay.
+Found by the same test once it played WHOLE FIGHTS through the prototype's own
+`startFight()`/`resolveRead()` instead of comparing one reading's fields. The
+lesson is the repository's usual one, one level up: a field in the
+specification is a claim, and whether anything acts on it has to be checked
+too. `shieldNext` is now left out of the reading comparison, and a check fails
+the day the prototype starts reading it again.
 
-The empty reading keeps growing from the raw wall, which is the prototype's own
-asymmetry between its blank branch and its main one, and reads as intended
-rather than as a slip: you pierce nothing by saying nothing.
+Measured on PARLOUR_SEED=42, 6500 fights, the whole field at the default point
+in the run: Scorpio 90.1% -> 83.0%, overall 88.6% -> 88.2%, no reader under the
+floor. (The 47.4% -> 59.0% quoted for the earlier change came from a run whose
+sample and seed were not written down, so it is not compared here.) `pierce.spare` stays.
 
 ## How this was ported
 

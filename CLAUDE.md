@@ -27,12 +27,17 @@ code makes a claim about itself, write the thing that checks it.
 `godot/tests/prototype_bridge.js` cuts out of the .html at run time (never a
 copy — a copy stops tracking what it copied). It needs `node`, and skips with a
 note when there is none; anything else that stops it working is a failure, not
-a skip. It covers `simulate()`, `autoText()`, `fill()`, `scaleSitter()` and `fxAudit()` —
-the arithmetic, the words printed on every card, the pronouns in every sign
-rule, the difficulty ladder, and the audit a mod author is told to run. It found a wall the port regrew from the wrong number, which had
-been quietly halving what a piercing reader does since the port began, and a
-card text that printed "+0 more if you say it first." where the specification
-says nothing at all.
+a skip. It covers `simulate()`, `autoText()`, `fill()`, `scaleSitter()`,
+`fxAudit()` and whole fights through `startFight()`/`resolveRead()` — the
+arithmetic, the words printed on every card, the pronouns in every sign rule,
+the difficulty ladder, the audit a mod author is told to run, and the flow a
+player lives in. It found a card text that printed "+0 more if you say it
+first." where the specification says nothing at all — and it once made the port
+WORSE: it compared `simulate()`'s `shieldNext`, a field the prototype writes
+and never reads, and the port was changed to match it, so pierce compounded
+across every fight. Check that the specification ACTS on a field before making
+the port agree with it (`godot/docs/PORTING_NOTES.md`, "The wall that followed a
+field nobody reads").
 
 **Render the screen and look at it.** `godot/tests/screenshot.gd` boots any screen
 under Xvfb and saves a PNG:

@@ -106,6 +106,64 @@ function auditor() {
 	return new Function(...AUDIT_TABLES, cut(src, 'fxAudit', 'function') + '\nreturn fxAudit();');
 }
 
+// THE RUN FLOW: a fight from the knock to the verdict. startFight() builds it,
+// resolveRead() settles each reading and decides win, lose or another round,
+// win()/lose() pay out. They are stateful — they read and write `this.state`
+// through React's setState — so they are cut out with everything they reach and
+// run against a stand-in that applies a patch at once and calls back.
+//
+// The content they read (JOBS, RELICS, DENIAL_SHIELD) is handed in, as for the
+// audit. Colours and the ring are the prototype's own.
+const FLOW_METHODS = ['startFight', 'beginTurn', 'drawTo', 'resolveRead', 'win', 'lose', 'rollRelic',
+	'clearTips', 'cfg', 'shuffle', 'pickRand'];
+const FLOW_CONSTS = ['GOLD', 'RING', 'jobOf'];
+const FLOW_TABLES = ['JOBS', 'RELICS', 'DENIAL_SHIELD'];
+
+function flow() {
+	const src = fs.readFileSync(SPEC, 'utf8');
+	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
+	const body = 'const NEXT = ' + ring[1] + ';\n'
+		+ CONSTS.concat(FLOW_CONSTS).map((n) => cut(src, n, 'const')).join('\n') + '\n'
+		+ FUNCTIONS.map((n) => cut(src, n, 'function')).join('\n') + '\n'
+		+ 'return { state: null, props: {},\n'
+		+ 'setState(patch, then) { Object.assign(this.state, patch); if (then) then(); },\n'
+		+ METHODS.concat(FLOW_METHODS).map((n) => cut(src, n)).join(',\n') + '\n};';
+	return new Function(...FLOW_TABLES, body);
+}
+
+/**
+ * One fight, played to the end or to the last scripted reading. `lays` says
+ * how many cards from the front of the hand go down each reading; what is
+ * reported after each step is everything a shuffle cannot change.
+ */
+function playFight(make, one) {
+	const g = make(...FLOW_TABLES.map((t) => one[t]));
+	g.state = one.state;
+	g.props = one.props;
+	const seen = [];
+	const look = () => {
+		const f = g.state.f, st = g.state;
+		seen.push({
+			hp: f.hp, faith: f.faith, coin: f.coin, turn: f.turn, turns: f.turns, denial: f.denial,
+			denialUp: f.denialUp, energy: f.energy, energyMax: f.energyMax, handMax: f.handMax, swept: f.swept,
+			hand: f.hand.length, draw: f.draw.length, disc: f.disc.length, gone: f.gone.length,
+			taken: f.taken != null, max: f.max,
+			runCoin: st.coin, runFaith: st.faith, mended: st.mended, marks: st.marks.length,
+			serpEl: st.serpEl || '', res: st.res ? st.res.kind : '', seen: st.seen.length,
+		});
+	};
+	g.startFight(one.o);
+	look();
+	for (const k of one.lays) {
+		if (g.state.res) break;
+		const f = g.state.f;
+		f.cross = f.hand.splice(0, Math.min(k, f.hand.length));
+		g.resolveRead(g.simulate(f));
+		look();
+	}
+	return seen;
+}
+
 function main() {
 	const [, , casesPath, outPath] = process.argv;
 	if (!casesPath || !outPath) {
@@ -113,12 +171,14 @@ function main() {
 	}
 	const proto = engine();
 	const audit = auditor();
+	const fights = flow();
 	const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
 		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
 		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'fight') return playFight(fights, one);
 		if (one.kind === 'fxAudit') return audit(...AUDIT_TABLES.map((t) => one[t]));
 		if (one.kind === 'scaleSitter') return proto.scaleSitter(one.sitter, one.night, one.step);
 		proto.state = one.state;

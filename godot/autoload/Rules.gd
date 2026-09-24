@@ -112,8 +112,7 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 		"hpAfter": fight.get("hp", 0), "extraTurns": 0, "coin": 0, "halveNote": null,
 		"denial": max(0, fight.get("denial", 0) - pierce_trait),
 	}
-	# The raw wall on purpose — see next_wall()'s note about the empty reading.
-	blank["shieldNext"] = next_wall(fight, {"denial": fight.get("denial", 0)})
+	blank["shieldNext"] = next_wall(fight, blank)
 	if laid.is_empty():
 		return blank
 
@@ -307,24 +306,25 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 ## and the ceiling come from the `denial_wall` registry, so this stays a data
 ## question rather than a code one, and an fx with no entry there keeps the
 ## source's behaviour exactly.
-## WHAT THE WALL GROWS FROM IS THE WALL THE READING ACTUALLY FACED, which is the
-## sitter's denial AFTER a piercing reader has gone through it — `sim.denial`,
-## not `fight.denial`. This read the raw figure, so in the port a reader whose
-## whole trait is going through walls never wore one down: it regrew from full
-## every reading, for ever. The prototype takes 4 off and grows from there, so
-## piercing compounds across a fight.
 ##
-## Found by tests/test_against_the_prototype.gd, which runs the specification's
-## own simulate() and compares every field: 215 of 2000 random readings
-## disagreed, all of them here and nothing else. It is very likely why pierce
-## measured at the bare floor — the port had quietly removed the larger half of
-## the trait, and `pierce.spare` was added to treat the symptom.
+## THE WALL REGROWS FROM ITS OWN HEIGHT, not from what a piercing reader left
+## of it for one reading. Pierce is "goes past the shield entirely; none of it is
+## held off": it takes 4 off the wall a reading faces (`sim.denial`) and does not
+## knock the wall down. That is the prototype's resolveRead() (~2185,
+## `f.denial += f.denialUp`) and its own balance sim, simFight() (~1647), both
+## growing the raw figure.
 ##
-## The empty reading keeps the RAW wall, which is the prototype's own asymmetry
-## (line ~2052 against ~2128) and reads as intended rather than as a slip: you
-## pierce nothing by saying nothing.
+## For a while this grew from `sim.denial`, on the strength of the prototype's
+## simulate() returning `shieldNext: denial + f.denialUp` from the pierced
+## figure. That field is WRITTEN AND NEVER READ in v23 — v20 showed it as a
+## preview, which disagreed with its own resolveRead, and v22 dropped the
+## preview. Following it made pierce compound: against Pisces a pierce mark held
+## the wall at 4 for the whole fight where the prototype grows it 4, 8 … 28, and
+## against Taurus the wall SHRANK every reading. Found by
+## tests/test_against_the_prototype.gd once it played whole fights through the
+## prototype's own flow rather than comparing one reading's fields.
 func next_wall(fight: Dictionary, sim: Dictionary) -> int:
-	var wall: int = int(sim.get("denial", fight.get("denial", 0)))
+	var wall: int = int(fight.get("denial", 0))
 	var up: int = fight.get("denialUp", 0)
 	if up == 0 and wall == 0:
 		return 0

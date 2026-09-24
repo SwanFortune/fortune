@@ -51,6 +51,9 @@ const CARDS := 600
 ## Each one carries every content table across to node, so fewer than the cards.
 const AUDITS := 150
 
+## Each one is up to thirteen steps of a whole fight.
+const FIGHTS := 300
+
 const BRIDGE := "res://tests/prototype_bridge.js"
 
 ## Every trait the engine asks `has()` about, plus nothing. Derived from what
@@ -95,7 +98,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s), %d card(s), the pronouns, the ladder and the content audit agreed with the prototype" % [_cases.size(), CARDS]
+	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit and whole fights agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -363,6 +366,160 @@ func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
 	done()
 
 
+## A WHOLE FIGHT, against the prototype's startFight() and resolveRead().
+##
+## The four checks above are pure functions. This is the flow that strings them
+## together: the fight a knock builds (how many readings, how much energy, how
+## big a hand, how thick a wall), what each reading does to it, when it is won
+## or lost, and what the run is paid. The part a player lives in, and the part
+## a transcription is likeliest to get subtly wrong, because nothing about one
+## reading shows it.
+##
+## Each engine shuffles with its own dice, so a fight's deck is N copies of ONE
+## random card: then the shuffle cannot matter, and hand, draw pile and discard
+## are compared as SIZES. Cards are put down straight from the front of the hand
+## — laying is its own subject, with its own energy rules — and each step is
+## compared after startFight and after every reading.
+func _test_a_fight_goes_as_the_prototype_says() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var run: Node = root.get_node("Run")
+	var before: Dictionary = run.state
+	var fights: Array = []
+	for _i in FIGHTS:
+		fights.append(_a_fight(run))
+	var theirs := _ask_the_prototype(fights)
+	check(theirs.size() == fights.size(), "the bridge played %d of %d fights" % [theirs.size(), fights.size()])
+
+	var shown := 0
+	var ended := 0
+	for i in min(theirs.size(), fights.size()):
+		var mine := _play_the_fight(run, fights[i])
+		var spec: Array = theirs[i]
+		if not spec.is_empty() and str(spec[-1].get("res", "")) != "":
+			ended += 1
+		var where := ""
+		if mine.size() != spec.size():
+			where = "the port took %d steps, the prototype %d" % [mine.size(), spec.size()]
+		else:
+			for step in mine.size():
+				where = _first_field_apart(mine[step], spec[step])
+				if where != "":
+					where = "step %d: %s" % [step, where]
+					break
+		if where == "":
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		var o: Dictionary = fights[i]["o"]
+		check(false, "fight %d (%s, %s, sign %s, reader %s) went differently — %s"
+			% [i, o["sitter"].get("name", "?"), o["kind"], o["quirk"].get("fx", ""),
+				fights[i]["state"]["reader"].get("fx", ""), where])
+	if shown > 3:
+		check(false, "%d fights of %d went differently; the first three are above" % [shown, fights.size()])
+	check(ended > fights.size() / 2,
+		"only %d of %d fights reached a verdict — the win/lose/pay-out half is barely being compared" % [ended, fights.size()])
+	run.state = before
+	done()
+
+
+## The same fight on the port, reported in the same words as the bridge.
+func _play_the_fight(run: Node, one: Dictionary) -> Array:
+	var st: Dictionary = one["state"].duplicate(true)
+	run.state = run.fresh("a fight against the specification", 0)
+	for key in ["reader", "marks", "deck", "coin", "faith", "mended", "seen"]:
+		run.state[key] = st[key]
+	run.state["serp_el"] = st["serpEl"]
+	var seen: Array = []
+	run.start_fight(one["o"].duplicate(true))
+	seen.append(_look_at(run))
+	for k in one["lays"]:
+		if not run.state.get("res", {}).is_empty():
+			break
+		var f: Dictionary = run.state["f"]
+		var take: int = mini(int(k), f["hand"].size())
+		f["cross"] = f["hand"].slice(0, take)
+		f["hand"] = f["hand"].slice(take)
+		run.resolve_read(rules.simulate(run.run_ctx(), f))
+		seen.append(_look_at(run))
+	return seen
+
+
+func _look_at(run: Node) -> Dictionary:
+	var st: Dictionary = run.state
+	var f: Dictionary = st["f"]
+	return {
+		"hp": f["hp"], "faith": f["faith"], "coin": f["coin"], "turn": f["turn"], "turns": f["turns"],
+		"denial": f["denial"], "denialUp": f["denialUp"], "energy": f["energy"], "energyMax": f["energyMax"],
+		"handMax": f["handMax"], "swept": f["swept"], "hand": f["hand"].size(), "draw": f["draw"].size(),
+		"disc": f["disc"].size(), "gone": f["gone"].size(), "taken": f["taken"] != null, "max": f["max"],
+		"runCoin": st["coin"], "runFaith": st["faith"], "mended": st["mended"], "marks": st["marks"].size(),
+		"serpEl": str(st.get("serp_el", "")), "res": str(st.get("res", {}).get("kind", "")), "seen": st["seen"].size(),
+	}
+
+
+## A knock: a real sitter (scaled for a random hour, elite a third of the time,
+## the boss now and then), a real sign, a real reader wearing up to three real
+## marks, and a deck of one card.
+func _a_fight(run: Node) -> Dictionary:
+	run.state = run.fresh("inventing a fight", 0)
+	var kind := "sitter"
+	var sitter: Dictionary
+	if randf() < 0.08 and not content.boss.is_empty():
+		kind = "boss"
+		sitter = content.boss.duplicate(true)
+	else:
+		sitter = content.sitters[randi() % content.sitters.size()]
+		if randf() < 0.33:
+			kind = "elite"
+			sitter = run.elite_of(sitter, true)
+		sitter = run.scale_sitter(sitter, randi() % 3, randi() % 8)
+	var marks: Array = []
+	var pool: Array = content.marks + content.relics
+	for _m in randi() % 4:
+		marks.append(pool[randi() % pool.size()])
+	var card := _a_card(0)
+	if randf() < 0.2:
+		card["exhaust"] = true
+	var deck: Array = []
+	for n in 5 + randi() % 16:
+		var c: Dictionary = card.duplicate(true)
+		c["uid"] = "u%d" % n
+		deck.append(c)
+	var lays: Array = []
+	for _r in 12:
+		lays.append(randi() % 6)
+	return {
+		"kind": "fight",
+		"o": {"kind": kind, "sitter": sitter, "quirk": content.signs[randi() % content.signs.size()]},
+		"state": {"reader": content.readers[randi() % content.readers.size()], "marks": marks, "deck": deck,
+			"coin": randi() % 40, "faith": randi() % 200, "mended": randi() % 6, "seen": [], "serpEl": ""},
+		"props": {"energy": run.cfg_energy(), "handSize": run.cfg_hand()},
+		"lays": lays,
+		"JOBS": content.jobs, "RELICS": content.relics, "DENIAL_SHIELD": content.denial_shield,
+	}
+
+
+## WHY shieldNext IS LEFT OUT OF THE READING COMPARISON, checked rather than
+## asserted: the prototype must still never READ it. The day it does — a preview
+## comes back, or resolveRead() starts taking it — the field means something
+## again and has to be compared.
+func _test_the_prototype_still_never_reads_shieldNext() -> void:
+	var spec := FileAccess.get_file_as_string(ProjectSettings.globalize_path(BRIDGE).get_base_dir()
+		.path_join("../../project/Parlour v23.dc.html"))
+	check(spec.length() > 0, "could not open the specification to look")
+	var writes := RegEx.create_from_string("shieldNext\\s*:").search_all(spec).size()
+	var every := RegEx.create_from_string("shieldNext").search_all(spec).size()
+	check(writes > 0, "the prototype no longer writes shieldNext at all — this check is looking at the wrong thing")
+	check(every == writes,
+		"the prototype now READS shieldNext (%d mention(s), %d of them writes) — compare it again in _first_disagreement()"
+		% [every, writes])
+	done()
+
+
 ## THE CONTENT AUDIT, against the prototype's fxAudit().
 ##
 ## This is the check a mod author is told to run (tests/test_content_audit.gd)
@@ -576,12 +733,19 @@ func _ask_the_prototype(questions: Array) -> Array:
 
 ## The first field where the two answers differ, or "" when they agree.
 ##
+## `shieldNext` is NOT compared. The prototype's simulate() writes it and
+## nothing in the prototype reads it; the wall a sitter actually has next reading
+## is what resolveRead() does, and _test_a_fight_goes_as_the_prototype_says()
+## compares THAT. Comparing the dead field once made the port follow it, and
+## pierce compounded across every fight — see Rules.next_wall().
+## _test_the_prototype_still_never_reads_shieldNext() says if that ever changes.
+##
 ## `halveNote` is compared as PRESENT OR ABSENT, not as text: the prototype
 ## builds its wording from the sitter's pronoun and the port keeps the wording
 ## in the locale, which is a translation decision rather than arithmetic.
 func _first_disagreement(mine: Dictionary, theirs: Dictionary) -> String:
 	for field in ["gross", "pierced", "denial", "absorbed", "applied", "bank", "over",
-			"hpAfter", "extraTurns", "coin", "shieldNext"]:
+			"hpAfter", "extraTurns", "coin"]:
 		if int(mine.get(field, 0)) != int(theirs.get(field, 0)):
 			return "%s: the port says %s, the prototype says %s" % [field, mine.get(field), theirs.get(field)]
 	if (mine.get("halveNote") == null) != (theirs.get("halveNote") == null):
