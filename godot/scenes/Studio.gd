@@ -28,6 +28,7 @@ extends Control
 ## Loaded by path, not by `class_name` — see autoload/Content.gd's header.
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
+const RoomTraces := preload("res://scenes/RoomTraces.gd")
 
 ## How often the watched folders are looked at, and how often REPEAT fires.
 const WATCH_EVERY := 0.75
@@ -57,6 +58,9 @@ var _stage: Control
 var _holder: CenterContainer
 var _card_name: Label
 var _grid: HFlowContainer
+var _room: Array = []
+var _room_layer: Control
+var _room_holder: CenterContainer
 var _preset_text: Label
 var _slow_btn: Button
 var _repeat_btn: Button
@@ -66,6 +70,10 @@ var _repeat_timer: Timer
 func _ready() -> void:
 	var root := UIKit.root_control(Table.VIEW_TABLE)
 	add_child(root)
+	# The studio's own table, which the ROOM pane puts things on — the same
+	# layer the reading screen draws, over the same room, at the same spots.
+	_room_layer = RoomTraces.layer(_room)
+	root.add_child(_room_layer)
 	var m := UIKit.margin(28)
 	root.add_child(m)
 	var outer := UIKit.vbox(10)
@@ -76,9 +84,14 @@ func _ready() -> void:
 		"The game's drawings and animations, live. Save a file and it appears here — no restart. Everything is explained in docs/ATELIER.md."
 	), 12, UIKit.DIM))
 
-	var tabs := UIKit.hbox(8)
+	# A FLOW, so the row wraps rather than pushing BACK off the right edge —
+	# which one more tab did, by 7px, at every resolution the suite checks.
+	var tabs := HFlowContainer.new()
+	tabs.add_theme_constant_override("h_separation", 8)
+	tabs.add_theme_constant_override("v_separation", 8)
 	tabs.add_child(UIKit.button(I18n.t("MOMENTS"), _show.bind("moments")))
 	tabs.add_child(UIKit.button(I18n.t("CARDS IN HAND"), _show.bind("hand")))
+	tabs.add_child(UIKit.button(I18n.t("THE ROOM"), _show.bind("room")))
 	tabs.add_child(UIKit.button(I18n.t("ART"), _show.bind("art")))
 	_slow_btn = UIKit.button("", _toggle_slow)
 	tabs.add_child(_slow_btn)
@@ -133,6 +146,8 @@ func _show(pane: String) -> void:
 			_pane_hand()
 		"art":
 			_pane_art()
+		"room":
+			_pane_room()
 		_:
 			_pane_moments()
 
@@ -201,6 +216,83 @@ func _pane_hand() -> void:
 			Feel.dress_with(face, rule, sample, ctx)
 
 
+## THE ROOM: every rule in room.json as a button. Pressing one lays the card it
+## is about, here, and it turns into its thing on this screen's own table —
+## the same journey, the same spot, the same layer as in a reading. EVERYTHING
+## puts every thing down at once, to judge how the table looks when it is full;
+## CLEAR takes it all away.
+func _pane_room() -> void:
+	_body.add_child(UIKit.block(I18n.t(
+		"What a laid card becomes in the room, from data/base/room.json. Press a rule to lay its card here and watch it arrive."
+	), 12, UIKit.DIM))
+	var row := UIKit.hbox(24)
+	_body.add_child(row)
+	var list := UIKit.vbox(4)
+	row.add_child(list)
+	for rule in Content.traces:
+		var b := UIKit.button(_rule_line(rule), _lay_rule.bind(rule))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list.add_child(b)
+	var more := UIKit.hbox(8)
+	more.add_child(UIKit.button(I18n.t("EVERYTHING"), _furnish))
+	more.add_child(UIKit.button(I18n.t("CLEAR"), _clear_room))
+	list.add_child(more)
+	_room_holder = CenterContainer.new()
+	_room_holder.custom_minimum_size = Vector2(160, 220)
+	row.add_child(_room_holder)
+
+
+func _rule_line(rule: Dictionary) -> String:
+	var names = rule.get("when", {}).get("n", "")
+	var who := ", ".join(names) if names is Array else str(names)
+	if bool(rule.get("shakes", false)):
+		return "%s — %s → %s" % [rule.get("id", "?"), who, I18n.t("the table rattles")]
+	return "%s — %s → %s (%s)" % [rule.get("id", "?"), who, rule.get("becomes", "?"), rule.get("how", "melt")]
+
+
+## The card a rule is about, laid here: put on the little stage, then turned
+## into its thing exactly as Reading._lay() does it.
+func _lay_rule(rule: Dictionary) -> void:
+	var card := {}
+	for c in _all_cards():
+		if Feel.matches(rule.get("when", {}), c, {"affordable": true}):
+			card = c
+			break
+	for c in _room_holder.get_children():
+		c.queue_free()
+	if bool(rule.get("shakes", false)):
+		_room_layer.jolt_at = Time.get_ticks_msec()
+		_room_layer.refresh()
+		Feel.rumble(str(rule.get("haptic", "")))
+		_say(I18n.t("The table rattles."))
+		return
+	var face := UIKit.card_face(card, func(): pass, true, false)
+	_room_holder.add_child(face)
+	# A frame for the face to be laid out before it is turned into anything —
+	# the journey starts from where it is, so it has to be somewhere.
+	await get_tree().process_frame
+	if not is_instance_valid(face):
+		return
+	var t := RoomTraces.place(_room, rule, Feel.arrival_of(rule))
+	_room_layer.refresh()
+	if t.is_empty():
+		_say(I18n.t("Already on the table — that one comes only once."))
+		return
+	Feel.become(face, rule, RoomTraces.where(t, get_viewport_rect().size))
+	face.modulate.a = 0.0
+
+
+func _furnish() -> void:
+	for rule in Content.traces:
+		RoomTraces.place(_room, rule)
+	_room_layer.refresh()
+
+
+func _clear_room() -> void:
+	_room.clear()
+	_room_layer.refresh()
+
+
 func _pane_art() -> void:
 	var counts := {}
 	var animated := 0
@@ -215,6 +307,7 @@ func _pane_art() -> void:
 	kinds.add_child(UIKit.button(I18n.t("CARDS"), _fill_grid.bind("card")))
 	kinds.add_child(UIKit.button(I18n.t("SITTERS"), _fill_grid.bind("sitter")))
 	kinds.add_child(UIKit.button(I18n.t("READERS"), _fill_grid.bind("reader")))
+	kinds.add_child(UIKit.button(I18n.t("OBJECTS"), _fill_grid.bind("prop")))
 	_body.add_child(kinds)
 
 	_grid = HFlowContainer.new()

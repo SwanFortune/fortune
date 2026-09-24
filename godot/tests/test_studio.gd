@@ -175,6 +175,31 @@ func _test_every_card_state_is_shown_dressed() -> void:
 	done()
 
 
+## THE ROOM pane: a rule lays its card and the thing lands on the studio's own
+## table; EVERYTHING puts every thing down; CLEAR takes them away.
+func _test_the_room_pane_puts_things_on_the_table() -> void:
+	var s: Control = load("res://scenes/Studio.tscn").instantiate()
+	root.add_child(s)
+	await process_frame
+	s._show("room")
+	await process_frame
+	var tea := {}
+	for rule in content.traces:
+		if str(rule.get("becomes", "")) == "their_cup":
+			tea = rule
+	await s._lay_rule(tea)
+	check(s._room.size() == 1 and str(s._room[0]["prop"]) == "their_cup", "laying the tea rule should put their cup on the table, has %s" % [s._room])
+	s._furnish()
+	var things: int = content.traces.filter(func(r): return str(r.get("becomes", "")) != "").size()
+	check(s._room.size() == things, "EVERYTHING should put down one of each thing (%d), has %d" % [things, s._room.size()])
+	check(s._room_layer.traces == s._room, "the studio's table should draw the studio's list")
+	s._clear_room()
+	check(s._room.is_empty(), "CLEAR should take it all away")
+	s.queue_free()
+	await process_frame
+	done()
+
+
 func _button(n: Node, text: String) -> Button:
 	for c in _all(n, []):
 		if c is Button and c.text == text and not c.is_queued_for_deletion():

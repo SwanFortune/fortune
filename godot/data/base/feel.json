@@ -22,6 +22,7 @@
     "coins":   { "status": "placeholder", "texture": "", "amount": 8, "lifetime": 0.8, "explosiveness": 0.9, "from": "point", "direction": [0, -1], "spread": 40, "speed": [90, 160], "gravity": [0, 380], "scale": [0.2, 0.35] },
     "embers":  { "status": "placeholder", "texture": "", "amount": 18, "lifetime": 1.0, "explosiveness": 0.6, "from": "area", "direction": [0, -1], "spread": 25, "speed": [20, 50], "gravity": [0, -30], "scale": [0.1, 0.3], "colors": ["#ffffff", "#ffb060", "#80200000"], "size_over_life": [1, 0.4] },
     "bloom":   { "status": "placeholder", "texture": "", "amount": 28, "lifetime": 0.9, "explosiveness": 1.0, "from": "point", "direction": [0, -1], "spread": 180, "speed": [60, 200], "damping": 120, "gravity": [0, 0], "scale": [0.2, 0.5], "blend": "add", "size_over_life": [0.4, 1, 0] },
+    "steam":   { "status": "placeholder", "texture": "", "amount": 5, "lifetime": 2.2, "explosiveness": 0.0, "from": "point", "direction": [0, -1], "spread": 12, "speed": [8, 16], "gravity": [0, -4], "scale": [0.25, 0.5], "colors": ["#ffffff00", "#ffffff40", "#ffffff00"], "size_over_life": [0.5, 1.4] },
     "shimmer": { "status": "placeholder", "texture": "", "amount": 6, "lifetime": 1.2, "explosiveness": 0.0, "from": "edge", "direction": [0, -1], "spread": 180, "speed": [5, 15], "gravity": [0, 0], "scale": [0.08, 0.18] }
   },
   "motions": {

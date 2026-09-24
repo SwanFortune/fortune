@@ -59,6 +59,13 @@ they start, that the settings are obeyed, and that nothing named is missing.
 It cannot say whether a thud feels like a thud. SETTINGS → CONTROLS → TRY IT
 is the place to start, and CREDITS → STUDIO is where the rest is tuned.
 
+**Nobody has watched a visit with the room remembering.** Eight cards turn
+into things on the table (`data/base/room.json`), each drawn in code, at spots
+chosen by screenshot so they miss the text. Whether a table with the cloth, the
+cup, the coins and the ash on it still reads as a table — and which other cards
+deserve a thing — is a person's call, and the studio's ROOM pane is where to
+make it.
+
 **A mod cannot ship art.** `docs/MODDING.md` says a mod's art is read from
 bytes like its audio, and `tests/test_art.gd` says "a mod that wants art ships
 its own manifest" — but `Art.gd` reads exactly one manifest,

@@ -729,6 +729,78 @@
       "spoken": "say whatever is in season",
       "status": "missing"
     },
+    "prop/ash": {
+      "anchor": "center",
+      "display": "ash",
+      "draw": "ash",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/cloth": {
+      "anchor": "center",
+      "display": "cloth",
+      "draw": "cloth",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/coins": {
+      "anchor": "center",
+      "display": "coins",
+      "draw": "coins",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/house": {
+      "anchor": "center",
+      "display": "house",
+      "draw": "paper",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/lamplight": {
+      "anchor": "center",
+      "display": "lamplight",
+      "draw": "glow",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/stones": {
+      "anchor": "center",
+      "display": "stones",
+      "draw": "stones",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/their-coat": {
+      "anchor": "top",
+      "display": "their_coat",
+      "draw": "coat",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/their-cup": {
+      "anchor": "center",
+      "display": "their_cup",
+      "draw": "teacup",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
     "reader/aquarius": {
       "display": "The Water Bearer — AQUARIUS",
       "element": "air",
@@ -983,6 +1055,16 @@
       "notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
       "pixels": "768x1024",
       "safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face."
+    },
+    "prop_art": {
+      "applies_to": [
+        "prop"
+      ],
+      "aspect": "1:1, square canvas",
+      "format": "PNG, RGBA, transparent background",
+      "notes": "What a card becomes in the room when it is laid (data/base/room.json): the cup of tea, their coat, the ash of the letter. Drawn about as tall as the prop's `size` times the screen height — a cup is roughly 55 px high at 720p.",
+      "pixels": "512x512",
+      "safe_zone": "The thing itself, on a transparent square. It is centred on its spot on the table — or hung from it by its top edge when the prop says `anchor: top` (their coat, from the hook)."
     },
     "status_values": [
       "missing",

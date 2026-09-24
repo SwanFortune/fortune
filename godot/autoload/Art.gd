@@ -240,6 +240,12 @@ func reader_texture(reader: Dictionary) -> Texture2D:
 	return texture(reader_id(reader))
 
 
+## What a laid card becomes in the room — see data/base/room.json and
+## scenes/RoomTraces.gd, which draws its placeholder when this is null.
+func prop_texture(prop_id: String) -> Texture2D:
+	return texture("prop/" + slug(prop_id))
+
+
 ## The status that means NOBODY HAS DRAWN THIS YET, and the answer assumed for an
 ## entry that does not say. Named rather than spelt "missing" at each call site
 ## because the credits count against it; see Audio.UNDELIVERED, which is the same

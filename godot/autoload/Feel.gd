@@ -584,6 +584,151 @@ func _truthy(v) -> bool:
 	return true
 
 
+# ── the room remembers ───────────────────────────────────────────────────
+
+## How a card may get to the thing it becomes, and how long each takes at 1x.
+## See data/base/room.json.
+const HOWS := {"melt": 0.55, "burn": 0.65, "carry": 0.6}
+
+## The first `traces` rule (room.json) this card matches, or {}. Matched exactly
+## as card_states are.
+func trace_rule(card: Dictionary, ctx: Dictionary = {}) -> Dictionary:
+	for rule in Content.traces:
+		if bool(rule.get("off", false)):
+			continue
+		if matches(rule.get("when", {}), card, ctx):
+			return rule
+	return {}
+
+
+## How long the card takes to become its thing — 0 when motion is off, when
+## the thing simply appears.
+func arrival_of(rule: Dictionary) -> float:
+	if _motion_off() or str(rule.get("becomes", "")) == "":
+		return 0.0
+	return _dur(float(HOWS.get(str(rule.get("how", "melt")), 0.5)))
+
+
+## THE CARD TURNS INTO THE THING. A picture of the card is taken where it sits
+## and that picture melts, burns, or is carried to `to` (a global position:
+## where the thing will stand), on Feel's own layer — so it outlives the
+## screen being rebuilt underneath it, which happens the instant the card is
+## laid. The thing itself is drawn by the room (scenes/RoomTraces.gd) from the
+## moment arrival_of() says it lands; this is only the journey, and the rumble
+## when it gets there.
+##
+## A picture rather than the card: whatever the card looks like — today's
+## placeholder or the illustrator's drawing — is what comes apart, with no code
+## knowing which.
+func become(face: Control, rule: Dictionary, to: Vector2) -> void:
+	var arrive := arrival_of(rule)
+	var haptic := str(rule.get("haptic", ""))
+	if haptic != "":
+		if arrive <= 0.0:
+			rumble(haptic)
+		else:
+			get_tree().create_timer(arrive).timeout.connect(rumble.bind(haptic))
+	if arrive <= 0.0 or not _alive(face):
+		return
+	var how := str(rule.get("how", "melt"))
+	var rect := face.get_global_rect()
+	var ghost := _ghost(face, rect)
+	_layer.add_child(ghost)
+	var tw := ghost.create_tween()
+	tw.bind_node(ghost)
+	match how:
+		"carry":
+			ghost.pivot_offset = rect.size * 0.5
+			var goal := to - rect.size * 0.5
+			tw.tween_property(ghost, "position", goal, arrive).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
+			tw.parallel().tween_property(ghost, "scale", Vector2(0.3, 0.3), arrive).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+			tw.parallel().tween_property(ghost, "rotation_degrees", -8.0, arrive)
+			tw.parallel().tween_property(ghost, "modulate:a", 0.0, arrive * 0.35).set_delay(arrive * 0.65)
+		_:
+			# It drifts to where the thing will stand while it comes apart, so it
+			# melts over the table and not over the hand — where the next card
+			# is already sliding into its place and would show through the holes.
+			ghost.pivot_offset = rect.size * 0.5
+			tw.tween_property(ghost, "position", to - rect.size * 0.5, arrive).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(ghost, "scale", Vector2(0.55, 0.55), arrive).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			var mat := ghost.material as ShaderMaterial
+			if mat != null:
+				if how == "burn":
+					mat.set_shader_parameter("edge_color", Color(1.0, 0.55, 0.18, 1.0))
+					mat.set_shader_parameter("bias", 0.0)
+				tw.parallel().tween_method(_track.bind(ghost), 0.0, 1.0, arrive).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+			else:
+				tw.parallel().tween_property(ghost, "modulate:a", 0.0, arrive)
+			burst("embers" if how == "burn" else "dust", rect.get_center(),
+				Color(1.0, 0.6, 0.3) if how == "burn" else Color(1, 1, 1, 0.8), rect.size * 0.5)
+	tw.tween_callback(ghost.queue_free)
+	# A puff where it lands, as it lands.
+	get_tree().create_timer(arrive).timeout.connect(_land.bind(to))
+
+
+func _land(at: Vector2) -> void:
+	burst("dust", at, Color(1, 1, 1, 0.6), Vector2(12, 6))
+
+
+## The card that comes apart: a COPY of the face, with every part of it
+## drawing through the dissolve shader.
+##
+## It was a snapshot of the screen first, and a measured one came out at a
+## tenth of the card's brightness — the viewport is read back in linear light
+## and shown as if it were not, a conversion that depends on the renderer. A
+## copy has no colour to get wrong, costs no read-back, and exists in a headless
+## run too, so the tests see the journey the player does.
+func _ghost(face: Control, rect: Rect2) -> Control:
+	var g: Control = face.duplicate(Node.DUPLICATE_USE_INSTANTIATION)
+	for n in [g] + g.find_children("*", "", true, false):
+		if n is CPUParticles2D:
+			n.free()
+			continue
+		if n is Control:
+			n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			n.focus_mode = Control.FOCUS_NONE
+		if n != g and n is CanvasItem:
+			n.use_parent_material = true
+	g.position = rect.position
+	g.size = rect.size
+	g.scale = Vector2.ONE
+	g.rotation = 0.0
+	g.modulate = Color.WHITE
+	var shader = load("res://assets/shaders/dissolve.gdshader")
+	if shader is Shader:
+		var mat := ShaderMaterial.new()
+		mat.shader = shader
+		mat.set_shader_parameter("card", Vector4(rect.position.x, rect.position.y, rect.size.x, rect.size.y))
+		g.material = mat
+	return g
+
+
+## Keeps the shader's idea of where the card is in step with the card, as it
+## drifts and shrinks — otherwise the pattern slides across it.
+func _track(progress: float, g: Control) -> void:
+	var mat := g.material as ShaderMaterial
+	if mat == null:
+		return
+	var tl := g.position + g.pivot_offset * (Vector2.ONE - g.scale)
+	var size := g.size * g.scale
+	mat.set_shader_parameter("card", Vector4(tl.x, tl.y, size.x, size.y))
+	mat.set_shader_parameter("progress", progress)
+
+
+## A running emitter of a preset, for something that stays — the steam off a
+## cup. Unparented: the caller parents it at once. Null when particles are off
+## or the preset does not exist.
+func emitter_for(preset_name: String, colour: Color) -> CPUParticles2D:
+	if not particles_on():
+		return null
+	var p := _emitter(preset_name, colour, Vector2.ZERO)
+	if p == null:
+		return null
+	p.one_shot = false
+	p.local_coords = false
+	return p
+
+
 # ── haptics ──────────────────────────────────────────────────────────────
 
 ## Plays the named haptic pattern: a list of pulses, each [weak, strong,
@@ -679,7 +824,45 @@ func problems() -> Array[String]:
 	return out
 
 
+## What room.json asks for and nothing provides: a thing, a spot, a way of
+## arriving, a rumble, a placeholder kind or a running preset nobody defined,
+## and a card named in a `when` that no loaded pack has — the last because the
+## rules match cards BY NAME, and a renamed card would otherwise just stop
+## turning into anything, silently.
+func room_problems() -> Array[String]:
+	var out: Array[String] = []
+	var draws: Array = (load("res://scenes/RoomTraces.gd") as GDScript).get_script_constant_map().get("DRAWS", [])
+	for rule in Content.traces:
+		var id := str(rule.get("id", "?"))
+		var becomes := str(rule.get("becomes", ""))
+		if becomes == "" and not bool(rule.get("shakes", false)):
+			out.append("room.json: trace '%s' becomes nothing and shakes nothing" % id)
+		if becomes != "" and not Content.props.has(becomes):
+			out.append("room.json: trace '%s' becomes '%s', which no prop defines" % [id, becomes])
+		if becomes != "" and not Content.spots.has(str(rule.get("at", ""))):
+			out.append("room.json: trace '%s' lands at '%s', which no spot defines" % [id, rule.get("at", "")])
+		if becomes != "" and not HOWS.has(str(rule.get("how", "melt"))):
+			out.append("room.json: trace '%s' arrives by '%s', which is not one of %s" % [id, rule.get("how"), HOWS.keys()])
+		var haptic := str(rule.get("haptic", ""))
+		if haptic != "" and not Content.haptics.has(haptic):
+			out.append("room.json: trace '%s' rumbles '%s', which feel.json does not define" % [id, haptic])
+		var names = rule.get("when", {}).get("n")
+		for n in (names if names is Array else ([names] if names != null else [])):
+			if not Content.has_card(str(n)):
+				out.append("room.json: trace '%s' names the card '%s', which no loaded pack has" % [id, n])
+	for id in Content.props:
+		var pre: Dictionary = Content.props[id]
+		if not draws.has(str(pre.get("draw", ""))) and Art.prop_texture(str(id)) == null:
+			out.append("room.json: prop '%s' draws '%s', which is not one of %s, and has no drawing" % [id, pre.get("draw", ""), draws])
+		var preset := str(pre.get("particles", ""))
+		if preset != "" and not Content.particles.has(preset):
+			out.append("room.json: prop '%s' runs particles '%s', which feel.json does not define" % [id, preset])
+	return out
+
+
 func _say_what_does_not_resolve() -> void:
+	for line in room_problems():
+		push_warning("[Feel] " + line)
 	for line in problems():
 		push_warning("[Feel] " + line)
 

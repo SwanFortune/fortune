@@ -57,6 +57,10 @@ var particles: Dictionary
 var motions: Dictionary
 var haptics: Dictionary
 var card_states: Array
+## The room remembers — data/base/room.json, drawn by scenes/RoomTraces.gd.
+var props: Dictionary
+var spots: Dictionary
+var traces: Array
 ## The looping half of the audio: the score and the room tone. See music.json.
 var music: Dictionary
 var minitel_codes: Dictionary
@@ -120,6 +124,9 @@ func reload() -> void:
 	motions = registries.get("motions", {})
 	haptics = registries.get("haptics", {})
 	card_states = registries.get("card_states", [])
+	props = registries.get("props", {})
+	spots = registries.get("spots", {})
+	traces = registries.get("traces", [])
 	music = registries.get("music", {})
 	minitel_codes = registries.get("minitel_codes", {})
 	icons = registries.get("icons", {})

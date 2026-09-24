@@ -71,6 +71,7 @@ godot --headless --path godot -s tests/test_settings.gd        # key rebinding +
 godot --headless --path godot -s tests/test_audio.gd           # sound registry + runtime loader
 godot --headless --path godot -s tests/test_feel.gd            # particles, card motion, haptics
 godot --headless --path godot -s tests/test_studio.gd          # the studio: live reload, templates
+godot --headless --path godot -s tests/test_room.gd            # the room remembers: cards that become things
 godot --headless --path godot -s tests/test_profile.gd         # cross-run stats + reader unlocks
 godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
 godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code channel + secret events
@@ -81,7 +82,7 @@ godot --headless --path godot -s tests/test_the_suite.gd       # every test meth
 godot --headless --path godot -s tests/test_against_the_prototype.gd  # the engine against the prototype's own simulate()
 ```
 
-All twenty-five should print `ALL PASS`. Several of them
+All twenty-six should print `ALL PASS`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The

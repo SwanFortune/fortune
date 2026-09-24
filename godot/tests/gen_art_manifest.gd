@@ -77,6 +77,13 @@ func _initialize() -> void:
 			s, "sitter/" + _slug(s["name"]), "sitter", "%s · %s" % [s["name"], s["role"]],
 			{"element": s["el"], "pronoun": s.get("p", "they"), "flavor": s.get("brings", "")}
 		)
+	# What the cards become in the room (data/base/room.json).
+	for id in content.props:
+		add.call(
+			content.props[id], "prop/" + _slug(str(id)), "prop", str(id),
+			{"draw": str(content.props[id].get("draw", "")), "anchor": str(content.props[id].get("anchor", "center"))}
+		)
+
 	var boss: Dictionary = content.boss
 	if not boss.is_empty():
 		add.call(
@@ -116,17 +123,30 @@ func _initialize() -> void:
 
 func _spec() -> Dictionary:
 	return {
+		# `applies_to` is what tests/test_art.gd holds each delivered file's
+		# size against. It was in the manifest and NOT here, so running this
+		# generator — which the docs tell you to do after adding a card —
+		# silently took it out, and the size check then failed on every kind.
 		"card_art": {
+			"applies_to": ["card"],
 			"pixels": "768x576", "aspect": "4:3 landscape",
 			"format": "PNG, RGBA, transparent background allowed",
 			"safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below.",
 			"notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
 		},
 		"portrait_art": {
+			"applies_to": ["sitter", "reader"],
 			"pixels": "768x1024", "aspect": "3:4 portrait",
 			"format": "PNG, RGBA",
 			"safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face.",
 			"notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
+		},
+		"prop_art": {
+			"applies_to": ["prop"],
+			"pixels": "512x512", "aspect": "1:1, square canvas",
+			"format": "PNG, RGBA, transparent background",
+			"safe_zone": "The thing itself, on a transparent square. It is centred on its spot on the table — or hung from it by its top edge when the prop says `anchor: top` (their coat, from the hook).",
+			"notes": "What a card becomes in the room when it is laid (data/base/room.json): the cup of tea, their coat, the ash of the letter. Drawn about as tall as the prop's `size` times the screen height — a cup is roughly 55 px high at 720p.",
 		},
 		"naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
 		"status_values": ["missing", "wip", "final"],

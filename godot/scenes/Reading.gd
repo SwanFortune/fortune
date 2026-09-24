@@ -11,6 +11,7 @@ extends Control
 ## clone. See autoload/Content.gd's header for why, and never change these back.
 const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
+const RoomTraces := preload("res://scenes/RoomTraces.gd")
 const Table := preload("res://scenes/Table.gd")
 
 ## The card band, and the whole held area beneath it. The hands start where the
@@ -55,6 +56,10 @@ func _ready() -> void:
 	var f: Dictionary = Run.state["f"]
 	var root := UIKit.root_control()
 	add_child(root)
+	# What the cards laid so far have become, over the room and under every word
+	# on this screen. See scenes/RoomTraces.gd.
+	var sitter_el = f.get("sitter", {}).get("el", "")
+	root.add_child(RoomTraces.layer(f.get("room", []), int(f.get("room_jolt", 0)), str(sitter_el) if sitter_el != null else ""))
 	var m := UIKit.margin(28)
 	# No bottom margin: the hand sits on the screen's edge with the fingers
 	# holding it running off it. A gap under them makes the table a panel.
@@ -696,9 +701,28 @@ func _lay(card_uid: String) -> void:
 	for c in Run.state.get("f", {}).get("hand", []):
 		if c["uid"] == card_uid:
 			card = c
-	if card.is_empty() or int(card.get("cost", 0)) <= int(Run.state["f"]["energy"]):
+	var affordable := card.is_empty() or int(card.get("cost", 0)) <= int(Run.state["f"]["energy"])
+	# WHAT IT BECOMES. Some cards turn into a thing in the room (room.json):
+	# the tea into a cup, their coat onto the hook. Decided before the lay, while
+	# the face is still on screen to be turned into it.
+	var rule: Dictionary = Feel.trace_rule(card, {"affordable": affordable}) if affordable else {}
+	if affordable and str(rule.get("becomes", "")) == "":
 		Feel.play("card_lay", face if is_instance_valid(face) else null, {"el": _el_of(card)})
 	Run.lay_card(card_uid)
+	# Only if it was actually laid — a card that could not be paid for stays.
+	var laid: bool = not Run.state.get("f", {}).get("hand", []).any(func(c): return c["uid"] == card_uid)
+	if laid and not rule.is_empty():
+		if bool(rule.get("shakes", false)):
+			Run.jolt_room()
+			Feel.rumble(str(rule.get("haptic", "")))
+		var trace := Run.leave_trace(rule, Feel.arrival_of(rule))
+		if not trace.is_empty() and is_instance_valid(face):
+			Feel.become(face, rule, RoomTraces.where(trace, get_viewport_rect().size))
+		elif not trace.is_empty():
+			Feel.rumble(str(rule.get("haptic", "")))
+		elif str(rule.get("becomes", "")) != "":
+			# Already there — their coat only comes off the once. An ordinary lay.
+			Feel.play("card_lay", face if is_instance_valid(face) else null, {"el": _el_of(card)})
 	Nav.goto_for_state()
 
 

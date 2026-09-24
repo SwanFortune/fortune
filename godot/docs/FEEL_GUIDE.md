@@ -151,6 +151,53 @@ values. Anything else must be equal.
 continue the line breathe is a real hint about how to play, and that is a
 design decision, not a feel one. Remove `"off": true` to try it.
 
+## The room remembers
+
+Some cards, when laid, **become a thing in the parlour** and it stays there
+for the rest of that visit: the tea turns into a cup on their side of the
+table, steaming; their coat is carried to the hook by the door; the letter
+burns and leaves its ash; the lamp is turned up and stays up. Kicking the
+chair over rattles whatever is on the table. The next person to sit down finds
+a clear table. Gentler than Inscryption's teeth and eyes, but the same idea:
+the reading is the room as well as the cards.
+
+It is all in `data/base/room.json`:
+
+```json
+"traces": [
+  { "id": "tea", "when": { "n": "Pour The Tea" }, "becomes": "their_cup",
+    "at": "their_side", "how": "melt", "once": true, "haptic": "tap" },
+  { "id": "chair", "when": { "n": ["Kick The Chair Over", "Stand Up Mid-Sentence"] },
+    "shakes": true, "haptic": "thud" }
+]
+```
+
+- `when` matches the card, like `card_states`; the first rule that matches wins.
+- `becomes` is a key of `props`, and `at` a key of `spots`, which are fractions
+  of the screen chosen in the parts of the table the reading screen leaves
+  clear. The studio's ROOM → EVERYTHING puts every thing down at once, which is
+  how to see whether a new spot collides with one already there.
+- `how`: `melt` (the card drifts to the spot and comes apart into steam),
+  `burn` (the same, from its edges, in embers) or `carry` (it is carried there
+  and becomes the thing as it lands). The card that comes apart is a copy of
+  the card as it is drawn, so an illustrated card melts as illustrated.
+- `once`: one of that thing per visit (their coat only comes off the once).
+  Without it, a second of the same thing sits beside the first.
+- `shakes`: nothing to become — the table rattles instead.
+- `haptic`: a pattern from `feel.json`, felt when it lands.
+
+`props` are drawn in code as placeholders (`draw`: `teacup`, `coat`, `cloth`,
+`glow`, `ash`, `coins`, `stones`, `paper`) until a drawing lands at
+`assets/art/prop/<id>.png` — a 512×512 transparent PNG, listed in the art
+manifest like every other drawing. `size` is its height as a fraction of the
+screen's, `anchor: top` hangs it from its spot rather than centring it (the
+coat, from the hook), `tint: element` colours it by the sitter's element, and
+`particles` is a `feel.json` preset left running on it (the steam off the tea).
+
+What the room remembers is kept on the fight, so it is saved with it, TAKE IT
+BACK takes it away with the card, and it is gone for the next person. Nothing
+in the rules reads it.
+
 ## Haptics
 
 ```json

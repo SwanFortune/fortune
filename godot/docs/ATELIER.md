@@ -33,7 +33,8 @@ En haut, une rangée de boutons :
 |---|---|
 | **MOMENTS** | Chaque moment du jeu (une carte posée, une carte qui traverse le mur, le verdict…) sous forme de bouton. Il se joue sur une vraie carte, et on fait défiler les 56 cartes avec ◀ ▶. Les réglages du moment s'affichent en dessous. |
 | **CARTES EN MAIN** | Les cartes qui s'animent toutes seules en main (une carte rare qui scintille…), chacune sur un exemple. |
-| **IMAGES** | Les 79 images dont le jeu a besoin : cartes, consultants, voyantes. Pour chacune : comment elle rend aujourd'hui, si elle est faite, et le **nom exact du fichier** attendu. Appuie sur une vignette pour copier ce nom. |
+| **LA PIÈCE** | Ce que devient chaque carte dans la pièce (voir la partie 6) : appuie sur une règle pour voir la carte se transformer en objet sur la table. |
+| **IMAGES** | Les 87 images dont le jeu a besoin : cartes, consultants, voyantes, objets. Pour chacune : comment elle rend aujourd'hui, si elle est faite, et le **nom exact du fichier** attendu. Appuie sur une vignette pour copier ce nom. |
 | **RALENTI** | Tout passe au quart de la vitesse, pour regarder une animation image par image. |
 | **RÉPÉTER** | Rejoue le dernier moment en boucle pendant que tu règles. |
 | **CRÉER LES GABARITS** | Écrit des feuilles vierges aux bonnes tailles (avec la grille des planches d'animation) et ouvre le dossier. |
@@ -145,7 +146,37 @@ le gros (un choc sourd), de 0 à 1. Branche une manette et teste avec
 qui correspond l'emporte. Une règle avec `"off": true` est désactivée ; elle
 est montrée dans l'atelier pour qu'on puisse en juger.
 
-## 6. Si quelque chose ne s'affiche pas
+## 6. La pièce se souvient
+
+Certaines cartes, une fois posées, **deviennent un objet de la pièce** qui
+reste là jusqu'au départ du consultant. Le thé devient une tasse fumante de
+son côté de la table, son manteau part au portemanteau près de la porte, la
+lettre brûle et laisse sa cendre, la lampe reste allumée. Renverser la chaise
+fait trembler ce qui est sur la table.
+
+Tout est dans **`data/base/room.json`** :
+
+- **`traces`**, les règles : quelle carte (`when`) devient quel objet
+  (`becomes`), où il atterrit (`at`) et comment il y va (`how`) :
+  - `melt` : la carte glisse vers sa place et fond en vapeur ;
+  - `burn` : elle brûle par les bords, en braises ;
+  - `carry` : elle est emportée jusqu'à sa place.
+
+  `once: true` veut dire un seul par visite. `haptic` est la vibration à
+  l'arrivée.
+- **`props`**, les objets. Chacun est dessiné en code en attendant ton dessin :
+  un **PNG carré de 512 × 512, fond transparent**, dans
+  `assets/art/prop/<nom>.png` (l'onglet IMAGES → OBJETS donne les noms).
+  `size` est sa hauteur à l'écran. `anchor: top` le suspend par le haut (le
+  manteau au crochet). `particles` laisse un effet sur lui (la vapeur du thé).
+- **`spots`**, les places sur la table, en fraction de l'écran.
+
+Dans l'atelier, l'onglet **LA PIÈCE** montre chaque règle. Appuie dessus :
+la carte apparaît et se transforme sous tes yeux. **TOUT** pose tous les objets
+d'un coup (pratique pour voir si la table est trop chargée), **DÉBARRASSER**
+vide la table.
+
+## 7. Si quelque chose ne s'affiche pas
 
 - Un nom de fichier qui ne correspond à aucune image attendue, une taille
   différente de celle demandée, un statut « terminé » sans fichier : lance

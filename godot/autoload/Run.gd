@@ -630,6 +630,31 @@ func lay_card(card_uid: String) -> void:
 	state_changed.emit()
 
 
+## THE ROOM REMEMBERS what a laid card became — see scenes/RoomTraces.gd and
+## data/base/room.json. Kept on the FIGHT, so it is saved with it, cleared when
+## the next person sits down, and undone by TAKE IT BACK for free: unlay()
+## restores the fight as it was before the card, and this is called after.
+##
+## Cosmetic, and never read by the rules. Loaded by path at the moment it is
+## needed, never preloaded: this is an autoload, and a scene script preloaded
+## from one resolves before the autoloads it names exist (CLAUDE.md).
+func leave_trace(rule: Dictionary, arrive_in: float = 0.0) -> Dictionary:
+	var f: Dictionary = state.get("f", {})
+	if f.is_empty():
+		return {}
+	if not f.has("room"):
+		f["room"] = []
+	return (load("res://scenes/RoomTraces.gd") as GDScript).place(f["room"], rule, arrive_in)
+
+
+## Something in the room was knocked — the chair kicked over. Whatever is on
+## the table rattles, on whichever screen is up when it happens.
+func jolt_room() -> void:
+	var f: Dictionary = state.get("f", {})
+	if not f.is_empty():
+		f["room_jolt"] = Time.get_ticks_msec()
+
+
 ## Whether READ IT should do anything.
 ##
 ## The prototype's rule is "not with an empty line" (readIt returns early, and

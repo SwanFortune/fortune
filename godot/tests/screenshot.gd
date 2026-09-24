@@ -249,6 +249,15 @@ func _setup(name: String) -> void:
 			for c in f["hand"].duplicate():
 				if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
 					run.lay_card(c["uid"])
+		# THE ROOM REMEMBERING: every trace room.json can leave, already on the
+		# table, as they would be late in a long visit. The only way to see all
+		# of them together, which is how their spots were chosen.
+		"read_room":
+			_setup("read")
+			var content: Node = root.get_node("Content")
+			for rule in content.traces:
+				if str(rule.get("becomes", "")) != "":
+					run.leave_trace(rule)
 		"win":
 			_setup("read")
 			var f: Dictionary = run.state["f"]
