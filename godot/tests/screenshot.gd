@@ -230,6 +230,11 @@ func _setup(name: String) -> void:
 						worn.append(m)
 						break
 			run.state["marks"] = worn
+		"read_alone":
+			# The last card in hand, which floats above two open hands instead
+			# of being held — to see the gap between the fingertips and the card.
+			_setup("read")
+			run.state["f"]["hand"] = run.state["f"]["hand"].slice(0, 1)
 		"read_worn":
 			# EVERYTHING the base game hands out, on at once — every mark and every
 			# relic, each where its `on` says. The crowded case: if the thumb, the

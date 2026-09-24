@@ -806,6 +806,22 @@ func _test_the_last_card_floats() -> void:
 		for finger in TableScript.finger_geometry(base, hands.size.y, 1.0, reach):
 			tip_y = minf(tip_y, finger[2].y)
 		var card_bottom: float = face.global_position.y + face.size.y
+		if alone:
+			# THE WORST MOMENT, not this one. The card bobs BOB either side of
+			# where it rests, and the hands breathe up and down: measured at
+			# whatever moment the test happened to look, the gap passed here
+			# and failed in CI, 4px short, with the card at the bottom of its
+			# bob. So: the card at its lowest, the hands at their highest.
+			var rest_y: float = roundf((ReadingScript._band_px() - want.y) * 0.5) - ReadingScript.LIFT
+			card_bottom = (face.get_parent() as Control).global_position.y + rest_y + ReadingScript.BOB + want.y
+			var feel_node: Node = root.get_node("Feel")
+			var rest_g: Dictionary = content.gestures.get(feel_node.REST, {})
+			var highest := 0.0
+			for i in 41:
+				highest = maxf(highest, float(feel_node.pose_of(rest_g, feel_node.gesture_length(rest_g) * i / 40.0)["lift"]))
+			tip_y -= highest * hands.size.y
+		if alone:
+			print("--- floating: fingertips %.1f, the card at its lowest %.1f ---" % [tip_y, card_bottom])
 		if alone and tip_y <= card_bottom:
 			check(false, "the fingertips reach %.0f and the floating card ends at %.0f — it is being held, not floating"
 				% [tip_y, card_bottom])

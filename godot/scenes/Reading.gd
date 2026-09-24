@@ -45,7 +45,7 @@ const HAND_OVERLAP := 42
 ## and the card, which is what makes it read as floating rather than gripped.
 const LIFT := 14
 const BOB := 5.0
-const OPEN_REACH := 0.5
+const OPEN_REACH := 0.4
 
 
 static func _band_px() -> float:
