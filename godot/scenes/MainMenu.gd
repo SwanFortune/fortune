@@ -55,7 +55,7 @@ func _build() -> void:
 	row.add_child(v)
 
 	v.add_child(UIKit.block(I18n.t("PARLOUR"), 40, UIKit.GOLD))
-	v.add_child(UIKit.block("a fortune-teller's ledger, in card form — Godot vertical-slice port", 14, UIKit.DIM))
+	v.add_child(UIKit.block(I18n.t("a fortune-teller's ledger, in card form — Godot vertical-slice port"), 14, UIKit.DIM))
 	# The version, where a player can find it without being asked to. The first
 	# thing a bug report needs is which build it happened on.
 	v.add_child(UIKit.block(Version.full(), 11, UIKit.DIM))
@@ -112,7 +112,7 @@ func _build() -> void:
 
 	var edits := CardEdits.edit_count()
 	if edits > 0:
-		v.add_child(UIKit.block("%d card(s) changed in the Library." % edits, 11, UIKit.GOLD))
+		v.add_child(UIKit.block(I18n.t("%d card(s) changed in the Library.") % edits, 11, UIKit.GOLD))
 
 	if not Content.load_errors.is_empty():
 		v.add_child(UIKit.block(

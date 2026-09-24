@@ -251,7 +251,11 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 ## say, and an empty container would still take a gap in the column.
 func _the_notices(f: Dictionary, v: Control) -> void:
 	if f.get("taken", null) != null:
-		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
+		# The card by its name in the player's language, not the English key it
+		# is stored under.
+		var taken: Dictionary = Content.get_card(str(f["taken"]))
+		var taken_name: String = I18n.card_name(taken) if not taken.is_empty() else str(f["taken"])
+		v.add_child(UIKit.block(I18n.t("(%s slips out of your hand before you can start.)") % taken_name, 11, UIKit.RED))
 
 	var discarded: Array = f.get("_justDiscarded", [])
 	if not discarded.is_empty():

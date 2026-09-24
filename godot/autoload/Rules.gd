@@ -354,29 +354,19 @@ func fx_audit() -> Array[String]:
 	# TRUTHY, the way the prototype asks `!(e.el || e.dead)` — not PRESENT. An
 	# element written as "" is no element: the engine finds nothing to match it
 	# against, so the relic quietly does nothing, and this is the one check that
-	# could have said so. The same presence-for-truthiness slip as _says() below.
-	var says = func(v) -> bool:
-		match typeof(v):
-			TYPE_NIL:
-				return false
-			TYPE_STRING, TYPE_STRING_NAME:
-				return v != ""
-			TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
-				return bool(v)
-		return true
-
+	# could have said so. See truthy().
 	var check_list = func(list: Array, on: String, name_fn: Callable):
 		for e in list:
 			# A pack can write "fx": null. Typed straight into a String that was a
 			# script error, which aborted the audit's own loop and dropped the very
 			# record it was there to report. The prototype prints it as "".
 			var raw = e.get("fx")
-			var key: String = str(raw) if says.call(raw) else ""
+			var key: String = str(raw) if truthy(raw) else ""
 			if not fx.has(key):
 				bad.append("%s → unknown fx \"%s\"" % [name_fn.call(e), key])
 			elif fx[key].get("on", "") != on:
 				bad.append("%s → fx \"%s\" belongs to %s" % [name_fn.call(e), key, fx[key]["on"]])
-			elif fx[key].get("needsEl", false) and not (says.call(e.get("el")) or says.call(e.get("dead"))):
+			elif fx[key].get("needsEl", false) and not (truthy(e.get("el")) or truthy(e.get("dead"))):
 				bad.append("%s → fx \"%s\" needs an element" % [name_fn.call(e), key])
 
 	check_list.call(Content.readers, "trait", func(r): return r.get("sign", r.get("k", "?")))
@@ -420,7 +410,28 @@ func fx_audit() -> Array[String]:
 ## Found by tests/test_against_the_prototype.gd — 304 of 600 generated cards
 ## read differently, every one of them this.
 func _says(card: Dictionary, key: String) -> bool:
-	return int(card.get(key, 0)) != 0
+	return truthy(card.get(key))
+
+
+## JAVASCRIPT'S TRUTHINESS — what the prototype means every time it writes
+## `if (c.draw)` or `e.el || e.dead`: null, "", false and 0 are nothing, and
+## anything else is something.
+##
+## ONE DEFINITION. There were three — here as `int(x) != 0`, in fx_audit() as a
+## lambda, and in Feel as _truthy() — each written after the port was caught
+## asking whether a field was PRESENT where the prototype asks whether it is
+## truthy, three separate times. The `int()` one also crashed on a mod card that
+## wrote "draw": null — int(null) is a script error, and the card printed no
+## text at all.
+static func truthy(v) -> bool:
+	match typeof(v):
+		TYPE_NIL:
+			return false
+		TYPE_STRING, TYPE_STRING_NAME:
+			return v != ""
+		TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+			return bool(v)
+	return true
 
 
 func auto_text(card: Dictionary) -> String:

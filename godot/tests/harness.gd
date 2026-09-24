@@ -36,6 +36,13 @@ extends SceneTree
 ## Appended to by check(). Non-empty means the file fails.
 var failures: Array[String] = []
 
+## Set in setup() to stand the WHOLE FILE down, with the reason: no test runs,
+## the file passes, and the reason is printed. For a file that cannot run here
+## at all — test_against_the_prototype.gd without `node` — and for nothing
+## else: a test that cannot find what it checks must fail, not skip. It
+## replaced the same five lines at the top of twelve test methods.
+var skipped := ""
+
 ## The test currently running, so done() needs no argument.
 var _current := ""
 var _reached: Dictionary = {}
@@ -55,6 +62,9 @@ func _initialize() -> void:
 	# here, where the base version is a plain function. The suite fails on
 	# unexpected warnings, so this is not cosmetic.
 	await call("setup")
+	if skipped != "":
+		print("  (skipping every test in this file: %s)" % skipped)
+		tests = []
 	for name in tests:
 		_current = name
 		await call("before_each", name)

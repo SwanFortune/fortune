@@ -77,7 +77,6 @@ var _fx_before: Dictionary = {}
 var _wall_before: Dictionary = {}
 var _cases: Array = []
 var _theirs: Array = []
-var _skipped := ""
 
 
 func setup() -> void:
@@ -102,17 +101,13 @@ func teardown() -> void:
 
 
 func summary() -> String:
-	if _skipped != "":
-		return _skipped
+	if skipped != "":
+		return skipped
 	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit, the rarity roll, the shape of a night and whole fights agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
 func _test_the_port_and_the_prototype_agree() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	check(_theirs.size() == _cases.size(),
 		"the bridge answered %d of %d readings" % [_theirs.size(), _cases.size()])
 
@@ -142,10 +137,6 @@ func _test_the_port_and_the_prototype_agree() -> void:
 ## nothing to compare against — and the cheapest way for that to go wrong is
 ## silently, with an empty answer that agrees with everything.
 func _test_the_bridge_is_reading_the_specification() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	check(not _theirs.is_empty(), "the bridge returned nothing at all")
 	if _theirs.is_empty():
 		done()
@@ -171,10 +162,6 @@ func _test_the_bridge_is_reading_the_specification() -> void:
 ## routes every fragment through it so a French build does not say "Piochez
 ## two", which is a translation decision and not a difference in what is said.
 func _test_the_printed_card_text_matches_the_prototype() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var cards: Array = []
 	for _i in CARDS:
 		cards.append(_a_printable_card())
@@ -202,10 +189,6 @@ func _test_the_printed_card_text_matches_the_prototype() -> void:
 ## the comparison above would fail for a reason that has nothing to do with the
 ## generator. Asked directly, so the answer says which it is.
 func _test_the_elements_carry_the_prototypes_glyphs() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var answer := _ask_the_prototype([{"kind": "elements"}])
 	check(answer.size() == 1, "the bridge should have handed back one element table")
 	if answer.is_empty():
@@ -232,10 +215,6 @@ func _test_the_elements_carry_the_prototypes_glyphs() -> void:
 ## specification leaves an unknown {token} printed as-is, so an addition is only
 ## invisible to an English player while it fills to nothing.
 func _test_the_pronouns_are_the_prototypes_pronouns() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var answer := _ask_the_prototype([{"kind": "pronouns"}])
 	check(answer.size() == 1, "the bridge should have handed back one pronoun table")
 	if answer.is_empty():
@@ -266,10 +245,6 @@ func _test_the_pronouns_are_the_prototypes_pronouns() -> void:
 ## happens to {typo}, to {S} with nothing after it, and to a pronoun key no set
 ## has — and those are what a hand-written mod gets.
 func _test_sentences_fill_as_the_prototype_fills_them() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var spec_table: Array = _ask_the_prototype([{"kind": "pronouns"}])
 	if spec_table.is_empty():
 		check(false, "the bridge handed back no pronoun table to build sentences from")
@@ -333,10 +308,6 @@ func _a_sentence(tokens: Array) -> String:
 ## the specification exactly: every caller the content ships, plain and elite,
 ## at every knock of every night, and every field of the result.
 func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var run: Node = root.get_node("Run")
 	var before: Dictionary = run.state
 	run.state = run.fresh("the ladder against the specification", 0)
@@ -389,10 +360,6 @@ func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
 ## fight with no energy left still reaches its verdict — and each fight is
 ## compared after startFight, after each line is laid, and after each reading.
 func _test_a_fight_goes_as_the_prototype_says() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var run: Node = root.get_node("Run")
 	var before: Dictionary = run.state
 	var fights: Array = []
@@ -573,10 +540,6 @@ func _test_the_prototype_still_never_reads_shieldNext() -> void:
 ## defined, a null — because the base game names a known rarity on every
 ## offerable card and would never show the difference.
 func _test_rewards_are_weighted_as_the_prototype_weighs_them() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var run: Node = root.get_node("Run")
 	var offerable: Array = content.cards_minor + content.cards_arcana
 	var questions: Array = []
@@ -639,10 +602,6 @@ func _test_rewards_are_weighted_as_the_prototype_weighs_them() -> void:
 ## is run on that same sequence. Any roll added, dropped, reordered or given a
 ## different threshold shows as an hour with a different shape.
 func _test_a_night_has_the_prototypes_shape() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var run: Node = root.get_node("Run")
 	var before: Dictionary = run.state
 	run.state = run.fresh("the shape of a night", 0)
@@ -695,10 +654,6 @@ func _test_a_night_has_the_prototypes_shape() -> void:
 ## with its element missing, empty, or null, an fx that is null — and the two
 ## lists of complaints must be the same list, in the same order, word for word.
 func _test_the_content_audit_complains_as_the_prototype_does() -> void:
-	if _skipped != "":
-		print("  (skipping: %s)" % _skipped)
-		done()
-		return
 	var shipped := {
 		"readers": content.readers, "relics": content.relics, "marks": content.marks,
 		"signs": content.signs, "jobs": content.jobs, "fx": content.fx,
@@ -835,6 +790,11 @@ func _a_printable_card() -> Dictionary:
 	for field in ["bonusFlat", "opener", "closer", "solo", "perLaid", "next", "energy", "draw", "coin", "turn"]:
 		if randf() < 0.22:
 			c[field] = randi() % 4          # 0 included, and that is the point
+			# And null now and then: what a hand-written pack writes to mean
+			# "none". The port's int(null) was a script error, and the card
+			# printed nothing at all.
+			if randf() < 0.15:
+				c[field] = null
 	if randf() < 0.25:
 		c["follows"] = "same" if randf() < 0.5 else "turn"
 		c["bonus"] = randi() % 5
@@ -879,7 +839,7 @@ func _ask_the_prototype(questions: Array) -> Array:
 	# language to run at all and refusing the whole suite over that is worse.
 	var version: Array = []
 	if OS.execute("/usr/bin/env", ["node", "--version"], version, true) != 0:
-		_skipped = "node is not installed here, so the prototype cannot be run"
+		skipped = "node is not installed here, so the prototype cannot be run"
 		return []
 
 	var said: Array = []

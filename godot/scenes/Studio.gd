@@ -592,7 +592,7 @@ static func expected_file(id: String) -> String:
 
 
 func _all_cards() -> Array:
-	return Content.cards_basics + Content.cards_chroma + Content.cards_minor + Content.cards_arcana
+	return Content.all_cards()
 
 
 ## The context a rule's `when` asks about, made up so that it holds — so a rule

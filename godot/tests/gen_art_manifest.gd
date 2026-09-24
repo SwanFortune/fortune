@@ -51,7 +51,7 @@ func _initialize() -> void:
 		assets[id] = rec
 		added.append(id)
 
-	for pool_name in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+	for pool_name in content.CARD_POOLS:
 		for c in content.registries.get(pool_name, []):
 			var el = c.get("el")
 			add.call(

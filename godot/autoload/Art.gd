@@ -116,7 +116,7 @@ func texture(id: String) -> Texture2D:
 	if entry.get("status", "missing") != "missing":
 		tex = animated(entry, path)
 		if tex == null:
-			tex = _load_texture(path)
+			tex = load_texture(path)
 	_cache[id] = tex
 	return tex
 
@@ -140,12 +140,12 @@ func texture(id: String) -> Texture2D:
 func animated(entry: Dictionary, path: String) -> Texture2D:
 	var frames: Array[Texture2D] = []
 	for f in frame_files(path.get_basename()):
-		var t := _load_texture(f)
+		var t := load_texture(f)
 		if t != null:
 			frames.append(t)
 	var grid = entry.get("frames")
 	if frames.is_empty() and grid is Array and grid.size() == 2:
-		var sheet := _load_texture(path)
+		var sheet := load_texture(path)
 		if sheet != null:
 			frames = _slice(sheet, int(grid[0]), int(grid[1]), int(entry.get("count", 0)))
 	if frames.size() < 2:
@@ -215,7 +215,9 @@ func _slice(sheet: Texture2D, cols: int, rows: int, count: int) -> Array[Texture
 ## in the shipped build and every card falls back to its placeholder. In the
 ## source tree it would look perfect. That is the audio bug exactly, and the
 ## only reason it was found there first is that the audio already exists.
-func _load_texture(path: String) -> Texture2D:
+## Public: Feel reads particle drawings the same two ways, through this — one
+## loader, so the lesson the mute build taught is written down once.
+func load_texture(path: String) -> Texture2D:
 	if not FileAccess.file_exists(path):
 		if not ResourceLoader.exists(path):
 			return null

@@ -47,6 +47,13 @@ const ARRAY_KEY_FIELDS := {
 	"traces": "id",
 }
 
+## THE CARD POOLS, written down once. Every place that walks "all the cards" —
+## the index, the Library, the studio, the art and locale generators, three
+## test files — had its own copy of this line, and a fifth pool would have had
+## to be added in all of them. tests/test_modloader.gd checks it against the
+## `cards_` categories above.
+const CARD_POOLS := ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]
+
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
 const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes",

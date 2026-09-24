@@ -39,6 +39,12 @@ Three are none of those:
 The names are also save and locale keys, which is why this is a question and
 not a fix.
 
+**The main menu tells players this is a "Godot vertical-slice port".** It is
+now translated (it went out in English to French players), but the words are
+a developer's, on the first screen anyone sees. Whether the subtitle should be
+the prototype's "a fortune-teller's ledger, in card form" alone is the
+author's call. `grep -n "vertical-slice" godot/scenes/MainMenu.gd`.
+
 ## Needs a person, not a test
 
 **Nobody has heard the sound.** The exported build was mute for the whole of the
@@ -119,3 +125,10 @@ text scale and high contrast are real settings that reach a built screen, and
 the game writes a log to `user://logs/` that a player could send with a bug
 report — and the credits now say where, beside the version
 (`tests/test_scenes.gd` checks the folder they name holds one).
+
+**Rebuilding the reading screen on every action is not a performance problem.**
+Measured, so the next sweep does not propose keeping the screen alive between
+actions: building it costs 9 ms of CPU (under a frame at 60 fps). A full frame
+measures around 70 ms under this container's software renderer, but 45 ms of
+that is the GPU filling the room's translucent light and vignette — the room's
+own drawing code is 0.4 ms of CPU — and a real graphics card does not pay it.

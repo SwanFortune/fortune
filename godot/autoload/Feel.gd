@@ -335,35 +335,21 @@ func _emitter(preset_name: String, colour: Color, extent: Vector2) -> CPUParticl
 ## assets/particles/; a res:// or user:// path is taken as it is, so a mod can
 ## ship its own.
 ##
-## TWO WAYS IN, the same two Art.gd and Audio.gd learned the hard way. The raw
-## file first, read as bytes: that is the only way a mod's PNG in user:// works
-## at all, since Godot's importer never sees it. Then the imported resource:
-## in an EXPORTED build the .png itself is not in the pack, only its import, and
-## reading bytes alone is how every sound in the game went missing from every
-## build ever shipped (see Audio.gd).
+## Loaded by Art.load_texture(), the game's one image loader: raw bytes first
+## (a mod's PNG in user:// is never imported), then the imported resource (an
+## exported build carries the import and not the .png — the trap that made
+## every build mute, see Audio.gd).
 func texture_of(preset_name: String) -> Texture2D:
 	if _textures.has(preset_name):
 		return _textures[preset_name]
 	var path := texture_path(preset_name)
 	var tex: Texture2D = _dot
 	if path != "":
-		var drawn := _load_texture(path)
+		var drawn := Art.load_texture(path)
 		if drawn != null:
 			tex = drawn
 	_textures[preset_name] = tex
 	return tex
-
-
-func _load_texture(path: String) -> Texture2D:
-	if FileAccess.file_exists(path):
-		var img := Image.load_from_file(path)
-		if img != null and not img.is_empty():
-			return ImageTexture.create_from_image(img)
-	if ResourceLoader.exists(path):
-		var loaded = load(path)
-		if loaded is Texture2D:
-			return loaded
-	return null
 
 
 func texture_path(preset_name: String) -> String:
@@ -563,24 +549,13 @@ func matches(when: Dictionary, card: Dictionary, ctx: Dictionary) -> bool:
 		var want = when[field]
 		var have = ctx.get(field) if ctx.has(field) else card.get(field)
 		if want is bool:
-			if _truthy(have) != want:
+			if Rules.truthy(have) != want:
 				return false
 		elif want is Array:
 			if not Array(want).map(func(x): return str(x)).has(str(have)):
 				return false
 		elif str(have) != str(want):
 			return false
-	return true
-
-
-func _truthy(v) -> bool:
-	match typeof(v):
-		TYPE_NIL:
-			return false
-		TYPE_STRING, TYPE_STRING_NAME:
-			return v != ""
-		TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
-			return bool(v)
 	return true
 
 
@@ -809,7 +784,7 @@ func problems() -> Array[String]:
 		if not STATUSES.has(st):
 			out.append("feel.json: particles '%s' has status '%s', which is not one of %s" % [name, st, STATUSES.keys()])
 		var path := texture_path(name)
-		var drawn: Texture2D = _load_texture(path) if path != "" else null
+		var drawn: Texture2D = Art.load_texture(path) if path != "" else null
 		if path != "" and drawn == null:
 			out.append("feel.json: particles '%s' names the texture %s, which does not load" % [name, path])
 		# A flipbook cut from a drawing that does not divide into its grid plays

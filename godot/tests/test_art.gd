@@ -168,13 +168,13 @@ func _test_unimported_file_loads() -> void:
 	img.fill(Color(0.4, 0.2, 0.6))
 	check(img.save_png(path) == OK, "could not write the test image")
 
-	var tex = art._load_texture(path)
+	var tex = art.load_texture(path)
 	check(tex != null, "a file the editor never imported must still load")
 	if tex != null:
 		check(tex.get_width() == 8 and tex.get_height() == 8,
 			"loaded texture should be 8x8, got %dx%d" % [tex.get_width(), tex.get_height()])
 
-	check(art._load_texture("user://_definitely_not_here.png") == null,
+	check(art.load_texture("user://_definitely_not_here.png") == null,
 		"a missing file should be null, not an error")
 	DirAccess.remove_absolute(path)
 	done()

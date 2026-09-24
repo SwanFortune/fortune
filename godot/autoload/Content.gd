@@ -17,6 +17,8 @@ extends Node
 ## has never been opened in the editor — which is how the README tells people to
 ## run this. See Nav.gd's header for the same trap in another form.
 const MOD_LOADER := preload("res://autoload/ModLoader.gd")
+## See ModLoader.CARD_POOLS.
+const CARD_POOLS := MOD_LOADER.CARD_POOLS
 
 ## NOTE: this used to be a `const LOAD_EXAMPLE_MODS := true` that nothing
 ## actually read — ModLoader scanned res://mods_example/ unconditionally, so
@@ -155,9 +157,8 @@ func reload() -> void:
 
 func _index() -> void:
 	_cards_by_name.clear()
-	for pool in [cards_basics, cards_chroma, cards_minor, cards_arcana]:
-		for c in pool:
-			_cards_by_name[c["n"]] = c
+	for c in all_cards():
+		_cards_by_name[c["n"]] = c
 	_card_effects_by_key.clear()
 	for e in card_effects:
 		_card_effects_by_key[e["k"]] = e
@@ -170,6 +171,14 @@ func _index() -> void:
 	_sitters_by_name.clear()
 	for s in sitters:
 		_sitters_by_name[s["name"]] = s
+
+
+## Every card in every pool, in pool order.
+func all_cards() -> Array:
+	var out: Array = []
+	for pool in CARD_POOLS:
+		out.append_array(registries.get(pool, []))
+	return out
 
 
 func get_card(card_name: String) -> Dictionary:

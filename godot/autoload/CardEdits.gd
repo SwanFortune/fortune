@@ -24,8 +24,8 @@ const PACK_ID := "local.library-edits"
 const PRIORITY := 1000
 
 ## Which card pools the Library can edit, and therefore which files this pack
-## may write. Matches ModLoader.ARRAY_KEY_FIELDS' card categories.
-const POOLS := ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]
+## may write: every card pool, as ModLoader.CARD_POOLS lists them.
+const POOLS := preload("res://autoload/ModLoader.gd").CARD_POOLS
 
 ## pool -> { card name -> full edited card dict }
 var edits: Dictionary = {}

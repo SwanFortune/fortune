@@ -212,7 +212,7 @@ func _test_template_covers_runtime_ids() -> void:
 	# literal) and not the hand list. A French player read "Bases · basic". The
 	# vocabulary lives in the cards, so the check has to come from the cards too;
 	# a list typed here would be the same kind of thing that failed.
-	for pool in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+	for pool in content.CARD_POOLS:
 		for c in content.registries.get(pool, []):
 			# Deduplicated: there are four rarity words and sixty cards, and a
 			# failure that names "ui/basic" eight times has spent its whole
@@ -410,3 +410,25 @@ func _remove_dir(path: String) -> void:
 		name = d.get_next()
 	d.list_dir_end()
 	DirAccess.remove_absolute(path)
+
+
+## NO SENTENCE REACHES THE SCREEN WITHOUT GOING THROUGH I18n. The check above
+## sees every literal handed to I18n.t(); it cannot see a literal that never is.
+## The main menu's subtitle went straight into UIKit.block() as English, and was
+## the first line a French player read. This looks for exactly that: a literal
+## with a word in it, passed straight to UIKit.block/label/button. A literal
+## with no word — "x%d", a count — is not a sentence and passes.
+##
+## NOT COVERED, and said rather than implied: English carried in data or built
+## into an array before it is shown (the map's ELITE tag was that shape).
+func _test_no_raw_sentence_reaches_a_label() -> void:
+	var direct := RegEx.create_from_string("UIKit\\.(block|label|button)\\(\\s*\"([^\"]*)\"")
+	var word := RegEx.create_from_string("[A-Za-z]{3,}")
+	var raw: Array[String] = []
+	for path in _gd_files("res://scenes"):
+		var text := _code_only(FileAccess.get_file_as_string(path))
+		for m in direct.search_all(text):
+			if word.search(m.get_string(2)) != null:
+				raw.append("%s: \"%s\"" % [path.get_file(), m.get_string(2)])
+	check(raw.is_empty(), "%d sentence(s) go to the screen without I18n.t(): %s" % [raw.size(), ", ".join(raw)])
+	done()

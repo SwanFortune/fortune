@@ -43,6 +43,14 @@ const PURE_METHODS = ['scaleSitter'];
 const FUNCTIONS = ['autoText', 'fill'];
 const CONSTS = ['PREVEL', 'NUMW', 'numw', 'capw', 'glyphOf', 'EL', 'PRON', 'TOKEN'];
 
+// The specification, read once per run. Every question below cuts its own
+// functions out of it, and five of them used to read the 3000-line file afresh.
+let _spec = null;
+function specText() {
+	if (_spec === null) _spec = fs.readFileSync(SPEC, 'utf8');
+	return _spec;
+}
+
 /** The source text of one definition, found by its name and matched to its brace. */
 function cut(src, name, how) {
 	const lines = src.split('\n');
@@ -83,7 +91,7 @@ function cut(src, name, how) {
 }
 
 function engine() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 
 	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
 	if (!ring) throw new Error('the NEXT ring is no longer a one-line const in the prototype');
@@ -111,7 +119,7 @@ function engine() {
 const AUDIT_TABLES = ['FX', 'READERS', 'RELICS', 'MARKS', 'SIGNS', 'JOBS'];
 
 function auditor() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 	return new Function(...AUDIT_TABLES, cut(src, 'fxAudit', 'function') + '\nreturn fxAudit();');
 }
 
@@ -129,7 +137,7 @@ const FLOW_CONSTS = ['GOLD', 'RING', 'jobOf'];
 const FLOW_TABLES = ['JOBS', 'RELICS', 'DENIAL_SHIELD'];
 
 function flow() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
 	const body = 'const NEXT = ' + ring[1] + ';\n'
 		+ CONSTS.concat(FLOW_CONSTS).map((n) => cut(src, n, 'const')).join('\n') + '\n'
@@ -184,7 +192,7 @@ function playFight(make, one) {
 // weighted() rolls Math.random() once. To put it next to the port's with the
 // SAME roll, it is run with a Math whose random() answers what the case says.
 function picker() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 	const dice = Object.create(Math);
 	dice.u = 0;
 	dice.random = () => dice.u;
@@ -199,7 +207,7 @@ function picker() {
 // order — so the prototype is run on the port's own upcoming dice, and the
 // draws that only pick WHO (shuffle, pickRand) are made not to roll at all.
 function nights() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 	const dice = Object.create(Math);
 	dice.seq = [];
 	dice.random = () => {
