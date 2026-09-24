@@ -2516,6 +2516,41 @@ func _all_of(node: Node, out: Array) -> Array:
 ## their run still live but unreachable. Checks the handoff Nav does, rather
 ## than the scene swap itself (which is deferred to idle and so isn't
 ## observable from inside the frame that triggers it).
+## THE CREDITS SAY WHERE THE LOG IS, AND IT IS THERE. A player with a bug has
+## nothing to send unless a screen tells them where to look; OPEN.md carried
+## "nothing on screen tells them where it is" until this. Both directions: with
+## file logging on (the default, and this very run is writing one) the folder
+## the credits name exists and holds a .log; with it off, the section goes,
+## rather than pointing at a file that will never be written.
+func _test_the_credits_say_where_the_log_is() -> void:
+	var version: Node = root.get_node("Version")
+	var i18n: Node = root.get_node("I18n")
+	var key := "debug/file_logging/enable_file_logging.pc"
+	var was = ProjectSettings.get_setting(key)
+
+	var folder := _log_folder_in_the_credits(version, i18n)
+	check(folder != "", "the credits should have a section saying where the log is")
+	if folder != "":
+		check(DirAccess.dir_exists_absolute(folder), "the credits name %s, which does not exist" % folder)
+		var logs := Array(DirAccess.get_files_at(folder)).filter(func(f): return str(f).ends_with(".log"))
+		check(not logs.is_empty(), "the folder the credits name, %s, holds no .log" % folder)
+
+	ProjectSettings.set_setting(key, false)
+	check(_log_folder_in_the_credits(version, i18n) == "",
+		"with file logging off, the credits should not point at a log that is never written")
+	ProjectSettings.set_setting(key, was)
+	done()
+
+
+func _log_folder_in_the_credits(version: Node, i18n: Node) -> String:
+	for block in version.credits():
+		if str(block[0]) == i18n.t("IF SOMETHING GOES WRONG"):
+			for line in block[1]:
+				if str(line).begins_with("· "):
+					return str(line).substr(2)
+	return ""
+
+
 func _test_settings_return_path() -> void:
 	var nav: Node = root.get_node("Nav")
 	nav.settings_return_scene = ""

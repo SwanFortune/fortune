@@ -81,4 +81,5 @@ gamepad is mapped (five joypad entries in `project.godot`), the main menu has a
 QUIT, the element glyphs (△▽◇□) carry the distinction colour alone would not,
 text scale and high contrast are real settings that reach a built screen, and
 the game writes a log to `user://logs/` that a player could send with a bug
-report — though nothing on screen tells them where it is.
+report — and the credits now say where, beside the version
+(`tests/test_scenes.gd` checks the folder they name holds one).
