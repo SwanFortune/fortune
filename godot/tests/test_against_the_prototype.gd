@@ -54,6 +54,9 @@ const AUDITS := 150
 ## A pool and one roll each.
 const PICKS := 1000
 
+## Eight hours each, a third of them the last night.
+const NIGHTS := 300
+
 ## Each one is up to thirteen steps of a whole fight.
 const FIGHTS := 300
 
@@ -101,7 +104,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit, the rarity roll and whole fights agreed with the prototype" % [_cases.size(), CARDS]
+	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit, the rarity roll, the shape of a night and whole fights agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -622,6 +625,64 @@ func _test_rewards_are_weighted_as_the_prototype_weighs_them() -> void:
 			% [q["u"], JSON.stringify(q["pool"].map(func(c): return c.get("r", "<none>"))), mine, int(theirs[i])])
 	if shown > 3:
 		check(false, "%d rolls of %d picked differently; the first three are above" % [shown, questions.size()])
+	done()
+
+
+## THE SHAPE OF A NIGHT, against the prototype's makeOptions().
+##
+## Which hours can bring a difficult caller, when the apothecary can be open,
+## when an event, and the mayor on the last hour of the last night. The port
+## plans the night whole (Run.make_plan) so the map can show it in advance; the
+## prototype rolls each hour as it comes. The rolls are meant to be the same
+## rolls in the same order, and that is checkable exactly: the port's next dice
+## are read off its generator (and the generator put back), and the prototype
+## is run on that same sequence. Any roll added, dropped, reordered or given a
+## different threshold shows as an hour with a different shape.
+func _test_a_night_has_the_prototypes_shape() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var run: Node = root.get_node("Run")
+	var before: Dictionary = run.state
+	run.state = run.fresh("the shape of a night", 0)
+	var questions: Array = []
+	var plans: Array = []
+	for i in NIGHTS:
+		var night: int = i % 3
+		var saved: int = run.rng.state
+		var rolls: Array = []
+		for _r in 40:
+			rolls.append(run.rng.randf())
+		run.rng.state = saved
+		plans.append(run.make_plan(night))
+		questions.append({"kind": "night", "night": night, "rolls": rolls})
+	var theirs := _ask_the_prototype(questions)
+	check(theirs.size() == questions.size(), "the bridge planned %d of %d nights" % [theirs.size(), questions.size()])
+
+	var shown := 0
+	var kinds_seen := {}
+	for i in min(theirs.size(), plans.size()):
+		for hour in theirs[i]:
+			for k in hour:
+				kinds_seen[k] = true
+		for step in 8:
+			var mine: Array = plans[i][step]["offers"]
+			var spec: Array = theirs[i][step]
+			if mine == spec:
+				continue
+			shown += 1
+			if shown <= 3:
+				check(false, "night %d, %s: the port plans %s, the prototype %s"
+					% [questions[i]["night"], run.HOURS[step], mine, spec])
+			break
+	if shown > 3:
+		check(false, "%d nights of %d differ; the first three are above" % [shown, plans.size()])
+	# Every kind of hour must actually have come up, or a whole branch of the
+	# roll is going uncompared.
+	for k in ["sitter", "elite", "shop", "event", "boss"]:
+		check(kinds_seen.has(k), "no night in %d offered a '%s' — that branch is not being compared" % [plans.size(), k])
+	run.state = before
 	done()
 
 

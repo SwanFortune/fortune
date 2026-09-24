@@ -53,9 +53,18 @@ function cut(src, name, how) {
 		: new RegExp('^(function )?\\s*' + name + '\\s*\\(');
 	for (let i = 0; i < lines.length; i++) {
 		if (!opener.test(lines[i])) continue;
-		// A const that closes on its own line needs no brace matching.
-		if (how === 'const' && !lines[i].includes('{') || how === 'const' && /};?$/.test(lines[i].trim()) && lines[i].indexOf('{') > lines[i].indexOf('=')) {
-			if (!lines[i].includes('{') || /\}\s*;?\s*$/.test(lines[i])) return lines[i];
+		// A const is an object OR AN ARRAY, on one line or many, so it is matched
+		// on both kinds of bracket. Matching braces alone cut `const SITTERS = [`
+		// off at its first line.
+		if (how === 'const') {
+			let depth = 0;
+			for (let j = i; j < lines.length; j++) {
+				for (const ch of lines[j]) {
+					if (ch === '{' || ch === '[') depth++;
+					else if (ch === '}' || ch === ']') depth--;
+				}
+				if (depth === 0) return lines.slice(i, j + 1).join('\n');
+			}
 		}
 		if (!lines[i].includes('{')) continue;
 		let depth = 0;
@@ -184,6 +193,35 @@ function picker() {
 	return (pool, u) => { dice.u = u; const c = g.weighted(pool); return c ? pool.indexOf(c) : -1; };
 }
 
+// THE SHAPE OF A NIGHT: what knocks at each of the eight hours. The port plans
+// the whole night at once (Run.make_plan) where the prototype rolls each hour
+// in makeOptions(), but the rolls are meant to be the same rolls in the same
+// order — so the prototype is run on the port's own upcoming dice, and the
+// draws that only pick WHO (shuffle, pickRand) are made not to roll at all.
+function nights() {
+	const src = fs.readFileSync(SPEC, 'utf8');
+	const dice = Object.create(Math);
+	dice.seq = [];
+	dice.random = () => {
+		if (!dice.seq.length) throw new Error('makeOptions() rolled more dice than the port did');
+		return dice.seq.shift();
+	};
+	const body = ['SITTERS', 'BOSS', 'SHOP_NODE', 'EVENTS', 'SIGNS', 'ELITE_TWISTS'].map((n) => cut(src, n, 'const')).join('\n')
+		+ '\nconst g = {' + ['makeOptions', 'eliteOf', 'scaleSitter'].map((n) => cut(src, n)).join(',\n') + '};'
+		+ '\ng.shuffle = (a) => a.slice(); g.pickRand = (a) => a[0];'
+		+ '\nreturn { g, SHOP_NODE };';
+	const made = new Function('Math', body)(dice);
+	return (night, rolls) => {
+		dice.seq = rolls.slice();
+		const out = [];
+		for (let step = 0; step < 8; step++) {
+			out.push(made.g.makeOptions(night, step, []).map((o) =>
+				o.kind === 'break' ? (o.rest === made.SHOP_NODE ? 'shop' : 'event') : o.kind));
+		}
+		return out;
+	};
+}
+
 function main() {
 	const [, , casesPath, outPath] = process.argv;
 	if (!casesPath || !outPath) {
@@ -193,12 +231,14 @@ function main() {
 	const audit = auditor();
 	const fights = flow();
 	const pick = picker();
+	const night = nights();
 	const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
 		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
 		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'night') return night(one.night, one.rolls);
 		if (one.kind === 'weighted') return pick(one.pool, one.u);
 		if (one.kind === 'fight') return playFight(fights, one);
 		if (one.kind === 'fxAudit') return audit(...AUDIT_TABLES.map((t) => one[t]));

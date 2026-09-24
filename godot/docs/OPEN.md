@@ -25,6 +25,20 @@ is common, uncommon or rare); a mod's can. If 0 was meant as "never offered",
 that is a one-line change in `Run.rarity_weight()` and the differential will
 then report it, deliberately.
 
+**Three changes to the author's words that nobody wrote down.** Comparing the
+port's `data/base/` against the prototype's own tables, record by record, gives
+88 differences; almost all are the balance pass (`docs/PORTING_NOTES.md`,
+"Thirteen readers" and "Balance: Taurus and Virgo"), card text that
+`autoText()` now generates, and sign/job text split into flavour and rule.
+Three are none of those:
+- five relic names lost their typographic apostrophe (`The Widow’s Wedding
+  Band` is `The Widow's Wedding Band`), and so did two reader lines and a
+  sitter's `win` line;
+- Cancer's line lost its italics: `You are {i}extra{/i} careful`;
+- Scorpio's line lost the line break in the middle of it.
+The names are also save and locale keys, which is why this is a question and
+not a fix.
+
 ## Needs a person, not a test
 
 **Nobody has heard the sound.** The exported build was mute for the whole of the
@@ -46,17 +60,14 @@ noticing, and it is the one thing none of this can stand in for.
 
 ## An agent can pick these up
 
-**Two parts of the run flow are not differential-tested.**
-`tests/test_against_the_prototype.gd` now plays whole fights through the
+**The end of a run is not differential-tested.**
+`tests/test_against_the_prototype.gd` plays whole fights through the
 prototype's `startFight()`/`beginTurn()`/`_lay()`/`resolveRead()`/`win()`/
-`lose()`. Not reached yet, and each for a reason worth knowing before starting:
-
-- **`advance()`/`makeOptions()`**: the port plans a whole night at once
-  (`Run.make_plan()`) where the prototype rolls each knock, deliberately. What
-  can still be compared is the shape — which hours can be elite, when the shop
-  appears, the boss on the last knock of the last night.
-- **`endRun()`**: the port's endings come from `endings.json` rather than four
-  score tiers, deliberately, so only the run's totals are comparable.
+`lose()`, and compares the shape of every night against `makeOptions()` on the
+port's own dice. Not reached: `endRun()`, whose four score tiers the port
+replaced with `endings.json` on purpose, so only the run's totals are
+comparable; and WHO fills an hour (the shuffle and the picks), which each engine
+rolls on its own dice.
 
 The bridge's `METHODS`, `PURE_METHODS`, `FUNCTIONS` and `FLOW_METHODS` list what
 is checked.
