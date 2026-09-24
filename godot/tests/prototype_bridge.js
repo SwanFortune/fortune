@@ -28,11 +28,28 @@ const SPEC = path.join(__dirname, '..', '..', 'project', 'Parlour v23.dc.html');
 // simulate(); if that list grows, this throws rather than guessing.
 const METHODS = ['simulate', 'linkOf', 'elOf', 'elBonus', 'myEl', 'has'];
 
+// scaleSitter() is the whole difficulty ladder of the source: how a caller's
+// composure and wall grow knock by knock through a night. Pure — it reads its
+// three arguments and nothing on `this`.
+const PURE_METHODS = ['scaleSitter'];
+
 // autoText() is not a method — it is a plain function with four one-line
 // helpers and the element table above it. It writes what is PRINTED ON EVERY
 // CARD, which is the half of the specification a player actually reads.
-const FUNCTIONS = ['autoText'];
-const CONSTS = ['PREVEL', 'NUMW', 'numw', 'capw', 'glyphOf', 'EL'];
+//
+// fill() is the pronoun substitution every sign rule goes through ("{S}
+// need{es} it" for a he, she or they sitter), and PRON and TOKEN are the table
+// and the pattern it fills from.
+const FUNCTIONS = ['autoText', 'fill'];
+const CONSTS = ['PREVEL', 'NUMW', 'numw', 'capw', 'glyphOf', 'EL', 'PRON', 'TOKEN'];
+
+// The specification, read once per run. Every question below cuts its own
+// functions out of it, and five of them used to read the 3000-line file afresh.
+let _spec = null;
+function specText() {
+	if (_spec === null) _spec = fs.readFileSync(SPEC, 'utf8');
+	return _spec;
+}
 
 /** The source text of one definition, found by its name and matched to its brace. */
 function cut(src, name, how) {
@@ -44,9 +61,18 @@ function cut(src, name, how) {
 		: new RegExp('^(function )?\\s*' + name + '\\s*\\(');
 	for (let i = 0; i < lines.length; i++) {
 		if (!opener.test(lines[i])) continue;
-		// A const that closes on its own line needs no brace matching.
-		if (how === 'const' && !lines[i].includes('{') || how === 'const' && /};?$/.test(lines[i].trim()) && lines[i].indexOf('{') > lines[i].indexOf('=')) {
-			if (!lines[i].includes('{') || /\}\s*;?\s*$/.test(lines[i])) return lines[i];
+		// A const is an object OR AN ARRAY, on one line or many, so it is matched
+		// on both kinds of bracket. Matching braces alone cut `const SITTERS = [`
+		// off at its first line.
+		if (how === 'const') {
+			let depth = 0;
+			for (let j = i; j < lines.length; j++) {
+				for (const ch of lines[j]) {
+					if (ch === '{' || ch === '[') depth++;
+					else if (ch === '}' || ch === ']') depth--;
+				}
+				if (depth === 0) return lines.slice(i, j + 1).join('\n');
+			}
 		}
 		if (!lines[i].includes('{')) continue;
 		let depth = 0;
@@ -65,25 +91,143 @@ function cut(src, name, how) {
 }
 
 function engine() {
-	const src = fs.readFileSync(SPEC, 'utf8');
+	const src = specText();
 
 	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
 	if (!ring) throw new Error('the NEXT ring is no longer a one-line const in the prototype');
 
-	// Anything simulate() calls that is not one of the five and not a method of
-	// its own — `fill()` builds the minthree note's wording from the sitter's
-	// pronoun, which is prose, not arithmetic. The comparison treats halveNote
-	// as present-or-absent for exactly that reason.
-	const preamble = 'const NEXT = ' + ring[1] + ';\n' +
-		'const fill = (s) => s;\n';
+	// simulate() also calls fill() for the minthree note's wording. That is the
+	// real one now, cut out below with the rest; the comparison still treats
+	// halveNote as present-or-absent, because the port keeps that wording in the
+	// locale rather than in the engine.
+	const preamble = 'const NEXT = ' + ring[1] + ';\n';
 
 	const globals = CONSTS.map((n) => cut(src, n, 'const')).join('\n') + '\n'
 		+ FUNCTIONS.map((n) => cut(src, n, 'function')).join('\n') + '\n';
-	const methods = METHODS.map((n) => cut(src, n)).join(',\n');
+	const methods = METHODS.concat(PURE_METHODS).map((n) => cut(src, n)).join(',\n');
 	// Object-literal method shorthand is the shape they are already written in.
 	const factory = new Function(preamble + globals +
-		'return { state: null, autoText, EL,\n' + methods + '\n};');
+		'return { state: null, autoText, EL, fill, PRON,\n' + methods + '\n};');
 	return factory();
+}
+
+// fxAudit() reads six content tables that are globals in the prototype. Those
+// tables are CONTENT, which the port loads from data/base/ and a mod can
+// change, so they are handed in with each case rather than cut out of the
+// .html: what is under test is the audit's logic, over the same data on both
+// sides.
+const AUDIT_TABLES = ['FX', 'READERS', 'RELICS', 'MARKS', 'SIGNS', 'JOBS'];
+
+function auditor() {
+	const src = specText();
+	return new Function(...AUDIT_TABLES, cut(src, 'fxAudit', 'function') + '\nreturn fxAudit();');
+}
+
+// THE RUN FLOW: a fight from the knock to the verdict. startFight() builds it,
+// resolveRead() settles each reading and decides win, lose or another round,
+// win()/lose() pay out. They are stateful — they read and write `this.state`
+// through React's setState — so they are cut out with everything they reach and
+// run against a stand-in that applies a patch at once and calls back.
+//
+// The content they read (JOBS, RELICS, DENIAL_SHIELD) is handed in, as for the
+// audit. Colours and the ring are the prototype's own.
+const FLOW_METHODS = ['startFight', 'beginTurn', 'drawTo', '_lay', 'resolveRead', 'win', 'lose', 'rollRelic',
+	'clearTips', 'cfg', 'shuffle', 'pickRand'];
+const FLOW_CONSTS = ['GOLD', 'RING', 'jobOf'];
+const FLOW_TABLES = ['JOBS', 'RELICS', 'DENIAL_SHIELD'];
+
+function flow() {
+	const src = specText();
+	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
+	const body = 'const NEXT = ' + ring[1] + ';\n'
+		+ CONSTS.concat(FLOW_CONSTS).map((n) => cut(src, n, 'const')).join('\n') + '\n'
+		+ FUNCTIONS.map((n) => cut(src, n, 'function')).join('\n') + '\n'
+		+ 'return { state: null, props: {},\n'
+		+ 'setState(patch, then) { Object.assign(this.state, patch); if (then) then(); },\n'
+		+ METHODS.concat(FLOW_METHODS).map((n) => cut(src, n)).join(',\n') + '\n};';
+	return new Function(...FLOW_TABLES, body);
+}
+
+/**
+ * One fight, played to the end or to the last scripted reading. `lays` says
+ * how many cards from the front of the hand go down each reading; what is
+ * reported after each step is everything a shuffle cannot change.
+ */
+function playFight(make, one) {
+	const g = make(...FLOW_TABLES.map((t) => one[t]));
+	g.state = one.state;
+	g.props = one.props;
+	const seen = [];
+	const look = () => {
+		const f = g.state.f, st = g.state;
+		seen.push({
+			hp: f.hp, faith: f.faith, coin: f.coin, turn: f.turn, turns: f.turns, denial: f.denial,
+			denialUp: f.denialUp, energy: f.energy, energyMax: f.energyMax, handMax: f.handMax, swept: f.swept,
+			hand: f.hand.length, draw: f.draw.length, disc: f.disc.length, gone: f.gone.length,
+			taken: f.taken != null, max: f.max, cross: f.cross.length,
+			runCoin: st.coin, runFaith: st.faith, mended: st.mended, marks: st.marks.length,
+			serpEl: st.serpEl || '', res: st.res ? st.res.kind : '', seen: st.seen.length,
+			head: st.res ? st.res.head : '', title: st.res ? st.res.title : '',
+		});
+	};
+	g.startFight(one.o);
+	look();
+	for (const k of one.lays) {
+		if (g.state.res) break;
+		if (one.viaLay) {
+			// Through the prototype's own _lay(): cost, energy back, draw on lay.
+			// It replaces state.f with a copy each time, so ask for it afresh.
+			for (let j = 0; j < k && g.state.f.hand.length; j++) g._lay(g.state.f.hand[0].uid);
+		} else {
+			const f = g.state.f;
+			f.cross = f.hand.splice(0, Math.min(k, f.hand.length));
+		}
+		look();
+		g.resolveRead(g.simulate(g.state.f));
+		look();
+	}
+	return seen;
+}
+
+// weighted() rolls Math.random() once. To put it next to the port's with the
+// SAME roll, it is run with a Math whose random() answers what the case says.
+function picker() {
+	const src = specText();
+	const dice = Object.create(Math);
+	dice.u = 0;
+	dice.random = () => dice.u;
+	const make = new Function('Math', cut(src, 'RARW', 'const') + '\nreturn {' + cut(src, 'weighted') + '};');
+	const g = make(dice);
+	return (pool, u) => { dice.u = u; const c = g.weighted(pool); return c ? pool.indexOf(c) : -1; };
+}
+
+// THE SHAPE OF A NIGHT: what knocks at each of the eight hours. The port plans
+// the whole night at once (Run.make_plan) where the prototype rolls each hour
+// in makeOptions(), but the rolls are meant to be the same rolls in the same
+// order — so the prototype is run on the port's own upcoming dice, and the
+// draws that only pick WHO (shuffle, pickRand) are made not to roll at all.
+function nights() {
+	const src = specText();
+	const dice = Object.create(Math);
+	dice.seq = [];
+	dice.random = () => {
+		if (!dice.seq.length) throw new Error('makeOptions() rolled more dice than the port did');
+		return dice.seq.shift();
+	};
+	const body = ['SITTERS', 'BOSS', 'SHOP_NODE', 'EVENTS', 'SIGNS', 'ELITE_TWISTS'].map((n) => cut(src, n, 'const')).join('\n')
+		+ '\nconst g = {' + ['makeOptions', 'eliteOf', 'scaleSitter'].map((n) => cut(src, n)).join(',\n') + '};'
+		+ '\ng.shuffle = (a) => a.slice(); g.pickRand = (a) => a[0];'
+		+ '\nreturn { g, SHOP_NODE };';
+	const made = new Function('Math', body)(dice);
+	return (night, rolls) => {
+		dice.seq = rolls.slice();
+		const out = [];
+		for (let step = 0; step < 8; step++) {
+			out.push(made.g.makeOptions(night, step, []).map((o) =>
+				o.kind === 'break' ? (o.rest === made.SHOP_NODE ? 'shop' : 'event') : o.kind));
+		}
+		return out;
+	};
 }
 
 function main() {
@@ -92,10 +236,21 @@ function main() {
 		throw new Error('usage: prototype_bridge.js <cases.json> <out.json>');
 	}
 	const proto = engine();
+	const audit = auditor();
+	const fights = flow();
+	const pick = picker();
+	const night = nights();
 	const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
+		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
+		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'night') return night(one.night, one.rolls);
+		if (one.kind === 'weighted') return pick(one.pool, one.u);
+		if (one.kind === 'fight') return playFight(fights, one);
+		if (one.kind === 'fxAudit') return audit(...AUDIT_TABLES.map((t) => one[t]));
+		if (one.kind === 'scaleSitter') return proto.scaleSitter(one.sitter, one.night, one.step);
 		proto.state = one.state;
 		return proto.simulate(one.f);
 	});

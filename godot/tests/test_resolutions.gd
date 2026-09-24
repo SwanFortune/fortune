@@ -112,6 +112,7 @@ func _at(res: String) -> Vector2i:
 		["library", "res://scenes/Library.tscn"], ["how to play", "res://scenes/HowToPlay.tscn"],
 		["mods", "res://scenes/ModsScreen.tscn"], ["minitel", "res://scenes/MinitelScreen.tscn"],
 		["credits", "res://scenes/Credits.tscn"],
+		["studio", "res://scenes/Studio.tscn"],
 	]:
 		await _build(res, canvas, pair[0], pair[1])
 	return canvas

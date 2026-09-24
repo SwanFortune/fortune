@@ -112,8 +112,7 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 		"hpAfter": fight.get("hp", 0), "extraTurns": 0, "coin": 0, "halveNote": null,
 		"denial": max(0, fight.get("denial", 0) - pierce_trait),
 	}
-	# The raw wall on purpose — see next_wall()'s note about the empty reading.
-	blank["shieldNext"] = next_wall(fight, {"denial": fight.get("denial", 0)})
+	blank["shieldNext"] = next_wall(fight, blank)
 	if laid.is_empty():
 		return blank
 
@@ -307,24 +306,25 @@ func simulate(run_ctx: Dictionary, fight: Dictionary) -> Dictionary:
 ## and the ceiling come from the `denial_wall` registry, so this stays a data
 ## question rather than a code one, and an fx with no entry there keeps the
 ## source's behaviour exactly.
-## WHAT THE WALL GROWS FROM IS THE WALL THE READING ACTUALLY FACED, which is the
-## sitter's denial AFTER a piercing reader has gone through it — `sim.denial`,
-## not `fight.denial`. This read the raw figure, so in the port a reader whose
-## whole trait is going through walls never wore one down: it regrew from full
-## every reading, for ever. The prototype takes 4 off and grows from there, so
-## piercing compounds across a fight.
 ##
-## Found by tests/test_against_the_prototype.gd, which runs the specification's
-## own simulate() and compares every field: 215 of 2000 random readings
-## disagreed, all of them here and nothing else. It is very likely why pierce
-## measured at the bare floor — the port had quietly removed the larger half of
-## the trait, and `pierce.spare` was added to treat the symptom.
+## THE WALL REGROWS FROM ITS OWN HEIGHT, not from what a piercing reader left
+## of it for one reading. Pierce is "goes past the shield entirely; none of it is
+## held off": it takes 4 off the wall a reading faces (`sim.denial`) and does not
+## knock the wall down. That is the prototype's resolveRead() (~2185,
+## `f.denial += f.denialUp`) and its own balance sim, simFight() (~1647), both
+## growing the raw figure.
 ##
-## The empty reading keeps the RAW wall, which is the prototype's own asymmetry
-## (line ~2052 against ~2128) and reads as intended rather than as a slip: you
-## pierce nothing by saying nothing.
+## For a while this grew from `sim.denial`, on the strength of the prototype's
+## simulate() returning `shieldNext: denial + f.denialUp` from the pierced
+## figure. That field is WRITTEN AND NEVER READ in v23 — v20 showed it as a
+## preview, which disagreed with its own resolveRead, and v22 dropped the
+## preview. Following it made pierce compound: against Pisces a pierce mark held
+## the wall at 4 for the whole fight where the prototype grows it 4, 8 … 28, and
+## against Taurus the wall SHRANK every reading. Found by
+## tests/test_against_the_prototype.gd once it played whole fights through the
+## prototype's own flow rather than comparing one reading's fields.
 func next_wall(fight: Dictionary, sim: Dictionary) -> int:
-	var wall: int = int(sim.get("denial", fight.get("denial", 0)))
+	var wall: int = int(fight.get("denial", 0))
 	var up: int = fight.get("denialUp", 0)
 	if up == 0 and wall == 0:
 		return 0
@@ -351,14 +351,22 @@ func fx_audit() -> Array[String]:
 	var bad: Array[String] = []
 	var fx: Dictionary = Content.fx
 
+	# TRUTHY, the way the prototype asks `!(e.el || e.dead)` — not PRESENT. An
+	# element written as "" is no element: the engine finds nothing to match it
+	# against, so the relic quietly does nothing, and this is the one check that
+	# could have said so. See truthy().
 	var check_list = func(list: Array, on: String, name_fn: Callable):
 		for e in list:
-			var key: String = e.get("fx", "")
+			# A pack can write "fx": null. Typed straight into a String that was a
+			# script error, which aborted the audit's own loop and dropped the very
+			# record it was there to report. The prototype prints it as "".
+			var raw = e.get("fx")
+			var key: String = str(raw) if truthy(raw) else ""
 			if not fx.has(key):
 				bad.append("%s → unknown fx \"%s\"" % [name_fn.call(e), key])
 			elif fx[key].get("on", "") != on:
 				bad.append("%s → fx \"%s\" belongs to %s" % [name_fn.call(e), key, fx[key]["on"]])
-			elif fx[key].get("needsEl", false) and e.get("el", null) == null and e.get("dead", null) == null:
+			elif fx[key].get("needsEl", false) and not (truthy(e.get("el")) or truthy(e.get("dead"))):
 				bad.append("%s → fx \"%s\" needs an element" % [name_fn.call(e), key])
 
 	check_list.call(Content.readers, "trait", func(r): return r.get("sign", r.get("k", "?")))
@@ -402,7 +410,28 @@ func fx_audit() -> Array[String]:
 ## Found by tests/test_against_the_prototype.gd — 304 of 600 generated cards
 ## read differently, every one of them this.
 func _says(card: Dictionary, key: String) -> bool:
-	return int(card.get(key, 0)) != 0
+	return truthy(card.get(key))
+
+
+## JAVASCRIPT'S TRUTHINESS — what the prototype means every time it writes
+## `if (c.draw)` or `e.el || e.dead`: null, "", false and 0 are nothing, and
+## anything else is something.
+##
+## ONE DEFINITION. There were three — here as `int(x) != 0`, in fx_audit() as a
+## lambda, and in Feel as _truthy() — each written after the port was caught
+## asking whether a field was PRESENT where the prototype asks whether it is
+## truthy, three separate times. The `int()` one also crashed on a mod card that
+## wrote "draw": null — int(null) is a script error, and the card printed no
+## text at all.
+static func truthy(v) -> bool:
+	match typeof(v):
+		TYPE_NIL:
+			return false
+		TYPE_STRING, TYPE_STRING_NAME:
+			return v != ""
+		TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+			return bool(v)
+	return true
 
 
 func auto_text(card: Dictionary) -> String:

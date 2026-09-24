@@ -68,6 +68,7 @@ func _initialize() -> void:
 		"minitel": "res://scenes/MinitelScreen.tscn",
 		"help": "res://scenes/HowToPlay.tscn",
 		"credits": "res://scenes/Credits.tscn",
+		"studio": "res://scenes/Studio.tscn",
 		"menu_saved": "res://scenes/MainMenu.tscn",
 	}
 	var scene_path: String
@@ -229,6 +230,17 @@ func _setup(name: String) -> void:
 						worn.append(m)
 						break
 			run.state["marks"] = worn
+		"read_alone":
+			# The last card in hand, which floats above two open hands instead
+			# of being held — to see the gap between the fingertips and the card.
+			_setup("read")
+			run.state["f"]["hand"] = run.state["f"]["hand"].slice(0, 1)
+		"read_worn":
+			# EVERYTHING the base game hands out, on at once — every mark and every
+			# relic, each where its `on` says. The crowded case: if the thumb, the
+			# wrist and the nails read here, they read in any run.
+			_setup("read")
+			run.state["marks"] = content.marks + content.relics
 		"reading_wall":
 			# The same, against the one sign that has a denial WALL, so the
 			# ledger's "their denial holds it off" line has something to show.
@@ -248,6 +260,15 @@ func _setup(name: String) -> void:
 			for c in f["hand"].duplicate():
 				if int(c.get("cost", 0)) <= int(run.state["f"]["energy"]):
 					run.lay_card(c["uid"])
+		# THE ROOM REMEMBERING: every trace room.json can leave, already on the
+		# table, as they would be late in a long visit. The only way to see all
+		# of them together, which is how their spots were chosen.
+		"read_room":
+			_setup("read")
+			var content: Node = root.get_node("Content")
+			for rule in content.traces:
+				if str(rule.get("becomes", "")) != "":
+					run.leave_trace(rule)
 		"win":
 			_setup("read")
 			var f: Dictionary = run.state["f"]

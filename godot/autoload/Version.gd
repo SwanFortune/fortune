@@ -77,20 +77,50 @@ func build_detail(path: String = STAMP_PATH) -> String:
 ## font by what they are. Where a person's name belongs, there is a line saying
 ## so and nothing else — an empty slot is honest, a placeholder name is not.
 func credits() -> Array:
-	return [
-		[I18n.t("THE GAME"), [
+	var work: bool = get_node("/root/Mode").is_work()
+	# THE PLAY VIEW is what a player reads: the game, the licences the engine
+	# and the font require, the version and where the log is — the two things a
+	# bug report needs. How it was made — a port, a prototype's file name,
+	# placeholders counted, translation percentages, the packs loaded — is the
+	# workshop's (Mode.gd).
+	var game: Array = [I18n.t("Design, writing, cards and numbers: the game's author.")]
+	if work:
+		game = [
 			I18n.t("Parlour began as a self-contained browser prototype, Parlour v23.dc.html — the design, the writing, the cards and the numbers are all its author's."),
 			I18n.t("This is a port of that prototype to Godot. The rules engine is a direct translation of its simulate(); where the two disagree, the prototype is right."),
-			I18n.t("Design and writing: see the repository."),
-		]],
+		]
+	var out: Array = [
+		[I18n.t("THE GAME"), game],
 		[I18n.t("BUILT WITH"), [
 			"· " + I18n.t("Godot Engine %s — MIT licence, godotengine.org") % _godot_version(),
 			"· " + I18n.t("The engine's default interface font, Open Sans (Apache 2.0)."),
 		]],
-		[I18n.t("ART AND SOUND"), _art_and_sound()],
-		[I18n.t("TRANSLATION"), _translation_lines()],
-		[I18n.t("THIS BUILD"), _this_build()],
 	]
+	if work:
+		out += [
+			[I18n.t("ART AND SOUND"), _art_and_sound()],
+			[I18n.t("TRANSLATION"), _translation_lines()],
+			[I18n.t("THIS BUILD"), _this_build()],
+		]
+	return out + _where_the_log_is()
+
+
+## WHERE THE LOG IS, so a player who hits a bug has something to send. The game
+## always wrote one — Godot's file logging is on by default on desktop — and
+## nothing on any screen said so. Asked of the project settings rather than
+## written down: a build with logging switched off gets no section at all rather
+## than a path to a file that is not there. Beside THIS BUILD on purpose; a
+## report wants the version as much as the log.
+func _where_the_log_is() -> Array:
+	if not bool(ProjectSettings.get_setting("debug/file_logging/enable_file_logging.pc", false)):
+		return []
+	var path := str(ProjectSettings.get_setting("debug/file_logging/log_path", ""))
+	if path == "":
+		return []
+	return [[I18n.t("IF SOMETHING GOES WRONG"), [
+		I18n.t("The game keeps a log of the last few sessions. Send the newest one with the version above."),
+		"· " + ProjectSettings.globalize_path(path.get_base_dir()),
+	]]]
 
 
 ## HOW MUCH OF THE ART AND THE AUDIO IS REAL, COUNTED RATHER THAN ASSERTED.
@@ -112,6 +142,7 @@ func _art_and_sound() -> Array:
 		"· " + I18n.t("Music and sound: unfilled."),
 		"· " + I18n.t("Drawings: %s.") % _delivered(Art.status_summary(), Art.UNDELIVERED),
 		"· " + I18n.t("Sound and music: %s.") % _delivered(Audio.status_summary(), Audio.UNDELIVERED),
+		"· " + I18n.t("Particles: %s.") % _delivered(Feel.status_summary(), Feel.UNDELIVERED),
 	]
 
 

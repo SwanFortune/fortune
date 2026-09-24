@@ -82,6 +82,16 @@ const DEFS := {
 	# The dim greys this game is written in are a deliberate look and a real
 	# problem for anyone who cannot pick them off the background.
 	"high_contrast": [false],
+	# Sparks, dust and embers round the cards (autoload/Feel.gd). Separate from
+	# game speed because some people want the motion and not the confetti; and
+	# INSTANT turns them off regardless, since particles are motion.
+	"particles": [true],
+	# ── haptics ──────────────────────────────────────────────────────────
+	# Gamepad rumble on the moments that matter (Feel.rumble). Its own switch,
+	# NOT tied to game speed: someone who cannot watch things move may very
+	# much want to feel them.
+	"haptics": [true],
+	"haptic_strength": [0.8, 0.0, 1.0],
 	# gameplay — the two knobs the prototype exposed as props (its cfg())
 	"start_energy": [3, 1, 8],
 	"hand_size": [5, 3, 10],
@@ -100,6 +110,12 @@ const DEFS := {
 	"disabled_mods": [[]],
 }
 
+## The sections a screen offers in one view: every one in the work view, and
+## the ones not marked `work` in the play view.
+func sections_for(work: bool) -> Array:
+	return SECTIONS.filter(func(sec): return work or not bool(sec.get("work", false)))
+
+
 ## How the settings screen groups these, and — as far as
 ## tests/test_settings.gd is concerned — the CONTRACT between the two. `keys`
 ## is not documentation: the test asserts that every key in DEFS appears in
@@ -111,13 +127,16 @@ const DEFS := {
 ## preloads UIKit, which refers to four autoloads and so cannot be compiled by
 ## a `godot -s` tool — the test could not have read it there.
 const SECTIONS := [
-	{"id": "gameplay", "title": "GAMEPLAY", "keys": ["start_energy", "hand_size"]},
+	# `work`: shown in the work view only (Mode.gd). The prototype's two
+	# knobs rebalance the whole game, and the content pane is about mod packs
+	# and example folders — both are the workshop's, not a player's.
+	{"id": "gameplay", "title": "GAMEPLAY", "keys": ["start_energy", "hand_size"], "work": true},
 	{"id": "video", "title": "VIDEO", "keys": ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]},
 	{"id": "audio", "title": "AUDIO", "keys": ["master_volume", "sfx_volume", "ui_volume", "music_volume", "ambience_volume", "muted"]},
-	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast"]},
-	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds"]},
+	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast", "particles"]},
+	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds", "haptics", "haptic_strength"]},
 	{"id": "language", "title": "LANGUAGE", "keys": ["locale"]},
-	{"id": "content", "title": "CONTENT", "keys": ["load_example_mods", "disabled_mods"]},
+	{"id": "content", "title": "CONTENT", "keys": ["load_example_mods", "disabled_mods"], "work": true},
 ]
 
 ## Window modes, in the order the settings screen offers them. `borderless` is

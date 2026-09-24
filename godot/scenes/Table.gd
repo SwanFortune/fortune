@@ -409,6 +409,17 @@ static func _draw_minitel(c: Control, s: Vector2) -> void:
 ## leaves empty: the left third, from the bars down to the hand label, is solid
 ## text. These two spots are clear in every layout the screen produces.
 const MINITEL_AT := Vector2(0.875, 0.535)
+
+
+## Where the Minitel's body and screen are on a room of size `s` — not the
+## keyboard, which sits low enough to run under whatever the screen puts at the
+## bottom of the table. The same measurements _draw_minitel() draws with, for
+## the reading screen to put a hand on it.
+static func minitel_rect(s: Vector2) -> Rect2:
+	var u := s.y * 0.30
+	var at := s * MINITEL_AT
+	var body_bottom := at.y - u * 0.17
+	return Rect2(at.x - u * 0.40, body_bottom - u * 0.62, u * 0.80, u * 0.62)
 const TEACUP_AT := Vector2(0.635, 0.435)
 
 
@@ -490,27 +501,42 @@ static func _draw_vignette(c: Control, s: Vector2) -> void:
 ## pair of hands that has just let go of something looks like, and what the
 ## reading screen asks for when a single card is left floating above them.
 static func hands(marks: Array, span: Callable = Callable(), reach: float = 1.0) -> Control:
-	var c := Control.new()
+	# A script of its own, loaded by path (see CLAUDE.md): the hands MOVE now —
+	# they rest, lay a card, flinch — and something has to ask Feel for the pose
+	# every frame. The drawing stays here, static, where the tests can read it.
+	var c: Control = load("res://scenes/Hands.gd").new()
 	# Named so a test can find it. The hands are a layer with no text on them
 	# and no widget in them, so there is nothing else to identify them by.
 	c.name = "Hands"
 	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	c.custom_minimum_size.y = 110
+	# A floor, not a size: whoever places the hands decides their band. At 110
+	# this floor was taller than the band the reading asks for, and quietly
+	# stretched it 24px down past the bottom of the screen, wrists and all.
+	c.custom_minimum_size.y = 60
 	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var held: Array = marks.duplicate()
-	var r := clampf(reach, 0.35, 1.0)
-	c.draw.connect(func(): _draw_hands(c, held, span, r))
+	c.marks = marks.duplicate()
+	c.span = span
+	c.reach = clampf(reach, 0.35, 1.0)
 	c.resized.connect(func(): c.queue_redraw())
 	return c
 
 
-static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float) -> void:
+## `poses` is {left, right}, each a pose from Feel.hand_pose(): how far the hand
+## is lifted, turned, reaching and spread. Missing, a hand is drawn as it rests.
+static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float, poses: Dictionary = {}) -> void:
 	var s := c.size
 	if s.x < 80.0 or s.y < 20.0:
 		return
-	# Marks alternate between the two hands in the order they were won, so a
-	# player can find a particular one again: the third ring you took is always
-	# on the same finger.
+	var hands_of := split_marks(marks)
+	var bases := hand_bases(s, span, reach)
+	_draw_posed(c, bases[0], 1.0, hands_of[0], reach, poses.get("left", {}))
+	_draw_posed(c, bases[1], -1.0, hands_of[1], reach, poses.get("right", {}))
+
+
+## Marks alternate between the two hands in the order they were won, so a
+## player can find a particular one again: the third ring you took is always on
+## the same finger. [left, right].
+static func split_marks(marks: Array) -> Array:
 	var left: Array = []
 	var right: Array = []
 	for i in marks.size():
@@ -518,7 +544,12 @@ static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float) 
 			left.append(marks[i])
 		else:
 			right.append(marks[i])
+	return [left, right]
 
+
+## Where the two hands stand, [left, right], each a point on the bottom edge of
+## a band of size `s`. `span` and `reach` as for hands().
+static func hand_bases(s: Vector2, span: Callable, reach: float) -> Array:
 	# How much room one hand takes, thumb to little finger. Everything below is
 	# spaced in these, so a hand is never asked to stand somewhere it does not
 	# fit.
@@ -539,20 +570,59 @@ static func _draw_hands(c: Control, marks: Array, span: Callable, reach: float) 
 	# curl inward across the palm — so the floor rises as the reach drops.
 	half = maxf(half, hand_w * (0.95 + (1.0 - reach) * 0.35))
 	# And never off the screen, however wide the fan gets.
-	var at := Vector2(clampf(centre - half, hand_w * 0.45, s.x * 0.5),
-		clampf(centre + half, s.x * 0.5, s.x - hand_w * 0.45))
+	return [Vector2(clampf(centre - half, hand_w * 0.45, s.x * 0.5), s.y),
+		Vector2(clampf(centre + half, s.x * 0.5, s.x - hand_w * 0.45), s.y)]
 
-	_draw_hand(c, Vector2(at.x, s.y), 1.0, left, reach)
-	_draw_hand(c, Vector2(at.y, s.y), -1.0, right, reach)
+
+## EVERY MARK ON BOTH HANDS, where it is drawn with the hands at rest, in the
+## band's own coordinates: mark_places() for each hand, with a `hand` of "left"
+## or "right". What a test asks when it wants to know whether a player can see
+## what they won — the same placement the drawing uses, not a copy of it.
+static func worn(s: Vector2, marks: Array, span: Callable = Callable(), reach: float = 1.0) -> Array:
+	var out: Array = []
+	if s.x < 80.0 or s.y < 20.0:
+		return out
+	var hands_of := split_marks(marks)
+	var bases := hand_bases(s, span, reach)
+	for i in 2:
+		var flip := 1.0 if i == 0 else -1.0
+		var parts := hand_parts(bases[i], s.y, flip, reach)
+		for place in mark_places(hands_of[i], parts["palm"], parts["fingers"], s.y, flip, parts["thumb"]):
+			place["hand"] = "left" if i == 0 else "right"
+			out.append(place)
+	return out
+
+
+## One hand in a pose. The whole hand turns about the middle of its wrist, where
+## it leaves the bottom of the screen, so a hand that turns stays attached to an
+## arm; `lift` is in band heights, up.
+static func _draw_posed(c: Control, base: Vector2, flip: float, marks: Array, reach: float, pose: Dictionary) -> void:
+	var h := c.size.y
+	var lift := float(pose.get("lift", 0.0)) * h
+	var turn := deg_to_rad(float(pose.get("turn", 0.0))) * flip
+	var r := reach * float(pose.get("reach", 1.0))
+	var spread := float(pose.get("spread", 1.0))
+	if is_zero_approx(lift) and is_zero_approx(turn):
+		_draw_hand(c, base, flip, marks, r, spread)
+		return
+	var xf := Transform2D(turn, base + Vector2(0, -lift))
+	c.draw_set_transform_matrix(xf)
+	_draw_hand(c, Vector2.ZERO, flip, marks, r, spread, xf)
+	c.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 
 ## The hand's proportions, as fractions of the band height. Four fingers,
 ## longest in the middle, each two segments with a bend at the knuckle.
-const PALM_DROP := 0.02          # how far the palm sits below the band's bottom
+## The palm is ABOVE the band's bottom, with the forearm running on below it.
+## It sat just below once, with fingers a fifth longer reaching the same place:
+## the back of the hand — where every tattoo, scar and bracelet goes — was under
+## the bottom edge, and the fingertips were all a player saw of their marks.
+const PALM_DROP := -0.20         # how far the palm sits below the band's bottom
 const KNUCKLE_Y := -0.19         # where the fingers leave the hand
-const FINGER_LENGTHS := [0.72, 0.86, 0.80, 0.60]
+const FINGER_LENGTHS := [0.58, 0.69, 0.64, 0.48]
 const FINGER_WIDTHS := [0.048, 0.052, 0.050, 0.043]
 const FINGER_SPREAD := 0.135
+const MAX_REACH := 1.1
 
 
 ## Where one hand's four fingers are: [root, knuckle, tip, width] each, in the
@@ -563,22 +633,40 @@ const FINGER_SPREAD := 0.135
 ## a test asking whether the fingertips clear a floating card must read the SAME
 ## geometry the drawing does. Re-deriving it would only assert that two copies
 ## of a formula agree.
-static func finger_geometry(base: Vector2, h: float, flip: float, reach: float) -> Array:
-	var r := clampf(reach, 0.35, 1.0)
+static func finger_geometry(base: Vector2, h: float, flip: float, reach: float, spread: float = 1.0) -> Array:
+	# A gesture may stretch a little past a holding hand (a card being pressed
+	# down); never past that, or the fingers leave the knuckles behind.
+	var r := clampf(reach, 0.35, MAX_REACH)
 	var palm := base + Vector2(0, PALM_DROP * h)
-	var out := Vector2(0.12 * flip, -1.0).normalized()
+	var out := Vector2(0.12 * flip * spread, -1.0).normalized()
 	# The less a hand reaches, the more it curls. Simply shortening the fingers
 	# gives a hand with stubs on it; shortening AND bending them gives an open
 	# hand, which is what a hand that has just let go of something looks like.
 	var curl := Vector2((0.46 + (1.0 - r) * 1.30) * flip, -1.0).normalized()
 	var fingers: Array = []
 	for i in FINGER_LENGTHS.size():
-		var root := palm + Vector2((float(i) - 1.5) * FINGER_SPREAD * h * flip, KNUCKLE_Y * h)
+		var root := palm + Vector2((float(i) - 1.5) * FINGER_SPREAD * h * flip * lerpf(1.0, spread, 0.35), KNUCKLE_Y * h)
 		var length: float = float(FINGER_LENGTHS[i]) * h * r
 		var knuckle := root + out * (length * 0.58)
 		fingers.append([root, knuckle, knuckle + curl * (length * 0.42),
 			float(FINGER_WIDTHS[i]) * h])
 	return fingers
+
+
+## The parts of one hand that things are worn on: the `palm` centre; `fingers`,
+## each finger's lower segment as [root, knuckle, width, tip]; and the `thumb`
+## the same way. What mark_places() is given, by the drawing and by worn().
+static func hand_parts(base: Vector2, h: float, flip: float, reach: float, spread: float = 1.0) -> Dictionary:
+	var palm := base + Vector2(0, PALM_DROP * h)
+	var fingers: Array = []
+	for f in finger_geometry(base, h, flip, reach, spread):
+		fingers.append([f[0], f[1], f[3], f[2]])
+	# Across the outside and lower than the fingers, resting against the near
+	# edge of the fan.
+	var t_root := palm + Vector2(-0.29 * h * flip, 0.03 * h)
+	var t_knuckle := t_root + Vector2(-0.11 * h * flip, -0.21 * h)
+	var t_tip := t_knuckle + Vector2(0.07 * h * flip, -0.17 * h)
+	return {"palm": palm, "fingers": fingers, "thumb": [t_root, t_knuckle, 0.062 * h, t_tip]}
 
 
 ## One hand, rooted at `base` (on the bottom edge) and angled inward.
@@ -589,26 +677,35 @@ static func finger_geometry(base: Vector2, h: float, flip: float, reach: float) 
 ## the fingertips always land at the same place: a fixed fraction from the top.
 ## The caller positions the band; that alone decides how far up the cards the
 ## fingers reach.
-static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, reach: float = 1.0) -> void:
+## `xf` is the transform the hand is being drawn under (its pose), so a mark's
+## drawing, which has to be turned along its finger, can be turned inside it.
+static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, reach: float = 1.0,
+		spread: float = 1.0, xf: Transform2D = Transform2D.IDENTITY) -> void:
 	var h := c.size.y
 
-	# The back of the hand sits just above the bottom of the band, so a good
-	# third of it is on screen: fingers growing out of nothing read as a mitten,
-	# and the tattoos and scars that go here need somewhere to be. What falls
-	# below the band is the wrist, running off the bottom of the screen.
+	# The back of the hand sits above the bottom of the band, so all of it is on
+	# screen: fingers growing out of nothing read as a mitten, and the tattoos,
+	# scars and bracelets that go here need somewhere to be seen. What falls
+	# below the band is the forearm, running off the bottom of the screen.
 	var palm := base + Vector2(0, PALM_DROP * h)
+	# The forearm, off the bottom of the screen, so a hand that lifts in a
+	# gesture stays attached to someone.
+	var elbow := palm + Vector2(-0.10 * h * flip, 0.95 * h)
+	for pass_i in 3:
+		_taper(c, palm, elbow, 0.25 * h * PASS_GROW[pass_i] / PASS_GROW[1], 0.27 * h * PASS_GROW[pass_i] / PASS_GROW[1],
+			SKIN_PASSES[pass_i])
+	# A cuff, where the sleeve starts.
+	_taper(c, elbow.lerp(palm, 0.35), elbow, 0.30 * h, 0.31 * h, COAT)
 	_blob(c, palm, 0.345 * h, 0.315 * h, SKIN_LINE)
 	_blob(c, palm, 0.330 * h, 0.300 * h, SKIN_SHADE)
 	_blob(c, palm + Vector2(0.01 * h * flip, 0.02 * h), 0.295 * h, 0.260 * h, SKIN)
 
-	var fingers := finger_geometry(base, h, flip, reach)
-	var segments: Array = []
+	var fingers := finger_geometry(base, h, flip, reach, spread)
 	for finger in fingers:
 		var root: Vector2 = finger[0]
 		var knuckle: Vector2 = finger[1]
 		var tip: Vector2 = finger[2]
 		var w: float = finger[3]
-		segments.append([root, knuckle, w])
 
 		# Dark first, then the shaded skin, then the lit skin inset toward the
 		# light: three passes give an edge without drawing an outline over the
@@ -636,17 +733,19 @@ static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, rea
 
 	# The thumb, across the outside and lower than the fingers, resting against
 	# the near edge of the fan.
-	var t_root := palm + Vector2(-0.29 * h * flip, 0.03 * h)
-	var t_knuckle := t_root + Vector2(-0.11 * h * flip, -0.21 * h)
-	var t_tip := t_knuckle + Vector2(0.07 * h * flip, -0.17 * h)
-	var tw := 0.062 * h
+	var parts := hand_parts(base, h, flip, reach, spread)
+	var thumb: Array = parts["thumb"]
+	var t_root: Vector2 = thumb[0]
+	var t_knuckle: Vector2 = thumb[1]
+	var tw: float = thumb[2]
+	var t_tip: Vector2 = thumb[3]
 	for pass_i in 3:
 		var col: Color = SKIN_PASSES[pass_i]
 		var grow: float = PASS_GROW[pass_i]
 		_taper(c, t_root, t_knuckle, tw * grow, tw * 0.92 * grow, col)
 		_taper(c, t_knuckle, t_tip, tw * 0.92 * grow, tw * 0.78 * grow, col)
 
-	_draw_marks(c, marks, palm, segments, h, flip)
+	_draw_marks(c, marks, palm, parts["fingers"], h, flip, thumb, xf)
 
 
 ## The four kinds this knows how to draw. Public because a test asserts that
@@ -656,69 +755,178 @@ static func _draw_hand(c: Control, base: Vector2, flip: float, marks: Array, rea
 const KINDS := ["RING", "TATTOO", "SCAR", "BOON"]
 
 
+## Where on the hand a mark may say it is worn (its `on` field, in marks.json
+## and relics.json), and what each place is. Public for the same reason KINDS
+## is: tests/test_scenes.gd holds the content to it.
+const PLACES := {
+	"index": "a finger — a ring on it, or ink along it",
+	"middle": "a finger",
+	"ring": "a finger",
+	"little": "a finger",
+	"thumb": "the thumb",
+	"nails": "the fingertips, all four",
+	"back": "the back of the hand, in a row across it",
+	"wrist": "where the hand leaves the screen — a bracelet, or ink",
+	"knuckles": "across the knuckles",
+	"above": "held above the hand, not worn: a small light",
+}
+
+## Which place a mark goes to when it does not say.
+const DEFAULT_PLACE := {"RING": "", "TATTOO": "back", "SCAR": "knuckles", "BOON": "above"}
+
+## The fingers, in the order finger_geometry() builds them: index nearest the
+## thumb.
+const FINGERS := ["index", "middle", "ring", "little"]
+
+
 ## WHERE every mark goes, as data. Separate from the drawing so it can be
 ## checked without a screen: the promise this file makes is that a mark you won
 ## is a mark you can see.
 ##
-## One entry per mark of a KNOWN kind, in order, each carrying the point it is
-## drawn at and its tint. An unknown kind gets no entry — a pack inventing one
-## should show nothing rather than a ring it did not ask for.
+## One entry per mark of a KNOWN kind, in order, each carrying its `place`, the
+## point it is drawn at, and its tint. An unknown kind gets no entry — a pack
+## inventing one should show nothing rather than a ring it did not ask for. A
+## known kind at a place nobody knows goes where its kind usually goes.
 ##
-## `fingers` is the LOWER segment of each finger, root to knuckle, because that
-## is where a ring is worn. `h` is the band height every measurement here is a
-## fraction of, the same unit _draw_hand() uses.
-static func mark_places(marks: Array, palm: Vector2, fingers: Array, h: float, flip: float) -> Array:
-	var used := {"RING": 0, "TATTOO": 0, "SCAR": 0, "BOON": 0}
+## `fingers` is each finger's LOWER segment, root to knuckle (where a ring is
+## worn), then its width, then — when the drawing has it — the fingertip.
+## `thumb` is the same for the thumb. `h` is the band height every measurement
+## here is a fraction of, the same unit _draw_hand() uses.
+static func mark_places(marks: Array, palm: Vector2, fingers: Array, h: float, flip: float, thumb: Array = []) -> Array:
+	var used := {}
+	var on_finger := {}
+	var rings := 0
 	var places: Array = []
 	for m in marks:
 		var kind := str(m.get("kind", ""))
-		if not used.has(kind):
+		if not DEFAULT_PLACE.has(kind):
 			continue
-		var slot: int = used[kind]
-		used[kind] = slot + 1
-		var place := {"kind": kind, "tint": _mark_color(m)}
-		match kind:
-			"RING":
-				# Rings WRAP round the four fingers rather than stopping at the
-				# fourth: a run can hand out more rings than a hand has fingers,
-				# and one that is simply not drawn is a reward the player was
-				# told they had and cannot find.
-				var finger: Array = fingers[slot % fingers.size()] if not fingers.is_empty() else []
-				var tier: int = slot / maxi(1, fingers.size())
-				place["finger"] = finger
-				place["tier"] = tier
-				place["at"] = _ring_point(finger, tier)
-			"TATTOO":
-				# On the back of the hand, in a row across it — the part of the
-				# palm that is above the bottom edge and clear of the knuckles.
-				place["at"] = palm + Vector2(float(slot % 3 - 1) * 0.105 * h,
-					-0.05 * h + float(slot / 3) * 0.085 * h)
-			"SCAR":
-				# Across the knuckles, where the fingers leave the hand.
-				place["at"] = palm + Vector2(0, -0.215 * h - float(slot) * 0.055 * h)
-			"BOON":
-				# Not a mark on the skin, so it is not drawn as one: a small warm
-				# light held above the hand. OUTSIDE the fingers, on the side away
-				# from the fan — over them it read as a bead stuck to a knuckle,
-				# and over the cards it would cover the text.
-				place["at"] = palm + Vector2(-0.38 * h * flip, -0.58 * h - float(slot) * 0.15 * h)
+		var where := str(m.get("on", ""))
+		if not PLACES.has(where):
+			where = DEFAULT_PLACE[kind]
+		# A ring that does not say goes on the next finger round, and WRAPS
+		# rather than stopping at the fourth: a run can hand out more rings than
+		# a hand has fingers, and one that is simply not drawn is a reward the
+		# player was told they had and cannot find.
+		if where == "" or (where == "thumb" and thumb.size() < 2):
+			where = FINGERS[rings % FINGERS.size()] if kind == "RING" else "back"
+		if kind == "RING" and str(m.get("on", "")) == "":
+			rings += 1
+		var slot: int = used.get(where + kind, 0)
+		used[where + kind] = slot + 1
+		var place := {"kind": kind, "place": where, "tint": _mark_color(m), "n": str(m.get("n", "")), "turn": 0.0}
+		var fi := FINGERS.find(where)
+		if fi >= 0 and not fingers.is_empty():
+			var finger: Array = fingers[fi % fingers.size()]
+			# Rings stack down a finger; a tattoo on one sits between them and
+			# the knuckle.
+			var tier: int = on_finger.get(fi, 0)
+			on_finger[fi] = tier + 1
+			place["finger"] = finger
+			place["tier"] = tier
+			place["at"] = _ring_point(finger, tier) if kind == "RING" else _along(finger, 0.30 + 0.12 * slot)
+			place["turn"] = _angle_of(finger)
+		elif where == "thumb":
+			var tier: int = on_finger.get("thumb", 0)
+			on_finger["thumb"] = tier + 1
+			place["finger"] = thumb
+			place["tier"] = tier
+			place["at"] = _ring_point(thumb, tier) if kind == "RING" else _along(thumb, 0.45)
+			place["turn"] = _angle_of(thumb)
+		else:
+			match where:
+				"nails":
+					var tips: Array = []
+					for f in fingers:
+						tips.append(f[3] if f.size() > 3 else f[1])
+					place["tips"] = tips
+					place["at"] = tips[0] if not tips.is_empty() else palm
+				"back":
+					# In a row across the back of the hand, clear of the knuckles
+					# above and the wrist below.
+					place["at"] = palm + Vector2(float(slot % 3 - 1) * 0.105 * h,
+						-0.11 * h + float(slot / 3) * 0.075 * h)
+				"wrist":
+					# The very bottom of the screen, where the hand becomes an arm.
+					# A bracelet is a band across it; ink sits to the outside.
+					place["at"] = palm + Vector2((0.0 if kind == "RING" else -0.13 * flip) * h,
+						0.12 * h - float(slot) * 0.035 * h)
+				"knuckles":
+					place["at"] = palm + Vector2(0, -0.215 * h - float(slot) * 0.055 * h)
+				"above":
+					# OUTSIDE the fingers, on the side away from the fan — over them
+					# it read as a bead stuck to a knuckle, and over the cards it
+					# would cover the text.
+					place["at"] = palm + Vector2(-0.38 * h * flip, -0.58 * h - float(slot) * 0.15 * h)
 		places.append(place)
 	return places
 
 
-static func _draw_marks(c: Control, marks: Array, palm: Vector2, fingers: Array, h: float, flip: float) -> void:
-	for place in mark_places(marks, palm, fingers, h, flip):
+## The size a mark's own drawing is shown at, in band heights, by where it is.
+## An artist draws on a 256px square (docs/ART_GUIDE.md); this is how big that
+## square is on the hand.
+const MARK_ART_SIZE := {"finger": 0.11, "thumb": 0.12, "back": 0.16, "wrist": 0.20, "knuckles": 0.22,
+	"nails": 0.06, "above": 0.16}
+
+
+static func _draw_marks(c: Control, marks: Array, palm: Vector2, fingers: Array, h: float, flip: float,
+		thumb: Array = [], xf: Transform2D = Transform2D.IDENTITY) -> void:
+	for place in mark_places(marks, palm, fingers, h, flip, thumb):
 		var at: Vector2 = place["at"]
 		var tint: Color = place["tint"]
+		var where := str(place["place"])
+		# A mark somebody has drawn is shown as drawn, turned to lie along the
+		# finger it is on. Until then, the procedural stand-in for its kind.
+		var art: Texture2D = Art.mark_texture(str(place["n"])) if str(place["n"]) != "" else null
+		if art != null:
+			var key := "finger" if FINGERS.has(where) else where
+			var side := float(MARK_ART_SIZE.get(key, 0.14)) * h
+			for point in place.get("tips", [at]):
+				c.draw_set_transform_matrix(xf * Transform2D(float(place["turn"]), point))
+				c.draw_texture_rect(art, Rect2(Vector2(-side, -side) * 0.5, Vector2(side, side)), false)
+			c.draw_set_transform_matrix(xf)
+			continue
 		match str(place["kind"]):
 			"RING":
-				_draw_ring(c, place["finger"], at, tint, h)
+				if where == "wrist":
+					_draw_bracelet(c, at, tint, h)
+				else:
+					_draw_ring(c, place["finger"], at, tint, h)
 			"TATTOO":
-				_draw_tattoo(c, at, tint, h)
+				if where == "nails":
+					for tip in place["tips"]:
+						c.draw_circle(tip, 0.012 * h, Color(tint, 0.55))
+				else:
+					_draw_tattoo(c, at, tint, h * (0.6 if place.has("finger") else 1.0))
 			"SCAR":
 				_draw_scar(c, at, h, flip)
 			"BOON":
 				_glow(c, at, 0.055 * h, tint)
+
+
+## A point `t` of the way along a segment [root, knuckle, …].
+static func _along(finger: Array, t: float) -> Vector2:
+	if finger.size() < 2:
+		return Vector2.ZERO
+	return (finger[0] as Vector2).lerp(finger[1], clampf(t, 0.0, 1.0))
+
+
+## Which way a finger points, as an angle a drawing can be turned by so that its
+## top runs along the finger toward the tip.
+static func _angle_of(finger: Array) -> float:
+	if finger.size() < 2:
+		return 0.0
+	return ((finger[1] as Vector2) - (finger[0] as Vector2)).angle() + PI * 0.5
+
+
+## A bracelet: a band across the wrist, with the same one highlight a ring has.
+static func _draw_bracelet(c: Control, at: Vector2, tint: Color, h: float) -> void:
+	var half := Vector2(0.21 * h, 0.0)
+	var sag := Vector2(0, 0.02 * h)
+	var pts := PackedVector2Array([at - half, at - half * 0.5 + sag, at + sag * 1.2, at + half * 0.5 + sag, at + half])
+	c.draw_polyline(pts, Color(0.04, 0.03, 0.03, 0.55), 0.042 * h, true)
+	c.draw_polyline(pts, tint, 0.028 * h, true)
+	c.draw_circle(at - half * 0.4 + sag * 0.6, 0.011 * h, Color(1, 1, 1, 0.6))
 
 
 ## Where a ring sits on `finger` ([root, knuckle, width]) — `tier` 0 just below

@@ -11,7 +11,9 @@ extends Control
 ## clone. See autoload/Content.gd's header for why, and never change these back.
 const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
+const RoomTraces := preload("res://scenes/RoomTraces.gd")
 const Table := preload("res://scenes/Table.gd")
+const Deck := preload("res://scenes/Deck.gd")
 
 ## The card band, and the whole held area beneath it. The hands start where the
 ## cards stop and rise back over them by the difference.
@@ -21,11 +23,14 @@ const Table := preload("res://scenes/Table.gd")
 ## band taken literally leaves a card at the top of the range overflowing it,
 ## with the fingers gripping empty table above.
 ##
-## Both are UIKit.CARD_FACE_SIZE.y plus the same slack they have always had (18
-## and 92). They moved with the card when it grew to hold an art window; if the
-## card moves again, they move again.
+## Both are UIKit.CARD_FACE_SIZE.y plus slack (18 and 62). They moved with the
+## card when it grew to hold an art window; if the card moves again, they move
+## again. HELD_HEIGHT ends where the backs of the hands meet the bottom of the
+## screen: it was 92 below the card once, and the backs of the hands — where the
+## tattoos, the scars and the bracelets are — were drawn under the bottom edge.
+## Bigger again and the middle of the screen has to scroll at 720p.
 const CARD_BAND := 202
-const HELD_HEIGHT := 276
+const HELD_HEIGHT := 246
 
 ## How far the hands reach back UP over the cards. Table.gd draws its fingertips
 ## at the very top of the band it is given, so this number alone decides how far
@@ -40,7 +45,7 @@ const HAND_OVERLAP := 42
 ## and the card, which is what makes it read as floating rather than gripped.
 const LIFT := 14
 const BOB := 5.0
-const OPEN_REACH := 0.66
+const OPEN_REACH := 0.4
 
 
 static func _band_px() -> float:
@@ -55,6 +60,14 @@ func _ready() -> void:
 	var f: Dictionary = Run.state["f"]
 	var root := UIKit.root_control()
 	add_child(root)
+	# What the cards laid so far have become, over the room and under every word
+	# on this screen. See scenes/RoomTraces.gd.
+	var sitter_el = f.get("sitter", {}).get("el", "")
+	root.add_child(RoomTraces.layer(f.get("room", []), int(f.get("room_jolt", 0)), str(sitter_el) if sitter_el != null else ""))
+	# The deck, on the table, as thick as what is left to draw. What you draw
+	# comes off the top of it; see _deal_in().
+	_pile = Deck.pile(f.get("draw", []).size())
+	root.add_child(_pile)
 	var m := UIKit.margin(28)
 	# No bottom margin: the hand sits on the screen's edge with the fingers
 	# holding it running off it. A gap under them makes the table a panel.
@@ -99,6 +112,9 @@ func _ready() -> void:
 	# focusable control, so without it nothing on the screen takes focus and a
 	# player without a mouse cannot reach READ IT to end the turn.
 	UIKit.focus_first(focus_on, self)
+	_deal_in()
+	# Last, so it is over the page's containers: the machine on the table.
+	root.add_child(_the_minitel())
 
 
 ## WHO IS SITTING THERE: their portrait, their name and job, their element, and
@@ -246,7 +262,11 @@ func _the_state(f: Dictionary, sim: Dictionary) -> Control:
 ## say, and an empty container would still take a gap in the column.
 func _the_notices(f: Dictionary, v: Control) -> void:
 	if f.get("taken", null) != null:
-		v.add_child(UIKit.block("(%s slips out of your hand before you can start.)" % f["taken"], 11, UIKit.RED))
+		# The card by its name in the player's language, not the English key it
+		# is stored under.
+		var taken: Dictionary = Content.get_card(str(f["taken"]))
+		var taken_name: String = I18n.card_name(taken) if not taken.is_empty() else str(f["taken"])
+		v.add_child(UIKit.block(I18n.t("(%s slips out of your hand before you can start.)") % taken_name, 11, UIKit.RED))
 
 	var discarded: Array = f.get("_justDiscarded", [])
 	if not discarded.is_empty():
@@ -322,10 +342,15 @@ func _the_hand_label() -> Control:
 ## cards they hold. Filled by _fill_the_hand().
 func _the_hand_box() -> Control:
 	var held := Control.new()
-	# Reserves the CARD BAND, not the whole held area. The hands are drawn down
-	# to HELD_HEIGHT and are meant to run off the bottom of the screen; that part
-	# overflows this box on purpose, and nothing here clips.
-	held.custom_minimum_size = Vector2(0, _band_px())
+	# Reserves the WHOLE held area, hands included, down to where the back of
+	# each hand meets the bottom edge. It reserved only the card band once, and
+	# the hands ran on off the screen below it — which put the back of the hand,
+	# the knuckles and the wrist, where every tattoo, scar and bracelet is worn,
+	# seventy pixels under the bottom edge. The fingertips were all a player
+	# ever saw of them. tests/test_scenes.gd now asks the built screen whether
+	# every mark is inside the window. The wrists still run off the bottom:
+	# Table.gd's palm sits on the band's bottom edge, so half of it is below.
+	held.custom_minimum_size = Vector2(0, _held_px())
 	held.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Exactly its own height, never the leftover: the hands are drawn relative to
 	# this box, so a box that grew with the window would walk them away from the
@@ -350,8 +375,7 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		var face := _lift(held, only, int(only.get("cost", 0)) <= int(f["energy"]))
 		_inspect(face, hand_label)
 		if just_drawn.has(only["uid"]):
-			UIKit.animate_in(face)
-			_deal_sound(0.0)
+			_will_deal(face)
 		span = _card_span.bind(face, held)
 		hand_reach = OPEN_REACH
 		focus_on = face
@@ -377,16 +401,15 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		fan.add_theme_constant_override("h_separation", FAN_GAP)
 		fan.add_theme_constant_override("v_separation", 8)
 		headroom.add_child(fan)
-		var deal_index := 0
 		for c in f["hand"]:
 			var afford := int(c.get("cost", 0)) <= int(f["energy"])
 			var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
 			_inspect(face, hand_label)
 			fan.add_child(face)
+			_faces[c["uid"]] = face
+			Feel.dress_card(face, c, _feel_ctx(c, f, afford))
 			if just_drawn.has(c["uid"]):
-				UIKit.animate_in(face, deal_index * 0.06)
-				_deal_sound(deal_index * 0.06)
-				deal_index += 1
+				_will_deal(face)
 		span = _fan_span.bind(fan, held)
 		if fan.get_child_count() > 0:
 			focus_on = fan
@@ -401,6 +424,15 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 			if child is Control:
 				(child as Control).resized.connect(fit)
 		fan.resized.connect(fit)
+		# A CONTAINER RESETS ITS CHILDREN'S SCALE every time it lays them out
+		# (Container.fit_child_in_rect()), and a card on its way from the deck is
+		# hidden by its width. So after every layout, the cards still face down
+		# are put back face down — or the first sort shows the whole hand before
+		# it has been dealt, which it did.
+		fan.sort_children.connect(func():
+			for child in fan.get_children():
+				if Feel.dealing(child):
+					(child as Control).scale.x = 0.0)
 		fit.call()
 
 	# Added AFTER the cards, and the order matters: the fingertips have to draw
@@ -533,6 +565,10 @@ const CARD_LIFT := 1.14
 func _raise(face: Control, to: float) -> void:
 	if not is_instance_valid(face):
 		return
+	# Still face down on its way from the deck: raising it would show it before
+	# it has turned over. _settle() raises it once it has.
+	if Feel.dealing(face):
+		return
 	# In front only while raised: left at a high z_index a card would keep
 	# covering the one beside it after the pointer had gone.
 	face.z_index = 1 if to > 1.0 else 0
@@ -561,6 +597,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	held.add_child(band)
 
 	var face := UIKit.card_face(card, _lay.bind(card["uid"]), afford)
+	_faces[card["uid"]] = face
 	var face_size := UIKit.card_face_size()
 
 	# The light it hangs in, and the shadow it casts on the cloth below. Both
@@ -672,19 +709,164 @@ func _span_of(cards: Array, origin: Control) -> Vector2:
 	return Vector2(left - at, right - at)
 
 
+## THE MINITEL ON THE TABLE IS A MINITEL. The room draws it (Table.gd); this
+## puts a hand on it: pointing at it lights its screen, and pressing it turns to
+## the machine — the terminal, with the reading waiting behind it and BACK
+## returning to it as it was. A thing in the room that does what it is, rather
+## than a menu that happens to have its name.
+##
+## Its size follows the room's, which is the screen's, every time the screen
+## changes shape.
+func _the_minitel() -> Control:
+	var b := Button.new()
+	b.name = "MinitelOnTheTable"
+	b.flat = true
+	b.focus_mode = Control.FOCUS_ALL
+	b.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	b.tooltip_text = I18n.t("The Minitel. Dial 3615.")
+	b.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var place := func() -> void:
+		var r := Table.minitel_rect(get_viewport_rect().size)
+		b.position = r.position
+		b.size = r.size
+	place.call()
+	get_viewport().size_changed.connect(place)
+	# Lit while a pointer or the focus is on it: the tube glows, the way it
+	# would if you leaned toward it.
+	b.draw.connect(func():
+		if b.is_hovered() or b.has_focus():
+			var glass := Rect2(b.size * Vector2(0.14, 0.12), b.size * Vector2(0.72, 0.62))
+			for i in 4:
+				b.draw_rect(glass.grow(float(i) * 3.0), Color(0.36, 0.70, 0.41, 0.10 - float(i) * 0.02))
+			b.draw_rect(glass, Color(0.63, 0.94, 0.68, 0.35), false, 1.5))
+	for sig in ["mouse_entered", "mouse_exited", "focus_entered", "focus_exited"]:
+		b.connect(sig, b.queue_redraw)
+	b.pressed.connect(func():
+		Audio.play("ui_press")
+		Nav.goto_minitel(scene_file_path))
+	return b
+
+
+## Face down from the moment it is built, before anything can focus it: focus
+## comes before the deal, and a card raised by it is a card shown early.
+func _will_deal(face: Control) -> void:
+	_to_deal.append(face)
+	if not UIKit.motion_off() and not _already_dealt():
+		face.set_meta("_dealing", true)
+		face.scale.x = 0.0
+
+
+## WHAT HAS BEEN DEALT ALREADY. `_justDrawn` says which cards the last action
+## drew, and it stays said until the next action — so a screen rebuilt with no
+## action between (back from the Minitel, the settings, F12) would deal the
+## same hand a second time. Remembered across rebuilds, by the moment of the
+## fight it was dealt at: the turn, the cards laid so far, and what was drawn.
+static var _dealt := ""
+
+
+func _deal_key() -> String:
+	var f: Dictionary = Run.state.get("f", {})
+	return "%s|%s|%s|%s" % [Run.state.get("seed", ""), f.get("turn", 0), f.get("cross", []).size(), f.get("_justDrawn", [])]
+
+
+func _already_dealt() -> bool:
+	return _dealt == _deal_key()
+
+
+## THE CARDS JUST DRAWN COME OFF THE DECK, one after another, and turn over in
+## the hand (Feel.deal()). Hidden at once — by width, see Feel.deal() — so no
+## card shows for the frame before the deal starts; dealt a frame later, once
+## the fan has been laid out and each card knows where it is going.
+func _deal_in() -> void:
+	var faces := _to_deal
+	_to_deal = []
+	if faces.is_empty() or _already_dealt():
+		return
+	_dealt = _deal_key()
+	# With motion off the cards are simply there; the click of each still is.
+	if UIKit.motion_off():
+		for face in faces:
+			_deal_sound(0.0)
+		return
+	# Two frames on, through a signal rather than an await: laying a card in the
+	# first of them frees this screen, and a connection to a freed node is
+	# dropped where a suspended function would be resumed on nothing.
+	get_tree().process_frame.connect(_deal_after.bind(faces, 2), CONNECT_ONE_SHOT)
+
+
+func _deal_after(faces: Array, frames: int) -> void:
+	# Taken off the screen without being freed — a test that builds a screen
+	# and removes it — has nowhere to deal to, and no tree to wait on.
+	if not is_inside_tree():
+		return
+	if frames > 1:
+		get_tree().process_frame.connect(_deal_after.bind(faces, frames - 1), CONNECT_ONE_SHOT)
+		return
+	var stagger := float(Content.deal.get("stagger", 0.08))
+	var n: int = _pile.count if is_instance_valid(_pile) else 0
+	for i in faces.size():
+		var face: Control = faces[i]
+		if not is_instance_valid(face):
+			continue
+		face.scale.x = 1.0
+		var from := Deck.top_rect(get_viewport_rect().size, n)
+		var shows: float = Feel.deal(face, i * stagger, from, Deck.PILE_TURN, _settle.bind(face))
+		_deal_sound(shows)
+
+
+## Once a dealt card has turned over: if the pointer or the focus is already on
+## it, it comes up as any card under them does. _raise() waited for it.
+func _settle(face: Control) -> void:
+	if is_instance_valid(face) and (face.has_focus() or face.get_global_rect().has_point(face.get_global_mouse_position())):
+		_raise(face, CARD_LIFT)
+
+
 ## One click per card dealt, staggered to match the deal animation. Uses the
 ## same delay the tween does, so a hand riffles rather than arriving as one
 ## thud — and goes silent with the animations when motion is turned off.
 func _deal_sound(delay: float) -> void:
 	if UIKit.motion_off() or delay <= 0.0:
 		Audio.play("card_draw")
+		Feel.play("card_draw")
 		return
 	UIKit.after(delay, func(): Audio.play("card_draw"))
+	Feel.play_later(delay, "card_draw")
 
 
 func _lay(card_uid: String) -> void:
 	Audio.play("card_lay")
+	# Before the lay: the screen is rebuilt straight after, and the face goes
+	# with it. The burst is on Feel's own layer, so it outlives the rebuild.
+	var face = _faces.get(card_uid)
+	var card: Dictionary = {}
+	for c in Run.state.get("f", {}).get("hand", []):
+		if c["uid"] == card_uid:
+			card = c
+	var affordable := card.is_empty() or int(card.get("cost", 0)) <= int(Run.state["f"]["energy"])
+	# WHAT IT BECOMES. Some cards turn into a thing in the room (room.json):
+	# the tea into a cup, their coat onto the hook. Decided before the lay, while
+	# the face is still on screen to be turned into it.
+	var rule: Dictionary = Feel.trace_rule(card, {"affordable": affordable}) if affordable else {}
+	if affordable and str(rule.get("becomes", "")) == "":
+		Feel.play("card_lay", face if is_instance_valid(face) else null, {"el": _el_of(card)})
 	Run.lay_card(card_uid)
+	# Only if it was actually laid — a card that could not be paid for stays.
+	var laid: bool = not Run.state.get("f", {}).get("hand", []).any(func(c): return c["uid"] == card_uid)
+	if laid and not rule.is_empty():
+		if bool(rule.get("shakes", false)):
+			Run.jolt_room()
+			Feel.rumble(str(rule.get("haptic", "")))
+		var trace := Run.leave_trace(rule, Feel.arrival_of(rule))
+		if not trace.is_empty() and is_instance_valid(face):
+			Feel.become(face, rule, RoomTraces.where(trace, get_viewport_rect().size))
+		elif not trace.is_empty():
+			Feel.rumble(str(rule.get("haptic", "")))
+		elif str(rule.get("becomes", "")) != "":
+			# Already there — their coat only comes off the once. An ordinary lay.
+			Feel.play("card_lay", face if is_instance_valid(face) else null, {"el": _el_of(card)})
 	Nav.goto_for_state()
 
 
@@ -706,6 +888,54 @@ const REVEAL_WIDTH := 560.0
 ## Set for the length of the reveal, so a second READ IT (or the shortcut, or a
 ## click) skips to the end rather than resolving the reading twice.
 var _revealing := false
+
+## The hand's faces by card uid, so laying a card can put its burst where the
+## card WAS — the screen is rebuilt the moment it is laid.
+var _faces := {}
+
+## The deck on the table, and the faces just drawn from it, which arrive from
+## it once the hand has been laid out (_deal_in()).
+var _pile: Control
+var _to_deal: Array = []
+
+
+## What a card cannot say about itself, for Feel's card_states rules: whether it
+## can be paid for now, and the link it would make laid next — the same words
+## Rules.link_of() and the reading ledger use.
+func _feel_ctx(c: Dictionary, f: Dictionary, afford: bool) -> Dictionary:
+	var carried := ""
+	for laid in f.get("cross", []):
+		var e := Rules.el_of(Run.run_ctx(), f, laid)
+		if e != "" and not laid.get("neutral", false):
+			carried = e
+	return {"affordable": afford, "link": Rules.link_of(Run.run_ctx(), f, carried, c), "el": _el_of(c)}
+
+
+func _el_of(c: Dictionary) -> String:
+	if c.is_empty():
+		return ""
+	return Rules.el_of(Run.run_ctx(), Run.state.get("f", {}), c)
+
+
+## What one line of the ledger feels like, in order of how much it matters: a
+## card going through the wall beats one paid as faith beats a link. A ONCE
+## card also smoulders as it is spoken for good.
+func _feel_row(at: float, line: Control, row: Dictionary, f: Dictionary) -> void:
+	var cross: Array = f.get("cross", [])
+	var i := int(row.get("i", -1))
+	var card: Dictionary = cross[i] if i >= 0 and i < cross.size() else {}
+	var ctx := {"el": str(row.get("el", "")) if row.get("el") != null else ""}
+	var event := ""
+	if row.get("pierce", false):
+		event = "card_pierce"
+	elif row.get("bank", false):
+		event = "card_bank"
+	elif str(row.get("link", "")) in ["same", "turn"]:
+		event = "card_link_" + str(row["link"])
+	if event != "":
+		Feel.play_later(at, event, line, ctx)
+	if card.get("exhaust", false):
+		Feel.play_later(at, "card_exhaust", line, ctx)
 
 
 func _unlay() -> void:
@@ -815,6 +1045,7 @@ func _reveal() -> void:
 		v.add_child(line)
 		UIKit.animate_in(line, at, 0.22)
 		_beat(at, "card_lay")
+		_feel_row(at, line, row, f)
 		at += REVEAL_LINE
 
 	# The wall, which is the part players get wrong. It is only shown when it
@@ -832,6 +1063,7 @@ func _reveal() -> void:
 		v.add_child(wall)
 		UIKit.animate_in(wall, at, 0.22)
 		_beat(at, "card_discard")
+		Feel.play_later(at, "wall_absorb", wall)
 
 	# And what actually reaches them, which is the number that mattered all
 	# along and was never shown arriving.
@@ -848,6 +1080,8 @@ func _reveal() -> void:
 	v.add_child(landed)
 	UIKit.animate_in(landed, at, 0.28)
 	_beat(at, "reading_resolve")
+	if applied > 0:
+		Feel.play_later(at, "reading_resolve", landed)
 	v.add_child(UIKit.block(I18n.t("(any key)"), 10, UIKit.DIM))
 
 	UIKit.after(at + REVEAL_HOLD, func():

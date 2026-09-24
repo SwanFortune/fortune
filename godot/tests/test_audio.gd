@@ -272,6 +272,13 @@ func _test_the_credits_count_the_audio_rather_than_claiming() -> void:
 		"the summary should count every cue in both registries: %d counted, %d registered"
 		% [counted, content.sounds.size() + content.music.size()])
 
+	# The counts are the workshop's (Mode.gd): asked for in the view that has
+	# them, rather than whichever view this machine was left in.
+	var mode: Node = root.get_node("Mode")
+	var was: bool = mode.work
+	var unlocked_before: bool = mode.unlocked
+	mode.unlocked = true
+	mode.work = true
 	var said := ""
 	for block in version.credits():
 		if str(block[0]) == i18n.t("ART AND SOUND"):
@@ -279,6 +286,8 @@ func _test_the_credits_count_the_audio_rather_than_claiming() -> void:
 	check(said != "", "the credits should still have an art-and-sound block")
 	check(said.contains(str(counted)),
 		"the credits should say how many cues there are (%d); they say:\n%s" % [counted, said])
+	mode.work = was
+	mode.unlocked = unlocked_before
 	done()
 
 

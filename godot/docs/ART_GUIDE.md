@@ -58,6 +58,29 @@ is always runnable — art can land one piece at a time, in any order.
 - **Readers** are the fortune-teller the player chooses to *be*, shown on the
   sign-select screen.
 
+### The card back — **488 × 736 px**, 2:3 portrait (the card's own shape), PNG (RGBA)
+
+- One drawing for the whole deck: `assets/art/ui/card-back.png`.
+- Shown entire, nothing masked: round the corners yourself if you want them
+  round.
+- Seen on the pile on the table (about 61 × 92 px at 720p, a little crooked)
+  and full size (122 × 184) on each card as it is dealt to the hand and turns
+  over. A strong, simple silhouette reads on the pile; the detail is for the
+  moment it flies.
+
+### Marks (rings, tattoos, scars, boons) — **256 × 256 px**, square, PNG (RGBA, transparent)
+
+- One drawing per mark or relic, `assets/art/mark/<slug>.png`; the slugs are
+  the `mark/…` rows of the manifest.
+- Worn on the player's hands at the bottom of the reading, where the mark's
+  `on` field says: a finger, the thumb, the nails (the one drawing on all four
+  fingertips), the back of the hand, the wrist, the knuckles, or held above.
+- **Draw it with its top toward the fingertip.** A ring is turned to lie across
+  the finger it is on, and ink to run along it.
+- **Small.** A ring is about 10 px across at 720p, a tattoo on the back of the
+  hand about 15. A shape and a colour, not detail.
+- The studio's HANDS tab shows one mark at a time, or all of them at once.
+
 ### File naming
 
 Lowercase, hyphen-separated, accents stripped — always exactly the asset id
@@ -74,6 +97,30 @@ assets/art/reader/serpentarius.png
 Accents are stripped from filenames on purpose so they stay portable across
 Windows/Mac/Linux and safe inside Steam Workshop archives — the accented name
 still displays correctly in-game, it's only the filename that's plain.
+
+### Animation — a card or a portrait that moves
+
+Any asset can be animated, two ways, whichever the animation tool exports:
+
+- **A folder of frames**: `assets/art/card/pour-the-tea/0001.png`, `0002.png`…
+  — a folder named for the asset instead of the single PNG. Frames play in the
+  order their names sort, the way a person counts (2 before 10). Each frame is
+  the size a still would be.
+- **A sprite sheet**: the usual `pour-the-tea.png` holding a grid of frames,
+  each the still's size, with `"frames": [columns, rows]` in its manifest entry
+  (and `"count"` if the last row is not full).
+
+`"fps"` sets the speed (12 by default); `"loop": false` plays it once and holds
+the last frame. Nothing else changes: the game gets an animated texture where
+it would have got a still, so every card face and portrait slot animates
+without knowing. Keep it short — 8 to 24 frames — since every frame is held
+in memory at full size. `tests/test_art.gd` holds each frame, and each cell of
+a sheet, to the size in the spec.
+
+**The studio** (CREDITS → STUDIO, or `godot --path godot -- --studio`) shows
+every asset as it looks now, copies the file name it wants, reloads the moment
+a file is saved, and writes blank templates at these sizes. `docs/ATELIER.md`
+is the same guide in French, for whoever is drawing.
 
 ### Checking a delivery
 
@@ -231,8 +278,8 @@ It prints a by-status summary (how many missing / wip / final).
 
 ## What is drawn in code, and what replaces it
 
-Three things on screen are not in the manifest, because they are not files:
-they are drawn procedurally by the game. They exist so the game looks like a
+Four things on screen are drawn by the game itself rather than loaded from a
+file. They exist so the game looks like a
 game rather than a spreadsheet while the real art is being made, and each one
 is a placeholder with a clear replacement.
 
@@ -240,6 +287,7 @@ is a placeholder with a clear replacement.
 |---|---|---|
 | `scenes/UIKit.gd` — `sitter_portrait()` | A face: an oval, two eyes, a mouth whose curve follows the sitter's mood | A sitter portrait PNG, via the manifest. Already wired: deliver the file and the drawing stops being used. |
 | `scenes/Table.gd` | The parlour, behind EVERY screen in the game, in three views: the table (a papered wall, a door, a coat on a hook, a floor, the table in perspective with its cloth, a Minitel and a cup of tea on it, and the reader's two hands holding the fan with every mark drawn on them), the closed door, and the bare wall | Nothing yet. See below. |
+| `scenes/Deck.gd` | The back of every card — wine, a gold rule, a moon — on the deck on the table and on each card as it is dealt | `assets/art/ui/card-back.png`, via the manifest. Already wired. |
 | `autoload/Icons.gd` | The element, sign, planet and archetype glyphs, rasterised at runtime from the vector paths in `data/base/icons.json` | These are FINISHED, not placeholders — they came from the design document and are meant to stay. Redraw a path in `icons.json` to change one. |
 
 ### The room, the table and the hands
@@ -289,12 +337,13 @@ If you want to take it over, the two useful shapes are:
 - **A painted background.** One image, roughly 16:9, of a table with a cloth on
   it, lit from above, dark at the edges. Drop-in: it replaces `background()`
   and nothing else changes.
-- **Hands.** Harder, because four kinds of mark have to be able to land on
-  them at run time, in any number and any combination. The current version
-  solves that with `Table.mark_places()`, which returns a point per mark; art
-  would need the same — a hand image plus a small table of where a ring on
-  each finger, ink on the back, a scar across the knuckles, and a boon above
-  the hand each go. Talk to whoever is doing the code before starting.
+- **Hands.** Harder, because the marks have to be able to land on them at run
+  time, in any number and any combination, and the hands MOVE: they rest,
+  lay a card, flinch (the `gestures` in `data/base/feel.json`,
+  `docs/FEEL_GUIDE.md`). The marks themselves can already be drawn one by one
+  (above). A painted hand would need what `Table.hand_parts()` gives today —
+  where each finger, the thumb, the back and the wrist are — so each mark can
+  still be placed on it. Talk to whoever is doing the code before starting.
 
 Sizes are all fractions of the space the game gives it, so there is no fixed
 pixel size to match: it is drawn at whatever height the window works out to.

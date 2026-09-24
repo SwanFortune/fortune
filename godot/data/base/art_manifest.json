@@ -729,6 +729,268 @@
       "spoken": "say whatever is in season",
       "status": "missing"
     },
+    "mark/a-bird-on-the-thumb": {
+      "display": "A Bird On The Thumb",
+      "file": "",
+      "flavor": "Air cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "thumb",
+      "status": "missing"
+    },
+    "mark/a-borrowed-ring": {
+      "display": "A Borrowed Ring",
+      "file": "",
+      "flavor": "One more reading with everyone.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "mark/a-dead-mans-signet": {
+      "display": "A Dead Man's Signet",
+      "file": "",
+      "flavor": "One more card in hand.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "little",
+      "status": "missing"
+    },
+    "mark/a-debt-collectors-band": {
+      "display": "A Debt Collector's Band",
+      "file": "",
+      "flavor": "Five centimes extra off everyone you restore.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "wrist",
+      "status": "missing"
+    },
+    "mark/a-drowned-sailors-mark": {
+      "display": "A Drowned Sailor's Mark",
+      "file": "",
+      "flavor": "Water cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "back",
+      "status": "missing"
+    },
+    "mark/a-glass-of-water": {
+      "display": "A Glass Of Water",
+      "file": "",
+      "flavor": "Draw one more every reading.",
+      "kind": "mark",
+      "mark_kind": "BOON",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "mark/a-long-white-line": {
+      "display": "A Long White Line",
+      "file": "",
+      "flavor": "Whatever you speak first restores +2.",
+      "kind": "mark",
+      "mark_kind": "SCAR",
+      "notes": "",
+      "on": "back",
+      "status": "missing"
+    },
+    "mark/a-silver-ring": {
+      "display": "A Silver Ring",
+      "file": "",
+      "flavor": "One more energy every reading.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "mark/a-split-knuckle": {
+      "display": "A Split Knuckle",
+      "file": "",
+      "flavor": "Cards with no sign restore +3.",
+      "kind": "mark",
+      "mark_kind": "SCAR",
+      "notes": "",
+      "on": "knuckles",
+      "status": "missing"
+    },
+    "mark/a-steady-voice": {
+      "display": "A Steady Voice",
+      "file": "",
+      "flavor": "The first 4 of every reading ignores denial.",
+      "kind": "mark",
+      "mark_kind": "BOON",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "mark/a-thumb-ring": {
+      "display": "A Thumb Ring",
+      "file": "",
+      "flavor": "One more card in hand.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "thumb",
+      "status": "missing"
+    },
+    "mark/a-tide-on-the-wrist": {
+      "display": "A Tide On The Wrist",
+      "file": "",
+      "flavor": "Water cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "wrist",
+      "status": "missing"
+    },
+    "mark/a-twelve-point-star": {
+      "display": "A Twelve-Point Star",
+      "file": "",
+      "flavor": "Whatever you speak last restores +3.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "back",
+      "status": "missing"
+    },
+    "mark/ash-rubbed-into-the-wrist": {
+      "display": "Ash Rubbed Into The Wrist",
+      "file": "",
+      "flavor": "Fire cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "wrist",
+      "status": "missing"
+    },
+    "mark/salt-under-the-nails": {
+      "display": "Salt Under The Nails",
+      "file": "",
+      "flavor": "Earth cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "nails",
+      "status": "missing"
+    },
+    "mark/smoke-in-the-throat": {
+      "display": "Smoke In The Throat",
+      "file": "",
+      "flavor": "Fire cards restore +2.",
+      "kind": "mark",
+      "mark_kind": "TATTOO",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "mark/the-sergeants-thumb-ring": {
+      "display": "The Sergeant's Thumb Ring",
+      "file": "",
+      "flavor": "One more card in hand every reading.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "thumb",
+      "status": "missing"
+    },
+    "mark/the-widows-wedding-band": {
+      "display": "The Widow's Wedding Band",
+      "file": "",
+      "flavor": "One more energy every reading.",
+      "kind": "mark",
+      "mark_kind": "RING",
+      "notes": "",
+      "on": "ring",
+      "status": "missing"
+    },
+    "mark/usury": {
+      "display": "Usury",
+      "file": "",
+      "flavor": "Every reading that restores someone pays 5 centimes.",
+      "kind": "mark",
+      "mark_kind": "BOON",
+      "notes": "",
+      "on": "",
+      "status": "missing"
+    },
+    "prop/ash": {
+      "anchor": "center",
+      "display": "ash",
+      "draw": "ash",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/cloth": {
+      "anchor": "center",
+      "display": "cloth",
+      "draw": "cloth",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/coins": {
+      "anchor": "center",
+      "display": "coins",
+      "draw": "coins",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/house": {
+      "anchor": "center",
+      "display": "house",
+      "draw": "paper",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/lamplight": {
+      "anchor": "center",
+      "display": "lamplight",
+      "draw": "glow",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/stones": {
+      "anchor": "center",
+      "display": "stones",
+      "draw": "stones",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/their-coat": {
+      "anchor": "top",
+      "display": "their_coat",
+      "draw": "coat",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
+    "prop/their-cup": {
+      "anchor": "center",
+      "display": "their_cup",
+      "draw": "teacup",
+      "file": "",
+      "kind": "prop",
+      "notes": "",
+      "status": "missing"
+    },
     "reader/aquarius": {
       "display": "The Water Bearer — AQUARIUS",
       "element": "air",
@@ -959,6 +1221,13 @@
       "notes": "",
       "pronoun": "she",
       "status": "missing"
+    },
+    "ui/card-back": {
+      "display": "The back of every card",
+      "file": "",
+      "kind": "ui",
+      "notes": "",
+      "status": "missing"
     }
   },
   "spec": {
@@ -972,6 +1241,26 @@
       "pixels": "768x576",
       "safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below."
     },
+    "cardback_art": {
+      "applies_to": [
+        "ui"
+      ],
+      "aspect": "2:3 portrait, the card's own shape",
+      "format": "PNG, RGBA",
+      "notes": "The back of every card: the pile on the table (about 61x92 px at 720p, a little crooked) and each card as it flies from the pile to the hand and turns over (122x184 px). One drawing for the whole deck.",
+      "pixels": "488x736",
+      "safe_zone": "The whole card; it is shown entire. Round the corners yourself if you want them round — the stand-in does, and nothing is masked."
+    },
+    "mark_art": {
+      "applies_to": [
+        "mark"
+      ],
+      "aspect": "1:1, square canvas",
+      "format": "PNG, RGBA, transparent background",
+      "notes": "Worn on the player's hands at the bottom of the reading, where its `on` field says (a finger, the thumb, the nails, the back of the hand, the wrist, the knuckles, or held above). Small: the square is about a tenth to a fifth of the hands' height — a ring is roughly 10 px across at 720p — so it has to read as a shape and a colour, not as detail. A mark on the nails is drawn once and shown on all four fingertips.",
+      "pixels": "256x256",
+      "safe_zone": "The mark alone, centred, on a transparent square, drawn with its TOP toward the fingertip: a ring is turned to lie across the finger it is on, and a tattoo along it."
+    },
     "naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
     "portrait_art": {
       "applies_to": [
@@ -983,6 +1272,16 @@
       "notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
       "pixels": "768x1024",
       "safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face."
+    },
+    "prop_art": {
+      "applies_to": [
+        "prop"
+      ],
+      "aspect": "1:1, square canvas",
+      "format": "PNG, RGBA, transparent background",
+      "notes": "What a card becomes in the room when it is laid (data/base/room.json): the cup of tea, their coat, the ash of the letter. Drawn about as tall as the prop's `size` times the screen height — a cup is roughly 55 px high at 720p.",
+      "pixels": "512x512",
+      "safe_zone": "The thing itself, on a transparent square. It is centred on its spot on the table — or hung from it by its top edge when the prop says `anchor: top` (their coat, from the hook)."
     },
     "status_values": [
       "missing",

@@ -162,6 +162,7 @@ func _test_every_setting_moves_something() -> void:
 	# resolve. See autoload/Content.gd's header.
 	var run: Node = root.get_node("Run")
 	var i18n: Node = root.get_node("I18n")
+	var feel: Node = root.get_node("Feel")
 	var UIKit = load("res://scenes/UIKit.gd")
 	var before := {}
 	for key in settings.DEFS:
@@ -189,6 +190,11 @@ func _test_every_setting_moves_something() -> void:
 		"disabled_mods": [[], ["example.a_new_card"], func():
 			content.reload(); return content.cards_minor.size()],
 		"keybinds": [{}, {"parlour_deck": KEY_F9}, func(): return _keys_of("parlour_deck")],
+		"particles": [false, true, func(): return feel.particles_on()],
+		"haptics": [false, true, func(): return feel.rumble("tick")],
+		"haptic_strength": [0.2, 1.0, func():
+			feel.rumble("thud")
+			return feel.haptic_log.back()["strong"] if not feel.haptic_log.is_empty() else -1.0],
 	}
 
 	for key in settings.DEFS:
@@ -425,4 +431,37 @@ func _test_the_interface_scales_with_the_window() -> void:
 	check(is_equal_approx(vp.content_scale_factor, 1.25),
 		"ui_scale should drive content_scale_factor, got %s" % vp.content_scale_factor)
 	settings.set_value("ui_scale", settings.default_for("ui_scale"))
+	done()
+
+
+## EVERY SETTING IN A SECTION HAS A ROW IN IT. _test_every_setting_is_reachable
+## asks whether each key is listed in a section; this asks whether the section,
+## built, actually shows it. Music and the room's ambience were listed in AUDIO
+## and driving their buses, and had no slider — the pane still said there was
+## no music slider because there was no music. Every row carries the key it is
+## for (UIKit.setting_row callers set it), and each section is built, in the
+## work view where every section is offered, and read.
+func _test_every_setting_in_a_section_has_a_row() -> void:
+	var mode: Node = root.get_node("Mode")
+	var was := [mode.unlocked, mode.work]
+	mode.unlocked = true
+	mode.work = true
+	root.size = Vector2i(1280, 720)
+	var sections: Array = settings.sections_for(true)
+	for i in sections.size():
+		var menu: Node = load("res://scenes/SettingsMenu.tscn").instantiate()
+		menu.set("_section", i)
+		root.add_child(menu)
+		await process_frame
+		await process_frame
+		var shown := {}
+		for n in menu.find_children("*", "", true, false):
+			if n.has_meta("setting") and not n.is_queued_for_deletion():
+				shown[str(n.get_meta("setting"))] = true
+		for key in sections[i]["keys"]:
+			check(shown.has(key), "section %s lists '%s' and shows no row for it" % [sections[i]["id"], key])
+		menu.queue_free()
+		await process_frame
+	mode.unlocked = was[0]
+	mode.work = was[1]
 	done()

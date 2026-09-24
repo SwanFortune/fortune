@@ -3,10 +3,15 @@ extends Control
 ## Loaded by path, not by `class_name` — a bare name does not resolve on a fresh
 ## clone. See autoload/Content.gd's header for why, and never change these back.
 const UIKit := preload("res://scenes/UIKit.gd")
+const Table := preload("res://scenes/Table.gd")
+const Reading := preload("res://scenes/Reading.gd")
 
 ## How wide the reading's tally is allowed to be. Wide enough for the longest
 ## label and its number, narrow enough that they read as one line.
 const STAT_WIDTH := 460
+
+## The sitter's pronoun key, for the lines and notes that speak of them.
+var _says := "they"
 
 
 func _ready() -> void:
@@ -17,21 +22,37 @@ func _ready() -> void:
 
 	var root := UIKit.root_control()
 	add_child(root)
+	# YOUR HANDS, still on the table, with nothing in them now: the reading is
+	# over. They open when the person goes home whole and sink when they leave
+	# as they came (the `open` and `sink` gestures, started by the moment
+	# below). The same band the reading draws them in, so they have not moved.
+	var hands: Control = Table.hands(Run.state.get("marks", []),
+		func() -> Vector2: return Vector2(root.size.x * 0.34, root.size.x * 0.66), Reading.OPEN_REACH)
+	var band := (Reading.HELD_HEIGHT - Reading.CARD_BAND + Reading.HAND_OVERLAP) * UIKit.card_scale()
+	hands.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	hands.offset_top = -band
+	root.add_child(hands)
 	var m := UIKit.margin(48)
 	root.add_child(m)
 	var v := UIKit.vbox(14)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	m.add_child(v)
 
-	# FILLED WITH THIS SITTER'S PRONOUN. These two lines are about one person by
-	# name, and English gets away with "leaves as they came" for anybody. French
-	# does not: the participle agrees, and the translation had to pick one, so
-	# every woman who walked out did it as "il est venu" — one line above the
-	# sentence that correctly said "Elle". The tokens and the tables were already
-	# here for the sign rules; this screen simply never used them.
+	# FILLED WITH THIS SITTER'S PRONOUN. These lines are about one person by
+	# name, and the prototype writes them that way — "SHE PUTS HER COAT ON",
+	# "Mme Perrot leaves as she came" (v23 ~2194-2226). The port had rewritten
+	# them to need no pronoun ("PUTS THE COAT BACK ON", "leaves as they came" for
+	# anybody), which is the author's writing changed, and French could not
+	# follow it anyway: the participle agrees. The head is capitals AFTER it is
+	# filled, as the prototype's .toUpperCase() is.
 	var sitter: Dictionary = res.get("sitter", {})
-	var says: String = str(sitter.get("p", "they"))
-	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says), 15, UIKit.GREEN if win else UIKit.RED))
+	_says = str(sitter.get("p", "they"))
+	var says := _says
+	var head := UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says).to_upper(), 15, UIKit.GREEN if win else UIKit.RED)
+	v.add_child(head)
+	# A beat later, not now: the head has no place on screen until it has been
+	# laid out, and the burst is centred on it.
+	Feel.play_later(0.05, "sitter_win" if win else "sitter_lose", head)
 	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("title")), says), 22, UIKit.INK))
 	var said_field: String = "win" if win else "fail"
 	v.add_child(UIKit.block(
@@ -86,7 +107,7 @@ func _continue() -> void:
 func _right_text(line: Dictionary) -> String:
 	var raw = line.get("right", "")
 	var value: String = UIKit.tr_line(raw) if raw is Array else str(raw)
-	var note: String = UIKit.tr_line(line.get("note"))
+	var note: String = I18n.fill(UIKit.tr_line(line.get("note")), _says)
 	if note == "":
 		return value
 	return note if value == "" else "%s — %s" % [value, note]

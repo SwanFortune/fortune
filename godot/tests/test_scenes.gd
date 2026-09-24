@@ -223,6 +223,7 @@ func _test_minitel_screen_dials() -> void:
 func _test_the_reference_screens_build() -> void:
 	await _visit_scene("how to play", "res://scenes/HowToPlay.tscn")
 	await _visit_scene("credits", "res://scenes/Credits.tscn")
+	await _visit_scene("studio", "res://scenes/Studio.tscn")
 	done()
 
 
@@ -589,6 +590,264 @@ func _test_the_marks_are_on_the_hands() -> void:
 	done()
 
 
+## A MARK YOU WON IS A MARK YOU CAN SEE — measured on the built screen, in the
+## window a player has. _test_the_marks_are_on_the_hands() checked that every
+## mark had a place, and every one did: on the back of a hand that the reading
+## laid out seventy pixels below the bottom of the window. Only the rings on
+## the fingers were ever on screen. So this wears everything the base game
+## hands out, all at once, on a 1280x720 reading, and asks where each one
+## landed — through Table.worn(), the placement the drawing itself uses.
+##
+## And every mark's `on` is a place the hands know, and agrees with its name: a
+## mark called "…On The Thumb" that the data put on the back of the hand is a
+## player looking at their thumb for something that is not there.
+func _test_every_mark_worn_is_on_the_screen() -> void:
+	var TableScript := load("res://scenes/Table.gd")
+	var worn_all: Array = content.marks + content.relics
+	const NAMED := {"Thumb": "thumb", "Wrist": "wrist", "Knuckle": "knuckles", "Nails": "nails"}
+	for m in worn_all:
+		var on := str(m.get("on", ""))
+		if on != "" and not TableScript.PLACES.has(on):
+			check(false, "'%s' is worn on '%s', which is not a place on the hands (%s)" % [m["n"], on, TableScript.PLACES.keys()])
+		for word in NAMED:
+			if str(m["n"]).contains(word) and on != NAMED[word]:
+				check(false, "'%s' says it is on the %s and is worn on '%s'" % [m["n"], NAMED[word], on])
+
+	var restore_size: Vector2i = root.size
+	# The design size, and a taller window: a taller window buys canvas height.
+	for window in [Vector2i(1280, 720), Vector2i(1280, 960)]:
+		root.size = window
+		run.state = run.fresh("worn")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		run.state["marks"] = worn_all
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		for i in 4:
+			await process_frame
+		var hands: Control = instance.find_child("Hands", true, false)
+		if hands == null:
+			check(false, "the reading has no hands to wear anything on")
+		else:
+			var places: Array = TableScript.worn(hands.size, worn_all, hands.span, hands.reach)
+			check(places.size() == worn_all.size(), "%d marks worn, %d placed on the hands" % [worn_all.size(), places.size()])
+			var screen := Rect2(Vector2.ZERO, hands.get_viewport_rect().size)
+			for p in places:
+				for point in p.get("tips", [p["at"]]):
+					var at: Vector2 = hands.get_global_transform() * (point as Vector2)
+					if not screen.grow(-2.0).has_point(at):
+						check(false, "at %s, '%s' (%s, on the %s) is drawn at %s — off a %s screen"
+							% [window, p["n"], p["kind"], p["place"], at.round(), screen.size])
+		instance.queue_free()
+		await process_frame
+	root.size = restore_size
+	print("--- everything the game hands out is worn where a player can see it ---")
+	done()
+
+
+## THE HANDS ARE STILL ON THE TABLE WHEN IT IS OVER, and they say how it went:
+## they open when the person goes home whole, and sink when they leave as they
+## came. The `open` and `sink` gestures were written before any screen had
+## hands to play them on, and sat in feel.json playing on nothing.
+func _test_the_hands_say_how_it_went() -> void:
+	var feel: Node = root.get_node("Feel")
+	var settings: Node = root.get_node("Settings")
+	var speed_before = settings.get_value("animation_scale")
+	settings.set_value("animation_scale", 1.0)
+	root.size = Vector2i(1280, 720)
+	for win in [true, false]:
+		run.state = run.fresh("how-it-went")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		if win:
+			f["hp"] = f["max"]
+			run.win(f)
+		else:
+			f["turn"] = f["turns"]
+			f["hp"] = 0
+			run.lose(f, "left")
+		var screen: Node = load("res://scenes/ResultScreen.tscn").instantiate()
+		root.add_child(screen)
+		await create_timer(0.2).timeout
+		var hands: Control = screen.find_child("Hands", true, false)
+		check(hands != null, "the result screen should have the player's hands on it (win %s)" % win)
+		var want := "open" if win else "sink"
+		check(feel.gesture_on("left") == want and feel.gesture_on("right") == want,
+			"%s: the hands should %s, they are doing '%s' / '%s'" % ["a win" if win else "a loss", want, feel.gesture_on("left"), feel.gesture_on("right")])
+		if hands != null:
+			var screen_rect := Rect2(Vector2.ZERO, hands.get_viewport_rect().size)
+			for p in _worn_on(hands):
+				check(screen_rect.has_point(hands.get_global_transform() * (p["at"] as Vector2)), "a mark on the result screen's hands is off the screen")
+		screen.queue_free()
+		await process_frame
+	settings.set_value("animation_scale", speed_before)
+	done()
+
+
+func _worn_on(hands: Control) -> Array:
+	return load("res://scenes/Table.gd").worn(hands.size, run.state.get("marks", []) + content.marks, hands.span, hands.reach)
+
+
+## THE MINITEL ON THE TABLE opens the Minitel, and the reading is still there
+## when you come back from it. What would go wrong quietly:
+##   - the machine's hot spot covering something you act on — READ IT runs the
+##     width of the table, the Minitel stands at its right-hand end;
+##   - coming back to a different fight, or to the menu;
+##   - coming back to the hand being dealt a second time: the cards drawn by
+##     the last action stay marked as just drawn until the next one.
+func _test_the_minitel_on_the_table_is_a_minitel() -> void:
+	var restore_size: Vector2i = root.size
+	var feel: Node = root.get_node("Feel")
+	var settings: Node = root.get_node("Settings")
+	var speed_before = settings.get_value("animation_scale")
+	settings.set_value("animation_scale", 1.0)
+	for window in [Vector2i(1280, 720), Vector2i(1280, 960)]:
+		root.size = window
+		run.state = run.fresh("the-machine")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var hand_before: Array = run.state["f"]["hand"].map(func(c): return c["uid"])
+		root.get_tree().change_scene_to_file("res://scenes/Reading.tscn")
+		for i in 4:
+			await process_frame
+		var reading: Node = root.get_tree().current_scene
+		var machine: Control = reading.find_child("MinitelOnTheTable", true, false)
+		check(machine != null, "the reading should have the Minitel on its table")
+		if machine == null:
+			continue
+		var r := machine.get_global_rect()
+		check(Rect2(Vector2.ZERO, reading.get_viewport_rect().size).encloses(r), "at %s the Minitel's hot spot %s is off the screen" % [window, r])
+		for n in reading.find_children("*", "Control", true, false):
+			if n == machine or not (n as Control).is_visible_in_tree() or n.is_queued_for_deletion():
+				continue
+			var acts: bool = n is BaseButton or n is LineEdit or ((n as Control).focus_mode == Control.FOCUS_ALL and n is PanelContainer)
+			if acts and (n as Control).get_global_rect().intersects(r):
+				check(false, "at %s the Minitel's hot spot covers '%s' (%s)" % [window, n.get("text") if n.get("text") else n.name, (n as Control).get_global_rect()])
+		# Wait out the deal, then go to the machine and come back.
+		await create_timer(1.2).timeout
+		machine.pressed.emit()
+		for i in 3:
+			await process_frame
+		check(root.get_tree().current_scene != null and root.get_tree().current_scene.scene_file_path == "res://scenes/MinitelScreen.tscn",
+			"pressing the Minitel should turn to the terminal")
+		var backs := [0]
+		var count_backs := func(n: Node) -> void:
+			if n.has_meta(feel.DEALT_BACK):
+				backs[0] += 1
+		feel._layer.child_entered_tree.connect(count_backs)
+		root.get_tree().current_scene._back()
+		for i in 4:
+			await process_frame
+		feel._layer.child_entered_tree.disconnect(count_backs)
+		var back_to: Node = root.get_tree().current_scene
+		check(back_to != null and back_to.scene_file_path == "res://scenes/Reading.tscn", "BACK should return to the reading, went to %s" % (back_to.scene_file_path if back_to else "nothing"))
+		check(run.state["f"]["hand"].map(func(c): return c["uid"]) == hand_before, "the fight should be the one that was left")
+		check(backs[0] == 0, "coming back should not deal the hand again, %d cards flew" % backs[0])
+		check(root.get_node("Nav").minitel_return_scene == "", "the way back should be forgotten once taken")
+	var last: Node = root.get_tree().current_scene
+	if last != null:
+		last.queue_free()
+	await process_frame
+	settings.set_value("animation_scale", speed_before)
+	root.size = restore_size
+	print("--- the Minitel on the table opens the terminal, and BACK finds the reading as it was ---")
+	done()
+
+
+## A CARD DRAWN COMES OFF THE DECK. The pile is on the table as thick as what
+## is left to draw; each card just drawn flies from it face down and turns over
+## in its place in the hand (Feel.deal()). What that must not cost:
+##
+##   - the LAYOUT. A card is hidden by its width while it flies, never by its
+##     visibility — a hidden Control is left out of its container, and the fan
+##     would close up round the gap and jump open when it landed. So every
+##     card is where it will be from the first frame, and is still there after;
+##   - a card left face down, or a back left on the screen, when it is over;
+##   - the time of anyone who asked for no motion: then the cards are simply
+##     there, and nothing flies.
+func _test_a_drawn_card_is_dealt_from_the_deck() -> void:
+	var settings: Node = root.get_node("Settings")
+	var feel: Node = root.get_node("Feel")
+	var speed_before = settings.get_value("animation_scale")
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(1280, 720)
+	for motion in [true, false]:
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		run.state = run.fresh("dealt")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		# What the reading remembers having dealt — the same fight built twice
+		# here, once per motion setting.
+		load("res://scenes/Reading.gd")._dealt = ""
+		# Every back that takes off, counted as it is made: headless frames are
+		# long enough that the first can have landed before anything looks.
+		var backs := [0]
+		var count_backs := func(n: Node) -> void:
+			if n.has_meta(feel.DEALT_BACK):
+				backs[0] += 1
+		feel._layer.child_entered_tree.connect(count_backs)
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		var pile: Control = instance.find_child("Deck", true, false)
+		check(pile != null and pile.count == f["draw"].size(),
+			"the deck on the table should hold what is left to draw (%d), holds %s" % [f["draw"].size(), pile.count if pile else "nothing"])
+		await process_frame
+		var fan := _first_of_class(instance, "HFlowContainer")
+		var faces: Array = fan.get_children().filter(func(c): return c is Control) if fan else []
+		check(faces.size() == f["hand"].size() and faces.size() > 1, "precondition — a fan of the %d cards drawn" % f["hand"].size())
+		# Where the fan is laid out on its first frame, before the deal starts.
+		var where: Array = faces.map(func(c): return (c as Control).position)
+		if motion:
+			check(faces.all(func(c): return (c as Control).scale.x < 0.01),
+				"on the first frame every card just drawn should be face down, widths are %s" % [faces.map(func(c): return c.scale.x)])
+		# Frame by frame until it is over: a card may be face up only once it
+		# is no longer on its way.
+		var until := Time.get_ticks_msec() + int((float(content.deal.get("stagger", 0.08)) * faces.size() + 0.9) * 1000.0)
+		var shown_early := {}
+		while Time.get_ticks_msec() < until:
+			for c in faces:
+				if feel.dealing(c) and (c as Control).scale.x > 0.01:
+					shown_early[c] = true
+			await process_frame
+		feel._layer.child_entered_tree.disconnect(count_backs)
+		check(shown_early.is_empty(), "%d card(s) showed their face while still on the way from the deck (motion %s)" % [shown_early.size(), motion])
+		if motion:
+			check(backs[0] == faces.size(), "a back should fly for each card drawn: %d backs for %d cards" % [backs[0], faces.size()])
+		else:
+			check(backs[0] == 0, "with motion off nothing should fly, %d backs did" % backs[0])
+		check(faces.all(func(c): return is_equal_approx((c as Control).scale.x, (c as Control).scale.y)),
+			"every card should have turned over (motion %s): %s" % [motion, faces.map(func(c): return c.scale)])
+		check(not faces.any(func(c): return feel.dealing(c)), "no card should still be marked as dealing (motion %s)" % motion)
+		check(not feel._layer.get_children().any(func(n): return n.has_meta(feel.DEALT_BACK) and not n.is_queued_for_deletion()),
+			"no back should be left on the screen (motion %s)" % motion)
+		check(where == faces.map(func(c): return (c as Control).position),
+			"the fan moved while it was dealt (motion %s): %s, then %s" % [motion, where, faces.map(func(c): return c.position)])
+		instance.queue_free()
+		await process_frame
+	settings.set_value("animation_scale", speed_before)
+	root.size = restore_size
+	print("--- the hand is dealt off the deck, face down, and turns over where it will stay ---")
+	done()
+
+
 ## THE LAST CARD FLOATS. When the hand is down to one, the card is lifted clear
 ## of two open hands rather than clamped between fingertips — which means it
 ## leaves the ScrollContainer and the flow container entirely, and a Control
@@ -668,6 +927,22 @@ func _test_the_last_card_floats() -> void:
 		for finger in TableScript.finger_geometry(base, hands.size.y, 1.0, reach):
 			tip_y = minf(tip_y, finger[2].y)
 		var card_bottom: float = face.global_position.y + face.size.y
+		if alone:
+			# THE WORST MOMENT, not this one. The card bobs BOB either side of
+			# where it rests, and the hands breathe up and down: measured at
+			# whatever moment the test happened to look, the gap passed here
+			# and failed in CI, 4px short, with the card at the bottom of its
+			# bob. So: the card at its lowest, the hands at their highest.
+			var rest_y: float = roundf((ReadingScript._band_px() - want.y) * 0.5) - ReadingScript.LIFT
+			card_bottom = (face.get_parent() as Control).global_position.y + rest_y + ReadingScript.BOB + want.y
+			var feel_node: Node = root.get_node("Feel")
+			var rest_g: Dictionary = content.gestures.get(feel_node.REST, {})
+			var highest := 0.0
+			for i in 41:
+				highest = maxf(highest, float(feel_node.pose_of(rest_g, feel_node.gesture_length(rest_g) * i / 40.0)["lift"]))
+			tip_y -= highest * hands.size.y
+		if alone:
+			print("--- floating: fingertips %.1f, the card at its lowest %.1f ---" % [tip_y, card_bottom])
 		if alone and tip_y <= card_bottom:
 			check(false, "the fingertips reach %.0f and the floating card ends at %.0f — it is being held, not floating"
 				% [tip_y, card_bottom])
@@ -2516,6 +2791,41 @@ func _all_of(node: Node, out: Array) -> Array:
 ## their run still live but unreachable. Checks the handoff Nav does, rather
 ## than the scene swap itself (which is deferred to idle and so isn't
 ## observable from inside the frame that triggers it).
+## THE CREDITS SAY WHERE THE LOG IS, AND IT IS THERE. A player with a bug has
+## nothing to send unless a screen tells them where to look; OPEN.md carried
+## "nothing on screen tells them where it is" until this. Both directions: with
+## file logging on (the default, and this very run is writing one) the folder
+## the credits name exists and holds a .log; with it off, the section goes,
+## rather than pointing at a file that will never be written.
+func _test_the_credits_say_where_the_log_is() -> void:
+	var version: Node = root.get_node("Version")
+	var i18n: Node = root.get_node("I18n")
+	var key := "debug/file_logging/enable_file_logging.pc"
+	var was = ProjectSettings.get_setting(key)
+
+	var folder := _log_folder_in_the_credits(version, i18n)
+	check(folder != "", "the credits should have a section saying where the log is")
+	if folder != "":
+		check(DirAccess.dir_exists_absolute(folder), "the credits name %s, which does not exist" % folder)
+		var logs := Array(DirAccess.get_files_at(folder)).filter(func(f): return str(f).ends_with(".log"))
+		check(not logs.is_empty(), "the folder the credits name, %s, holds no .log" % folder)
+
+	ProjectSettings.set_setting(key, false)
+	check(_log_folder_in_the_credits(version, i18n) == "",
+		"with file logging off, the credits should not point at a log that is never written")
+	ProjectSettings.set_setting(key, was)
+	done()
+
+
+func _log_folder_in_the_credits(version: Node, i18n: Node) -> String:
+	for block in version.credits():
+		if str(block[0]) == i18n.t("IF SOMETHING GOES WRONG"):
+			for line in block[1]:
+				if str(line).begins_with("· "):
+					return str(line).substr(2)
+	return ""
+
+
 func _test_settings_return_path() -> void:
 	var nav: Node = root.get_node("Nav")
 	nav.settings_return_scene = ""

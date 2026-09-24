@@ -9,8 +9,14 @@ Not in the source prototype — added during the port. See
 
 ## For a player
 
-Main menu → MINITEL. Type `3615` in the left field, four letters in the right,
-press ENVOI (or Enter). The screen prints what the service has to say. Codes
+Main menu → MINITEL, or the Minitel itself, on the table during a reading:
+point at it and its screen lights, press it and you turn to the terminal, and
+BACK returns to the reading exactly as it was. Type `3615` in the left field,
+four letters in the right, press ENVOI (or Enter). The screen prints what the
+service has to say — at the machine's own speed, a character at a time (any key
+finishes the page). A service of several pages says so in the corner of the
+tube; SUITE and RETOUR (or Page Down and Page Up) turn them, and SOMMAIRE goes
+back to the directory. Codes
 you have reached are listed underneath; there is no counter of ones you have
 not, deliberately — a "3 of 8" line turns a secret into a chore, and once a mod
 can add its own there is no honest total to print anyway.
@@ -66,6 +72,15 @@ ordinary pool, and that an armed one does eventually turn up. The first of
 those is the load-bearing one — a bug there would show the player the payoff
 for a code they never found.
 
+## The line's speed
+
+`terminal.cps` in `minitel.json` is how many characters a second the tube
+prints: 120, which is what a Minitel's 1200 bauds came to at ten bits a
+character. The whole page is one stream, in reading order, so a long first line
+delays the second as it did on the real thing. With motion off the page is
+simply there. `tests/test_minitel.gd` checks that it prints, that a key finishes
+it, and that it is not so slow a first page takes more than three seconds.
+
 ## The terminal speaks French
 
 The lines the machine itself prints (`SAY_*` in `autoload/Minitel.gd`) are the
@@ -85,7 +100,8 @@ somewhere other than 1980s France will want its own terminal.
 |---|---|
 | `autoload/Minitel.gd` | validation, persistence, the three levers |
 | `data/base/minitel.json` | the code registry (two demonstrators) |
-| `scenes/MinitelScreen.gd` | the terminal UI — a thin shell, no rules |
-| `tests/test_minitel.gd` | ten checks, including the secret-event guard |
+| `scenes/MinitelScreen.gd` | the terminal UI — a thin shell, no rules: pages, keys, the line's speed |
+| `scenes/Reading.gd` | `_the_minitel()`, the machine on the table |
+| `tests/test_minitel.gd` | the codes, the levers, the pages and the speed, including the secret-event guard |
 | `autoload/Profile.gd` | `codes_entered`, and `meets()` reading it |
 | `autoload/Run.gd` | `ordinary_events()` and the armed-event injection |

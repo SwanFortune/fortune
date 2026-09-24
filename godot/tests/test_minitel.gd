@@ -15,6 +15,9 @@
 ##   - AND, the point of the `secret` flag: an unarmed secret event can never
 ##     turn up in the ordinary map pool. That is the one thing a bug here
 ##     would leak — a player seeing the payoff without ever finding the code.
+##   - a service of several pages hands back every page, translated line by
+##     line, and the screen turns them with SUITE and RETOUR; the tube prints
+##     at the line's speed, a key finishes it, and motion off skips it;
 ##   - a code naming a stat or an event that does not exist is REPORTED. The
 ##     recurring failure this port keeps recording is content that silently
 ##     does nothing; a mod that misspells an event title should hear about it.
@@ -234,3 +237,88 @@ func _test_each_screen_line_has_its_own_key() -> void:
 	i18n._strings = saved
 	codes["SOUS"] = restore
 	done()
+
+
+## A service of more than one page: every page comes back, in order, none of
+## them empty, and a page after the first is translated under its own keys —
+## the first cut of one key per block printed line one four times over, and a
+## page keyed like the first would print page one twice.
+func _test_a_service_has_pages() -> void:
+	var said: Dictionary = minitel.submit("3615", "OEIL")
+	var pages: Array = said.get("pages", [])
+	var want: Array = content.minitel_codes["OEIL"].get("pages", [])
+	check(pages.size() == 1 + want.size(), "OEIL should come back as %d pages, got %d" % [1 + want.size(), pages.size()])
+	check(said["lines"] == pages[0], "`lines` should be the first page")
+	check(pages.all(func(p): return p is Array and not p.is_empty()), "no page may be empty: %s" % [pages])
+	if pages.size() > 1:
+		check(pages[1] != pages[0], "the second page should not be the first again")
+	# A page of its own in a locale: set a key for page two's first line and it
+	# must be that line, and only that one, that changes.
+	i18n._strings["minitel/OEIL/p1_0"] = "PAGE DEUX, TRADUITE"
+	var again: Array = minitel.pages("OEIL", content.minitel_codes["OEIL"])
+	check(again[1][0] == "PAGE DEUX, TRADUITE", "page two's first line should read its own key, got '%s'" % again[1][0])
+	check(again[0][0] != "PAGE DEUX, TRADUITE", "and page one's first line should not")
+	i18n.reload()
+	# A refusal is one page, so the screen never has to ask.
+	check(minitel.submit("3615", "ZZZZ").get("pages", []).size() == 1, "a refusal is a single page")
+	done()
+
+
+## THE SCREEN: the tube prints at the line's speed and a key finishes it; SUITE
+## and RETOUR turn the pages and know where the ends are; with motion off the
+## text is simply there.
+func _test_the_screen_turns_pages_at_the_lines_speed() -> void:
+	var settings: Node = root.get_node("Settings")
+	var speed_before = settings.get_value("animation_scale")
+	root.size = Vector2i(1280, 720)
+	for motion in [true, false]:
+		profile.reset()
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		var screen: Node = load("res://scenes/MinitelScreen.tscn").instantiate()
+		root.add_child(screen)
+		await process_frame
+		screen._prefix_field.text = "3615"
+		screen._code_field.text = "OEIL"
+		screen._send()
+		await process_frame
+		var total: int = content.minitel_codes["OEIL"]["screen"].reduce(func(a, l): return a + str(l).length(), 0)
+		if motion:
+			check(screen.printing(), "a service should arrive at the line's speed, not all at once")
+			var seconds: float = float(total) / minitel.chars_per_second()
+			check(seconds > 0.2 and seconds < 3.0, "a first page of %d characters should take a moment to print, takes %.2fs" % [total, seconds])
+			screen.finish_printing()
+		check(not screen.printing(), "a key should finish the page (motion %s)" % motion)
+		check(_all_shown(screen), "every character should be showing once the page is printed (motion %s)" % motion)
+		check(screen._page_mark.text == "1/2", "the tube should say page 1/2, says '%s'" % screen._page_mark.text)
+		check(screen._keys["retour"].disabled and not screen._keys["suite"].disabled, "on page one, RETOUR is off and SUITE is on")
+		screen._turn(1)
+		await process_frame
+		screen.finish_printing()
+		check(screen._page_mark.text == "2/2", "SUITE should turn to page 2/2, says '%s'" % screen._page_mark.text)
+		check(_tube_text(screen).contains(str(content.minitel_codes["OEIL"]["pages"][0][0])), "page two should be on the tube: %s" % _tube_text(screen))
+		check(screen._keys["suite"].disabled, "on the last page SUITE is off")
+		screen._turn(1)
+		check(screen._page == 1, "SUITE on the last page stays there")
+		screen._turn(-1)
+		await process_frame
+		check(screen._page == 0, "RETOUR goes back a page")
+		screen._home()
+		await process_frame
+		screen.finish_printing()
+		check(_tube_text(screen).contains(minitel.SAY_IDLE), "SOMMAIRE should go back to the directory: %s" % _tube_text(screen))
+		screen.queue_free()
+		await process_frame
+	settings.set_value("animation_scale", speed_before)
+	done()
+
+
+func _tube_labels(screen: Node) -> Array:
+	return screen._lines_box.get_children().filter(func(c): return c is Label and not c.is_queued_for_deletion())
+
+
+func _tube_text(screen: Node) -> String:
+	return " / ".join(_tube_labels(screen).map(func(l): return l.text))
+
+
+func _all_shown(screen: Node) -> bool:
+	return _tube_labels(screen).all(func(l): return l.visible_characters == -1 or l.visible_characters >= l.get_total_character_count())

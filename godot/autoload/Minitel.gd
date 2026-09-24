@@ -16,8 +16,9 @@
 ##
 ##   grants  {stat, add}  bumps a numeric profile stat (see Profile.STATS)
 ##   arms    <event title> makes a `secret: true` event eligible on the map
+##   opens   "work_view" opens the workshop on this machine (Mode.gd)
 ##
-## Three levers, all data, all checkable. A general effect language would be
+## Four levers, all data, all checkable. A general effect language would be
 ## more than anyone has asked for and impossible to validate; an unknown stat
 ## or a missing event is reported here rather than silently doing nothing —
 ## which is precisely the failure mode docs/PORTING_NOTES.md keeps recording.
@@ -94,8 +95,9 @@ func entered() -> Array:
 
 
 ## Dials `prefix` and submits `raw`. Returns
-## {kind, code, lines} — `lines` is what the Minitel prints, ready to show,
-## and is never empty so the screen always says something.
+## {kind, code, lines, pages} — `lines` is what the Minitel prints first, ready
+## to show, and is never empty so the screen always says something; `pages` is
+## every page of it when the service has more than one (see pages()).
 ##
 ## Everything is refused politely: a wrong prefix, a code that is not four
 ## letters, a code nobody wrote. A terminal that goes blank on bad input is
@@ -103,22 +105,55 @@ func entered() -> Array:
 func submit(prefix: String, raw: String) -> Dictionary:
 	var code := normalise(raw)
 	if prefix.strip_edges() != PREFIX or code == "":
-		return {"kind": BAD_FORMAT, "code": code, "lines": [SAY_FORMAT]}
+		return {"kind": BAD_FORMAT, "code": code, "lines": [SAY_FORMAT], "pages": [[SAY_FORMAT]]}
 
 	var rec: Dictionary = Content.minitel_codes.get(code, {})
 	if rec.is_empty():
-		return {"kind": UNKNOWN, "code": code, "lines": [SAY_UNKNOWN]}
+		return {"kind": UNKNOWN, "code": code, "lines": [SAY_UNKNOWN], "pages": [[SAY_UNKNOWN]]}
 
 	var seen := entered()
 	var repeatable := bool(rec.get("repeatable", false))
 	if seen.has(code) and not repeatable:
-		return {"kind": ALREADY, "code": code, "lines": _lines(code, rec) + [SAY_ALREADY]}
+		var again := pages(code, rec)
+		again[0] = again[0] + [SAY_ALREADY]
+		return {"kind": ALREADY, "code": code, "lines": again[0], "pages": again}
 
 	if not seen.has(code):
 		seen.append(code)
 		Profile.set_stat("codes_entered", seen)
 	_apply(code, rec)
-	return {"kind": OK, "code": code, "lines": _lines(code, rec)}
+	var shown := pages(code, rec)
+	return {"kind": OK, "code": code, "lines": shown[0], "pages": shown}
+
+
+## EVERY PAGE a service prints, in order, each a list of lines. The first is the
+## record's `screen`; any after it are its `pages`, turned with SUITE and
+## RETOUR the way a Minitel's were. Never empty, and no page is empty.
+##
+## Translated line by line, as _lines() explains: the first page keeps the
+## keys it always had (minitel/<CODE>/screen<i>), and page p after it uses
+## minitel/<CODE>/p<p>_<i>.
+func pages(code: String, rec: Dictionary) -> Array:
+	var out: Array = [_lines(code, rec)]
+	var more = rec.get("pages", [])
+	if not (more is Array):
+		return out
+	for p in more.size():
+		if not (more[p] is Array) or more[p].is_empty():
+			continue
+		var page: Array = []
+		for i in more[p].size():
+			page.append(I18n.content("minitel/" + code, "p%d_%d" % [p + 1, i], str(more[p][i])))
+		out.append(page)
+	return out
+
+
+## How fast the tube prints, in characters a second: `terminal.cps` in
+## minitel.json. A Minitel received at 1200 bauds, ten bits a character — 120
+## a second — and the text arriving at that speed, a character at a time, is
+## most of what the machine felt like to use.
+func chars_per_second() -> float:
+	return maxf(1.0, float(Content.terminal.get("cps", 120)))
 
 
 ## The service's own text, from content (so it translates and mods can write
@@ -152,6 +187,16 @@ func _apply(code: String, rec: Dictionary) -> void:
 	var arms := str(rec.get("arms", ""))
 	if arms != "" and _secret_event(arms).is_empty():
 		push_warning("[Minitel] %s arms '%s', which is not a secret event." % [code, arms])
+
+	# The fourth lever, and the one that is not about the game: `opens:
+	# work_view` opens the workshop on this machine (see Mode.gd). It is how
+	# whoever is drawing or tuning reaches the studio in a build that was
+	# handed to them, with no command line.
+	var opens := str(rec.get("opens", ""))
+	if opens == "work_view":
+		get_node("/root/Mode").unlock()
+	elif opens != "":
+		push_warning("[Minitel] %s opens '%s', which is not something a code can open." % [code, opens])
 
 
 ## Secret events armed by a code the player has entered. Run.make_options()

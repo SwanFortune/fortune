@@ -41,12 +41,23 @@ const ARRAY_KEY_FIELDS := {
 	"difficulty": "n",
 	# The endings, keyed by the fewest people mended that they cover.
 	"endings": "mended_from",
+	# The rules that make a card in the hand animate on its own (Feel.gd).
+	"card_states": "id",
+	# What a card becomes in the room when it is laid (Feel.gd, RoomTraces.gd).
+	"traces": "id",
 }
+
+## THE CARD POOLS, written down once. Every place that walks "all the cards" —
+## the index, the Library, the studio, the art and locale generators, three
+## test files — had its own copy of this line, and a fifth pool would have had
+## to be added in all of them. tests/test_modloader.gd checks it against the
+## `cards_` categories above.
+const CARD_POOLS := ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]
 
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
 const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes",
-	"icons", "archetypes", "music"]
+	"icons", "archetypes", "music", "feel", "particles", "motions", "haptics", "gestures", "deal", "props", "spots", "terminal"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]

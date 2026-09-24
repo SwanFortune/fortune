@@ -1,0 +1,34 @@
+{
+  "_comment": "NOT from the source prototype — added during the port; see docs/FEEL_GUIDE.md and docs/ATELIER.md. THE ROOM REMEMBERS: some cards, when laid, become a thing in the parlour and stay there for the rest of that visit — the tea becomes a cup on their side of the table, their coat goes on the hook by the door. `traces` are the rules, first match wins, matched like card_states (a `when` over the card's fields). Each names what the card `becomes` (a key of `props`), where it lands (`at`, a key of `spots`), and `how` it gets there: 'melt' (the card dissolves into steam and the thing appears), 'burn' (the same, from its edges, in embers) or 'carry' (the card is carried across the room and becomes the thing where it lands). `once: true` means only one of that thing per visit. A rule with `shakes: true` and nothing to become rattles what is already on the table instead. `haptic` is a pattern from feel.json, felt when it lands. `spots` are fractions of the screen [x, y], chosen in the parts of the table the reading screen leaves clear of text. `props` are drawn in code as placeholders (`draw`) until a drawing lands at assets/art/prop/<id>.png; `size` is a fraction of the screen's height; `tint: 'element'` colours it by the sitter's element; `particles` is a feel.json preset left running on it (steam off the tea).",
+  "props": {
+    "their_cup":  { "draw": "teacup", "size": 0.075, "particles": "steam" },
+    "their_coat": { "draw": "coat", "size": 0.21, "tint": "element", "anchor": "top" },
+    "cloth":      { "draw": "cloth", "size": 0.11 },
+    "lamplight":  { "draw": "glow", "size": 0.42 },
+    "ash":        { "draw": "ash", "size": 0.06 },
+    "coins":      { "draw": "coins", "size": 0.05 },
+    "stones":     { "draw": "stones", "size": 0.06 },
+    "house":      { "draw": "paper", "size": 0.08 }
+  },
+  "spots": {
+    "deck": [0.74, 0.47],
+    "their_side": [0.53, 0.40],
+    "middle":     [0.60, 0.50],
+    "beside":     [0.70, 0.52],
+    "left":       [0.47, 0.50],
+    "front":      [0.585, 0.565],
+    "hook":       [0.80, 0.072],
+    "lamp":       [0.50, 0.44]
+  },
+  "traces": [
+    { "id": "coat",   "when": { "n": ["Take Their Coat", "The Sun"] }, "becomes": "their_coat", "at": "hook", "how": "carry", "once": true, "haptic": "swell" },
+    { "id": "cloth",  "when": { "n": "Set Down The Cloth" }, "becomes": "cloth", "at": "middle", "how": "carry", "once": true, "haptic": "tap" },
+    { "id": "lamp",   "when": { "n": "Light The Lamp" }, "becomes": "lamplight", "at": "lamp", "how": "melt", "once": true, "haptic": "swell" },
+    { "id": "tea",    "when": { "n": "Pour The Tea" }, "becomes": "their_cup", "at": "their_side", "how": "melt", "once": true, "haptic": "tap" },
+    { "id": "letter", "when": { "n": "Burn The Letter" }, "becomes": "ash", "at": "front", "how": "burn", "haptic": "thud" },
+    { "id": "coins",  "when": { "n": ["Count It Out In Coins", "Ask What It Costs"] }, "becomes": "coins", "at": "beside", "how": "melt", "haptic": "tick" },
+    { "id": "stones", "when": { "n": "Lay The Stones Out" }, "becomes": "stones", "at": "left", "how": "carry", "once": true, "haptic": "tick" },
+    { "id": "house",  "when": { "n": "Draw The House On Paper" }, "becomes": "house", "at": "middle", "how": "carry", "once": true, "haptic": "tap" },
+    { "id": "chair",  "when": { "n": ["Kick The Chair Over", "Stand Up Mid-Sentence"] }, "shakes": true, "haptic": "thud" }
+  ]
+}

@@ -373,7 +373,7 @@ func _test_a_content_reload_reaches_a_live_run() -> void:
 	var card_name := str(run.state["deck"][0]["n"])
 	var before := int(run.state["deck"][0].get("f", 0))
 	var pool := ""
-	for p in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+	for p in content.CARD_POOLS:
 		for c in content.registries.get(p, []):
 			if str(c.get("n", "")) == card_name:
 				pool = p

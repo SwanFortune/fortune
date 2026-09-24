@@ -22,4 +22,10 @@ extends Node
 ## change like any other. Called directly, the game opened silent and stayed
 ## silent until the player left the menu and came back.
 func _ready() -> void:
+	# `godot --path godot -- --studio` opens straight into the studio, for
+	# whoever is drawing and does not want to click through the menus every
+	# time they start the game.
+	if OS.get_cmdline_user_args().has("--studio"):
+		Nav.goto_studio.call_deferred()
+		return
 	Nav.goto_main_menu.call_deferred()

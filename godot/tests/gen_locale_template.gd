@@ -122,7 +122,7 @@ func _collect_sources() -> Dictionary:
 		src["ui/" + s] = s
 
 	# 2. Content, addressed by the same slug ids the art manifest uses.
-	for pool in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+	for pool in content.CARD_POOLS:
 		for c in content.registries.get(pool, []):
 			var id: String = art.card_id(c)
 			_put(src, id + "/n", c.get("n", ""))
@@ -197,6 +197,12 @@ func _collect_sources() -> Dictionary:
 		var lines: Array = content.minitel_codes[code].get("screen", [])
 		for li in lines.size():
 			_put(src, "minitel/%s/screen%d" % [code, li], lines[li])
+		# And every page after the first (Minitel.pages()).
+		var more = content.minitel_codes[code].get("pages", [])
+		for p in (more if more is Array else []).size():
+			if more[p] is Array:
+				for li in more[p].size():
+					_put(src, "minitel/%s/p%d_%d" % [code, p + 1, li], more[p][li])
 	# The card archetypes' one-line descriptions — the source's own words for
 	# what each family of card is for. Shown in a card's tooltip.
 	# WHAT BECOMES OF THE VILLAGE. Four endings, three paragraphs each, and the
@@ -251,10 +257,22 @@ func _scraped_ui_strings() -> Array[String]:
 			var text := _code_only(FileAccess.get_file_as_string(path))
 			var at := 0
 			while true:
-				var call_at := text.find("I18n.t(\"", at)
+				# The literal may be on the NEXT line: `I18n.t(` then a newline
+				# and an indented sentence is how every long string in the game
+				# is written. Looking for `I18n.t("` alone missed all of them, a
+				# hand list below papered over the ones somebody remembered, and
+				# the V-Sync notice was the one nobody did — shown in English to
+				# every French player whose driver refused the setting.
+				var call_at := text.find("I18n.t(", at)
 				if call_at < 0:
 					break
-				var start := call_at + 8
+				var start := call_at + 7
+				while start < text.length() and text[start] in [" ", "\t", "\n", "\r"]:
+					start += 1
+				if start >= text.length() or text[start] != "\"":
+					at = call_at + 7
+					continue
+				start += 1
 				var s := ""
 				var i := start
 				while i < text.length():
@@ -338,6 +356,13 @@ func _gd_files(dir_path: String) -> Array[String]:
 
 
 func _ui_strings() -> Array[String]:
+	# ONLY WHAT NO SCRAPE CAN SEE. This list once carried 295 strings, and 197
+	# of them were I18n.t() literals the scrape above already finds — a second
+	# copy, in the one file whose job is to stop copies drifting. Eight more
+	# were keys for text the game no longer shows at all, including an old
+	# version of the main menu's subtitle, which meant the subtitle that IS
+	# shown was on no list and went out in English. What is left is data and
+	# computed keys; a literal belongs in the source, where the scrape sees it.
 	return [
 		# THE NUMBER WORDS Rules.auto_text() spells cards' amounts with. They
 		# reach I18n.t() as numw[n], a variable, so no scrape can see them —
@@ -348,7 +373,7 @@ func _ui_strings() -> Array[String]:
 		# `skipLabel` data, so the scrape cannot see them and neither could
 		# anybody reading the coverage number — a French event offered its two
 		# options in French under a button that said LET IT GO BY.
-		"LET IT GO BY", "LEAVE WITH YOUR MONEY", "MOVE ON", "SKIP",
+		"LET IT GO BY", "LEAVE WITH YOUR MONEY", "SKIP",
 		# END OF A RUN. Run.gd emits these as display strings (see its header's
 		# convention) so there is no I18n.t() literal to scrape.
 		"You are still the one in the back room",
@@ -359,147 +384,24 @@ func _ui_strings() -> Array[String]:
 		"THREE NIGHTS, AND THE KNOCKING STOPS",
 		"Word travels the length of a village in an afternoon. One person sat at your table and left with exactly what they arrived with, and nobody needs telling twice.",
 		"You mended %s of them. What they say about you afterwards is the only score that was ever being kept.",
-		# main menu
-		"PARLOUR", "BEGIN A READING", "LIBRARY", "MODS", "SETTINGS", "QUIT",
-		"a fortune-teller's ledger, in card form",
-		"CONTINUE", "THIS ENDS THE RUN IN PROGRESS — BEGIN ANYWAY", "RESUME ANYWAY",
-		"%s card(s) in this run came from content you no longer have and have been removed from the deck.",
-		"night %s, knock %s · %s · %s faith",
-		"Could not read your saved run.", "content warning(s) — see MODS.",
-		"Your last save could not be read, so this is the one before it — you may have lost a step.",
-		"NOTHING IS BEING SAVED — your run, settings and unlocks will all be lost when you close the game. %s",
-		"THIS RUN IS NOT BEING SAVED — anything from here is lost if you close the game.",
 		# mods screen
-		"Packs load in the order below. A later pack wins where two define the same card, sign or reader.",
-		"LOADED PACKS", "LOAD MESSAGES", "WHERE TO PUT A MOD", "STEAM WORKSHOP",
-		"No packs found at all — even the base game is missing.",
-		"priority %s", "%s record(s) in %s",
-		"Switched off — nothing from this pack is loaded.",
-		"The game's own content. Always loaded, always first.",
-		"TURN OFF", "TURN ON", "RELOAD CONTENT",
 		"shipped with the game", "bundled example", "your mods folder", "Steam Workshop",
 		"loaded from elsewhere",
-		"Everything loaded cleanly.",
-		"%s problem(s). A pack that reports one is still loaded — only the offending record is skipped.",
-		"One folder per pack, each with a mod.json. Turn a pack off above rather than deleting it if you only want it gone for a while.",
-		"Your own Library changes are pack \"%s\" above — %s card(s).",
-		"Connected. Subscribed packs appear in the list above.", "REFRESH SUBSCRIPTIONS",
-		"Not connected. Workshop needs a Steam App ID and the GodotSteam extension, neither of which this build has — see docs/STEAM_WORKSHOP.md. Until then, share a pack by sharing its folder.",
-		# minitel — the chrome around the machine only. What the terminal itself
-		# prints is deliberately untranslated; see Minitel.gd's SAY_* block.
-		"MINITEL", "ENVOI",
-		"It hums on the sideboard where the telephone used to be. Someone left the bill unpaid and it never stopped working.",
-		"You have not dialled anything yet.", "SERVICES YOU HAVE REACHED",
-		"Dial 3615 %s",
-		# how to play
-		"HOW TO PLAY", "THE NIGHT", "ONE READING", "THE WHEEL",
-		"WHAT THEY WILL NOT SAY", "THE WORDS ON A CARD", "THE FOUR ELEMENTS",
-		"Someone knocks. They have a job, a sign, and something they will not say. Their composure starts at nothing, and you have to fill it before your readings with them run out — then they go home whole.",
-		"Eight knocks a night, three nights. The last one on the third night is the mayor, and he is not like the others.",
-		"Between knocks you take a road: another sitter, the apothecary, or whatever the evening puts in front of you.",
-		"You draw a hand. You lay cards left to right, spending energy, and then you READ IT — they are spoken as one sentence, in the order you laid them.",
-		"THE ORDER IS THE WHOLE GAME. Most cards pay attention to what came before them, and a card laid in the wrong place is worth a fraction of the same card laid in the right one.",
-		"Energy comes back in full every reading. Your hand does not: whatever is left is discarded and you draw fresh.",
-		"The elements run in a ring, and each card's place on it is measured against the card before:",
-		"Following the ring forward is a TURN. Saying the same element again is SAME. Going backwards is BACK, and jumping across is a BREAK.",
-		"A card that reads \"+4 more if it follows △\" wants the card before it to have carried that element. That is what you are arranging when you decide the order.",
-		"A card matching the sitter's own element is always worth a little more.",
-		"The elements run in a ring.",
-		"Every sitter carries their sign's denial — one named thing it does to every reading you give them. Some of them hold off the first points of anything you say, like a wall; some cut a reading in half; some refuse to hear the same sign twice.",
-		"It is written under their name before you start. Read it first: it is usually the difference between a good deck and a good night.",
-		"A card that PIERCES ignores denial entirely.",
-		"Playable entirely from the keyboard or a gamepad: the arrow keys, Tab or the stick move the highlight, and Confirm activates whatever is lit.",
-		"Any of these can be changed in SETTINGS → CONTROLS.",
-		"RULES",
-		# credits
-		"CREDITS", "THE GAME", "BUILT WITH", "ART AND SOUND", "TRANSLATION", "THIS BUILD",
-		"Parlour began as a self-contained browser prototype, Parlour v23.dc.html — the design, the writing, the cards and the numbers are all its author's.",
-		"This is a port of that prototype to Godot. The rules engine is a direct translation of its simulate(); where the two disagree, the prototype is right.",
-		"Design and writing: see the repository.",
-		"Godot Engine %s — MIT licence, godotengine.org",
-		"The engine's default interface font, Open Sans (Apache 2.0).",
-		"Every card face, portrait and sound in this build that is still marked a placeholder was generated by the project itself, and is meant to be replaced. See docs/ART_GUIDE.md and docs/SOUND_GUIDE.md.",
-		"Illustration: unfilled.", "Music and sound: unfilled.",
-		"Drawings: %s.", "Sound and music: %s.",
-		"nothing registered", "none of %d delivered", "all %d delivered", "%d of %d delivered",
-		"English only.", "Translators: unfilled. See docs/LOCALIZATION.md.",
-		"Version %s", "Engine %s", "Content packs loaded: %s",
 		# settings — the category rail
-		"GAMEPLAY", "VIDEO", "AUDIO", "INTERFACE", "CONTROLS", "LANGUAGE", "CONTENT",
-		"RESET THIS SECTION", "RESET EVERYTHING",
-		# settings — gameplay
-		"Energy per reading", "Hand size",
-		"Base energy each reading, before any reader, relic, job or sign modifier. Default 3.",
-		"Base cards dealt each reading, before modifiers. Default 5.",
-		"These two are the knobs the original prototype exposed. Changing them rebalances the whole game — the defaults (3 and 5) are what everything else is tuned against.",
-		# settings — video
-		"Window mode", "Windowed", "Borderless", "Fullscreen",
-		"Borderless is a window the size of your screen with no frame — it alt-tabs faster than exclusive fullscreen.",
-		"Window size", "Sizes larger than your screen are not offered.", "Only applies in windowed mode.",
-		"V-Sync", "Off", "On", "Adaptive",
-		"On removes tearing. Adaptive tears rather than halving the frame rate when a frame is missed.",
-		"Frame rate cap", "unlimited",
-		"Caps the whole main loop. Useful on a laptop — this game does not need 240 frames a second.",
-		"Interface scale", "Magnifies the whole interface, spacing included. For text alone, see INTERFACE.",
-		# settings — audio
-		"Master volume", "Everything, at once.",
-		"Sound effects", "Cards, coins, the sitter arriving and leaving.",
-		"Interface sounds",
-		"The click as focus moves and as a button is pressed. Playing on the keyboard, this is the sound you hear most.",
-		"Mute", "Silence everything.",
-		"Every sound in the game is a placeholder for now, and there is no music yet — which is why there is no music slider. See docs/SOUND_GUIDE.md.",
-		# settings — interface
-		"Animation speed", "off",
-		"How fast cards deal, bars fill and values pulse. Set to 0 for no motion at all — the game jumps straight to each end state.",
-		"Text size", "Makes the words bigger without magnifying the layout around them. Cards grow to match.",
-		"High contrast",
-		"A black ground, white text, and stronger secondary text. The game's usual dim greys are a deliberate look and hard to read for some people.",
-		# settings — content
-		"Load example mods",
-		"Loads the bundled demo mod in mods_example/. Your own mods in the user mods folder always load.",
-		"No content errors.", "Mods loaded: %s pack(s). %s",
-		"Individual packs are switched on and off in MODS, where each one's name, order and load messages are.",
+		"GAMEPLAY", "VIDEO", "AUDIO", "INTERFACE", "LANGUAGE", "CONTENT",
 		# settings — controls
-		"DEFAULT", "press a key…",
-		"The whole game is playable from the keyboard or a gamepad: Tab and the arrow keys move between things, and Confirm activates whatever is highlighted.",
-		"The gamepad button on the right is shown, not editable: only the keyboard key is rebindable, so changing one never costs you a controller button.",
 		"Confirm / play a card", "Back / close", "Read it", "Show your deck", "Show your marks",
-		# unlocks (sign-select)
-		"LOCKED —", "Finish a run as %s", "Reach %s of %s", "Finish two runs",
-		"Language",
-		"%d%% translated (%d of %d strings). Anything untranslated falls back to English.",
-		"BACK",
-		# library
-		"All pools", "All elements", "Search by name…",
-		"Basics", "Chromatic", "Minor", "Arcana",
-		"Pick a card on the left to edit it.", "Nothing matches those filters.",
-		"READS AS", "CORE", "EFFECTS", "FLAGS",
-		"Energy cost", "Base restore", "Element", "None",
-		"REVERT THIS CARD", "REVERT ALL CARDS",
-		"Set a value to 0 to remove that effect from the card entirely.",
-		"The usual amount for this effect.",
 		# run screens
-		"CHOOSE YOUR SIGN", "Every reader is a sign, an element, and a starting deck of ten.",
-		"Starts with:", "Who knocks tonight?", "NIGHT", "KNOCK",
-		"YOUR HAND — hover a card for its full text", "You have not said anything yet.",
-		"{S} {is} looking at your hands.", "and",
-		"READ IT", "Composure", "Energy", "Reading", "Denial wall", "Discarded:",
-		"BEGIN AGAIN", "sign", "cost", "composure", "denial", "readings",
-		"THE APOTHECARY", "ELITE", "THE MAYOR", "ONCE", "PIERCE", "No element",
-		# run header + overlays
-		"Faith", "Centimes", "Mended", "DECK", "MARKS", "CLOSE",
-		"YOUR DECK", "YOUR HANDS", "cards",
-		"Nothing on your hands yet. Rings and marks come from elites, events and the apothecary.",
+		"cost", "composure", "denial", "readings",
 		# result / end-of-run (keys emitted by Run.gd — see its header)
-		"GOES HOME WHOLE", "PUTS THE COAT BACK ON", "TAKE SOMETHING FOR IT",
-		"SEE WHAT THEY SAY", "%s is whole enough", "%s leaves as they came, only later",
+		"{S} {goes} home whole", "{S} put{es} {p} coat on", "TAKE SOMETHING FOR IT",
+		"SEE WHAT THEY SAY", "%s is whole enough", "%s leaves as {s} came, only later",
+		"{s} pay{es} either way",
 		"Composure at the end", "Readings used", "Faith earned", "Faith kept",
 		"(%s of it overflow)", "Off a hard one", "it stays on your hands",
 		"the money was on the table", "And that is the whole of it", "one is all it takes",
-		"ONE OF THEM WENT HOME AS THEY CAME", "THREE NIGHTS, AND THE KNOCKING STOPS",
-		"Restored", "Deck", "Centimes left", "SKIP", "%s cards",
+		"Restored", "Deck", "Centimes left", "%s cards",
 		# library extras
-		"CHANGED", "● marks a card you've changed", "from %s",
 		"Pierces denial", "Once per sitter", "Restores faith, not composure",
 		"Counts as every element", "Reads as their element",
 		"Counts as your current element", "No element (basic decency)",

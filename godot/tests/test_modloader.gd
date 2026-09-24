@@ -608,3 +608,24 @@ func _test_a_pack_from_nowhere_does_not_blame_steam() -> void:
 
 	_rm_rf(ITEM_ROOT)
 	done()
+
+
+## THE CARD POOLS ARE WRITTEN ONCE, AND THEY ARE ALL OF THEM. CARD_POOLS replaced
+## six copies of the same list; this holds it to the categories the loader
+## actually merges, so a fifth `cards_` pool added to one and not the other is a
+## failure here rather than a pool the Library, the index and the generators
+## quietly never see.
+func _test_the_card_pools_are_every_card_category() -> void:
+	var loader: GDScript = load("res://autoload/ModLoader.gd")
+	var consts: Dictionary = loader.get_script_constant_map()
+	var derived: Array = consts["ARRAY_KEY_FIELDS"].keys().filter(func(k): return str(k).begins_with("cards_"))
+	derived.sort()
+	var listed: Array = consts["CARD_POOLS"].duplicate()
+	listed.sort()
+	check(derived == listed, "CARD_POOLS says %s and the loader merges %s" % [listed, derived])
+	var content: Node = root.get_node("Content")
+	var counted := 0
+	for pool in consts["CARD_POOLS"]:
+		counted += content.registries.get(pool, []).size()
+	check(content.all_cards().size() == counted, "all_cards() should be every card in every pool: %d of %d" % [content.all_cards().size(), counted])
+	done()

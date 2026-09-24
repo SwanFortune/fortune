@@ -630,6 +630,31 @@ func lay_card(card_uid: String) -> void:
 	state_changed.emit()
 
 
+## THE ROOM REMEMBERS what a laid card became — see scenes/RoomTraces.gd and
+## data/base/room.json. Kept on the FIGHT, so it is saved with it, cleared when
+## the next person sits down, and undone by TAKE IT BACK for free: unlay()
+## restores the fight as it was before the card, and this is called after.
+##
+## Cosmetic, and never read by the rules. Loaded by path at the moment it is
+## needed, never preloaded: this is an autoload, and a scene script preloaded
+## from one resolves before the autoloads it names exist (CLAUDE.md).
+func leave_trace(rule: Dictionary, arrive_in: float = 0.0) -> Dictionary:
+	var f: Dictionary = state.get("f", {})
+	if f.is_empty():
+		return {}
+	if not f.has("room"):
+		f["room"] = []
+	return (load("res://scenes/RoomTraces.gd") as GDScript).place(f["room"], rule, arrive_in)
+
+
+## Something in the room was knocked — the chair kicked over. Whatever is on
+## the table rattles, on whichever screen is up when it happens.
+func jolt_room() -> void:
+	var f: Dictionary = state.get("f", {})
+	if not f.is_empty():
+		f["room_jolt"] = Time.get_ticks_msec()
+
+
 ## Whether READ IT should do anything.
 ##
 ## The prototype's rule is "not with an empty line" (readIt returns early, and
@@ -717,12 +742,12 @@ func win(f: Dictionary) -> void:
 		{"left": "Readings used", "right": "%s / %s" % [f["turn"], f["turns"]]},
 		{"left": "Faith earned", "right": "+%s" % faith,
 			"note": ["(%s of it overflow)", f["faith"]] if int(f["faith"]) > 0 else null},
-		{"left": "Centimes", "right": "+%s" % coin_gain},
+		{"left": "Centimes", "right": "+%s" % coin_gain, "note": ["{s} pay{es} either way"]},
 	]
 	if relic != null:
 		lines.append({"left": "Off a hard one", "right": relic["n"], "note": ["it stays on your hands"]})
 	state["res"] = {
-		"kind": "win", "head": "GOES HOME WHOLE", "title": ["%s is whole enough", sitter["name"]],
+		"kind": "win", "head": "{S} {goes} home whole", "title": ["%s is whole enough", sitter["name"]],
 		"said": sitter["win"], "lines": lines, "cta": "TAKE SOMETHING FOR IT", "sitter": sitter,
 	}
 	state_changed.emit()
@@ -736,8 +761,8 @@ func lose(f: Dictionary, _how: String) -> void:
 	state["coin"] = int(state["coin"]) + coin_gain
 	state["faith"] = int(state["faith"]) + faith_kept
 	state["res"] = {
-		"kind": "lose", "head": "PUTS THE COAT BACK ON",
-		"title": ["%s leaves as they came, only later", sitter["name"]],
+		"kind": "lose", "head": "{S} put{es} {p} coat on",
+		"title": ["%s leaves as {s} came, only later", sitter["name"]],
 		"said": sitter["fail"],
 		"lines": [
 			{"left": "Composure at the end", "right": "%s / %s" % [max(0, f["hp"]), f["max"]]},
@@ -881,16 +906,38 @@ func roll_mark(kind: String = ""):
 func weighted(pool: Array):
 	if pool.is_empty():
 		return null
-	const RARW := {"basic": 0, "common": 6, "uncommon": 3, "rare": 1}
-	var total := 0
+	return weighted_at(pool, rng.randf())
+
+
+## weighted() with the roll handed in, so it can be put next to the prototype's
+## own weighted() with the same number and asked whether they pick the same card.
+func weighted_at(pool: Array, u: float):
+	if pool.is_empty():
+		return null
+	var total := 0.0
 	for c in pool:
-		total += int(RARW.get(c.get("r", "common"), 1))
-	var roll := rng.randf() * total
+		total += rarity_weight(c)
+	var roll := u * total
 	for c in pool:
-		roll -= float(RARW.get(c.get("r", "common"), 1))
+		roll -= rarity_weight(c)
 		if roll <= 0:
 			return c
 	return pool[pool.size() - 1]
+
+
+## How often a card turns up in a reward or the shop, against the others in the
+## pool. The prototype writes `RARW[c.r] || 1` (~2270), and the `|| 1` is
+## load-bearing twice: a card with NO rarity weighs 1, and so does `basic`,
+## whose 0 is falsy. The port read a missing rarity as "common" — six times as
+## likely as the specification offers it — which only a mod can reach, since
+## every card the base game can offer names its rarity; and it let basic's 0
+## stand, so a mod's basic-rarity card was never offered at all. Found by
+## tests/test_against_the_prototype.gd, rolling both with the same number.
+const RARW := {"basic": 0, "common": 6, "uncommon": 3, "rare": 1}
+
+static func rarity_weight(c: Dictionary) -> float:
+	var w := float(RARW.get(c.get("r"), 0))
+	return w if w != 0.0 else 1.0
 
 
 func minor_of_el(el: String, ex: Array):

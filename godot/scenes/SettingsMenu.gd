@@ -63,12 +63,20 @@ func _build() -> void:
 
 # ── the rail ────────────────────────────────────────────────────────────
 
+## The sections this view offers — see Mode.gd. The workshop's own two
+## (the prototype's knobs, the mod packs) are not a player's.
+func _sections() -> Array:
+	return Settings.sections_for(Mode.is_work())
+
+
 func _rail() -> Control:
 	var v := UIKit.vbox(4)
 	v.custom_minimum_size.x = 170 * UIKit.text_scale
-	for i in Settings.SECTIONS.size():
+	var sections := _sections()
+	_section = clampi(_section, 0, sections.size() - 1)
+	for i in sections.size():
 		var idx := i
-		var b := UIKit.button(I18n.t(str(Settings.SECTIONS[i]["title"])), func(): _select(idx))
+		var b := UIKit.button(I18n.t(str(sections[i]["title"])), func(): _select(idx))
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		# The selected entry is gold and cannot be re-pressed. Disabling it is
 		# what keeps keyboard focus from parking on the row that does nothing,
@@ -94,7 +102,9 @@ func _select(index: int) -> void:
 # ── the panes ───────────────────────────────────────────────────────────
 
 func _build_pane(v: VBoxContainer) -> void:
-	match str(Settings.SECTIONS[_section]["id"]):
+	var sections := _sections()
+	_section = clampi(_section, 0, sections.size() - 1)
+	match str(sections[_section]["id"]):
 		"gameplay": _pane_gameplay(v)
 		"video": _pane_video(v)
 		"audio": _pane_audio(v)
@@ -172,13 +182,24 @@ func _pane_audio(v: VBoxContainer) -> void:
 		"ui_volume", I18n.t("Interface sounds"),
 		I18n.t("The click as focus moves and as a button is pressed. Playing on the keyboard, this is the sound you hear most."),
 		func(x): return _pct(x)))
+	# THE MUSIC AND THE ROOM. Both settings existed, both drove their buses,
+	# and neither had a row: this pane still said there was no music slider
+	# because there was no music, long after the music arrived. Found when the
+	# settings rows were tagged with their keys and asked to cover their
+	# sections (tests/test_settings.gd).
+	v.add_child(UIKit.setting_slider(
+		"music_volume", I18n.t("Music"),
+		I18n.t("The score, which changes with where you are in the evening."),
+		func(x): return _pct(x)))
+	v.add_child(UIKit.setting_slider(
+		"ambience_volume", I18n.t("The room"),
+		I18n.t("The rain on the window, and the fire."),
+		func(x): return _pct(x)))
 	v.add_child(UIKit.setting_toggle("muted", I18n.t("Mute"), I18n.t("Silence everything.")))
-	# Said out loud rather than left for someone to wonder about. There is no
-	# music slider because there is no music; adding one would be the first
-	# control in this game that does nothing.
-	v.add_child(UIKit.block(I18n.t(
-		"Every sound in the game is a placeholder for now, and there is no music yet — which is why there is no music slider. See docs/SOUND_GUIDE.md."
-	), 11, UIKit.DIM))
+	if Mode.is_work():
+		v.add_child(UIKit.block(I18n.t(
+			"Every sound and every piece of music is still a placeholder. See docs/SOUND_GUIDE.md."
+		), 11, UIKit.DIM))
 
 
 func _pane_interface(v: VBoxContainer) -> void:
@@ -195,6 +216,9 @@ func _pane_interface(v: VBoxContainer) -> void:
 		"high_contrast", I18n.t("High contrast"),
 		I18n.t("A black ground, white text, and stronger secondary text. The game's usual dim greys are a deliberate look and hard to read for some people."),
 		func(_p): _build()))
+	v.add_child(UIKit.setting_toggle(
+		"particles", I18n.t("Particles"),
+		I18n.t("Sparks, dust and embers around the cards. Always off when the game speed is Instant.")))
 
 
 func _pane_controls(v: VBoxContainer) -> void:
@@ -206,6 +230,14 @@ func _pane_controls(v: VBoxContainer) -> void:
 	v.add_child(UIKit.block(I18n.t(
 		"The gamepad button on the right is shown, not editable: only the keyboard key is rebindable, so changing one never costs you a controller button."
 	), 11, UIKit.DIM))
+	v.add_child(UIKit.setting_toggle(
+		"haptics", I18n.t("Vibration"),
+		I18n.t("The gamepad rumbles when a card lands, goes through a wall, and when the reading reaches them.")))
+	v.add_child(UIKit.setting_slider(
+		"haptic_strength", I18n.t("Vibration strength"),
+		I18n.t("How hard it rumbles. Try it with the button below."),
+		func(x): return _pct(x)))
+	v.add_child(UIKit.button(I18n.t("TRY IT"), func(): Feel.rumble("swell")))
 
 
 func _pane_language(v: VBoxContainer) -> void:
@@ -232,7 +264,10 @@ func _pane_content(v: VBoxContainer) -> void:
 	v.add_child(UIKit.block(I18n.t(
 		"Individual packs are switched on and off in MODS, where each one's name, order and load messages are."
 	), 11, UIKit.DIM))
-	v.add_child(UIKit.button(I18n.t("MODS"), func(): Nav.goto_mods()))
+	var mods := UIKit.button(I18n.t("MODS"), func(): Nav.goto_mods())
+	# The row for `disabled_mods`: the packs are switched on and off in there.
+	mods.set_meta("setting", "disabled_mods")
+	v.add_child(mods)
 
 
 func _pct(x) -> String:
@@ -246,6 +281,7 @@ func _pct(x) -> String:
 ## screen gets when it is next constructed.
 func _language_row() -> Control:
 	var row := UIKit.setting_row(I18n.t("Language"), "")
+	row.set_meta("setting", "locale")
 	var opt := OptionButton.new()
 	UIKit.style_button(opt)
 	var i := 0
@@ -276,6 +312,7 @@ func _language_row() -> Control:
 ## that always means "get me out of this".
 func _keybind_row(action: String, caption: String) -> Control:
 	var row := UIKit.setting_row(I18n.t(caption), "")
+	row.set_meta("setting", "keybinds")
 
 	var armed := false
 	var b := Button.new()
@@ -330,9 +367,9 @@ func _actions() -> Control:
 
 
 func _reset_section() -> void:
-	for key in Settings.SECTIONS[_section]["keys"]:
+	for key in _sections()[_section]["keys"]:
 		Settings.set_value(key, Settings.default_for(key))
-	if str(Settings.SECTIONS[_section]["id"]) == "content":
+	if str(_sections()[_section]["id"]) == "content":
 		Content.reload()
 	_build()
 

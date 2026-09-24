@@ -17,6 +17,8 @@ extends Node
 ## has never been opened in the editor — which is how the README tells people to
 ## run this. See Nav.gd's header for the same trap in another form.
 const MOD_LOADER := preload("res://autoload/ModLoader.gd")
+## See ModLoader.CARD_POOLS.
+const CARD_POOLS := MOD_LOADER.CARD_POOLS
 
 ## NOTE: this used to be a `const LOAD_EXAMPLE_MODS := true` that nothing
 ## actually read — ModLoader scanned res://mods_example/ unconditionally, so
@@ -51,6 +53,22 @@ var denial_shield: Dictionary
 var denial_wall: Dictionary
 var pronouns: Dictionary
 var sounds: Dictionary
+## How each moment feels — see autoload/Feel.gd and data/base/feel.json.
+var feel: Dictionary
+var particles: Dictionary
+var motions: Dictionary
+var haptics: Dictionary
+## What the player's two hands do — Feel.hand_pose(), scenes/Hands.gd.
+var gestures: Dictionary
+## How a drawn card comes off the deck — Feel.deal(), scenes/Deck.gd.
+var deal: Dictionary
+## How the Minitel's tube behaves — data/base/minitel.json, Minitel.gd.
+var terminal: Dictionary
+var card_states: Array
+## The room remembers — data/base/room.json, drawn by scenes/RoomTraces.gd.
+var props: Dictionary
+var spots: Dictionary
+var traces: Array
 ## The looping half of the audio: the score and the room tone. See music.json.
 var music: Dictionary
 var minitel_codes: Dictionary
@@ -109,6 +127,17 @@ func reload() -> void:
 	denial_wall = registries.get("denial_wall", {})
 	pronouns = registries.get("pronouns", {})
 	sounds = registries.get("sounds", {})
+	feel = registries.get("feel", {})
+	particles = registries.get("particles", {})
+	motions = registries.get("motions", {})
+	haptics = registries.get("haptics", {})
+	gestures = registries.get("gestures", {})
+	deal = registries.get("deal", {})
+	terminal = registries.get("terminal", {})
+	card_states = registries.get("card_states", [])
+	props = registries.get("props", {})
+	spots = registries.get("spots", {})
+	traces = registries.get("traces", [])
 	music = registries.get("music", {})
 	minitel_codes = registries.get("minitel_codes", {})
 	icons = registries.get("icons", {})
@@ -137,9 +166,8 @@ func reload() -> void:
 
 func _index() -> void:
 	_cards_by_name.clear()
-	for pool in [cards_basics, cards_chroma, cards_minor, cards_arcana]:
-		for c in pool:
-			_cards_by_name[c["n"]] = c
+	for c in all_cards():
+		_cards_by_name[c["n"]] = c
 	_card_effects_by_key.clear()
 	for e in card_effects:
 		_card_effects_by_key[e["k"]] = e
@@ -152,6 +180,14 @@ func _index() -> void:
 	_sitters_by_name.clear()
 	for s in sitters:
 		_sitters_by_name[s["name"]] = s
+
+
+## Every card in every pool, in pool order.
+func all_cards() -> Array:
+	var out: Array = []
+	for pool in CARD_POOLS:
+		out.append_array(registries.get(pool, []))
+	return out
 
 
 func get_card(card_name: String) -> Dictionary:

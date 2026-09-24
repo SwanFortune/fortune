@@ -34,6 +34,10 @@ var settings_return_scene: String = ""
 ## (as an overlay) from inside a run.
 var help_return_scene: String = ""
 
+## And for the Minitel, which is reachable from the main menu and from the
+## machine itself, on the table in the middle of a reading.
+var minitel_return_scene: String = ""
+
 
 func _run() -> Node:
 	return get_node_or_null("/root/Run")
@@ -69,8 +73,17 @@ func goto_mods() -> void:
 	_goto("res://scenes/ModsScreen.tscn")
 
 
-func goto_minitel() -> void:
-	_goto("res://scenes/MinitelScreen.tscn")
+## `return_scene` is where BACK goes; empty is the main menu. Dialled from the
+## table, the room's music carries on — you have only turned to the machine on
+## the sideboard, you have not left the reading.
+func goto_minitel(return_scene: String = "") -> void:
+	minitel_return_scene = return_scene
+	if return_scene == "":
+		_goto("res://scenes/MinitelScreen.tscn")
+		return
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		tree.change_scene_to_file("res://scenes/MinitelScreen.tscn")
 
 
 func goto_how_to_play(return_scene: String = "") -> void:
@@ -80,6 +93,11 @@ func goto_how_to_play(return_scene: String = "") -> void:
 
 func goto_main_menu() -> void:
 	_goto("res://scenes/MainMenu.tscn")
+
+
+## The studio, for whoever draws and animates for the game. See scenes/Studio.gd.
+func goto_studio() -> void:
+	_goto("res://scenes/Studio.tscn")
 
 
 ## WHAT PLAYS ON EACH SCREEN. One place, because every screen change goes
@@ -103,6 +121,9 @@ const MUSIC_FOR := {
 	"res://scenes/Reading.tscn": "the_table",
 	"res://scenes/ResultScreen.tscn": "the_table",
 	"res://scenes/RunOver.tscn": "after",
+	# The table's music, so what is tuned in the studio is judged in the room
+	# it will be seen in.
+	"res://scenes/Studio.tscn": "the_table",
 }
 
 ## The room tone, which is the same room all night. One entry, kept as a map

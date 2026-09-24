@@ -147,6 +147,8 @@ func _take(i: int) -> void:
 	# and playing the coin sound for one would be a small lie.
 	if int(Run.state["pick"].get("opts", [])[i].get("cost", 0)) > 0:
 		Audio.play("coin")
+		var focused := get_viewport().gui_get_focus_owner()
+		Feel.play("coin", focused if focused != null and is_ancestor_of(focused) else null)
 	Run.take_pick(i)
 	Nav.goto_for_state()
 

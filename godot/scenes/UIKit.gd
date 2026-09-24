@@ -790,6 +790,9 @@ static func _inline_help(text: String) -> Label:
 static func setting_choice(key: String, caption: String, help: String, values: Array,
 		labels: Array, enabled: bool = true, on_changed: Callable = Callable()) -> Control:
 	var row := setting_row(caption, help)
+	# Which setting this row is, so a test can ask whether every setting in a
+	# section has a row — two once had none, and nothing noticed.
+	row.set_meta("setting", key)
 	var opt := OptionButton.new()
 	style_button(opt)
 	opt.disabled = not enabled
@@ -819,6 +822,9 @@ static func setting_choice(key: String, caption: String, help: String, values: A
 static func setting_slider(key: String, caption: String, help: String, fmt: Callable, whole: bool = false) -> Control:
 	var def: Array = Settings.DEFS[key]
 	var row := setting_row(caption, help)
+	# Which setting this row is, so a test can ask whether every setting in a
+	# section has a row — two once had none, and nothing noticed.
+	row.set_meta("setting", key)
 
 	var slider := HSlider.new()
 	style_slider(slider)
@@ -852,6 +858,9 @@ static func setting_slider(key: String, caption: String, help: String, fmt: Call
 ## content when the mod toggle flips).
 static func setting_toggle(key: String, caption: String, help: String, on_toggled: Callable = Callable()) -> Control:
 	var row := setting_row(caption, help)
+	# Which setting this row is, so a test can ask whether every setting in a
+	# section has a row — two once had none, and nothing noticed.
+	row.set_meta("setting", key)
 
 	var box := CheckButton.new()
 	box.button_pressed = bool(Settings.get_value(key))

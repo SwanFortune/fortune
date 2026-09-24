@@ -114,9 +114,88 @@ func texture(id: String) -> Texture2D:
 	# gets verified against the filesystem, so a status of "final" with no
 	# file present degrades to the placeholder rather than erroring.
 	if entry.get("status", "missing") != "missing":
-		tex = _load_texture(path)
+		tex = animated(entry, path)
+		if tex == null:
+			tex = load_texture(path)
 	_cache[id] = tex
 	return tex
+
+
+## A DRAWING THAT MOVES. Two ways to deliver one, because animation tools export
+## one or the other and an animator should not have to convert:
+##
+##   a SPRITE SHEET — the ordinary <slug>.png, holding a grid of frames, with
+##     "frames": [columns, rows] in the manifest entry (and "count" if the last
+##     row is not full). Every frame is the size the spec asks for.
+##   a FOLDER OF FRAMES — assets/art/<kind>/<slug>/ holding 0001.png, 0002.png…
+##     in the order their names sort. What Krita, Procreate and Aseprite export
+##     when asked for "frames as images". No manifest field needed.
+##
+## "fps" (default 12) sets the speed, "loop": false plays it once and holds the
+## last frame. What comes back is an AnimatedTexture, which IS a Texture2D, so
+## every card face and portrait slot in the game animates without being told:
+## nothing that displays art knows or cares that this one moves.
+##
+## Null when the entry is not animated, and the caller loads the still.
+func animated(entry: Dictionary, path: String) -> Texture2D:
+	var frames: Array[Texture2D] = []
+	for f in frame_files(path.get_basename()):
+		var t := load_texture(f)
+		if t != null:
+			frames.append(t)
+	var grid = entry.get("frames")
+	if frames.is_empty() and grid is Array and grid.size() == 2:
+		var sheet := load_texture(path)
+		if sheet != null:
+			frames = _slice(sheet, int(grid[0]), int(grid[1]), int(entry.get("count", 0)))
+	if frames.size() < 2:
+		return null
+	var anim := AnimatedTexture.new()
+	anim.frames = mini(frames.size(), AnimatedTexture.MAX_FRAMES)
+	var each := 1.0 / maxf(float(entry.get("fps", DEFAULT_FPS)), 0.1)
+	for i in anim.frames:
+		anim.set_frame_texture(i, frames[i])
+		anim.set_frame_duration(i, each)
+	anim.one_shot = not bool(entry.get("loop", true))
+	return anim
+
+
+const DEFAULT_FPS := 12.0
+
+
+## The frames in a folder, in name order. Asked two ways and merged: in an
+## exported build the pack lists `0001.png.import`/`.remap` rather than the PNG
+## (ResourceLoader.list_directory() puts the names back), and a folder dropped
+## in after the last editor import, or in user://mods, has plain PNGs only.
+func frame_files(folder: String) -> Array[String]:
+	var names := {}
+	if DirAccess.dir_exists_absolute(folder):
+		for n in DirAccess.get_files_at(folder):
+			names[n.trim_suffix(".import").trim_suffix(".remap")] = true
+	if folder.begins_with("res://"):
+		for n in ResourceLoader.list_directory(folder):
+			names[n] = true
+	var out: Array[String] = []
+	for n in names:
+		if str(n).to_lower().ends_with(".png"):
+			out.append(folder.path_join(n))
+	out.sort_custom(func(a, b): return a.naturalnocasecmp_to(b) < 0)
+	return out
+
+
+func _slice(sheet: Texture2D, cols: int, rows: int, count: int) -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	if cols < 1 or rows < 1:
+		return out
+	var w := sheet.get_width() / cols
+	var h := sheet.get_height() / rows
+	var n := cols * rows if count <= 0 else mini(count, cols * rows)
+	for i in n:
+		var a := AtlasTexture.new()
+		a.atlas = sheet
+		a.region = Rect2(float((i % cols) * w), float((i / cols) * h), float(w), float(h))
+		out.append(a)
+	return out
 
 
 ## Decodes an image from BYTES rather than going through load().
@@ -136,7 +215,9 @@ func texture(id: String) -> Texture2D:
 ## in the shipped build and every card falls back to its placeholder. In the
 ## source tree it would look perfect. That is the audio bug exactly, and the
 ## only reason it was found there first is that the audio already exists.
-func _load_texture(path: String) -> Texture2D:
+## Public: Feel reads particle drawings the same two ways, through this — one
+## loader, so the lesson the mute build taught is written down once.
+func load_texture(path: String) -> Texture2D:
 	if not FileAccess.file_exists(path):
 		if not ResourceLoader.exists(path):
 			return null
@@ -159,6 +240,25 @@ func sitter_texture(sitter: Dictionary) -> Texture2D:
 
 func reader_texture(reader: Dictionary) -> Texture2D:
 	return texture(reader_id(reader))
+
+
+## What a laid card becomes in the room — see data/base/room.json and
+## scenes/RoomTraces.gd, which draws its placeholder when this is null.
+func prop_texture(prop_id: String) -> Texture2D:
+	return texture("prop/" + slug(prop_id))
+
+
+## A piece of the game's own furniture rather than of its content — the back of
+## every card (scenes/Deck.gd). `name` is the slot after `ui/`.
+func ui_texture(name: String) -> Texture2D:
+	return texture("ui/" + name)
+
+
+## A ring, a tattoo, a scar as somebody drew it, worn on the player's hands —
+## see scenes/Table.gd, mark_places(), which places it and draws a stand-in for
+## its kind when this is null. Marks and relics share the one slot per name.
+func mark_texture(mark_name: String) -> Texture2D:
+	return texture("mark/" + slug(mark_name))
 
 
 ## The status that means NOBODY HAS DRAWN THIS YET, and the answer assumed for an

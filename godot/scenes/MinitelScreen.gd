@@ -50,8 +50,20 @@ var _last: Dictionary = {}
 var _prefix_field: LineEdit
 var _code_field: LineEdit
 
+## Which page of the last answer is on the tube.
+var _page := 0
+## Whether the next fill of the tube prints at the line's speed: only when
+## something new arrives, never when the screen is merely rebuilt.
+var _arriving := false
+var _lines_box: VBoxContainer
+var _page_mark: Label
+var _keys: Dictionary = {}
+var _print_tween: Tween
+
 
 func _ready() -> void:
+	if Nav.minitel_return_scene != "":
+		_return_scene = Nav.minitel_return_scene
 	_build()
 
 
@@ -84,6 +96,7 @@ func _build() -> void:
 		12, UIKit.DIM))
 
 	outer.add_child(_terminal())
+	outer.add_child(_function_keys())
 	outer.add_child(_composer())
 	outer.add_child(_log())
 
@@ -132,8 +145,32 @@ func _terminal() -> Control:
 	pad.add_theme_constant_override("margin_bottom", CASE_PAD + CASE_FOOT + 12)
 	stack.add_child(pad)
 
-	var v := UIKit.vbox(2)
-	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_lines_box = UIKit.vbox(2)
+	_lines_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pad.add_child(_lines_box)
+
+	# Which page this is, top right of the glass, the way a Minitel printed it.
+	_page_mark = UIKit.label("", 12, PHOSPHOR_DIM)
+	_page_mark.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	_page_mark.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_page_mark.offset_right = -(CASE_PAD + 10)
+	_page_mark.offset_top = CASE_PAD + 6
+	stack.add_child(_page_mark)
+	_fill_tube()
+	return stack
+
+
+## Prints the current page on the tube — and nothing else on the screen, so a
+## key pressed to turn the page keeps its focus (see CLAUDE.md on rebuilding a
+## panel from a control's own signal).
+func _fill_tube() -> void:
+	if _lines_box == null or not is_instance_valid(_lines_box):
+		return
+	if _print_tween != null and _print_tween.is_valid():
+		_print_tween.kill()
+	for c in _lines_box.get_children():
+		c.queue_free()
+	var printed: Array[Label] = []
 	for line in _screen_lines():
 		# An empty line in a service's text is a deliberate blank row, and a
 		# Label with no text collapses to nothing — so it becomes a spacer of
@@ -141,12 +178,54 @@ func _terminal() -> Control:
 		if str(line[0]) == "":
 			var sp := Control.new()
 			sp.custom_minimum_size.y = 14
-			v.add_child(sp)
+			_lines_box.add_child(sp)
 		else:
-			v.add_child(UIKit.block(str(line[0]), 15, line[1]))
-	v.add_child(_cursor())
-	pad.add_child(v)
-	return stack
+			var l := UIKit.block(str(line[0]), 15, line[1])
+			_lines_box.add_child(l)
+			printed.append(l)
+	_lines_box.add_child(_cursor())
+	_update_keys()
+	if _arriving:
+		_arriving = false
+		_print(printed)
+
+
+## THE LINE'S SPEED. Every character arrives in order, at Minitel.chars_per_second(),
+## the whole page one stream of text rather than a line at a time. A key press
+## finishes it (see _unhandled_input()); with motion off it is simply there.
+func _print(labels: Array[Label]) -> void:
+	var total := 0
+	for l in labels:
+		total += l.get_total_character_count()
+	if total == 0 or UIKit.motion_off():
+		return
+	for l in labels:
+		l.visible_characters = 0
+	_print_tween = create_tween()
+	_print_tween.tween_method(_show_up_to.bind(labels), 0.0, float(total),
+		UIKit.dur(float(total) / Minitel.chars_per_second()))
+
+
+func _show_up_to(shown: float, labels: Array[Label]) -> void:
+	var left := int(shown)
+	for l in labels:
+		if not is_instance_valid(l):
+			continue
+		var n := l.get_total_character_count()
+		l.visible_characters = clampi(left, 0, n) if left < n else -1
+		left -= n
+
+
+## Whether the tube is still printing. For the tests, and for the key that
+## finishes it.
+func printing() -> bool:
+	return _print_tween != null and _print_tween.is_valid() and _print_tween.is_running()
+
+
+## Everything there is to print, at once.
+func finish_printing() -> void:
+	if printing():
+		_print_tween.custom_step(1e6)
 
 
 ## The block cursor sitting under the last line, blinking. A cathode terminal
@@ -233,7 +312,7 @@ func _rounded(c: Control, rect: Rect2, r: float, col: Color) -> void:
 	c.draw_colored_polygon(pts, col)
 
 
-## [text, colour] rows for the tube.
+## [text, colour] rows for the tube: the page on show.
 func _screen_lines() -> Array:
 	if _last.is_empty():
 		return [
@@ -244,10 +323,67 @@ func _screen_lines() -> Array:
 	var colour: Color = PHOSPHOR
 	if _last["kind"] == Minitel.UNKNOWN or _last["kind"] == Minitel.BAD_FORMAT:
 		colour = PHOSPHOR_WARN
+	var all: Array = _last.get("pages", [_last["lines"]])
 	var out: Array = []
-	for line in _last["lines"]:
+	for line in all[clampi(_page, 0, all.size() - 1)]:
 		out.append([str(line), colour])
 	return out
+
+
+func _page_count() -> int:
+	return 1 if _last.is_empty() else maxi(1, _last.get("pages", [[]]).size())
+
+
+# ── the function keys ───────────────────────────────────────────────────
+
+## SOMMAIRE, RETOUR and SUITE, the keys that were printed on every Minitel's
+## keyboard: the start again, the page before, the page after. ENVOI is with the
+## code, where it is pressed.
+func _function_keys() -> Control:
+	var row := UIKit.hbox(8)
+	_keys = {
+		"sommaire": UIKit.button(I18n.t("SOMMAIRE"), _home),
+		"retour": UIKit.button(I18n.t("RETOUR"), _turn.bind(-1)),
+		"suite": UIKit.button(I18n.t("SUITE"), _turn.bind(1)),
+	}
+	for k in ["sommaire", "retour", "suite"]:
+		row.add_child(_keys[k])
+	_update_keys()
+	return row
+
+
+## The page number on the glass, and which keys have somewhere to go. Separate
+## from _fill_tube(): the keys are built after the tube, and refilling it to
+## label them would cut off the page it had just started to print.
+func _update_keys() -> void:
+	var n := _page_count()
+	if _page_mark != null and is_instance_valid(_page_mark):
+		_page_mark.text = "%d/%d" % [_page + 1, n] if n > 1 else ""
+	if _keys.has("suite") and is_instance_valid(_keys["suite"]):
+		_keys["suite"].disabled = _page >= n - 1
+		_keys["retour"].disabled = _page <= 0
+		_keys["sommaire"].disabled = _last.is_empty()
+
+
+## The page before or after, if there is one.
+func _turn(by: int) -> void:
+	var to := clampi(_page + by, 0, _page_count() - 1)
+	if to == _page:
+		return
+	_page = to
+	_arriving = true
+	Audio.play("ui_move")
+	_fill_tube()
+
+
+## Back to the directory's own page.
+func _home() -> void:
+	if _last.is_empty():
+		return
+	_last = {}
+	_page = 0
+	_arriving = true
+	_fill_tube()
 
 
 # ── the keyboard ────────────────────────────────────────────────────────
@@ -311,6 +447,8 @@ func _send() -> void:
 	var prefix := _prefix_field.text
 	var code := _code_field.text
 	_last = Minitel.submit(prefix, code)
+	_page = 0
+	_arriving = true
 	Audio.play("ui_press" if _last["kind"] == Minitel.OK else "ui_move")
 	# A code that took clears the field; a refused one is left in place, so the
 	# player can see the typo rather than retyping from memory.
@@ -342,10 +480,24 @@ func _log() -> Control:
 
 
 func _back() -> void:
+	Nav.minitel_return_scene = ""
 	get_tree().change_scene_to_file(_return_scene)
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Anything pressed while the tube prints finishes the page first, as
+	# impatience did on the real thing.
+	if printing() and (event is InputEventKey or event is InputEventMouseButton or event is InputEventJoypadButton) \
+			and event.is_pressed():
+		finish_printing()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_cancel"):
 		_back()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_page_down"):
+		_turn(1)
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("ui_page_up"):
+		_turn(-1)
 		get_viewport().set_input_as_handled()

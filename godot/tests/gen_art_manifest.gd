@@ -51,7 +51,7 @@ func _initialize() -> void:
 		assets[id] = rec
 		added.append(id)
 
-	for pool_name in ["cards_basics", "cards_chroma", "cards_minor", "cards_arcana"]:
+	for pool_name in content.CARD_POOLS:
 		for c in content.registries.get(pool_name, []):
 			var el = c.get("el")
 			add.call(
@@ -77,6 +77,26 @@ func _initialize() -> void:
 			s, "sitter/" + _slug(s["name"]), "sitter", "%s · %s" % [s["name"], s["role"]],
 			{"element": s["el"], "pronoun": s.get("p", "they"), "flavor": s.get("brings", "")}
 		)
+	# What the cards become in the room (data/base/room.json).
+	for id in content.props:
+		add.call(
+			content.props[id], "prop/" + _slug(str(id)), "prop", str(id),
+			{"draw": str(content.props[id].get("draw", "")), "anchor": str(content.props[id].get("anchor", "center"))}
+		)
+
+	# What the player wears on their hands (marks.json, relics.json): one
+	# drawing per mark, shown where its `on` says (scenes/Table.gd).
+	for pool in [content.marks, content.relics]:
+		for m in pool:
+			add.call(
+				m, "mark/" + _slug(str(m["n"])), "mark", str(m["n"]),
+				{"mark_kind": str(m.get("kind", "")), "on": str(m.get("on", "")), "flavor": str(m.get("text", ""))}
+			)
+
+	# The back of every card: on the deck on the table, and on each card as it
+	# is dealt from it (scenes/Deck.gd).
+	add.call({}, "ui/card-back", "ui", "The back of every card", {})
+
 	var boss: Dictionary = content.boss
 	if not boss.is_empty():
 		add.call(
@@ -100,11 +120,12 @@ func _initialize() -> void:
 	for id in assets:
 		var st: String = assets[id].get("status", "missing")
 		by_status[st] = int(by_status.get(st, 0)) + 1
-	print("wrote %s — %d assets (%d cards, %d readers, %d sitters)" % [
+	print("wrote %s — %d assets (%d cards, %d readers, %d sitters, %d marks)" % [
 		OUT_PATH, assets.size(),
 		assets.keys().filter(func(k): return k.begins_with("card/")).size(),
 		assets.keys().filter(func(k): return k.begins_with("reader/")).size(),
 		assets.keys().filter(func(k): return k.begins_with("sitter/")).size(),
+		assets.keys().filter(func(k): return k.begins_with("mark/")).size(),
 	])
 	print("  by status: ", by_status)
 	if not added.is_empty():
@@ -116,17 +137,44 @@ func _initialize() -> void:
 
 func _spec() -> Dictionary:
 	return {
+		# `applies_to` is what tests/test_art.gd holds each delivered file's
+		# size against. It was in the manifest and NOT here, so running this
+		# generator — which the docs tell you to do after adding a card —
+		# silently took it out, and the size check then failed on every kind.
 		"card_art": {
+			"applies_to": ["card"],
 			"pixels": "768x576", "aspect": "4:3 landscape",
 			"format": "PNG, RGBA, transparent background allowed",
 			"safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below.",
 			"notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
 		},
 		"portrait_art": {
+			"applies_to": ["sitter", "reader"],
 			"pixels": "768x1024", "aspect": "3:4 portrait",
 			"format": "PNG, RGBA",
 			"safe_zone": "None. The slot is the same 3:4 shape, so the whole image is shown; the composure glow is a rim at the edges and never covers the face.",
 			"notes": "Used for sitters (the villager across the table) and readers (your own fortune-teller on the sign-select screen).",
+		},
+		"prop_art": {
+			"applies_to": ["prop"],
+			"pixels": "512x512", "aspect": "1:1, square canvas",
+			"format": "PNG, RGBA, transparent background",
+			"safe_zone": "The thing itself, on a transparent square. It is centred on its spot on the table — or hung from it by its top edge when the prop says `anchor: top` (their coat, from the hook).",
+			"notes": "What a card becomes in the room when it is laid (data/base/room.json): the cup of tea, their coat, the ash of the letter. Drawn about as tall as the prop's `size` times the screen height — a cup is roughly 55 px high at 720p.",
+		},
+		"mark_art": {
+			"applies_to": ["mark"],
+			"pixels": "256x256", "aspect": "1:1, square canvas",
+			"format": "PNG, RGBA, transparent background",
+			"safe_zone": "The mark alone, centred, on a transparent square, drawn with its TOP toward the fingertip: a ring is turned to lie across the finger it is on, and a tattoo along it.",
+			"notes": "Worn on the player's hands at the bottom of the reading, where its `on` field says (a finger, the thumb, the nails, the back of the hand, the wrist, the knuckles, or held above). Small: the square is about a tenth to a fifth of the hands' height — a ring is roughly 10 px across at 720p — so it has to read as a shape and a colour, not as detail. A mark on the nails is drawn once and shown on all four fingertips.",
+		},
+		"cardback_art": {
+			"applies_to": ["ui"],
+			"pixels": "488x736", "aspect": "2:3 portrait, the card's own shape",
+			"format": "PNG, RGBA",
+			"safe_zone": "The whole card; it is shown entire. Round the corners yourself if you want them round — the stand-in does, and nothing is masked.",
+			"notes": "The back of every card: the pile on the table (about 61x92 px at 720p, a little crooked) and each card as it flies from the pile to the hand and turns over (122x184 px). One drawing for the whole deck.",
 		},
 		"naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
 		"status_values": ["missing", "wip", "final"],

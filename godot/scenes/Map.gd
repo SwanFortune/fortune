@@ -64,6 +64,9 @@ func _knock(root: Control) -> void:
 	var room := root.find_child("Room", false, false)
 	if room == null:
 		return
+	# Felt, not seen: the pattern is its own two knocks, and it plays whatever
+	# the motion setting — see Feel.gd on why haptics do not follow it.
+	Feel.play("knock")
 	if UIKit.motion_off():
 		# One knock, no rattle: the sound is not the animation, and turning
 		# motion off should not make the door go quiet.
@@ -248,7 +251,9 @@ func _opt_button(o: Dictionary, i: int) -> Control:
 		"sitter", "elite", "boss":
 			var s: Dictionary = o["sitter"]
 			var q: Dictionary = o["quirk"]
-			var tag := "ELITE — " if o["kind"] == "elite" else ("THE MAYOR — " if o["kind"] == "boss" else "")
+			# Through I18n: these went to the screen as raw English, on a map
+			# whose every other word was French.
+			var tag := I18n.t("ELITE") + " — " if o["kind"] == "elite" else (I18n.t("THE MAYOR") + " — " if o["kind"] == "boss" else "")
 			lines.append(["%s%s" % [tag, I18n.sitter_field(s, "name")], 17, UIKit.RED if o["kind"] != "sitter" else UIKit.INK])
 			lines.append(["%s · %s %s (%s)" % [I18n.sitter_field(s, "role"), I18n.t("sign"), I18n.sign_field(q, "n"), I18n.sign_field(q, "dn")], 12, UIKit.el_color(s["el"])])
 			# The MECHANIC on the row, the flavour on the hover — the same
