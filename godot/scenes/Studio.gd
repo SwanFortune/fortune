@@ -68,6 +68,10 @@ var _repeat_timer: Timer
 
 
 func _ready() -> void:
+	# The workshop's own room. F12 into the play view while in it goes home.
+	if not Mode.is_work():
+		Nav.goto_main_menu.call_deferred()
+		return
 	var root := UIKit.root_control(Table.VIEW_TABLE)
 	add_child(root)
 	# The studio's own table, which the ROOM pane puts things on — the same

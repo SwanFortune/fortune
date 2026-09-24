@@ -16,7 +16,7 @@ Les guides détaillés, en anglais, sont `docs/ART_GUIDE.md` (les images) et
    <https://godotengine.org/download>. Rien d'autre à installer.
 2. Ouvre le dossier `godot/` du projet dans Godot (bouton *Importer*, puis
    choisis `godot/project.godot`) et lance le jeu (▶ en haut à droite).
-3. Dans le jeu : **CRÉDITS → ATELIER**.
+3. Dans le jeu : **ATELIER**, sur le menu principal (ou **CRÉDITS → ATELIER**).
 
 Pour arriver directement dans l'atelier à chaque lancement, en ligne de
 commande :
@@ -24,6 +24,24 @@ commande :
 ```
 godot --path godot -- --studio
 ```
+
+### Les deux vues : travailler, jouer
+
+Le jeu a deux visages, et **F12** passe de l'un à l'autre sur l'écran où tu es.
+
+- **La vue atelier** : les boutons ATELIER, BIBLIOTHÈQUE et MODS, les réglages
+  de travail, la version du build. Un petit « VUE ATELIER » dans le coin
+  rappelle qu'on n'est pas dans ce que voit un joueur.
+- **La vue joueur** : le jeu, et rien sur la façon dont il est fait.
+
+Les cartes jouent exactement pareil dans les deux ; seul ce que les écrans
+proposent change.
+
+Lancé depuis Godot, le jeu s'ouvre dans la vue atelier. `-- --play` ouvre
+directement la vue joueur. Sur un build exporté, envoyé à quelqu'un, l'atelier
+est caché : on l'ouvre en composant **3615 ATEL** sur le Minitel du jeu. Ensuite
+il reste disponible sur cette machine, et F12 marche. Un joueur qui ne compose
+jamais ce code ne voit rien de tout ça.
 
 ## 2. Ce que fait l'atelier
 

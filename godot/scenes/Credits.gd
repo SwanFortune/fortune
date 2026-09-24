@@ -29,7 +29,8 @@ func _ready() -> void:
 	UIKit.page_column(outer)
 
 	outer.add_child(UIKit.block(I18n.t("CREDITS"), 26, UIKit.GOLD))
-	outer.add_child(UIKit.block(Version.full(), 12, UIKit.DIM))
+	# The version a bug report needs; the engine beside it is the workshop's.
+	outer.add_child(UIKit.block(Version.full() if Mode.is_work() else Version.string(), 12, UIKit.DIM))
 
 	_scroll = UIKit.scroll()
 	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -47,7 +48,8 @@ func _ready() -> void:
 	var actions := UIKit.hbox(10)
 	actions.add_child(UIKit.button(I18n.t("BACK"), _back))
 	# Where the art is credited is where the person making it will look.
-	actions.add_child(UIKit.button(I18n.t("STUDIO"), func(): Nav.goto_studio()))
+	if Mode.is_work():
+		actions.add_child(UIKit.button(I18n.t("STUDIO"), func(): Nav.goto_studio()))
 	outer.add_child(actions)
 	UIKit.focus_first(self)
 

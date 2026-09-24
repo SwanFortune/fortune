@@ -55,10 +55,12 @@ func _build() -> void:
 	row.add_child(v)
 
 	v.add_child(UIKit.block(I18n.t("PARLOUR"), 40, UIKit.GOLD))
-	v.add_child(UIKit.block(I18n.t("a fortune-teller's ledger, in card form — Godot vertical-slice port"), 14, UIKit.DIM))
-	# The version, where a player can find it without being asked to. The first
-	# thing a bug report needs is which build it happened on.
-	v.add_child(UIKit.block(Version.full(), 11, UIKit.DIM))
+	# The prototype's own words. What this build IS — a port, the engine, the
+	# version — belongs to the workshop, and the credits carry the version for a
+	# player writing a bug report.
+	v.add_child(UIKit.block(I18n.t("a fortune-teller's ledger, in card form"), 14, UIKit.DIM))
+	if Mode.is_work():
+		v.add_child(UIKit.block(Version.full(), 11, UIKit.DIM))
 
 	var saved: Dictionary = Save.peek()
 	if not saved.is_empty():
@@ -101,20 +103,33 @@ func _build() -> void:
 	# about as much as no rules screen.
 	v.add_child(UIKit.button(I18n.t("HOW TO PLAY"), func(): Nav.goto_how_to_play()))
 	v.add_child(UIKit.button(I18n.t("RECORDS"), func(): Nav.goto_records()))
-	v.add_child(UIKit.button(I18n.t("LIBRARY"), func(): Nav.goto_library()))
 	# Always shown, never teased. A hidden entry that appears once you already
 	# know a code is a worse secret than an ordinary-looking machine that
 	# happens to answer to four letters.
 	v.add_child(UIKit.button(I18n.t("MINITEL"), func(): Nav.goto_minitel()))
-	v.add_child(UIKit.button(I18n.t("MODS"), func(): Nav.goto_mods()))
+	# THE WORKSHOP'S DOORS, in the work view only (Mode.gd): the studio, the
+	# card editor, the mod packs.
+	# ONE ROW for the three: as three more full-width entries they pushed QUIT
+	# off the bottom of a 720p window (tests/test_resolutions.gd).
+	if Mode.is_work():
+		var doors := UIKit.hbox(8)
+		for pair in [[I18n.t("STUDIO"), func(): Nav.goto_studio()],
+				[I18n.t("LIBRARY"), func(): Nav.goto_library()],
+				[I18n.t("MODS"), func(): Nav.goto_mods()]]:
+			var b := UIKit.button(pair[0], pair[1])
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			doors.add_child(b)
+		v.add_child(doors)
 	v.add_child(UIKit.button(I18n.t("SETTINGS"), func(): Nav.goto_settings()))
 	v.add_child(UIKit.button(I18n.t("QUIT"), _quit))
 
 	var edits := CardEdits.edit_count()
-	if edits > 0:
+	if edits > 0 and Mode.is_work():
 		v.add_child(UIKit.block(I18n.t("%d card(s) changed in the Library.") % edits, 11, UIKit.GOLD))
 
-	if not Content.load_errors.is_empty():
+	# A pack that failed to load is the workshop's news: a player can do
+	# nothing about it, and "see MODS" points at a door they do not have.
+	if not Content.load_errors.is_empty() and Mode.is_work():
 		v.add_child(UIKit.block(
 			"%d %s" % [Content.load_errors.size(), I18n.t("content warning(s) — see MODS.")], 12, UIKit.RED))
 	UIKit.focus_first(self)

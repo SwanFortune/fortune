@@ -45,6 +45,12 @@ a developer's, on the first screen anyone sees. Whether the subtitle should be
 the prototype's "a fortune-teller's ledger, in card form" alone is the
 author's call. `grep -n "vertical-slice" godot/scenes/MainMenu.gd`.
 
+**Should the work view reach a shipped build at all?** Today a build handed to
+a player opens the workshop when 3615 ATEL is dialled on the Minitel
+(`autoload/Mode.gd`). That is handy for testers and harmless to a player, but a
+release could drop the code from `minitel.json` instead. Keep it or drop it
+before the first public build.
+
 ## Needs a person, not a test
 
 **Nobody has heard the sound.** The exported build was mute for the whole of the

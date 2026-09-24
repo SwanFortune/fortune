@@ -16,8 +16,9 @@
 ##
 ##   grants  {stat, add}  bumps a numeric profile stat (see Profile.STATS)
 ##   arms    <event title> makes a `secret: true` event eligible on the map
+##   opens   "work_view" opens the workshop on this machine (Mode.gd)
 ##
-## Three levers, all data, all checkable. A general effect language would be
+## Four levers, all data, all checkable. A general effect language would be
 ## more than anyone has asked for and impossible to validate; an unknown stat
 ## or a missing event is reported here rather than silently doing nothing —
 ## which is precisely the failure mode docs/PORTING_NOTES.md keeps recording.
@@ -152,6 +153,16 @@ func _apply(code: String, rec: Dictionary) -> void:
 	var arms := str(rec.get("arms", ""))
 	if arms != "" and _secret_event(arms).is_empty():
 		push_warning("[Minitel] %s arms '%s', which is not a secret event." % [code, arms])
+
+	# The fourth lever, and the one that is not about the game: `opens:
+	# work_view` opens the workshop on this machine (see Mode.gd). It is how
+	# whoever is drawing or tuning reaches the studio in a build that was
+	# handed to them, with no command line.
+	var opens := str(rec.get("opens", ""))
+	if opens == "work_view":
+		get_node("/root/Mode").unlock()
+	elif opens != "":
+		push_warning("[Minitel] %s opens '%s', which is not something a code can open." % [code, opens])
 
 
 ## Secret events armed by a code the player has entered. Run.make_options()

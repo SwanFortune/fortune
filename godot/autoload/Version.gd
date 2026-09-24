@@ -77,20 +77,32 @@ func build_detail(path: String = STAMP_PATH) -> String:
 ## font by what they are. Where a person's name belongs, there is a line saying
 ## so and nothing else — an empty slot is honest, a placeholder name is not.
 func credits() -> Array:
-	return [
-		[I18n.t("THE GAME"), [
+	var work: bool = get_node("/root/Mode").is_work()
+	# THE PLAY VIEW is what a player reads: the game, the licences the engine
+	# and the font require, the version and where the log is — the two things a
+	# bug report needs. How it was made — a port, a prototype's file name,
+	# placeholders counted, translation percentages, the packs loaded — is the
+	# workshop's (Mode.gd).
+	var game: Array = [I18n.t("Design, writing, cards and numbers: the game's author.")]
+	if work:
+		game = [
 			I18n.t("Parlour began as a self-contained browser prototype, Parlour v23.dc.html — the design, the writing, the cards and the numbers are all its author's."),
 			I18n.t("This is a port of that prototype to Godot. The rules engine is a direct translation of its simulate(); where the two disagree, the prototype is right."),
-			I18n.t("Design and writing: see the repository."),
-		]],
+		]
+	var out: Array = [
+		[I18n.t("THE GAME"), game],
 		[I18n.t("BUILT WITH"), [
 			"· " + I18n.t("Godot Engine %s — MIT licence, godotengine.org") % _godot_version(),
 			"· " + I18n.t("The engine's default interface font, Open Sans (Apache 2.0)."),
 		]],
-		[I18n.t("ART AND SOUND"), _art_and_sound()],
-		[I18n.t("TRANSLATION"), _translation_lines()],
-		[I18n.t("THIS BUILD"), _this_build()],
-	] + _where_the_log_is()
+	]
+	if work:
+		out += [
+			[I18n.t("ART AND SOUND"), _art_and_sound()],
+			[I18n.t("TRANSLATION"), _translation_lines()],
+			[I18n.t("THIS BUILD"), _this_build()],
+		]
+	return out + _where_the_log_is()
 
 
 ## WHERE THE LOG IS, so a player who hits a bug has something to send. The game
