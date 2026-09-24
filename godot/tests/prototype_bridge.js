@@ -114,7 +114,7 @@ function auditor() {
 //
 // The content they read (JOBS, RELICS, DENIAL_SHIELD) is handed in, as for the
 // audit. Colours and the ring are the prototype's own.
-const FLOW_METHODS = ['startFight', 'beginTurn', 'drawTo', 'resolveRead', 'win', 'lose', 'rollRelic',
+const FLOW_METHODS = ['startFight', 'beginTurn', 'drawTo', '_lay', 'resolveRead', 'win', 'lose', 'rollRelic',
 	'clearTips', 'cfg', 'shuffle', 'pickRand'];
 const FLOW_CONSTS = ['GOLD', 'RING', 'jobOf'];
 const FLOW_TABLES = ['JOBS', 'RELICS', 'DENIAL_SHIELD'];
@@ -147,7 +147,7 @@ function playFight(make, one) {
 			hp: f.hp, faith: f.faith, coin: f.coin, turn: f.turn, turns: f.turns, denial: f.denial,
 			denialUp: f.denialUp, energy: f.energy, energyMax: f.energyMax, handMax: f.handMax, swept: f.swept,
 			hand: f.hand.length, draw: f.draw.length, disc: f.disc.length, gone: f.gone.length,
-			taken: f.taken != null, max: f.max,
+			taken: f.taken != null, max: f.max, cross: f.cross.length,
 			runCoin: st.coin, runFaith: st.faith, mended: st.mended, marks: st.marks.length,
 			serpEl: st.serpEl || '', res: st.res ? st.res.kind : '', seen: st.seen.length,
 		});
@@ -156,9 +156,16 @@ function playFight(make, one) {
 	look();
 	for (const k of one.lays) {
 		if (g.state.res) break;
-		const f = g.state.f;
-		f.cross = f.hand.splice(0, Math.min(k, f.hand.length));
-		g.resolveRead(g.simulate(f));
+		if (one.viaLay) {
+			// Through the prototype's own _lay(): cost, energy back, draw on lay.
+			// It replaces state.f with a copy each time, so ask for it afresh.
+			for (let j = 0; j < k && g.state.f.hand.length; j++) g._lay(g.state.f.hand[0].uid);
+		} else {
+			const f = g.state.f;
+			f.cross = f.hand.splice(0, Math.min(k, f.hand.length));
+		}
+		look();
+		g.resolveRead(g.simulate(g.state.f));
 		look();
 	}
 	return seen;

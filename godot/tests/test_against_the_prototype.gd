@@ -377,9 +377,11 @@ func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
 ##
 ## Each engine shuffles with its own dice, so a fight's deck is N copies of ONE
 ## random card: then the shuffle cannot matter, and hand, draw pile and discard
-## are compared as SIZES. Cards are put down straight from the front of the hand
-## — laying is its own subject, with its own energy rules — and each step is
-## compared after startFight and after every reading.
+## are compared as SIZES. Cards go down from the front of the hand — half the
+## fights through the prototype's own _lay() and the port's lay_card(), paying
+## cost and taking back energy and draws, the other half placed directly so a
+## fight with no energy left still reaches its verdict — and each fight is
+## compared after startFight, after each line is laid, and after each reading.
 func _test_a_fight_goes_as_the_prototype_says() -> void:
 	if _skipped != "":
 		print("  (skipping: %s)" % _skipped)
@@ -439,11 +441,18 @@ func _play_the_fight(run: Node, one: Dictionary) -> Array:
 	for k in one["lays"]:
 		if not run.state.get("res", {}).is_empty():
 			break
-		var f: Dictionary = run.state["f"]
-		var take: int = mini(int(k), f["hand"].size())
-		f["cross"] = f["hand"].slice(0, take)
-		f["hand"] = f["hand"].slice(take)
-		run.resolve_read(rules.simulate(run.run_ctx(), f))
+		if one["viaLay"]:
+			for _j in int(k):
+				if run.state["f"]["hand"].is_empty():
+					break
+				run.lay_card(run.state["f"]["hand"][0]["uid"])
+		else:
+			var f: Dictionary = run.state["f"]
+			var take: int = mini(int(k), f["hand"].size())
+			f["cross"] = f["hand"].slice(0, take)
+			f["hand"] = f["hand"].slice(take)
+		seen.append(_look_at(run))
+		run.resolve_read(rules.simulate(run.run_ctx(), run.state["f"]))
 		seen.append(_look_at(run))
 	return seen
 
@@ -456,6 +465,7 @@ func _look_at(run: Node) -> Dictionary:
 		"denial": f["denial"], "denialUp": f["denialUp"], "energy": f["energy"], "energyMax": f["energyMax"],
 		"handMax": f["handMax"], "swept": f["swept"], "hand": f["hand"].size(), "draw": f["draw"].size(),
 		"disc": f["disc"].size(), "gone": f["gone"].size(), "taken": f["taken"] != null, "max": f["max"],
+		"cross": f["cross"].size(),
 		"runCoin": st["coin"], "runFaith": st["faith"], "mended": st["mended"], "marks": st["marks"].size(),
 		"serpEl": str(st.get("serp_el", "")), "res": str(st.get("res", {}).get("kind", "")), "seen": st["seen"].size(),
 	}
@@ -484,6 +494,12 @@ func _a_fight(run: Node) -> Dictionary:
 	var card := _a_card(0)
 	if randf() < 0.2:
 		card["exhaust"] = true
+	# What laying reads: a cost, and the two things a card gives back at once.
+	card["cost"] = randi() % 3
+	if randf() < 0.25:
+		card["energy"] = randi() % 3
+	if randf() < 0.25:
+		card["draw"] = randi() % 3
 	var deck: Array = []
 	for n in 5 + randi() % 16:
 		var c: Dictionary = card.duplicate(true)
@@ -499,6 +515,10 @@ func _a_fight(run: Node) -> Dictionary:
 			"coin": randi() % 40, "faith": randi() % 200, "mended": randi() % 6, "seen": [], "serpEl": ""},
 		"props": {"energy": run.cfg_energy(), "handSize": run.cfg_hand()},
 		"lays": lays,
+		# Half the fights put their cards down through _lay()/lay_card(), the
+		# other half straight from the hand, so a fight with no energy left
+		# still reaches its verdict.
+		"viaLay": randf() < 0.5,
 		"JOBS": content.jobs, "RELICS": content.relics, "DENIAL_SHIELD": content.denial_shield,
 	}
 

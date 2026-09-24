@@ -38,13 +38,11 @@ noticing, and it is the one thing none of this can stand in for.
 
 ## An agent can pick these up
 
-**Three parts of the run flow are not differential-tested.**
+**Two parts of the run flow are not differential-tested.**
 `tests/test_against_the_prototype.gd` now plays whole fights through the
-prototype's `startFight()`/`beginTurn()`/`resolveRead()`/`win()`/`lose()`. Not
-reached yet, and each for a reason worth knowing before starting:
+prototype's `startFight()`/`beginTurn()`/`_lay()`/`resolveRead()`/`win()`/
+`lose()`. Not reached yet, and each for a reason worth knowing before starting:
 
-- **Laying a card** (`_lay`): energy, draw-on-lay and exhaust. The fight test
-  puts cards down directly, so none of that is compared.
 - **`advance()`/`makeOptions()`**: the port plans a whole night at once
   (`Run.make_plan()`) where the prototype rolls each knock, deliberately. What
   can still be compared is the shape — which hours can be elite, when the shop
