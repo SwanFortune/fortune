@@ -179,6 +179,9 @@ func play(event: String, target: Control = null, ctx: Dictionary = {}) -> void:
 	var haptic := str(rec.get("haptic", ""))
 	if haptic != "":
 		rumble(haptic)
+	var hands := str(rec.get("hands", ""))
+	if hands != "":
+		gesture(hands)
 
 
 ## play(), `seconds` from now at the game's speed — the reading's ledger is
@@ -752,6 +755,134 @@ func _pulse(weak: float, strong: float, seconds: float) -> void:
 		haptic_log.pop_front()
 
 
+# ── the hands ────────────────────────────────────────────────────────────
+
+## The gesture the hands are in when nothing else is asked of them. Loops.
+const REST := "rest"
+
+## What a gesture key may set, and the value each has when nothing sets it —
+## the hand exactly as Table.gd draws it. `lift` is in heights of the hands'
+## band, up; `turn` is degrees toward the cards (mirrored for the right hand);
+## `reach` and `spread` scale the fingers' length and fan.
+const POSE_FIELDS := {"lift": 0.0, "turn": 0.0, "reach": 1.0, "spread": 1.0}
+
+## Which hands a gesture moves. The other one carries on resting.
+const HAND_SIDES := ["both", "left", "right"]
+
+## How much later the right hand breathes than the left, in seconds, so the two
+## are not one drawing mirrored.
+const REST_OFFSET := 0.9
+
+## The gesture playing, {name, at} with `at` on `clock`. HERE and not on the
+## hands: see scenes/Hands.gd.
+var _gesture: Dictionary = {}
+
+## The hands' own time, in seconds: the frame's time — which the studio's slow
+## motion slows, through Engine.time_scale — at the player's game speed. The
+## wall clock ignored both, and a gesture being tuned in slow motion played at
+## full speed beside the particles slowed down around it.
+var clock := 0.0
+
+
+func _process(delta: float) -> void:
+	clock += delta * _speed()
+
+
+## Starts `name` on the player's hands. What an event's `hands` field does; call
+## it directly for a gesture no event names. An unknown name does nothing.
+func gesture(name: String) -> void:
+	if not Content.gestures.has(name):
+		return
+	_gesture = {"name": name, "at": clock}
+
+
+## The gesture playing on `side` ("left" or "right") at `now` on the clock, or
+## "" when it is resting. For the studio's readout and the tests.
+func gesture_on(side: String, now: float = -1.0) -> String:
+	if _gesture.is_empty():
+		return ""
+	var g: Dictionary = Content.gestures.get(str(_gesture["name"]), {})
+	var hand := str(g.get("hand", "both"))
+	if hand != "both" and hand != side:
+		return ""
+	if not bool(g.get("loop", false)) and _since_gesture(now) > gesture_length(g):
+		return ""
+	return str(_gesture["name"])
+
+
+## How one hand is posed at `now` on the clock: every field of POSE_FIELDS. The
+## hand at rest when motion is off — the hands hold still, like every other
+## thing.
+func hand_pose(side: String, now: float = -1.0) -> Dictionary:
+	if _motion_off():
+		return POSE_FIELDS.duplicate()
+	if now < 0.0:
+		now = clock
+	var playing := gesture_on(side, now)
+	if playing != "":
+		return pose_of(Content.gestures[playing], _since_gesture(now))
+	return pose_of(Content.gestures.get(REST, {}), now + (REST_OFFSET if side == "right" else 0.0))
+
+
+## The pose a gesture is in `t` seconds after it starts. Keys work as a `keys`
+## motion's do (see _keyframes()): each says where the hand is `at` that time, a
+## field a key leaves out holds what the key before had, and `ease` is how the
+## hand arrives. After its last key a gesture holds that key; a `loop` gesture
+## starts again.
+func pose_of(g: Dictionary, t: float) -> Dictionary:
+	var held: Array = []
+	var now := POSE_FIELDS.duplicate()
+	now["at"] = 0.0
+	for k in g.get("keys", []):
+		if not (k is Dictionary):
+			continue
+		var nxt := now.duplicate()
+		for field in nxt:
+			if k.has(field):
+				nxt[field] = float(k[field])
+		held.append([nxt, str(k.get("ease", "in_out"))])
+		now = nxt
+	if held.is_empty():
+		return POSE_FIELDS.duplicate()
+	var length: float = held[-1][0]["at"]
+	if bool(g.get("loop", false)) and length > 0.0:
+		t = fposmod(t, length)
+	var pose := {}
+	for i in held.size():
+		var b: Dictionary = held[i][0]
+		if t > b["at"] and i < held.size() - 1:
+			continue
+		var a: Dictionary = held[maxi(0, i - 1)][0]
+		var span: float = b["at"] - a["at"]
+		var curve: Array = EASES.get(held[i][1], EASES["in_out"])
+		for field in POSE_FIELDS:
+			if span <= 0.0 or t >= b["at"]:
+				pose[field] = b[field]
+			else:
+				pose[field] = Tween.interpolate_value(a[field], b[field] - a[field], maxf(0.0, t - a["at"]),
+					span, curve[0], curve[1])
+		break
+	return pose
+
+
+## When a gesture's last key is.
+func gesture_length(g: Dictionary) -> float:
+	var at := 0.0
+	for k in g.get("keys", []):
+		if k is Dictionary and k.has("at"):
+			at = float(k["at"])
+	return at
+
+
+func _since_gesture(now: float) -> float:
+	return (clock if now < 0.0 else now) - float(_gesture.get("at", 0.0))
+
+
+## The game speed as a multiplier on time, the other way up from _dur().
+func _speed() -> float:
+	return maxf(Settings.animation_scale(), 0.01)
+
+
 # ── what the registry asks for and nothing provides ──────────────────────
 
 ## Every preset name an event or a card state points at that nothing defines,
@@ -767,6 +898,22 @@ func problems() -> Array[String]:
 			var wanted := str(rec.get(pair[0], ""))
 			if wanted != "" and not pair[1].has(wanted):
 				out.append("feel.json: '%s' asks for %s '%s', which nothing defines" % [event, pair[0], wanted])
+		var hands := str(rec.get("hands", ""))
+		if hands != "" and not Content.gestures.has(hands):
+			out.append("feel.json: '%s' asks the hands for gesture '%s', which nothing defines" % [event, hands])
+	for name in Content.gestures:
+		var g: Dictionary = Content.gestures[name]
+		if not HAND_SIDES.has(str(g.get("hand", "both"))):
+			out.append("feel.json: gesture '%s' moves hand '%s', which is not one of %s" % [name, g.get("hand"), HAND_SIDES])
+		if not STATUSES.has(str(g.get("status", UNDELIVERED))):
+			out.append("feel.json: gesture '%s' has status '%s', which is not one of %s" % [name, g.get("status"), STATUSES.keys()])
+		for k in g.get("keys", []):
+			if k is Dictionary and k.has("ease") and not EASES.has(str(k["ease"])):
+				out.append("feel.json: gesture '%s' has a key easing '%s', which is not one of %s" % [name, k["ease"], EASES.keys()])
+			if k is Dictionary:
+				for field in k:
+					if field != "at" and field != "ease" and not POSE_FIELDS.has(field):
+						out.append("feel.json: gesture '%s' has a key setting '%s', which is not one of %s" % [name, field, POSE_FIELDS.keys()])
 	for rule in Content.card_states:
 		for pair in [["particles", Content.particles], ["motion", Content.motions]]:
 			var wanted := str(rule.get(pair[0], ""))

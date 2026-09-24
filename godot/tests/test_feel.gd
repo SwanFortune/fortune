@@ -14,7 +14,10 @@
 ##     happen at all when the player said no or when motion is off;
 ##   - haptics respect their own switch and strength and ignore game speed;
 ##   - card_states match the way their comment says they do;
-##   - a moment whose target was freed before it came is dropped, silently.
+##   - a moment whose target was freed before it came is dropped, silently;
+##   - the player's hands: every gesture starts and ends at rest, hits its
+##     keys, is started by the moments that name it, carries on across the
+##     reading rebuilding its hands, and holds still when motion is off.
 extends "res://tests/harness.gd"
 
 var feel: Node
@@ -96,6 +99,12 @@ func _test_nothing_the_registry_names_is_missing() -> void:
 	said = feel.problems()
 	check(said.any(func(l): return l.contains("no_such_burst")), "a missing particle preset should be reported")
 	check(said.any(func(l): return l.contains("wobble")), "an unknown motion kind should be reported")
+	content.feel["wall_absorb"] = {"hands": "no_such_gesture"}
+	content.gestures["typo"] = {"keys": [{"at": 0.0}, {"at": 0.2, "lfit": 0.1}], "hand": "middle"}
+	said = feel.problems()
+	check(said.any(func(l): return l.contains("no_such_gesture")), "a gesture nobody defines should be reported")
+	check(said.any(func(l): return l.contains("lfit")), "a key setting a field no pose has should be reported")
+	check(said.any(func(l): return l.contains("'middle'")), "a hand that is neither left nor right should be reported")
 	content.reload()
 	done()
 
@@ -378,6 +387,107 @@ func _test_a_moment_whose_target_is_gone_is_dropped() -> void:
 	await create_timer(0.3).timeout
 	check(feel.haptic_log.is_empty(), "the pierce belonged to a line that was freed; nothing should have rumbled")
 	done()
+
+
+# ── the hands ────────────────────────────────────────────────────────────
+
+## A gesture that does not start at rest makes the hands JUMP when it begins; one
+## that does not end there leaves them lifted, turned or open for the rest of
+## the reading, and nothing would say so. The loop that plays between them has
+## to meet itself, or the hands twitch once every lap.
+func _test_every_gesture_starts_and_ends_at_rest() -> void:
+	var rest: Dictionary = feel.POSE_FIELDS
+	check(content.gestures.has(feel.REST), "feel.json has no '%s' gesture for the hands to rest in" % feel.REST)
+	for name in content.gestures:
+		var g: Dictionary = content.gestures[name]
+		var length: float = feel.gesture_length(g)
+		check(length > 0.0, "gesture '%s' takes no time at all" % name)
+		if bool(g.get("loop", false)):
+			_same_pose(feel.pose_of(g, 0.0), feel.pose_of(g, length - 0.0001), "gesture '%s' does not meet itself when it loops" % name)
+			continue
+		_same_pose(feel.pose_of(g, 0.0), rest, "gesture '%s' does not start at rest" % name)
+		_same_pose(feel.pose_of(g, length + 0.01), rest, "gesture '%s' does not end at rest" % name)
+		# And never somewhere a hand cannot be: through the bottom of the screen,
+		# or with fingers shorter than the drawing allows.
+		for i in 41:
+			var pose: Dictionary = feel.pose_of(g, length * i / 40.0)
+			check(absf(pose["lift"]) <= 0.3 and pose["reach"] >= 0.35 and absf(pose["turn"]) <= 30.0,
+				"gesture '%s' goes somewhere a hand cannot be at %.2fs: %s" % [name, length * i / 40.0, pose])
+	done()
+
+
+func _test_a_gesture_hits_its_keys() -> void:
+	var g := {"keys": [{"at": 0.0}, {"at": 0.2, "lift": 0.1, "turn": 5, "ease": "linear"},
+		{"at": 0.4, "turn": 0, "ease": "linear"}, {"at": 0.6, "lift": 0.0, "ease": "linear"}]}
+	_near(feel.pose_of(g, 0.2)["lift"], 0.1, "a key's value, at its time")
+	_near(feel.pose_of(g, 0.1)["lift"], 0.05, "half way, linearly")
+	# A field a key leaves out holds what the key before had.
+	_near(feel.pose_of(g, 0.4)["lift"], 0.1, "lift, which the third key does not mention, should hold")
+	_near(feel.pose_of(g, 0.3)["turn"], 2.5, "turn on its way back")
+	_near(feel.pose_of(g, 5.0)["lift"], 0.0, "after the last key, the last key")
+	done()
+
+
+## The moments that name a gesture start it, on the hands they say.
+func _test_a_moment_moves_the_hands() -> void:
+	feel.play("wall_absorb")
+	check(feel.gesture_on("left") == "flinch" and feel.gesture_on("right") == "flinch",
+		"their denial holding should make both hands flinch, got %s / %s" % [feel.gesture_on("left"), feel.gesture_on("right")])
+	feel.play("card_lay")
+	check(feel.gesture_on("right") == "lay", "laying a card should move the right hand, got '%s'" % feel.gesture_on("right"))
+	check(feel.gesture_on("left") == "", "and leave the left one resting, got '%s'" % feel.gesture_on("left"))
+	var after: float = feel.clock + feel.gesture_length(content.gestures["lay"]) + 0.05
+	check(feel.gesture_on("right", after) == "", "a gesture should be over once its last key has passed")
+	_same_pose(feel.hand_pose("left", after), feel.pose_of(content.gestures[feel.REST], after),
+		"a hand with nothing to do should be resting")
+	done()
+
+
+## THE READING REBUILDS ITS HANDS on every change of state, and laying a card is
+## one: the hands that started the gesture are freed the frame it starts. The
+## hands built next must pick it up where it has got to, or a laid card never
+## shows a hand laying it.
+func _test_a_gesture_carries_on_across_new_hands() -> void:
+	var TableScript := load("res://scenes/Table.gd")
+	feel.play("card_lay")
+	await create_timer(0.1).timeout
+	var host := _host()
+	var hands: Control = TableScript.hands([])
+	hands.size = Vector2(900, 110)
+	host.add_child(hands)
+	await process_frame
+	await process_frame
+	check(float(hands.poses["right"]["lift"]) > 0.05,
+		"new hands, 0.1s into a card being laid, should be part way through laying it: %s" % hands.poses["right"])
+	check(float(hands.poses["left"]["lift"]) < 0.05, "and the left hand is not the one laying it: %s" % hands.poses["left"])
+	# The hands keep game time: at a quarter speed, a quarter as far.
+	feel.play("card_lay")
+	var from: float = feel.clock
+	Engine.time_scale = 0.25
+	await create_timer(0.2, true, false, true).timeout
+	Engine.time_scale = 1.0
+	check(feel.clock - from < 0.1, "in slow motion the hands should slow too: %.2fs of gesture went by in 0.2s" % (feel.clock - from))
+	host.free()
+	done()
+
+
+func _test_the_hands_hold_still_when_motion_is_off() -> void:
+	settings.set_value("animation_scale", 0.0)
+	feel.play("wall_absorb")
+	_same_pose(feel.hand_pose("left"), feel.POSE_FIELDS, "with motion off the hands should not flinch")
+	_same_pose(feel.hand_pose("right", 12.345), feel.POSE_FIELDS, "nor breathe")
+	done()
+
+
+func _same_pose(a: Dictionary, b: Dictionary, what: String) -> void:
+	for field in feel.POSE_FIELDS:
+		if absf(float(a.get(field, 0.0)) - float(b.get(field, 0.0))) > 0.001:
+			check(false, "%s: %s is %s, not %s" % [what, field, a.get(field), b.get(field)])
+			return
+
+
+func _near(got: float, want: float, what: String) -> void:
+	check(absf(got - want) < 0.002, "%s: %.4f, not %.4f" % [what, got, want])
 
 
 # ── helpers ──────────────────────────────────────────────────────────────

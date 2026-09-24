@@ -22,11 +22,14 @@ const Table := preload("res://scenes/Table.gd")
 ## band taken literally leaves a card at the top of the range overflowing it,
 ## with the fingers gripping empty table above.
 ##
-## Both are UIKit.CARD_FACE_SIZE.y plus the same slack they have always had (18
-## and 92). They moved with the card when it grew to hold an art window; if the
-## card moves again, they move again.
+## Both are UIKit.CARD_FACE_SIZE.y plus slack (18 and 62). They moved with the
+## card when it grew to hold an art window; if the card moves again, they move
+## again. HELD_HEIGHT ends where the backs of the hands meet the bottom of the
+## screen: it was 92 below the card once, and the backs of the hands — where the
+## tattoos, the scars and the bracelets are — were drawn under the bottom edge.
+## Bigger again and the middle of the screen has to scroll at 720p.
 const CARD_BAND := 202
-const HELD_HEIGHT := 276
+const HELD_HEIGHT := 246
 
 ## How far the hands reach back UP over the cards. Table.gd draws its fingertips
 ## at the very top of the band it is given, so this number alone decides how far
@@ -41,7 +44,7 @@ const HAND_OVERLAP := 42
 ## and the card, which is what makes it read as floating rather than gripped.
 const LIFT := 14
 const BOB := 5.0
-const OPEN_REACH := 0.66
+const OPEN_REACH := 0.5
 
 
 static func _band_px() -> float:
@@ -331,10 +334,15 @@ func _the_hand_label() -> Control:
 ## cards they hold. Filled by _fill_the_hand().
 func _the_hand_box() -> Control:
 	var held := Control.new()
-	# Reserves the CARD BAND, not the whole held area. The hands are drawn down
-	# to HELD_HEIGHT and are meant to run off the bottom of the screen; that part
-	# overflows this box on purpose, and nothing here clips.
-	held.custom_minimum_size = Vector2(0, _band_px())
+	# Reserves the WHOLE held area, hands included, down to where the back of
+	# each hand meets the bottom edge. It reserved only the card band once, and
+	# the hands ran on off the screen below it — which put the back of the hand,
+	# the knuckles and the wrist, where every tattoo, scar and bracelet is worn,
+	# seventy pixels under the bottom edge. The fingertips were all a player
+	# ever saw of them. tests/test_scenes.gd now asks the built screen whether
+	# every mark is inside the window. The wrists still run off the bottom:
+	# Table.gd's palm sits on the band's bottom edge, so half of it is below.
+	held.custom_minimum_size = Vector2(0, _held_px())
 	held.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	# Exactly its own height, never the leftover: the hands are drawn relative to
 	# this box, so a box that grew with the window would walk them away from the

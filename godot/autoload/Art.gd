@@ -248,6 +248,13 @@ func prop_texture(prop_id: String) -> Texture2D:
 	return texture("prop/" + slug(prop_id))
 
 
+## A ring, a tattoo, a scar as somebody drew it, worn on the player's hands —
+## see scenes/Table.gd, mark_places(), which places it and draws a stand-in for
+## its kind when this is null. Marks and relics share the one slot per name.
+func mark_texture(mark_name: String) -> Texture2D:
+	return texture("mark/" + slug(mark_name))
+
+
 ## The status that means NOBODY HAS DRAWN THIS YET, and the answer assumed for an
 ## entry that does not say. Named rather than spelt "missing" at each call site
 ## because the credits count against it; see Audio.UNDELIVERED, which is the same

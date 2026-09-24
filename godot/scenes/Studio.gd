@@ -65,6 +65,11 @@ var _preset_text: Label
 var _slow_btn: Button
 var _repeat_btn: Button
 var _repeat_timer: Timer
+var _last_gesture := ""
+## Which marks the HANDS pane has on: -1 bare, -2 everything, else one mark.
+var _mark_i := -2
+var _hands_holder: Control
+var _mark_name: Label
 
 
 func _ready() -> void:
@@ -95,6 +100,7 @@ func _ready() -> void:
 	tabs.add_theme_constant_override("v_separation", 8)
 	tabs.add_child(UIKit.button(I18n.t("MOMENTS"), _show.bind("moments")))
 	tabs.add_child(UIKit.button(I18n.t("CARDS IN HAND"), _show.bind("hand")))
+	tabs.add_child(UIKit.button(I18n.t("HANDS"), _show.bind("hands")))
 	tabs.add_child(UIKit.button(I18n.t("THE ROOM"), _show.bind("room")))
 	tabs.add_child(UIKit.button(I18n.t("ART"), _show.bind("art")))
 	_slow_btn = UIKit.button("", _toggle_slow)
@@ -148,6 +154,8 @@ func _show(pane: String) -> void:
 	match pane:
 		"hand":
 			_pane_hand()
+		"hands":
+			_pane_hands()
 		"art":
 			_pane_art()
 		"room":
@@ -218,6 +226,99 @@ func _pane_hand() -> void:
 			var face := UIKit.card_face(sample, func(): pass, true, false)
 			row.add_child(face)
 			Feel.dress_with(face, rule, sample, ctx)
+
+
+## THE HANDS: every gesture in feel.json as a button, played on the player's
+## two hands; and what they wear, one mark at a time or all of them at once —
+## each where its `on` says, drawn as delivered or as its stand-in. Slow motion
+## and repeat work here as on the other panes.
+func _pane_hands() -> void:
+	_body.add_child(UIKit.block(I18n.t(
+		"The player's hands, from the gestures in data/base/feel.json, wearing the marks from marks.json and relics.json. Press a gesture to play it."
+	), 12, UIKit.DIM))
+	var row := UIKit.hbox(24)
+	_body.add_child(row)
+	var list := UIKit.vbox(4)
+	row.add_child(list)
+	for name in Content.gestures:
+		var g: Dictionary = Content.gestures[name]
+		var b := UIKit.button("%s  · %s · %.2fs" % [name, str(g.get("hand", "both")), Feel.gesture_length(g)],
+			_play_gesture.bind(str(name)))
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list.add_child(b)
+
+	var right := UIKit.vbox(10)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(right)
+	var chooser := UIKit.hbox(8)
+	chooser.add_child(UIKit.button(I18n.t("BARE"), _wear.bind(-1)))
+	chooser.add_child(UIKit.button(I18n.t("EVERYTHING"), _wear.bind(-2)))
+	chooser.add_child(UIKit.button("◀", _step_mark.bind(-1)))
+	chooser.add_child(UIKit.button("▶", _step_mark.bind(1)))
+	right.add_child(chooser)
+	_mark_name = UIKit.label("", 13, UIKit.INK)
+	right.add_child(_mark_name)
+	_hands_holder = Control.new()
+	_hands_holder.custom_minimum_size = Vector2(0, 240)
+	_hands_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right.add_child(_hands_holder)
+	_preset_text = UIKit.block("", 11, UIKit.DIM)
+	right.add_child(_preset_text)
+	_put_hands()
+	if _last_gesture != "":
+		_describe_gesture(_last_gesture)
+
+
+func _play_gesture(name: String) -> void:
+	_last_gesture = name
+	_last_event = ""
+	Feel.gesture(name)
+	_describe_gesture(name)
+
+
+func _describe_gesture(name: String) -> void:
+	if _preset_text != null and is_instance_valid(_preset_text):
+		_preset_text.text = "%s: %s" % [name, JSON.stringify(Content.gestures.get(name, {}))]
+
+
+func _worn_marks() -> Array:
+	return Content.marks + Content.relics
+
+
+func _wear(which: int) -> void:
+	_mark_i = which
+	_put_hands()
+
+
+func _step_mark(by: int) -> void:
+	var n := _worn_marks().size()
+	_mark_i = posmod((maxi(_mark_i, -1) if by > 0 else maxi(_mark_i, 0)) + by, maxi(1, n))
+	_put_hands()
+
+
+## Replaces the hands and their caption, and only those — the buttons that
+## asked stay where they are (see _step_card()).
+func _put_hands() -> void:
+	if _hands_holder == null or not is_instance_valid(_hands_holder):
+		return
+	var all := _worn_marks()
+	var worn: Array = []
+	match _mark_i:
+		-1:
+			_mark_name.text = I18n.t("Bare hands.")
+		-2:
+			worn = all
+			_mark_name.text = I18n.t("Everything, %d marks.") % all.size()
+		_:
+			var m: Dictionary = all[_mark_i % all.size()]
+			worn = [m]
+			_mark_name.text = "%s — %s, %s  (%d / %d)" % [I18n.content("mark/" + Art.slug(str(m["n"])), "n", str(m["n"])),
+				str(m.get("kind", "")), str(m.get("on", "")), _mark_i % all.size() + 1, all.size()]
+	for c in _hands_holder.get_children():
+		c.queue_free()
+	var hands: Control = Table.hands(worn)
+	hands.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hands_holder.add_child(hands)
 
 
 ## THE ROOM: every rule in room.json as a button. Pressing one lays the card it
@@ -389,6 +490,9 @@ func _play(event: String) -> void:
 
 
 func _fire() -> void:
+	if _pane == "hands" and _last_gesture != "":
+		Feel.gesture(_last_gesture)
+		return
 	if _last_event == "" or _stage == null or not is_instance_valid(_stage):
 		return
 	var cards := _all_cards()

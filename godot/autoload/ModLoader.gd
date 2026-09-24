@@ -57,7 +57,7 @@ const CARD_POOLS := ["cards_basics", "cards_chroma", "cards_minor", "cards_arcan
 ## Categories whose JSON root is an object (dict) merged key-by-key rather
 ## than an array merged by id field.
 const DICT_CATEGORIES := ["elements", "fx", "jobs", "denial_wall", "pronouns", "sounds", "minitel_codes",
-	"icons", "archetypes", "music", "feel", "particles", "motions", "haptics", "props", "spots"]
+	"icons", "archetypes", "music", "feel", "particles", "motions", "haptics", "gestures", "props", "spots"]
 
 ## Categories whose JSON root is a single record; the last pack to define one wins outright.
 const SCALAR_CATEGORIES := ["boss", "shop"]

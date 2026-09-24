@@ -230,6 +230,12 @@ func _setup(name: String) -> void:
 						worn.append(m)
 						break
 			run.state["marks"] = worn
+		"read_worn":
+			# EVERYTHING the base game hands out, on at once — every mark and every
+			# relic, each where its `on` says. The crowded case: if the thumb, the
+			# wrist and the nails read here, they read in any run.
+			_setup("read")
+			run.state["marks"] = content.marks + content.relics
 		"reading_wall":
 			# The same, against the one sign that has a denial WALL, so the
 			# ledger's "their denial holds it off" line has something to show.

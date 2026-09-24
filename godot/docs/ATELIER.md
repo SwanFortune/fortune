@@ -111,7 +111,7 @@ Garde des animations courtes (8 à 24 images) : chaque image pèse en mémoire.
 ## 5. Les effets : particules, mouvements, vibrations
 
 Tout est dans **`data/base/feel.json`**, un fichier texte qu'on ouvre avec
-n'importe quel éditeur. Il a quatre parties.
+n'importe quel éditeur. Il a cinq parties.
 
 **`feel`** relie chaque moment à ses effets :
 
@@ -163,6 +163,61 @@ le gros (un choc sourd), de 0 à 1. Branche une manette et teste avec
 **`card_states`**, les cartes qui s'animent seules en main. La première règle
 qui correspond l'emporte. Une règle avec `"off": true` est désactivée ; elle
 est montrée dans l'atelier pour qu'on puisse en juger.
+
+**`gestures`**, les gestes des mains du joueur, en bas de la lecture. Même
+système d'images clés que les mouvements, avec d'autres valeurs :
+
+```json
+"flinch": { "keys": [
+  { "at": 0.0 },
+  { "at": 0.06, "lift": -0.09, "turn": -7, "reach": 0.86, "ease": "snap" },
+  { "at": 0.45, "lift": 0.0,   "turn": 0,  "reach": 1.0,  "ease": "out" } ] }
+```
+
+- `lift` monte la main (en hauteur de main : 0.1 = un dixième), vers le bas si
+  c'est négatif ;
+- `turn` la penche vers les cartes, en degrés, autour du poignet ;
+- `reach` allonge ou replie les doigts (1 = comme dessiné, 0.5 = main ouverte) ;
+- `spread` écarte les doigts (1 = comme dessiné) ;
+- `"hand": "right"` ne bouge que la main droite (ou `left`) ; sans rien, les deux.
+
+`rest` est ce que font les mains quand rien ne se passe ; il tourne en boucle
+(`"loop": true`). Un moment de `feel` lance un geste avec `"hands"` :
+
+```json
+"wall_absorb": { "motion": "jolt", "haptic": "thud", "hands": "flinch" }
+```
+
+Un geste doit **commencer et finir au repos** (toutes les valeurs à 0 ou 1) :
+sinon les mains sautent au début ou restent levées. Le test le vérifie.
+Dans l'atelier, l'onglet **MAINS** joue chaque geste, au ralenti si tu veux.
+
+### Les bijoux, les tatouages, les cicatrices
+
+Chaque marque (`data/base/marks.json`, `data/base/relics.json`) dit où elle se
+porte avec `"on"` :
+
+| `on` | où |
+|---|---|
+| `index`, `middle`, `ring`, `little` | un doigt : une bague, ou de l'encre le long du doigt |
+| `thumb` | le pouce |
+| `nails` | le bout des quatre doigts |
+| `back` | le dos de la main |
+| `wrist` | le poignet : un bracelet, ou de l'encre |
+| `knuckles` | les jointures |
+| `above` | tenue au-dessus de la main, pas portée : une petite lumière |
+
+Sans `on`, une bague va sur le doigt suivant, un tatouage sur le dos de la
+main, une cicatrice sur les jointures. Les marques alternent entre les deux
+mains, dans l'ordre où on les gagne.
+
+Pour dessiner une marque : **`assets/art/mark/<nom>.png`**, 256 × 256, fond
+transparent, le **haut du dessin vers le bout du doigt** (elle est tournée
+pour suivre le doigt). C'est petit à l'écran : une bague fait une dizaine de
+pixels à 720p, donc une forme et une couleur, pas du détail. Le nom exact de
+chaque fichier est dans `data/base/art_manifest.json` (les lignes `mark/…`).
+Dans l'onglet **MAINS**, ◀ ▶ montre une marque à la fois, **TOUT** les montre
+toutes.
 
 ## 6. La pièce se souvient
 

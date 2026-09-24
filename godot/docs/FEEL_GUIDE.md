@@ -151,6 +151,40 @@ values. Anything else must be equal.
 continue the line breathe is a real hint about how to play, and that is a
 design decision, not a feel one. Remove `"off": true` to try it.
 
+## The player's hands
+
+The two hands at the bottom of the reading move. `gestures` in `feel.json` are
+keyframed like a `keys` motion, with their own values:
+
+```json
+"lay": { "hand": "right", "keys": [
+  { "at": 0.0 },
+  { "at": 0.12, "lift": 0.10, "turn": 6, "reach": 1.04, "ease": "out" },
+  { "at": 0.34, "lift": -0.02, "turn": -2, "ease": "in_out" },
+  { "at": 0.55, "lift": 0.0, "turn": 0, "reach": 1.0, "ease": "out" } ] }
+```
+
+- `lift`: up, in heights of the hands (0.1 is a tenth); negative is down;
+- `turn`: degrees toward the cards, about the wrist, mirrored for the right hand;
+- `reach`: finger length, 1 as drawn, 0.5 an open hand (1.1 at most);
+- `spread`: how far the fingers fan, 1 as drawn;
+- `hand`: `both` (the default), `left` or `right`; the other one keeps resting.
+
+`rest` is what the hands do when nothing else is asked of them, and loops.
+A moment starts a gesture with `"hands"`: `wall_absorb` flinches,
+`card_lay` lays, `reading_resolve` offers. **A gesture starts and ends at rest**
+— every value back to 0 or 1 — or the hands jump when it starts or stay lifted
+after it; `tests/test_feel.gd` checks every one.
+
+The hands keep the game's time: the speed setting and the studio's slow motion
+both apply, and with motion off they hold still. The pose is kept by Feel, not
+by the hands, because the reading rebuilds its hands every time a card is laid
+— the new ones pick the gesture up where it had got to.
+
+What the hands WEAR is in `marks.json` and `relics.json` (`on`, see
+`docs/ART_GUIDE.md`); the studio's HANDS tab plays each gesture on hands
+wearing one mark or all of them.
+
 ## The room remembers
 
 Some cards, when laid, **become a thing in the parlour** and it stays there

@@ -58,6 +58,19 @@ is always runnable — art can land one piece at a time, in any order.
 - **Readers** are the fortune-teller the player chooses to *be*, shown on the
   sign-select screen.
 
+### Marks (rings, tattoos, scars, boons) — **256 × 256 px**, square, PNG (RGBA, transparent)
+
+- One drawing per mark or relic, `assets/art/mark/<slug>.png`; the slugs are
+  the `mark/…` rows of the manifest.
+- Worn on the player's hands at the bottom of the reading, where the mark's
+  `on` field says: a finger, the thumb, the nails (the one drawing on all four
+  fingertips), the back of the hand, the wrist, the knuckles, or held above.
+- **Draw it with its top toward the fingertip.** A ring is turned to lie across
+  the finger it is on, and ink to run along it.
+- **Small.** A ring is about 10 px across at 720p, a tattoo on the back of the
+  hand about 15. A shape and a colour, not detail.
+- The studio's HANDS tab shows one mark at a time, or all of them at once.
+
 ### File naming
 
 Lowercase, hyphen-separated, accents stripped — always exactly the asset id
@@ -313,12 +326,13 @@ If you want to take it over, the two useful shapes are:
 - **A painted background.** One image, roughly 16:9, of a table with a cloth on
   it, lit from above, dark at the edges. Drop-in: it replaces `background()`
   and nothing else changes.
-- **Hands.** Harder, because four kinds of mark have to be able to land on
-  them at run time, in any number and any combination. The current version
-  solves that with `Table.mark_places()`, which returns a point per mark; art
-  would need the same — a hand image plus a small table of where a ring on
-  each finger, ink on the back, a scar across the knuckles, and a boon above
-  the hand each go. Talk to whoever is doing the code before starting.
+- **Hands.** Harder, because the marks have to be able to land on them at run
+  time, in any number and any combination, and the hands MOVE: they rest,
+  lay a card, flinch (the `gestures` in `data/base/feel.json`,
+  `docs/FEEL_GUIDE.md`). The marks themselves can already be drawn one by one
+  (above). A painted hand would need what `Table.hand_parts()` gives today —
+  where each finger, the thumb, the back and the wrist are — so each mark can
+  still be placed on it. Talk to whoever is doing the code before starting.
 
 Sizes are all fractions of the space the game gives it, so there is no fixed
 pixel size to match: it is drawn at whatever height the window works out to.

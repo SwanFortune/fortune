@@ -1,15 +1,15 @@
 {
-  "_comment": "NOT from the source prototype — added during the port; see docs/FEEL_GUIDE.md. How each game moment FEELS: particles, a motion of the card itself, and gamepad rumble. Keys of `feel` must match Feel.EVENTS exactly (tests/test_feel.gd enforces it both ways); each entry may name any of `particles`, `motion`, `haptic`, and `color` ('element' = the card's element, '#rrggbb', or empty for white). Every preset here is a PLACEHOLDER, tuned by eye with a procedural soft dot, meant to be replaced by someone who draws: a particle preset's `texture` is empty until then (a bare filename resolves under assets/particles/). `card_states` are the rules that make a card in the HAND animate on its own; the first rule that matches wins, and `off: true` keeps a rule as an example without switching it on. Haptic pulses are [weak, strong, seconds, pause_after]: weak is the high-frequency motor (a tap), strong the low one (a thud).",
+  "_comment": "NOT from the source prototype — added during the port; see docs/FEEL_GUIDE.md. How each game moment FEELS: particles, a motion of the card itself, and gamepad rumble. Keys of `feel` must match Feel.EVENTS exactly (tests/test_feel.gd enforces it both ways); each entry may name any of `particles`, `motion`, `haptic`, and `color` ('element' = the card's element, '#rrggbb', or empty for white). Every preset here is a PLACEHOLDER, tuned by eye with a procedural soft dot, meant to be replaced by someone who draws: a particle preset's `texture` is empty until then (a bare filename resolves under assets/particles/). `card_states` are the rules that make a card in the HAND animate on its own; the first rule that matches wins, and `off: true` keeps a rule as an example without switching it on. Haptic pulses are [weak, strong, seconds, pause_after]: weak is the high-frequency motor (a tap), strong the low one (a thud). An event's `hands` names a gesture the player's two hands make; `gestures` are keyframed like a `keys` motion, with `lift` (fractions of the hands' height, up), `turn` (degrees, toward the cards), `reach` and `spread` (1 = as drawn), and `hand` (both, left or right). `rest` is what the hands do when nothing else is asked of them, and loops.",
   "feel": {
     "card_draw":       { "haptic": "tick" },
-    "card_lay":        { "particles": "dust", "color": "element", "haptic": "tap" },
+    "card_lay":        { "particles": "dust", "color": "element", "haptic": "tap", "hands": "lay" },
     "card_link_same":  { "particles": "sparks", "color": "element", "motion": "press", "haptic": "tick" },
     "card_link_turn":  { "particles": "sparks", "color": "element", "motion": "hop", "haptic": "tick" },
     "card_pierce":     { "particles": "shards", "color": "element", "motion": "jolt", "haptic": "thud" },
     "card_bank":       { "particles": "coins", "color": "#D4B038", "motion": "glint", "haptic": "tick" },
     "card_exhaust":    { "particles": "embers", "color": "element" },
-    "wall_absorb":     { "motion": "jolt", "haptic": "thud" },
-    "reading_resolve": { "particles": "bloom", "color": "#8FBF73", "motion": "pop", "haptic": "swell" },
+    "wall_absorb":     { "motion": "jolt", "haptic": "thud", "hands": "flinch" },
+    "reading_resolve": { "particles": "bloom", "color": "#8FBF73", "motion": "pop", "haptic": "swell", "hands": "offer" },
     "sitter_win":      { "particles": "bloom", "color": "#D4B038", "haptic": "swell" },
     "sitter_lose":     { "motion": "lean", "haptic": "fall" },
     "knock":           { "haptic": "knock" },
@@ -44,6 +44,36 @@
     "swell": { "pulses": [[0.2, 0.2, 0.08, 0.02], [0.3, 0.5, 0.12, 0.02], [0.2, 0.8, 0.18, 0]] },
     "fall":  { "pulses": [[0.1, 0.6, 0.25, 0]] },
     "knock": { "pulses": [[0.2, 0.8, 0.06, 0.12], [0.2, 0.8, 0.06, 0]] }
+  },
+  "gestures": {
+    "rest":   { "status": "placeholder", "loop": true, "keys": [
+                { "at": 0.0 },
+                { "at": 2.1, "lift": 0.018, "spread": 1.03, "ease": "in_out" },
+                { "at": 4.2, "lift": 0.0, "spread": 1.0, "ease": "in_out" } ] },
+    "lay":    { "status": "placeholder", "hand": "right", "keys": [
+                { "at": 0.0 },
+                { "at": 0.12, "lift": 0.10, "turn": 6, "reach": 1.04, "ease": "out" },
+                { "at": 0.34, "lift": -0.02, "turn": -2, "ease": "in_out" },
+                { "at": 0.55, "lift": 0.0, "turn": 0, "reach": 1.0, "ease": "out" } ] },
+    "flinch": { "status": "placeholder", "keys": [
+                { "at": 0.0 },
+                { "at": 0.06, "lift": -0.09, "turn": -7, "reach": 0.86, "ease": "snap" },
+                { "at": 0.16, "turn": 3, "ease": "in_out" },
+                { "at": 0.45, "lift": 0.0, "turn": 0, "reach": 1.0, "ease": "out" } ] },
+    "offer":  { "status": "placeholder", "keys": [
+                { "at": 0.0 },
+                { "at": 0.25, "lift": 0.07, "spread": 1.15, "ease": "out" },
+                { "at": 0.8, "lift": 0.0, "spread": 1.0, "ease": "in_out" } ] },
+    "open":   { "status": "placeholder", "keys": [
+                { "at": 0.0 },
+                { "at": 0.35, "lift": 0.05, "turn": -8, "reach": 0.7, "spread": 1.3, "ease": "out" },
+                { "at": 1.4, "ease": "linear" },
+                { "at": 2.0, "lift": 0.0, "turn": 0, "reach": 1.0, "spread": 1.0, "ease": "in_out" } ] },
+    "sink":   { "status": "placeholder", "keys": [
+                { "at": 0.0 },
+                { "at": 0.6, "lift": -0.12, "turn": -4, "reach": 0.9, "ease": "in_out" },
+                { "at": 1.6, "ease": "linear" },
+                { "at": 2.2, "lift": 0.0, "turn": 0, "reach": 1.0, "ease": "in_out" } ] }
   },
   "card_states": [
     { "id": "rare", "when": { "r": "rare" }, "particles": "shimmer", "color": "element" },

@@ -590,6 +590,65 @@ func _test_the_marks_are_on_the_hands() -> void:
 	done()
 
 
+## A MARK YOU WON IS A MARK YOU CAN SEE — measured on the built screen, in the
+## window a player has. _test_the_marks_are_on_the_hands() checked that every
+## mark had a place, and every one did: on the back of a hand that the reading
+## laid out seventy pixels below the bottom of the window. Only the rings on
+## the fingers were ever on screen. So this wears everything the base game
+## hands out, all at once, on a 1280x720 reading, and asks where each one
+## landed — through Table.worn(), the placement the drawing itself uses.
+##
+## And every mark's `on` is a place the hands know, and agrees with its name: a
+## mark called "…On The Thumb" that the data put on the back of the hand is a
+## player looking at their thumb for something that is not there.
+func _test_every_mark_worn_is_on_the_screen() -> void:
+	var TableScript := load("res://scenes/Table.gd")
+	var worn_all: Array = content.marks + content.relics
+	const NAMED := {"Thumb": "thumb", "Wrist": "wrist", "Knuckle": "knuckles", "Nails": "nails"}
+	for m in worn_all:
+		var on := str(m.get("on", ""))
+		if on != "" and not TableScript.PLACES.has(on):
+			check(false, "'%s' is worn on '%s', which is not a place on the hands (%s)" % [m["n"], on, TableScript.PLACES.keys()])
+		for word in NAMED:
+			if str(m["n"]).contains(word) and on != NAMED[word]:
+				check(false, "'%s' says it is on the %s and is worn on '%s'" % [m["n"], NAMED[word], on])
+
+	var restore_size: Vector2i = root.size
+	# The design size, and a taller window: a taller window buys canvas height.
+	for window in [Vector2i(1280, 720), Vector2i(1280, 960)]:
+		root.size = window
+		run.state = run.fresh("worn")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		run.state["marks"] = worn_all
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		for i in 4:
+			await process_frame
+		var hands: Control = instance.find_child("Hands", true, false)
+		if hands == null:
+			check(false, "the reading has no hands to wear anything on")
+		else:
+			var places: Array = TableScript.worn(hands.size, worn_all, hands.span, hands.reach)
+			check(places.size() == worn_all.size(), "%d marks worn, %d placed on the hands" % [worn_all.size(), places.size()])
+			var screen := Rect2(Vector2.ZERO, hands.get_viewport_rect().size)
+			for p in places:
+				for point in p.get("tips", [p["at"]]):
+					var at: Vector2 = hands.get_global_transform() * (point as Vector2)
+					if not screen.grow(-2.0).has_point(at):
+						check(false, "at %s, '%s' (%s, on the %s) is drawn at %s — off a %s screen"
+							% [window, p["n"], p["kind"], p["place"], at.round(), screen.size])
+		instance.queue_free()
+		await process_frame
+	root.size = restore_size
+	print("--- everything the game hands out is worn where a player can see it ---")
+	done()
+
+
 ## THE LAST CARD FLOATS. When the hand is down to one, the card is lifted clear
 ## of two open hands rather than clamped between fingertips — which means it
 ## leaves the ScrollContainer and the flow container entirely, and a Control

@@ -53,6 +53,16 @@ before the first public build.
 
 ## Needs a person, not a test
 
+**How big should the player's hands be?** To bring the backs of the hands, and
+every tattoo, scar and bracelet worn there, onto the screen, the palm moved up
+into view, the fingers got a fifth shorter, and the fan of cards moved up 44px.
+The hands now draw about three quarters as big as before. Bigger is a few lines
+(`HELD_HEIGHT` in `scenes/Reading.gd`, the proportions at the top of the hands
+in `scenes/Table.gd`), and the cost is the middle of the reading scrolling at
+720p. `tests/test_scenes.gd` holds every mark inside the window whichever way it
+goes. The `open` and `sink` gestures in `feel.json` are not played by anything
+yet: a sitter going home is shown on the result screen, which has no hands on it.
+
 **Nobody has heard the sound.** The exported build was mute for the whole of the
 port — every cue resolved to a file that was not in the pack — and that was
 found by listing the pack, not by listening. What is verified now is that every
