@@ -491,8 +491,9 @@ func _ui_strings() -> Array[String]:
 		"YOUR DECK", "YOUR HANDS", "cards",
 		"Nothing on your hands yet. Rings and marks come from elites, events and the apothecary.",
 		# result / end-of-run (keys emitted by Run.gd — see its header)
-		"GOES HOME WHOLE", "PUTS THE COAT BACK ON", "TAKE SOMETHING FOR IT",
-		"SEE WHAT THEY SAY", "%s is whole enough", "%s leaves as they came, only later",
+		"{S} {goes} home whole", "{S} put{es} {p} coat on", "TAKE SOMETHING FOR IT",
+		"SEE WHAT THEY SAY", "%s is whole enough", "%s leaves as {s} came, only later",
+		"{s} pay{es} either way",
 		"Composure at the end", "Readings used", "Faith earned", "Faith kept",
 		"(%s of it overflow)", "Off a hard one", "it stays on your hands",
 		"the money was on the table", "And that is the whole of it", "one is all it takes",

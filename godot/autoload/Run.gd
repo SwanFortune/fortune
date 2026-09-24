@@ -717,12 +717,12 @@ func win(f: Dictionary) -> void:
 		{"left": "Readings used", "right": "%s / %s" % [f["turn"], f["turns"]]},
 		{"left": "Faith earned", "right": "+%s" % faith,
 			"note": ["(%s of it overflow)", f["faith"]] if int(f["faith"]) > 0 else null},
-		{"left": "Centimes", "right": "+%s" % coin_gain},
+		{"left": "Centimes", "right": "+%s" % coin_gain, "note": ["{s} pay{es} either way"]},
 	]
 	if relic != null:
 		lines.append({"left": "Off a hard one", "right": relic["n"], "note": ["it stays on your hands"]})
 	state["res"] = {
-		"kind": "win", "head": "GOES HOME WHOLE", "title": ["%s is whole enough", sitter["name"]],
+		"kind": "win", "head": "{S} {goes} home whole", "title": ["%s is whole enough", sitter["name"]],
 		"said": sitter["win"], "lines": lines, "cta": "TAKE SOMETHING FOR IT", "sitter": sitter,
 	}
 	state_changed.emit()
@@ -736,8 +736,8 @@ func lose(f: Dictionary, _how: String) -> void:
 	state["coin"] = int(state["coin"]) + coin_gain
 	state["faith"] = int(state["faith"]) + faith_kept
 	state["res"] = {
-		"kind": "lose", "head": "PUTS THE COAT BACK ON",
-		"title": ["%s leaves as they came, only later", sitter["name"]],
+		"kind": "lose", "head": "{S} put{es} {p} coat on",
+		"title": ["%s leaves as {s} came, only later", sitter["name"]],
 		"said": sitter["fail"],
 		"lines": [
 			{"left": "Composure at the end", "right": "%s / %s" % [max(0, f["hp"]), f["max"]]},

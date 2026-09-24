@@ -471,7 +471,24 @@ func _look_at(run: Node) -> Dictionary:
 		"cross": f["cross"].size(),
 		"runCoin": st["coin"], "runFaith": st["faith"], "mended": st["mended"], "marks": st["marks"].size(),
 		"serpEl": str(st.get("serp_el", "")), "res": str(st.get("res", {}).get("kind", "")), "seen": st["seen"].size(),
+		"head": _said(st, "head").to_upper(), "title": _said(st, "title"),
 	}
+
+
+## A verdict's words as ResultScreen puts them on screen, in English: the key
+## formatted, then filled with the sitter's pronoun. The prototype writes the
+## same lines with fill() and upper-cases the head, so a port that rewrites the
+## author's sentence — as this one once did, to "PUTS THE COAT BACK ON" and
+## "leaves as they came" for everybody — reads differently here.
+func _said(st: Dictionary, field: String) -> String:
+	var res: Dictionary = st.get("res", {})
+	if res.is_empty():
+		return ""
+	var sitter: Dictionary = st["f"].get("sitter", {})
+	# load(), not preload(): UIKit names autoloads, which do not exist yet when a
+	# `godot -s` script is compiled.
+	var ui = load("res://scenes/UIKit.gd")
+	return root.get_node("I18n").fill(ui.tr_line(res.get(field)), str(sitter.get("p", "they")))
 
 
 ## A knock: a real sitter (scaled for a random hour, elite a third of the time,

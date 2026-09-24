@@ -150,6 +150,7 @@ function playFight(make, one) {
 			taken: f.taken != null, max: f.max, cross: f.cross.length,
 			runCoin: st.coin, runFaith: st.faith, mended: st.mended, marks: st.marks.length,
 			serpEl: st.serpEl || '', res: st.res ? st.res.kind : '', seen: st.seen.length,
+			head: st.res ? st.res.head : '', title: st.res ? st.res.title : '',
 		});
 	};
 	g.startFight(one.o);

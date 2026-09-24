@@ -8,6 +8,9 @@ const UIKit := preload("res://scenes/UIKit.gd")
 ## label and its number, narrow enough that they read as one line.
 const STAT_WIDTH := 460
 
+## The sitter's pronoun key, for the lines and notes that speak of them.
+var _says := "they"
+
 
 func _ready() -> void:
 	var res: Dictionary = Run.state["res"]
@@ -23,15 +26,17 @@ func _ready() -> void:
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	m.add_child(v)
 
-	# FILLED WITH THIS SITTER'S PRONOUN. These two lines are about one person by
-	# name, and English gets away with "leaves as they came" for anybody. French
-	# does not: the participle agrees, and the translation had to pick one, so
-	# every woman who walked out did it as "il est venu" — one line above the
-	# sentence that correctly said "Elle". The tokens and the tables were already
-	# here for the sign rules; this screen simply never used them.
+	# FILLED WITH THIS SITTER'S PRONOUN. These lines are about one person by
+	# name, and the prototype writes them that way — "SHE PUTS HER COAT ON",
+	# "Mme Perrot leaves as she came" (v23 ~2194-2226). The port had rewritten
+	# them to need no pronoun ("PUTS THE COAT BACK ON", "leaves as they came" for
+	# anybody), which is the author's writing changed, and French could not
+	# follow it anyway: the participle agrees. The head is capitals AFTER it is
+	# filled, as the prototype's .toUpperCase() is.
 	var sitter: Dictionary = res.get("sitter", {})
-	var says: String = str(sitter.get("p", "they"))
-	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says), 15, UIKit.GREEN if win else UIKit.RED))
+	_says = str(sitter.get("p", "they"))
+	var says := _says
+	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says).to_upper(), 15, UIKit.GREEN if win else UIKit.RED))
 	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("title")), says), 22, UIKit.INK))
 	var said_field: String = "win" if win else "fail"
 	v.add_child(UIKit.block(
@@ -86,7 +91,7 @@ func _continue() -> void:
 func _right_text(line: Dictionary) -> String:
 	var raw = line.get("right", "")
 	var value: String = UIKit.tr_line(raw) if raw is Array else str(raw)
-	var note: String = UIKit.tr_line(line.get("note"))
+	var note: String = I18n.fill(UIKit.tr_line(line.get("note")), _says)
 	if note == "":
 		return value
 	return note if value == "" else "%s — %s" % [value, note]
