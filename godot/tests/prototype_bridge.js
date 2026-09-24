@@ -171,6 +171,18 @@ function playFight(make, one) {
 	return seen;
 }
 
+// weighted() rolls Math.random() once. To put it next to the port's with the
+// SAME roll, it is run with a Math whose random() answers what the case says.
+function picker() {
+	const src = fs.readFileSync(SPEC, 'utf8');
+	const dice = Object.create(Math);
+	dice.u = 0;
+	dice.random = () => dice.u;
+	const make = new Function('Math', cut(src, 'RARW', 'const') + '\nreturn {' + cut(src, 'weighted') + '};');
+	const g = make(dice);
+	return (pool, u) => { dice.u = u; const c = g.weighted(pool); return c ? pool.indexOf(c) : -1; };
+}
+
 function main() {
 	const [, , casesPath, outPath] = process.argv;
 	if (!casesPath || !outPath) {
@@ -179,12 +191,14 @@ function main() {
 	const proto = engine();
 	const audit = auditor();
 	const fights = flow();
+	const pick = picker();
 	const cases = JSON.parse(fs.readFileSync(casesPath, 'utf8'));
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
 		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
 		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'weighted') return pick(one.pool, one.u);
 		if (one.kind === 'fight') return playFight(fights, one);
 		if (one.kind === 'fxAudit') return audit(...AUDIT_TABLES.map((t) => one[t]));
 		if (one.kind === 'scaleSitter') return proto.scaleSitter(one.sitter, one.night, one.step);

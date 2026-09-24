@@ -881,16 +881,38 @@ func roll_mark(kind: String = ""):
 func weighted(pool: Array):
 	if pool.is_empty():
 		return null
-	const RARW := {"basic": 0, "common": 6, "uncommon": 3, "rare": 1}
-	var total := 0
+	return weighted_at(pool, rng.randf())
+
+
+## weighted() with the roll handed in, so it can be put next to the prototype's
+## own weighted() with the same number and asked whether they pick the same card.
+func weighted_at(pool: Array, u: float):
+	if pool.is_empty():
+		return null
+	var total := 0.0
 	for c in pool:
-		total += int(RARW.get(c.get("r", "common"), 1))
-	var roll := rng.randf() * total
+		total += rarity_weight(c)
+	var roll := u * total
 	for c in pool:
-		roll -= float(RARW.get(c.get("r", "common"), 1))
+		roll -= rarity_weight(c)
 		if roll <= 0:
 			return c
 	return pool[pool.size() - 1]
+
+
+## How often a card turns up in a reward or the shop, against the others in the
+## pool. The prototype writes `RARW[c.r] || 1` (~2270), and the `|| 1` is
+## load-bearing twice: a card with NO rarity weighs 1, and so does `basic`,
+## whose 0 is falsy. The port read a missing rarity as "common" — six times as
+## likely as the specification offers it — which only a mod can reach, since
+## every card the base game can offer names its rarity; and it let basic's 0
+## stand, so a mod's basic-rarity card was never offered at all. Found by
+## tests/test_against_the_prototype.gd, rolling both with the same number.
+const RARW := {"basic": 0, "common": 6, "uncommon": 3, "rare": 1}
+
+static func rarity_weight(c: Dictionary) -> float:
+	var w := float(RARW.get(c.get("r"), 0))
+	return w if w != 0.0 else 1.0
 
 
 func minor_of_el(el: String, ex: Array):

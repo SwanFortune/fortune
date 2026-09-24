@@ -51,6 +51,9 @@ const CARDS := 600
 ## Each one carries every content table across to node, so fewer than the cards.
 const AUDITS := 150
 
+## A pool and one roll each.
+const PICKS := 1000
+
 ## Each one is up to thirteen steps of a whole fight.
 const FIGHTS := 300
 
@@ -98,7 +101,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit and whole fights agreed with the prototype" % [_cases.size(), CARDS]
+	return "%d reading(s), %d card(s), the pronouns, the ladder, the content audit, the rarity roll and whole fights agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -540,6 +543,71 @@ func _test_the_prototype_still_never_reads_shieldNext() -> void:
 	done()
 
 
+## WHICH CARD A REWARD OR THE SHOP OFFERS, against the prototype's weighted().
+##
+## The rarity weighting decides what a player is ever shown. Both engines draw
+## from their own dice, so the port's weighted() is split into weighted_at(pool,
+## u) and the prototype's runs with Math.random() pinned to the same u: then they
+## must pick the same card, every time. Pools are drawn from the cards the game
+## can offer, plus what a mod might write — no rarity, "basic", a rarity nobody
+## defined, a null — because the base game names a known rarity on every
+## offerable card and would never show the difference.
+func _test_rewards_are_weighted_as_the_prototype_weighs_them() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var run: Node = root.get_node("Run")
+	var offerable: Array = content.cards_minor + content.cards_arcana
+	var questions: Array = []
+	for _i in PICKS:
+		var pool: Array = []
+		for _c in 1 + randi() % 8:
+			var c: Dictionary = offerable[randi() % offerable.size()].duplicate(true)
+			# The same card twice is equal as a Dictionary, and find() would name
+			# the first copy whichever one was picked.
+			c["_at"] = pool.size()
+			match randi() % 6:
+				0:
+					c.erase("r")
+				1:
+					c["r"] = "basic"
+				2:
+					c["r"] = ["legendary", null, ""][randi() % 3]
+			pool.append(c)
+		var u: float = [0.0, 0.999999, randf()][randi() % 3]
+		# A roll that lands EXACTLY on the line between two cards, which is the
+		# only place `roll <= 0` and `roll < 0` part company. Aimed with the
+		# port's weights: this chooses the input, the prototype still judges it.
+		if randf() < 0.3:
+			var total := 0.0
+			for c in pool:
+				total += run.rarity_weight(c)
+			var upto := 0.0
+			for j in 1 + randi() % pool.size():
+				upto += run.rarity_weight(pool[j])
+			u = upto / total
+		questions.append({"kind": "weighted", "pool": pool, "u": u})
+	var theirs := _ask_the_prototype(questions)
+	check(theirs.size() == questions.size(), "the bridge rolled %d of %d pools" % [theirs.size(), questions.size()])
+
+	var shown := 0
+	for i in min(theirs.size(), questions.size()):
+		var q: Dictionary = questions[i]
+		var picked = run.weighted_at(q["pool"], q["u"])
+		var mine: int = q["pool"].find(picked) if picked != null else -1
+		if mine == int(theirs[i]):
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		check(false, "rolling %s over rarities %s: the port picks #%d, the prototype #%d"
+			% [q["u"], JSON.stringify(q["pool"].map(func(c): return c.get("r", "<none>"))), mine, int(theirs[i])])
+	if shown > 3:
+		check(false, "%d rolls of %d picked differently; the first three are above" % [shown, questions.size()])
+	done()
+
+
 ## THE CONTENT AUDIT, against the prototype's fxAudit().
 ##
 ## This is the check a mod author is told to run (tests/test_content_audit.gd)
@@ -719,7 +787,10 @@ func _ask_the_prototype(questions: Array) -> Array:
 	# sort_keys OFF. Godot sorts by default, and the prototype walks a table like
 	# JOBS in the order its keys arrive — so a sorted transport reorders what the
 	# spec reports and blames the port for it.
-	f.store_string(JSON.stringify(questions, "", false))
+	# full_precision ON. Godot writes a float to fourteen digits by default, so a
+	# roll aimed exactly at the line between two cards arrived a hair off it and
+	# the prototype picked the neighbour.
+	f.store_string(JSON.stringify(questions, "", false, true))
 	f.close()
 
 	# IS NODE HERE AT ALL — asked separately, and this is not a detail. The first

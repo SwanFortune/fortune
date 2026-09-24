@@ -17,6 +17,14 @@ whoever ships or forks the game, and once for mods — `docs/MODDING.md` spends
 three pages encouraging people to build on the base content, and nothing tells
 them what they may do with it. It is one file. The terms are the author's call.
 
+**Is a `basic` card meant to be offered?** The prototype's rarity table says
+`basic: 0`, and its `weighted()` reads `RARW[c.r] || 1` — so the 0 is falsy and
+a basic card weighs 1, like a rare. The port now does the same, because the
+prototype is the specification. No base card can reach it (every offerable card
+is common, uncommon or rare); a mod's can. If 0 was meant as "never offered",
+that is a one-line change in `Run.rarity_weight()` and the differential will
+then report it, deliberately.
+
 ## Needs a person, not a test
 
 **Nobody has heard the sound.** The exported build was mute for the whole of the
