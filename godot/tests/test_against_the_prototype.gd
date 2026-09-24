@@ -92,7 +92,7 @@ func teardown() -> void:
 func summary() -> String:
 	if _skipped != "":
 		return _skipped
-	return "%d reading(s) and %d card(s) agreed with the prototype" % [_cases.size(), CARDS]
+	return "%d reading(s), %d card(s), the pronouns and the ladder agreed with the prototype" % [_cases.size(), CARDS]
 
 
 ## THE WHOLE TEST. Both engines, the same readings, every field.
@@ -209,6 +209,178 @@ func _test_the_elements_carry_the_prototypes_glyphs() -> void:
 	check(content.elements.size() == theirs.size(),
 		"the port has %d elements and the prototype %d" % [content.elements.size(), theirs.size()])
 	done()
+
+
+## THE PRONOUN TABLE IS THE PROTOTYPE'S PRONOUN TABLE. Every token the
+## specification fills must be in data/base/pronouns.json with the same English
+## word, or every sign rule reads differently for a sitter of that pronoun.
+##
+## Tokens the PORT ADDED (the `e` agreement slot French needs) are derived as
+## "in ours and not in theirs", and each must be EMPTY in English: the
+## specification leaves an unknown {token} printed as-is, so an addition is only
+## invisible to an English player while it fills to nothing.
+func _test_the_pronouns_are_the_prototypes_pronouns() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var answer := _ask_the_prototype([{"kind": "pronouns"}])
+	check(answer.size() == 1, "the bridge should have handed back one pronoun table")
+	if answer.is_empty():
+		done()
+		return
+	var theirs: Dictionary = answer[0]
+	for key in theirs:
+		var mine: Dictionary = content.pronouns.get(key, {})
+		check(not mine.is_empty(), "the prototype has a pronoun set '%s' and the port does not" % key)
+		for token in theirs[key]:
+			check(str(mine.get(token, "<missing>")) == str(theirs[key][token]),
+				"%s {%s}: the port says '%s', the prototype says '%s'"
+				% [key, token, mine.get(token, "<missing>"), theirs[key][token]])
+		for token in mine:
+			if not theirs[key].has(token):
+				check(str(mine[token]) == "",
+					"%s {%s} is the port's own token and should fill to nothing in English, not '%s'"
+					% [key, token, mine[token]])
+	done()
+
+
+## WHAT fill() MAKES OF A SENTENCE, against the prototype's fill().
+##
+## Every sign rule and slot label goes through it, so a divergence reads wrong
+## on every card of the sign-select screen and every encounter. Fed the real
+## sentences the content ships AND invented ones, because the shipped ones only
+## ever use tokens that are spelled right: the other half of the contract is what
+## happens to {typo}, to {S} with nothing after it, and to a pronoun key no set
+## has — and those are what a hand-written mod gets.
+func _test_sentences_fill_as_the_prototype_fills_them() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var spec_table: Array = _ask_the_prototype([{"kind": "pronouns"}])
+	if spec_table.is_empty():
+		check(false, "the bridge handed back no pronoun table to build sentences from")
+		done()
+		return
+	# Tokens drawn from the SPECIFICATION's table, not ours: the port's additions
+	# are checked above, and a sentence using one would report that on purpose.
+	var tokens: Array = spec_table[0]["they"].keys()
+	var keys: Array = spec_table[0].keys() + ["", "nobody"]
+
+	var sentences: Array = []
+	for sign in content.signs:
+		for field in ["rule", "flavour"]:
+			if str(sign.get(field, "")).contains("{"):
+				sentences.append(str(sign[field]))
+	check(not sentences.is_empty(), "the shipped signs should have tokens to fill — nothing real is being compared")
+	for _i in 300:
+		sentences.append(_a_sentence(tokens))
+
+	var questions: Array = []
+	for text in sentences:
+		for key in keys:
+			questions.append({"kind": "fill", "text": text, "pronoun": key})
+	var theirs := _ask_the_prototype(questions)
+	check(theirs.size() == questions.size(), "the bridge filled %d of %d sentences" % [theirs.size(), questions.size()])
+
+	var shown := 0
+	for i in min(theirs.size(), questions.size()):
+		var q: Dictionary = questions[i]
+		var mine: String = root.get_node("I18n").fill(q["text"], q["pronoun"])
+		if mine == str(theirs[i]):
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		check(false, "'%s' for '%s':\n  the port: '%s'\n  the spec: '%s'" % [q["text"], q["pronoun"], mine, theirs[i]])
+	if shown > 3:
+		check(false, "%d sentences of %d fill differently; the first three are above" % [shown, questions.size()])
+	done()
+
+
+## A sentence a mod author might write: real tokens, misspelt ones, a brace with
+## nothing in it, one never closed, and words between them.
+func _a_sentence(tokens: Array) -> String:
+	var bits := ["", " ", "need", "it", ".", "{", "}", "{}", "{typo}", "{S", "{{S}}", "{ S}", "{S2}", "{é}"]
+	var out := ""
+	for _i in 1 + randi() % 6:
+		if randf() < 0.55:
+			out += "{%s}" % tokens[randi() % tokens.size()]
+		else:
+			out += bits[randi() % bits.size()]
+	return out
+
+
+## THE DIFFICULTY LADDER, against the prototype's scaleSitter().
+##
+## Three lines that decide how much harder every knock is than the one before —
+## which is the whole curve of an evening, and CLAUDE.md records that "the ladder
+## makes the game harder" was once believed and false. At level 0 the port adds
+## nothing (data/base/difficulty.json's first rung is empty), so level 0 must be
+## the specification exactly: every caller the content ships, plain and elite,
+## at every knock of every night, and every field of the result.
+func _test_callers_grow_through_the_night_as_the_prototype_grows_them() -> void:
+	if _skipped != "":
+		print("  (skipping: %s)" % _skipped)
+		done()
+		return
+	var run: Node = root.get_node("Run")
+	var before: Dictionary = run.state
+	run.state = run.fresh("the ladder against the specification", 0)
+	check(run.level_fx().is_empty(), "level 0 should add nothing, or this is not comparing the source's ladder")
+
+	var callers: Array = []
+	for s in content.sitters:
+		callers.append(s)
+		callers.append(run.elite_of(s, true))
+	check(not callers.is_empty(), "there are no sitters to scale — nothing real is being compared")
+	var questions: Array = []
+	for s in callers:
+		for night in 3:
+			for step in 8:
+				questions.append({"kind": "scaleSitter", "sitter": s, "night": night, "step": step})
+	var theirs := _ask_the_prototype(questions)
+	check(theirs.size() == questions.size(), "the bridge scaled %d of %d callers" % [theirs.size(), questions.size()])
+
+	var shown := 0
+	for i in min(theirs.size(), questions.size()):
+		var q: Dictionary = questions[i]
+		var mine: Dictionary = run.scale_sitter(q["sitter"], q["night"], q["step"])
+		var where := _first_field_apart(mine, theirs[i])
+		if where == "":
+			continue
+		shown += 1
+		if shown > 3:
+			continue
+		check(false, "%s at night %d, knock %d: %s" % [q["sitter"].get("name", "?"), q["night"], q["step"], where])
+	if shown > 3:
+		check(false, "%d callers of %d grow differently; the first three are above" % [shown, questions.size()])
+	run.state = before
+	done()
+
+
+## Every field the specification returns, in the port's answer and equal to it.
+## Numbers as numbers, and anything else as canonical JSON so a nested elite
+## twist is compared whole.
+func _first_field_apart(mine: Dictionary, theirs: Dictionary) -> String:
+	for key in theirs:
+		if not mine.has(key):
+			return "the port has no '%s'" % key
+		var a = mine[key]
+		var b = theirs[key]
+		if (a is int or a is float) and (b is int or b is float):
+			if float(a) != float(b):
+				return "%s: the port says %s, the prototype says %s" % [key, a, b]
+		elif _canonical(a) != _canonical(b):
+			return "%s: the port says %s, the prototype says %s" % [key, JSON.stringify(a), JSON.stringify(b)]
+	return ""
+
+
+## Sent through JSON once, so the port's int 2 and the bridge's float 2.0 inside a
+## nested record read the same — that difference is the transport, not the game.
+func _canonical(v) -> String:
+	return JSON.stringify(JSON.parse_string(JSON.stringify(v)), "", true)
 
 
 ## One card, for its PRINTED text. Every field autoText() reads, and zeros on

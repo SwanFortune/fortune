@@ -38,23 +38,14 @@ noticing, and it is the one thing none of this can stand in for.
 
 ## An agent can pick these up
 
-**The differential covers two functions of six.**
-`tests/test_against_the_prototype.gd` runs the specification's own `simulate()`
-and `autoText()` against the port. Both found real bugs on their first run. The
-port makes the same kind of claim about four more, and `grep -n "Mirrors" -r
-godot/autoload` lists them. The two worth doing next:
-
-- `fill()`/`PRON` (`I18n.gd` says "Port of fill()/PRON"), the pronoun
-  substitution that fills `{S} need{es} it` from a sitter's pronoun. Pure, small,
-  and player-visible in every sign rule.
-- `scaleSitter(s, night, step)` in the prototype — three lines that set how a
-  sitter's composure and denial grow through a night, which is the whole
-  difficulty ladder. Worth doing precisely because "the ladder makes the game
-  harder" is one of the two claims in `CLAUDE.md` that turned out to be false.
-
-The run flow (`startFight`, `resolveRead`, `advance`) is not differential-tested
-either. It is harder — it is stateful, where the four above are pure — so it is
-listed last rather than first.
+**The run flow is not differential-tested.**
+`tests/test_against_the_prototype.gd` runs the specification's own `simulate()`,
+`autoText()`, `fill()`/`PRON` and `scaleSitter()` against the port. What it does
+not reach is the run flow — `startFight`, `resolveRead`, `advance` — which is
+stateful where those four are pure, so it needs a way to put both engines in the
+same state and step them together. `grep -n "Mirrors\|Port of" -r
+godot/autoload` lists what the port claims to mirror; anything on that list and
+not in the bridge's `METHODS`/`FUNCTIONS` is still unchecked.
 
 ## Deliberately not done, so nobody redoes the analysis
 

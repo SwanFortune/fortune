@@ -28,11 +28,20 @@ const SPEC = path.join(__dirname, '..', '..', 'project', 'Parlour v23.dc.html');
 // simulate(); if that list grows, this throws rather than guessing.
 const METHODS = ['simulate', 'linkOf', 'elOf', 'elBonus', 'myEl', 'has'];
 
+// scaleSitter() is the whole difficulty ladder of the source: how a caller's
+// composure and wall grow knock by knock through a night. Pure — it reads its
+// three arguments and nothing on `this`.
+const PURE_METHODS = ['scaleSitter'];
+
 // autoText() is not a method — it is a plain function with four one-line
 // helpers and the element table above it. It writes what is PRINTED ON EVERY
 // CARD, which is the half of the specification a player actually reads.
-const FUNCTIONS = ['autoText'];
-const CONSTS = ['PREVEL', 'NUMW', 'numw', 'capw', 'glyphOf', 'EL'];
+//
+// fill() is the pronoun substitution every sign rule goes through ("{S}
+// need{es} it" for a he, she or they sitter), and PRON and TOKEN are the table
+// and the pattern it fills from.
+const FUNCTIONS = ['autoText', 'fill'];
+const CONSTS = ['PREVEL', 'NUMW', 'numw', 'capw', 'glyphOf', 'EL', 'PRON', 'TOKEN'];
 
 /** The source text of one definition, found by its name and matched to its brace. */
 function cut(src, name, how) {
@@ -70,19 +79,18 @@ function engine() {
 	const ring = /const NEXT = (\{[^}]*\})/.exec(src);
 	if (!ring) throw new Error('the NEXT ring is no longer a one-line const in the prototype');
 
-	// Anything simulate() calls that is not one of the five and not a method of
-	// its own — `fill()` builds the minthree note's wording from the sitter's
-	// pronoun, which is prose, not arithmetic. The comparison treats halveNote
-	// as present-or-absent for exactly that reason.
-	const preamble = 'const NEXT = ' + ring[1] + ';\n' +
-		'const fill = (s) => s;\n';
+	// simulate() also calls fill() for the minthree note's wording. That is the
+	// real one now, cut out below with the rest; the comparison still treats
+	// halveNote as present-or-absent, because the port keeps that wording in the
+	// locale rather than in the engine.
+	const preamble = 'const NEXT = ' + ring[1] + ';\n';
 
 	const globals = CONSTS.map((n) => cut(src, n, 'const')).join('\n') + '\n'
 		+ FUNCTIONS.map((n) => cut(src, n, 'function')).join('\n') + '\n';
-	const methods = METHODS.map((n) => cut(src, n)).join(',\n');
+	const methods = METHODS.concat(PURE_METHODS).map((n) => cut(src, n)).join(',\n');
 	// Object-literal method shorthand is the shape they are already written in.
 	const factory = new Function(preamble + globals +
-		'return { state: null, autoText, EL,\n' + methods + '\n};');
+		'return { state: null, autoText, EL, fill, PRON,\n' + methods + '\n};');
 	return factory();
 }
 
@@ -96,6 +104,9 @@ function main() {
 	const out = cases.map((one) => {
 		if (one.kind === 'autoText') return proto.autoText(one.card);
 		if (one.kind === 'elements') return proto.EL;
+		if (one.kind === 'fill') return proto.fill(one.text, one.pronoun);
+		if (one.kind === 'pronouns') return proto.PRON;
+		if (one.kind === 'scaleSitter') return proto.scaleSitter(one.sitter, one.night, one.step);
 		proto.state = one.state;
 		return proto.simulate(one.f);
 	});
