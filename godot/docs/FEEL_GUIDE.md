@@ -151,6 +151,30 @@ values. Anything else must be equal.
 continue the line breathe is a real hint about how to play, and that is a
 design decision, not a feel one. Remove `"off": true` to try it.
 
+## The deal
+
+A card drawn comes off the **deck on the table** — a pile of backs at the `deck`
+spot in `room.json`, as thick as what is left to draw — face down, arcs over to
+its place in the hand and turns over there. `deal` in `feel.json`:
+
+```json
+"deal": { "flight": 0.32, "flip": 0.16, "stagger": 0.08, "arc": 0.07 }
+```
+
+`flight` and `flip` are seconds, `stagger` the gap between one card and the
+next in a hand dealt together, `arc` how high the card rises on the way, in
+screen heights. The card's click and its rumble (`card_draw`) land as it turns
+over. The back is `assets/art/ui/card-back.png` (`docs/ART_GUIDE.md`); until
+it is drawn, `scenes/Deck.gd` draws a stand-in. The studio's MOMENTS tab has a
+DEAL button that deals the card on show from a deck on its own table.
+
+A card on its way is hidden by its WIDTH (`scale.x = 0`), never by its
+visibility or its alpha: a hidden card would be left out of the fan's layout,
+and the fan would jump; alpha is what `breathe` and `flash` drive. And a
+container resets its children's scale every time it lays them out, so the
+reading puts the cards still face down back to zero width after each layout.
+`tests/test_scenes.gd` checks both.
+
 ## The player's hands
 
 The two hands at the bottom of the reading move. `gestures` in `feel.json` are

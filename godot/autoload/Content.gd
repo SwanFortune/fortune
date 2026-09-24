@@ -60,6 +60,8 @@ var motions: Dictionary
 var haptics: Dictionary
 ## What the player's two hands do — Feel.hand_pose(), scenes/Hands.gd.
 var gestures: Dictionary
+## How a drawn card comes off the deck — Feel.deal(), scenes/Deck.gd.
+var deal: Dictionary
 var card_states: Array
 ## The room remembers — data/base/room.json, drawn by scenes/RoomTraces.gd.
 var props: Dictionary
@@ -128,6 +130,7 @@ func reload() -> void:
 	motions = registries.get("motions", {})
 	haptics = registries.get("haptics", {})
 	gestures = registries.get("gestures", {})
+	deal = registries.get("deal", {})
 	card_states = registries.get("card_states", [])
 	props = registries.get("props", {})
 	spots = registries.get("spots", {})

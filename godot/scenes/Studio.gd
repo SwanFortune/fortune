@@ -29,6 +29,10 @@ extends Control
 const UIKit := preload("res://scenes/UIKit.gd")
 const Table := preload("res://scenes/Table.gd")
 const RoomTraces := preload("res://scenes/RoomTraces.gd")
+const Deck := preload("res://scenes/Deck.gd")
+
+## How many cards the studio's deck holds: enough to look like a deck.
+const STUDIO_DECK := 20
 
 ## How often the watched folders are looked at, and how often REPEAT fires.
 const WATCH_EVERY := 0.75
@@ -83,6 +87,8 @@ func _ready() -> void:
 	# layer the reading screen draws, over the same room, at the same spots.
 	_room_layer = RoomTraces.layer(_room)
 	root.add_child(_room_layer)
+	# And a deck on it, for DEAL to deal from.
+	root.add_child(Deck.pile(STUDIO_DECK))
 	var m := UIKit.margin(28)
 	root.add_child(m)
 	var outer := UIKit.vbox(10)
@@ -182,6 +188,7 @@ func _pane_moments() -> void:
 	var chooser := UIKit.hbox(8)
 	chooser.add_child(UIKit.button("◀", _step_card.bind(-1)))
 	chooser.add_child(UIKit.button("▶", _step_card.bind(1)))
+	chooser.add_child(UIKit.button(I18n.t("DEAL"), _deal))
 	_card_name = UIKit.label("", 13, UIKit.INK)
 	chooser.add_child(_card_name)
 	right.add_child(chooser)
@@ -499,6 +506,17 @@ func _fire() -> void:
 	var card: Dictionary = cards[_card_i % cards.size()] if not cards.is_empty() else {}
 	Feel.play(_last_event, _stage, {"el": str(card.get("el", "")) if card.get("el") != null else ""})
 	Audio.play(_audio_for(_last_event))
+
+
+## Deals the card on show from the deck on the table, as a drawn card arrives
+## in a reading — `deal` in feel.json, with the card back.
+func _deal() -> void:
+	if _stage == null or not is_instance_valid(_stage):
+		return
+	var shows: float = Feel.deal(_stage, 0.0, Deck.top_rect(get_viewport_rect().size, STUDIO_DECK), Deck.PILE_TURN)
+	UIKit.after(shows, Audio.play.bind("card_draw"))
+	if _preset_text != null and is_instance_valid(_preset_text):
+		_preset_text.text = "deal: %s" % JSON.stringify(Content.deal)
 
 
 ## What the moment is made of, from the registry, so the numbers being tuned

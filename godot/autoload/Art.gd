@@ -248,6 +248,12 @@ func prop_texture(prop_id: String) -> Texture2D:
 	return texture("prop/" + slug(prop_id))
 
 
+## A piece of the game's own furniture rather than of its content — the back of
+## every card (scenes/Deck.gd). `name` is the slot after `ui/`.
+func ui_texture(name: String) -> Texture2D:
+	return texture("ui/" + name)
+
+
 ## A ring, a tattoo, a scar as somebody drew it, worn on the player's hands —
 ## see scenes/Table.gd, mark_places(), which places it and draws a stand-in for
 ## its kind when this is null. Marks and relics share the one slot per name.

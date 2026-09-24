@@ -649,6 +649,84 @@ func _test_every_mark_worn_is_on_the_screen() -> void:
 	done()
 
 
+## A CARD DRAWN COMES OFF THE DECK. The pile is on the table as thick as what
+## is left to draw; each card just drawn flies from it face down and turns over
+## in its place in the hand (Feel.deal()). What that must not cost:
+##
+##   - the LAYOUT. A card is hidden by its width while it flies, never by its
+##     visibility — a hidden Control is left out of its container, and the fan
+##     would close up round the gap and jump open when it landed. So every
+##     card is where it will be from the first frame, and is still there after;
+##   - a card left face down, or a back left on the screen, when it is over;
+##   - the time of anyone who asked for no motion: then the cards are simply
+##     there, and nothing flies.
+func _test_a_drawn_card_is_dealt_from_the_deck() -> void:
+	var settings: Node = root.get_node("Settings")
+	var feel: Node = root.get_node("Feel")
+	var speed_before = settings.get_value("animation_scale")
+	var restore_size: Vector2i = root.size
+	root.size = Vector2i(1280, 720)
+	for motion in [true, false]:
+		settings.set_value("animation_scale", 1.0 if motion else 0.0)
+		run.state = run.fresh("dealt")
+		run.pick_reader(0)
+		run.take_pick(0)
+		for o in run.state["options"]:
+			if o["kind"] in ["sitter", "elite"]:
+				run.choose(run.state["options"].find(o))
+				break
+		var f: Dictionary = run.state["f"]
+		# Every back that takes off, counted as it is made: headless frames are
+		# long enough that the first can have landed before anything looks.
+		var backs := [0]
+		var count_backs := func(n: Node) -> void:
+			if n.has_meta(feel.DEALT_BACK):
+				backs[0] += 1
+		feel._layer.child_entered_tree.connect(count_backs)
+		var instance: Node = load("res://scenes/Reading.tscn").instantiate()
+		root.add_child(instance)
+		var pile: Control = instance.find_child("Deck", true, false)
+		check(pile != null and pile.count == f["draw"].size(),
+			"the deck on the table should hold what is left to draw (%d), holds %s" % [f["draw"].size(), pile.count if pile else "nothing"])
+		await process_frame
+		var fan := _first_of_class(instance, "HFlowContainer")
+		var faces: Array = fan.get_children().filter(func(c): return c is Control) if fan else []
+		check(faces.size() == f["hand"].size() and faces.size() > 1, "precondition — a fan of the %d cards drawn" % f["hand"].size())
+		# Where the fan is laid out on its first frame, before the deal starts.
+		var where: Array = faces.map(func(c): return (c as Control).position)
+		if motion:
+			check(faces.all(func(c): return (c as Control).scale.x < 0.01),
+				"on the first frame every card just drawn should be face down, widths are %s" % [faces.map(func(c): return c.scale.x)])
+		# Frame by frame until it is over: a card may be face up only once it
+		# is no longer on its way.
+		var until := Time.get_ticks_msec() + int((float(content.deal.get("stagger", 0.08)) * faces.size() + 0.9) * 1000.0)
+		var shown_early := {}
+		while Time.get_ticks_msec() < until:
+			for c in faces:
+				if feel.dealing(c) and (c as Control).scale.x > 0.01:
+					shown_early[c] = true
+			await process_frame
+		feel._layer.child_entered_tree.disconnect(count_backs)
+		check(shown_early.is_empty(), "%d card(s) showed their face while still on the way from the deck (motion %s)" % [shown_early.size(), motion])
+		if motion:
+			check(backs[0] == faces.size(), "a back should fly for each card drawn: %d backs for %d cards" % [backs[0], faces.size()])
+		else:
+			check(backs[0] == 0, "with motion off nothing should fly, %d backs did" % backs[0])
+		check(faces.all(func(c): return is_equal_approx((c as Control).scale.x, (c as Control).scale.y)),
+			"every card should have turned over (motion %s): %s" % [motion, faces.map(func(c): return c.scale)])
+		check(not faces.any(func(c): return feel.dealing(c)), "no card should still be marked as dealing (motion %s)" % motion)
+		check(not feel._layer.get_children().any(func(n): return n.has_meta(feel.DEALT_BACK) and not n.is_queued_for_deletion()),
+			"no back should be left on the screen (motion %s)" % motion)
+		check(where == faces.map(func(c): return (c as Control).position),
+			"the fan moved while it was dealt (motion %s): %s, then %s" % [motion, where, faces.map(func(c): return c.position)])
+		instance.queue_free()
+		await process_frame
+	settings.set_value("animation_scale", speed_before)
+	root.size = restore_size
+	print("--- the hand is dealt off the deck, face down, and turns over where it will stay ---")
+	done()
+
+
 ## THE LAST CARD FLOATS. When the hand is down to one, the card is lifted clear
 ## of two open hands rather than clamped between fingertips — which means it
 ## leaves the ScrollContainer and the flow container entirely, and a Control

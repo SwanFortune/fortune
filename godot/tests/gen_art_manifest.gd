@@ -93,6 +93,10 @@ func _initialize() -> void:
 				{"mark_kind": str(m.get("kind", "")), "on": str(m.get("on", "")), "flavor": str(m.get("text", ""))}
 			)
 
+	# The back of every card: on the deck on the table, and on each card as it
+	# is dealt from it (scenes/Deck.gd).
+	add.call({}, "ui/card-back", "ui", "The back of every card", {})
+
 	var boss: Dictionary = content.boss
 	if not boss.is_empty():
 		add.call(
@@ -164,6 +168,13 @@ func _spec() -> Dictionary:
 			"format": "PNG, RGBA, transparent background",
 			"safe_zone": "The mark alone, centred, on a transparent square, drawn with its TOP toward the fingertip: a ring is turned to lie across the finger it is on, and a tattoo along it.",
 			"notes": "Worn on the player's hands at the bottom of the reading, where its `on` field says (a finger, the thumb, the nails, the back of the hand, the wrist, the knuckles, or held above). Small: the square is about a tenth to a fifth of the hands' height — a ring is roughly 10 px across at 720p — so it has to read as a shape and a colour, not as detail. A mark on the nails is drawn once and shown on all four fingertips.",
+		},
+		"cardback_art": {
+			"applies_to": ["ui"],
+			"pixels": "488x736", "aspect": "2:3 portrait, the card's own shape",
+			"format": "PNG, RGBA",
+			"safe_zone": "The whole card; it is shown entire. Round the corners yourself if you want them round — the stand-in does, and nothing is masked.",
+			"notes": "The back of every card: the pile on the table (about 61x92 px at 720p, a little crooked) and each card as it flies from the pile to the hand and turns over (122x184 px). One drawing for the whole deck.",
 		},
 		"naming": "<kind>/<slug>.png under assets/art/ — e.g. assets/art/card/pour-the-tea.png, assets/art/sitter/mme-perrot.png. The slug is the asset id after the kind prefix; use it exactly as written in this file.",
 		"status_values": ["missing", "wip", "final"],

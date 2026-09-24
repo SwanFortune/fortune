@@ -58,6 +58,16 @@ is always runnable — art can land one piece at a time, in any order.
 - **Readers** are the fortune-teller the player chooses to *be*, shown on the
   sign-select screen.
 
+### The card back — **488 × 736 px**, 2:3 portrait (the card's own shape), PNG (RGBA)
+
+- One drawing for the whole deck: `assets/art/ui/card-back.png`.
+- Shown entire, nothing masked: round the corners yourself if you want them
+  round.
+- Seen on the pile on the table (about 61 × 92 px at 720p, a little crooked)
+  and full size (122 × 184) on each card as it is dealt to the hand and turns
+  over. A strong, simple silhouette reads on the pile; the detail is for the
+  moment it flies.
+
 ### Marks (rings, tattoos, scars, boons) — **256 × 256 px**, square, PNG (RGBA, transparent)
 
 - One drawing per mark or relic, `assets/art/mark/<slug>.png`; the slugs are
@@ -268,8 +278,8 @@ It prints a by-status summary (how many missing / wip / final).
 
 ## What is drawn in code, and what replaces it
 
-Three things on screen are not in the manifest, because they are not files:
-they are drawn procedurally by the game. They exist so the game looks like a
+Four things on screen are drawn by the game itself rather than loaded from a
+file. They exist so the game looks like a
 game rather than a spreadsheet while the real art is being made, and each one
 is a placeholder with a clear replacement.
 
@@ -277,6 +287,7 @@ is a placeholder with a clear replacement.
 |---|---|---|
 | `scenes/UIKit.gd` — `sitter_portrait()` | A face: an oval, two eyes, a mouth whose curve follows the sitter's mood | A sitter portrait PNG, via the manifest. Already wired: deliver the file and the drawing stops being used. |
 | `scenes/Table.gd` | The parlour, behind EVERY screen in the game, in three views: the table (a papered wall, a door, a coat on a hook, a floor, the table in perspective with its cloth, a Minitel and a cup of tea on it, and the reader's two hands holding the fan with every mark drawn on them), the closed door, and the bare wall | Nothing yet. See below. |
+| `scenes/Deck.gd` | The back of every card — wine, a gold rule, a moon — on the deck on the table and on each card as it is dealt | `assets/art/ui/card-back.png`, via the manifest. Already wired. |
 | `autoload/Icons.gd` | The element, sign, planet and archetype glyphs, rasterised at runtime from the vector paths in `data/base/icons.json` | These are FINISHED, not placeholders — they came from the design document and are meant to stay. Redraw a path in `icons.json` to change one. |
 
 ### The room, the table and the hands

@@ -192,6 +192,23 @@ Un geste doit **commencer et finir au repos** (toutes les valeurs à 0 ou 1) :
 sinon les mains sautent au début ou restent levées. Le test le vérifie.
 Dans l'atelier, l'onglet **MAINS** joue chaque geste, au ralenti si tu veux.
 
+### La donne
+
+Une carte piochée part du **paquet posé sur la table**, face cachée, vole
+jusqu'à sa place dans la main et s'y retourne. Dans `feel.json` :
+
+```json
+"deal": { "flight": 0.32, "flip": 0.16, "stagger": 0.08, "arc": 0.07 }
+```
+
+`flight` : la durée du vol, `flip` : celle du retournement, `stagger` : l'écart
+entre deux cartes, `arc` : la hauteur de la courbe (en hauteur d'écran). La
+place du paquet est `deck` dans les `spots` de `room.json`.
+
+**Le dos des cartes** : `assets/art/ui/card-back.png`, 488 × 736 (la forme de la
+carte), un seul dessin pour tout le paquet. Dans l'onglet **MOMENTS**, le bouton
+**DONNER** rejoue la donne sur la carte affichée.
+
 ### Les bijoux, les tatouages, les cicatrices
 
 Chaque marque (`data/base/marks.json`, `data/base/relics.json`) dit où elle se

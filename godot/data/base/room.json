@@ -11,6 +11,7 @@
     "house":      { "draw": "paper", "size": 0.08 }
   },
   "spots": {
+    "deck": [0.74, 0.47],
     "their_side": [0.53, 0.40],
     "middle":     [0.60, 0.50],
     "beside":     [0.70, 0.52],

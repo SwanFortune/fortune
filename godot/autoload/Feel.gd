@@ -755,6 +755,95 @@ func _pulse(weak: float, strong: float, seconds: float) -> void:
 		haptic_log.pop_front()
 
 
+# ── the deal ─────────────────────────────────────────────────────────────
+
+## The meta every back in flight carries, so a test can count them.
+const DEALT_BACK := "_dealt_back"
+
+## A drawn card comes off the deck on the table face down, arcs over to its
+## place in the hand, and turns over there. `from` is the top of the pile
+## (Deck.top_rect()), `turn` the pile's tilt; `delay` staggers a hand of five
+## into a deal rather than one pop. Returns when, from now, the face shows —
+## what the caller times the card's sound and rumble to — in the game's own
+## seconds, as `delay` is and as play_later() and UIKit.after() take them.
+##
+## THE FACE IS HIDDEN BY ITS WIDTH, NEVER ITS VISIBILITY OR ITS ALPHA: a hidden
+## Control is left out of its container's layout, so the fan would close up
+## around the gap and open again when it landed; and alpha is what `breathe`
+## and `flash` tween, so a card dressed while invisible would breathe at zero
+## forever. scale.x = 0 is not layout, and the turn-over is a scale.x anyway.
+##
+## `then` runs once the face is showing, for whatever the screen was holding
+## back until then (raising a card the pointer is already on).
+func deal(face: Control, delay: float, from: Rect2, turn: float = 0.0, then: Callable = Callable()) -> float:
+	if _motion_off() or not _alive(face) or face.size.x <= 0.0:
+		if is_instance_valid(face):
+			face.remove_meta("_dealing")
+			face.scale.x = face.scale.y
+		if then.is_valid():
+			then.call()
+		return 0.0
+	var d: Dictionary = Content.deal
+	var flight := _dur(float(d.get("flight", 0.32)))
+	var half := _dur(float(d.get("flip", 0.16))) * 0.5
+	var wait := _dur(delay)
+	var to := face.get_global_rect()
+	face.pivot_offset = face.size * 0.5
+	var rest_scale := face.scale
+	face.scale = Vector2(0.0, rest_scale.y)
+	face.set_meta("_dealing", true)
+
+	var ghost: Control = (load("res://scenes/Deck.gd") as GDScript).back(to.size)
+	ghost.pivot_offset = to.size * 0.5
+	var start := from.get_center() - to.size * 0.5
+	ghost.position = start
+	ghost.scale = Vector2.ONE * (from.size.x / maxf(1.0, to.size.x))
+	ghost.rotation_degrees = turn
+	ghost.visible = false
+	# Marked, not named: a second back added beside the first is renamed
+	# @Control@<id> by the engine, and a name is then no way to find them.
+	ghost.set_meta(DEALT_BACK, true)
+	_layer.add_child(ghost)
+	var arc := float(d.get("arc", 0.07)) * float(get_viewport().get_visible_rect().size.y)
+
+	var tw := ghost.create_tween()
+	tw.bind_node(ghost)
+	tw.tween_interval(wait)
+	tw.tween_callback(ghost.show)
+	tw.tween_method(_fly.bind(ghost, start, to.position, arc), 0.0, 1.0, flight).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(ghost, "scale", Vector2.ONE, flight).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(ghost, "rotation_degrees", 0.0, flight).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Turned over: the back narrows to an edge, and the face opens from it.
+	tw.tween_property(ghost, "scale:x", 0.0, half).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+	tw.tween_callback(_turn_over.bind(face.get_instance_id(), rest_scale, half, then))
+	tw.tween_callback(ghost.queue_free)
+	return delay + float(d.get("flight", 0.32)) + float(d.get("flip", 0.16)) * 0.5
+
+
+## Along the arc: a straight line from the pile to the hand, lifted in the
+## middle by `arc` pixels.
+func _fly(t: float, ghost: Control, from: Vector2, to: Vector2, arc: float) -> void:
+	if is_instance_valid(ghost):
+		ghost.position = from.lerp(to, t) - Vector2(0, arc * sin(PI * t))
+
+
+func _turn_over(id: int, rest_scale: Vector2, half: float, then: Callable) -> void:
+	var face = instance_from_id(id)
+	if not _alive(face):
+		return
+	face.remove_meta("_dealing")
+	var tw: Tween = face.create_tween()
+	tw.bind_node(face)
+	tw.tween_property(face, "scale:x", rest_scale.x, half).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if then.is_valid():
+		tw.tween_callback(then)
+
+
+## Whether `face` is still on its way from the deck, face down.
+func dealing(face: Control) -> bool:
+	return is_instance_valid(face) and face.has_meta("_dealing")
+
+
 # ── the hands ────────────────────────────────────────────────────────────
 
 ## The gesture the hands are in when nothing else is asked of them. Loops.
@@ -914,6 +1003,8 @@ func problems() -> Array[String]:
 				for field in k:
 					if field != "at" and field != "ease" and not POSE_FIELDS.has(field):
 						out.append("feel.json: gesture '%s' has a key setting '%s', which is not one of %s" % [name, field, POSE_FIELDS.keys()])
+	if not STATUSES.has(str(Content.deal.get("status", UNDELIVERED))):
+		out.append("feel.json: the deal has status '%s', which is not one of %s" % [Content.deal.get("status"), STATUSES.keys()])
 	for rule in Content.card_states:
 		for pair in [["particles", Content.particles], ["motion", Content.motions]]:
 			var wanted := str(rule.get(pair[0], ""))

@@ -1221,6 +1221,13 @@
       "notes": "",
       "pronoun": "she",
       "status": "missing"
+    },
+    "ui/card-back": {
+      "display": "The back of every card",
+      "file": "",
+      "kind": "ui",
+      "notes": "",
+      "status": "missing"
     }
   },
   "spec": {
@@ -1233,6 +1240,16 @@
       "notes": "Displayed at roughly 106x79 in the hand at 1x, so it must still read at thumbnail size. 768 gives headroom for a zoomed card-inspect view later.",
       "pixels": "768x576",
       "safe_zone": "None. The card holds a window of exactly this shape open and nothing is drawn over it — the numbers sit above it, the name and badges below."
+    },
+    "cardback_art": {
+      "applies_to": [
+        "ui"
+      ],
+      "aspect": "2:3 portrait, the card's own shape",
+      "format": "PNG, RGBA",
+      "notes": "The back of every card: the pile on the table (about 61x92 px at 720p, a little crooked) and each card as it flies from the pile to the hand and turns over (122x184 px). One drawing for the whole deck.",
+      "pixels": "488x736",
+      "safe_zone": "The whole card; it is shown entire. Round the corners yourself if you want them round — the stand-in does, and nothing is masked."
     },
     "mark_art": {
       "applies_to": [

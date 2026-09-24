@@ -13,6 +13,7 @@ const RunHeader := preload("res://scenes/RunHeader.gd")
 const UIKit := preload("res://scenes/UIKit.gd")
 const RoomTraces := preload("res://scenes/RoomTraces.gd")
 const Table := preload("res://scenes/Table.gd")
+const Deck := preload("res://scenes/Deck.gd")
 
 ## The card band, and the whole held area beneath it. The hands start where the
 ## cards stop and rise back over them by the difference.
@@ -63,6 +64,10 @@ func _ready() -> void:
 	# on this screen. See scenes/RoomTraces.gd.
 	var sitter_el = f.get("sitter", {}).get("el", "")
 	root.add_child(RoomTraces.layer(f.get("room", []), int(f.get("room_jolt", 0)), str(sitter_el) if sitter_el != null else ""))
+	# The deck, on the table, as thick as what is left to draw. What you draw
+	# comes off the top of it; see _deal_in().
+	_pile = Deck.pile(f.get("draw", []).size())
+	root.add_child(_pile)
 	var m := UIKit.margin(28)
 	# No bottom margin: the hand sits on the screen's edge with the fingers
 	# holding it running off it. A gap under them makes the table a panel.
@@ -107,6 +112,7 @@ func _ready() -> void:
 	# focusable control, so without it nothing on the screen takes focus and a
 	# player without a mouse cannot reach READ IT to end the turn.
 	UIKit.focus_first(focus_on, self)
+	_deal_in()
 
 
 ## WHO IS SITTING THERE: their portrait, their name and job, their element, and
@@ -367,8 +373,7 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		var face := _lift(held, only, int(only.get("cost", 0)) <= int(f["energy"]))
 		_inspect(face, hand_label)
 		if just_drawn.has(only["uid"]):
-			UIKit.animate_in(face)
-			_deal_sound(0.0)
+			_will_deal(face)
 		span = _card_span.bind(face, held)
 		hand_reach = OPEN_REACH
 		focus_on = face
@@ -394,7 +399,6 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 		fan.add_theme_constant_override("h_separation", FAN_GAP)
 		fan.add_theme_constant_override("v_separation", 8)
 		headroom.add_child(fan)
-		var deal_index := 0
 		for c in f["hand"]:
 			var afford := int(c.get("cost", 0)) <= int(f["energy"])
 			var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
@@ -403,9 +407,7 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 			_faces[c["uid"]] = face
 			Feel.dress_card(face, c, _feel_ctx(c, f, afford))
 			if just_drawn.has(c["uid"]):
-				UIKit.animate_in(face, deal_index * 0.06)
-				_deal_sound(deal_index * 0.06)
-				deal_index += 1
+				_will_deal(face)
 		span = _fan_span.bind(fan, held)
 		if fan.get_child_count() > 0:
 			focus_on = fan
@@ -420,6 +422,15 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 			if child is Control:
 				(child as Control).resized.connect(fit)
 		fan.resized.connect(fit)
+		# A CONTAINER RESETS ITS CHILDREN'S SCALE every time it lays them out
+		# (Container.fit_child_in_rect()), and a card on its way from the deck is
+		# hidden by its width. So after every layout, the cards still face down
+		# are put back face down — or the first sort shows the whole hand before
+		# it has been dealt, which it did.
+		fan.sort_children.connect(func():
+			for child in fan.get_children():
+				if Feel.dealing(child):
+					(child as Control).scale.x = 0.0)
 		fit.call()
 
 	# Added AFTER the cards, and the order matters: the fingertips have to draw
@@ -551,6 +562,10 @@ const CARD_LIFT := 1.14
 ## Scales `face` to `to`, and puts it in front of its neighbours while it is up.
 func _raise(face: Control, to: float) -> void:
 	if not is_instance_valid(face):
+		return
+	# Still face down on its way from the deck: raising it would show it before
+	# it has turned over. _settle() raises it once it has.
+	if Feel.dealing(face):
 		return
 	# In front only while raised: left at a high z_index a card would keep
 	# covering the one beside it after the pointer had gone.
@@ -692,6 +707,62 @@ func _span_of(cards: Array, origin: Control) -> Vector2:
 	return Vector2(left - at, right - at)
 
 
+## Face down from the moment it is built, before anything can focus it: focus
+## comes before the deal, and a card raised by it is a card shown early.
+func _will_deal(face: Control) -> void:
+	_to_deal.append(face)
+	if not UIKit.motion_off():
+		face.set_meta("_dealing", true)
+		face.scale.x = 0.0
+
+
+## THE CARDS JUST DRAWN COME OFF THE DECK, one after another, and turn over in
+## the hand (Feel.deal()). Hidden at once — by width, see Feel.deal() — so no
+## card shows for the frame before the deal starts; dealt a frame later, once
+## the fan has been laid out and each card knows where it is going.
+func _deal_in() -> void:
+	var faces := _to_deal
+	_to_deal = []
+	if faces.is_empty():
+		return
+	# With motion off the cards are simply there; the click of each still is.
+	if UIKit.motion_off():
+		for face in faces:
+			_deal_sound(0.0)
+		return
+	# Two frames on, through a signal rather than an await: laying a card in the
+	# first of them frees this screen, and a connection to a freed node is
+	# dropped where a suspended function would be resumed on nothing.
+	get_tree().process_frame.connect(_deal_after.bind(faces, 2), CONNECT_ONE_SHOT)
+
+
+func _deal_after(faces: Array, frames: int) -> void:
+	# Taken off the screen without being freed — a test that builds a screen
+	# and removes it — has nowhere to deal to, and no tree to wait on.
+	if not is_inside_tree():
+		return
+	if frames > 1:
+		get_tree().process_frame.connect(_deal_after.bind(faces, frames - 1), CONNECT_ONE_SHOT)
+		return
+	var stagger := float(Content.deal.get("stagger", 0.08))
+	var n: int = _pile.count if is_instance_valid(_pile) else 0
+	for i in faces.size():
+		var face: Control = faces[i]
+		if not is_instance_valid(face):
+			continue
+		face.scale.x = 1.0
+		var from := Deck.top_rect(get_viewport_rect().size, n)
+		var shows: float = Feel.deal(face, i * stagger, from, Deck.PILE_TURN, _settle.bind(face))
+		_deal_sound(shows)
+
+
+## Once a dealt card has turned over: if the pointer or the focus is already on
+## it, it comes up as any card under them does. _raise() waited for it.
+func _settle(face: Control) -> void:
+	if is_instance_valid(face) and (face.has_focus() or face.get_global_rect().has_point(face.get_global_mouse_position())):
+		_raise(face, CARD_LIFT)
+
+
 ## One click per card dealt, staggered to match the deal animation. Uses the
 ## same delay the tween does, so a hand riffles rather than arriving as one
 ## thud — and goes silent with the animations when motion is turned off.
@@ -760,6 +831,11 @@ var _revealing := false
 ## The hand's faces by card uid, so laying a card can put its burst where the
 ## card WAS — the screen is rebuilt the moment it is laid.
 var _faces := {}
+
+## The deck on the table, and the faces just drawn from it, which arrive from
+## it once the hand has been laid out (_deal_in()).
+var _pile: Control
+var _to_deal: Array = []
 
 
 ## What a card cannot say about itself, for Feel's card_states rules: whether it
