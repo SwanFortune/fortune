@@ -51,6 +51,12 @@ var denial_shield: Dictionary
 var denial_wall: Dictionary
 var pronouns: Dictionary
 var sounds: Dictionary
+## How each moment feels — see autoload/Feel.gd and data/base/feel.json.
+var feel: Dictionary
+var particles: Dictionary
+var motions: Dictionary
+var haptics: Dictionary
+var card_states: Array
 ## The looping half of the audio: the score and the room tone. See music.json.
 var music: Dictionary
 var minitel_codes: Dictionary
@@ -109,6 +115,11 @@ func reload() -> void:
 	denial_wall = registries.get("denial_wall", {})
 	pronouns = registries.get("pronouns", {})
 	sounds = registries.get("sounds", {})
+	feel = registries.get("feel", {})
+	particles = registries.get("particles", {})
+	motions = registries.get("motions", {})
+	haptics = registries.get("haptics", {})
+	card_states = registries.get("card_states", [])
 	music = registries.get("music", {})
 	minitel_codes = registries.get("minitel_codes", {})
 	icons = registries.get("icons", {})

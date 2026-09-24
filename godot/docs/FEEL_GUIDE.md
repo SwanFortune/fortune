@@ -1,0 +1,158 @@
+# How the game feels: particles, card motion, haptics
+
+This is the handover for whoever gives the game its feel: the sparks when a
+card lands, a card that jolts as it goes through a wall, the rumble in a
+gamepad when the reading lands. The plumbing is done and tested. **Every
+preset in it is a placeholder**, tuned by eye with a procedural soft dot so
+there is something to replace. What it should look like is not decided here.
+
+Everything below is data, in `data/base/feel.json`. None of it needs code.
+The code is `autoload/Feel.gd`; the tests are `tests/test_feel.gd`.
+
+## The moments
+
+A moment is something the game announces. The list is fixed: it is
+`Feel.EVENTS` in `autoload/Feel.gd`, and `feel.json` must have an entry for
+each one (the test fails otherwise, both ways).
+
+| Moment | When | Placed on |
+|---|---|---|
+| `card_draw` | each card dealt into the hand | — (fires five times in a row, keep it light) |
+| `card_lay` | a card leaves the hand for the table | where the card was |
+| `card_link_same` | read out: continues the element before it | its line in the ledger |
+| `card_link_turn` | read out: turns forward round the ring | its line |
+| `card_pierce` | read out: goes straight through their denial | its line |
+| `card_bank` | read out: paid as faith, not composure | its line |
+| `card_exhaust` | read out: a ONCE card spoken for good | its line |
+| `wall_absorb` | read out: the wall holds off the front | the wall's line |
+| `reading_resolve` | read out: what reaches them | the total |
+| `sitter_win` / `sitter_lose` | the verdict | the verdict's heading |
+| `knock` | someone at the door | — (felt only) |
+| `coin` | centimes change hands | the thing bought |
+
+A line in the ledger gets one of pierce, bank or link, in that order of
+precedence, plus `card_exhaust` if the card is a ONCE card.
+
+Each entry can name any of three things, and any can be left out:
+
+```json
+"card_pierce": { "particles": "shards", "color": "element", "motion": "jolt", "haptic": "thud" }
+```
+
+`color` is `element` (the card's element, from `elements.json`), a hex
+colour `#rrggbb`, or empty for white. The particle texture is tinted by it.
+
+## Particles
+
+```json
+"shards": { "status": "placeholder", "texture": "", "amount": 16, "lifetime": 0.5,
+            "explosiveness": 1.0, "from": "point", "direction": [1, 0], "spread": 30,
+            "speed": [160, 320], "gravity": [0, 120], "scale": [0.1, 0.3], "spin": 360 }
+```
+
+- `texture`: **empty until there is a drawing.** A bare filename resolves
+  under `assets/particles/` (create the folder). Until then every preset uses a
+  32 px soft white dot, so `scale` is a fraction of 32 px. A white, or white on
+  transparent, drawing takes the tint best.
+- `status`: `placeholder`, `wip` or `final`, the same words the audio uses.
+  The credits count them.
+- `from`: `point` (the centre of what it came from), `area` (anywhere on it)
+  or `edge` (round its outline, which suits a card).
+- `amount`, `lifetime` (seconds), `explosiveness` (0 = a stream, 1 = all at
+  once), `randomness`, `direction` + `spread` (degrees either side), `speed`
+  [min, max] in px/s, `gravity` [x, y] in px/s², `damping`, `scale` [min, max],
+  `spin` (degrees/s either way), `fade` (true by default: alpha to 0 over its
+  life), `z`.
+
+Bursts go on Feel's own layer above every screen, so they outlive the screen
+being rebuilt, which happens on every action. At most 24 are alive at once.
+They speed up with the game-speed setting.
+
+## Card motion
+
+```json
+"jolt": { "kind": "shake", "amount": 4.0, "count": 4, "duration": 0.3 }
+```
+
+| `kind` | `amount` is |
+|---|---|
+| `pulse` | how much bigger it grows (0.06 = 6%) |
+| `hop` | the same, with an overshoot |
+| `shake` | degrees of rock, dying away over `count` swings |
+| `tilt` | degrees it leans before coming back |
+| `flash` | how much brighter it gets (0.35 = 35%) |
+| `breathe` | the same as flash, **looping** for as long as the card is there |
+
+Every motion is a tween on scale, rotation or brightness, never on position:
+the hand is laid out by containers, which would snap a card back. Each ends
+exactly where it started, and `tests/test_feel.gd` measures that. `duration`
+is in seconds at 1x game speed.
+
+## Cards that animate on their own
+
+`card_states` decide whether a card **in the hand** carries a looping motion
+or a standing emitter while it sits there. The first rule that matches wins:
+
+```json
+"card_states": [
+  { "id": "rare", "when": { "r": "rare" }, "particles": "shimmer", "color": "element" },
+  { "id": "would_continue_the_line", "off": true,
+    "when": { "affordable": true, "link": ["same", "turn"] }, "motion": "breathe" }
+]
+```
+
+`when` holds field: value pairs that must all be true. A field is looked up in
+what the screen knows about the card first, then on the card itself:
+
+- `affordable`: it can be paid for right now;
+- `link`: the link it would make if laid next (`same`, `turn`, `back`,
+  `break`, `open`, `flat`, the words the ledger uses);
+- `el`: its effective element;
+- any field of the card: `r` (rarity), `pierce`, `exhaust`, `a` (archetype), `n`…
+
+`true` means the field is set and not zero or empty. A list means any of these
+values. Anything else must be equal.
+
+**The second rule is switched off on purpose.** Making the cards that would
+continue the line breathe is a real hint about how to play, and that is a
+design decision, not a feel one. Remove `"off": true` to try it.
+
+## Haptics
+
+```json
+"knock": { "pulses": [[0.2, 0.8, 0.06, 0.12], [0.2, 0.8, 0.06, 0]] }
+```
+
+Each pulse is `[weak, strong, seconds, pause_after]`. `weak` is the
+high-frequency motor (a tap, a tick) and `strong` the low one (a thud, a
+swell); both run from 0 to 1 and are scaled by the player's strength setting.
+Only the gamepad the player last touched rumbles, or every connected one if
+they have not touched one yet. On a phone the single motor gets the stronger
+of the two.
+
+**Nobody has felt these yet.** They were written by numbers, and they need a
+person holding a pad. SETTINGS → CONTROLS has a TRY IT button next to the
+strength slider.
+
+## What the player controls
+
+| Setting | Where | Turns off |
+|---|---|---|
+| Particles | INTERFACE | every burst and standing emitter |
+| Game speed: Instant | INTERFACE | particles **and** card motion (the reduced-motion setting) |
+| Vibration, Vibration strength | CONTROLS | haptics; they do **not** follow game speed |
+
+## A mod
+
+The registries are `feel`, `particles`, `motions` and `haptics` (merged
+key by key), and `card_states` (merged by `id`), so a pack changes one preset
+without restating the others:
+
+```json
+{ "particles": { "shards": { "texture": "user://mods/my_pack/shard.png", "amount": 30 } } }
+```
+
+A texture in `user://` is read from its bytes, since Godot's importer never
+sees a mod's files. A name that nothing defines, a motion kind that does not
+exist, or a texture that does not load is reported once when the game loads,
+and does nothing in play.

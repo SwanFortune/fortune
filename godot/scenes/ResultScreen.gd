@@ -36,7 +36,11 @@ func _ready() -> void:
 	var sitter: Dictionary = res.get("sitter", {})
 	_says = str(sitter.get("p", "they"))
 	var says := _says
-	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says).to_upper(), 15, UIKit.GREEN if win else UIKit.RED))
+	var head := UIKit.block(I18n.fill(UIKit.tr_line(res.get("head")), says).to_upper(), 15, UIKit.GREEN if win else UIKit.RED)
+	v.add_child(head)
+	# A beat later, not now: the head has no place on screen until it has been
+	# laid out, and the burst is centred on it.
+	Feel.play_later(0.05, "sitter_win" if win else "sitter_lose", head)
 	v.add_child(UIKit.block(I18n.fill(UIKit.tr_line(res.get("title")), says), 22, UIKit.INK))
 	var said_field: String = "win" if win else "fail"
 	v.add_child(UIKit.block(

@@ -98,6 +98,8 @@ each record is merged by:
 | `denial_wall` | object | (whole-object merge) | `fx.json` |
 | `pronouns` | object | (whole-object merge) | `pronouns.json` |
 | `sounds` | object | (whole-object merge) | `sounds.json` |
+| `feel`, `particles`, `motions`, `haptics` | object | (whole-object merge) | `feel.json` |
+| `card_states` | array | `id` | `feel.json` |
 | `minitel_codes` | object | (whole-object merge) | `minitel.json` |
 | `card_effects` | array | `k` | `card_effects.json` |
 | `signs` | array | `k` | `signs.json` |
@@ -232,6 +234,19 @@ are read **from bytes at runtime**, not through Godot's import pipeline, which
 is what makes a mod's audio work at all — the importer only ever sees `res://`
 assets known at export time. The same is true of a mod's **art**. See
 `docs/SOUND_GUIDE.md` for the spec and what each moment is for.
+
+### Particles, card motion and haptics
+
+`feel.json` says how each game moment feels: a burst of particles, a motion of
+the card, a gamepad rumble. It also decides which cards in the hand animate on
+their own. The moments are fixed (`Feel.EVENTS` in `autoload/Feel.gd`); the
+presets are yours to change or add, one at a time:
+
+```json
+{ "particles": { "shards": { "texture": "user://mods/my_pack/shard.png" } } }
+```
+
+See `docs/FEEL_GUIDE.md` for every field.
 
 ### Locking a reader
 

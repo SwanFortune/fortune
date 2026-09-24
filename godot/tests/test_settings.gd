@@ -162,6 +162,7 @@ func _test_every_setting_moves_something() -> void:
 	# resolve. See autoload/Content.gd's header.
 	var run: Node = root.get_node("Run")
 	var i18n: Node = root.get_node("I18n")
+	var feel: Node = root.get_node("Feel")
 	var UIKit = load("res://scenes/UIKit.gd")
 	var before := {}
 	for key in settings.DEFS:
@@ -189,6 +190,11 @@ func _test_every_setting_moves_something() -> void:
 		"disabled_mods": [[], ["example.a_new_card"], func():
 			content.reload(); return content.cards_minor.size()],
 		"keybinds": [{}, {"parlour_deck": KEY_F9}, func(): return _keys_of("parlour_deck")],
+		"particles": [false, true, func(): return feel.particles_on()],
+		"haptics": [false, true, func(): return feel.rumble("tick")],
+		"haptic_strength": [0.2, 1.0, func():
+			feel.rumble("thud")
+			return feel.haptic_log.back()["strong"] if not feel.haptic_log.is_empty() else -1.0],
 	}
 
 	for key in settings.DEFS:

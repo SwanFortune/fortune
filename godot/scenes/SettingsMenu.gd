@@ -195,6 +195,9 @@ func _pane_interface(v: VBoxContainer) -> void:
 		"high_contrast", I18n.t("High contrast"),
 		I18n.t("A black ground, white text, and stronger secondary text. The game's usual dim greys are a deliberate look and hard to read for some people."),
 		func(_p): _build()))
+	v.add_child(UIKit.setting_toggle(
+		"particles", I18n.t("Particles"),
+		I18n.t("Sparks, dust and embers around the cards. Always off when the game speed is Instant.")))
 
 
 func _pane_controls(v: VBoxContainer) -> void:
@@ -206,6 +209,14 @@ func _pane_controls(v: VBoxContainer) -> void:
 	v.add_child(UIKit.block(I18n.t(
 		"The gamepad button on the right is shown, not editable: only the keyboard key is rebindable, so changing one never costs you a controller button."
 	), 11, UIKit.DIM))
+	v.add_child(UIKit.setting_toggle(
+		"haptics", I18n.t("Vibration"),
+		I18n.t("The gamepad rumbles when a card lands, goes through a wall, and when the reading reaches them.")))
+	v.add_child(UIKit.setting_slider(
+		"haptic_strength", I18n.t("Vibration strength"),
+		I18n.t("How hard it rumbles. Try it with the button below."),
+		func(x): return _pct(x)))
+	v.add_child(UIKit.button(I18n.t("TRY IT"), func(): Feel.rumble("swell")))
 
 
 func _pane_language(v: VBoxContainer) -> void:

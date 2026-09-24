@@ -82,6 +82,16 @@ const DEFS := {
 	# The dim greys this game is written in are a deliberate look and a real
 	# problem for anyone who cannot pick them off the background.
 	"high_contrast": [false],
+	# Sparks, dust and embers round the cards (autoload/Feel.gd). Separate from
+	# game speed because some people want the motion and not the confetti; and
+	# INSTANT turns them off regardless, since particles are motion.
+	"particles": [true],
+	# ── haptics ──────────────────────────────────────────────────────────
+	# Gamepad rumble on the moments that matter (Feel.rumble). Its own switch,
+	# NOT tied to game speed: someone who cannot watch things move may very
+	# much want to feel them.
+	"haptics": [true],
+	"haptic_strength": [0.8, 0.0, 1.0],
 	# gameplay — the two knobs the prototype exposed as props (its cfg())
 	"start_energy": [3, 1, 8],
 	"hand_size": [5, 3, 10],
@@ -114,8 +124,8 @@ const SECTIONS := [
 	{"id": "gameplay", "title": "GAMEPLAY", "keys": ["start_energy", "hand_size"]},
 	{"id": "video", "title": "VIDEO", "keys": ["window_mode", "resolution", "vsync", "max_fps", "ui_scale"]},
 	{"id": "audio", "title": "AUDIO", "keys": ["master_volume", "sfx_volume", "ui_volume", "music_volume", "ambience_volume", "muted"]},
-	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast"]},
-	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds"]},
+	{"id": "interface", "title": "INTERFACE", "keys": ["animation_scale", "text_scale", "high_contrast", "particles"]},
+	{"id": "controls", "title": "CONTROLS", "keys": ["keybinds", "haptics", "haptic_strength"]},
 	{"id": "language", "title": "LANGUAGE", "keys": ["locale"]},
 	{"id": "content", "title": "CONTENT", "keys": ["load_example_mods", "disabled_mods"]},
 ]

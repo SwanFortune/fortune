@@ -383,6 +383,8 @@ func _fill_the_hand(f: Dictionary, hand_label: Control, held: Control) -> Node:
 			var face := UIKit.card_face(c, _lay.bind(c["uid"]), afford)
 			_inspect(face, hand_label)
 			fan.add_child(face)
+			_faces[c["uid"]] = face
+			Feel.dress_card(face, c, _feel_ctx(c, f, afford))
 			if just_drawn.has(c["uid"]):
 				UIKit.animate_in(face, deal_index * 0.06)
 				_deal_sound(deal_index * 0.06)
@@ -561,6 +563,7 @@ func _lift(held: Control, card: Dictionary, afford: bool) -> Control:
 	held.add_child(band)
 
 	var face := UIKit.card_face(card, _lay.bind(card["uid"]), afford)
+	_faces[card["uid"]] = face
 	var face_size := UIKit.card_face_size()
 
 	# The light it hangs in, and the shadow it casts on the cloth below. Both
@@ -678,12 +681,23 @@ func _span_of(cards: Array, origin: Control) -> Vector2:
 func _deal_sound(delay: float) -> void:
 	if UIKit.motion_off() or delay <= 0.0:
 		Audio.play("card_draw")
+		Feel.play("card_draw")
 		return
 	UIKit.after(delay, func(): Audio.play("card_draw"))
+	Feel.play_later(delay, "card_draw")
 
 
 func _lay(card_uid: String) -> void:
 	Audio.play("card_lay")
+	# Before the lay: the screen is rebuilt straight after, and the face goes
+	# with it. The burst is on Feel's own layer, so it outlives the rebuild.
+	var face = _faces.get(card_uid)
+	var card: Dictionary = {}
+	for c in Run.state.get("f", {}).get("hand", []):
+		if c["uid"] == card_uid:
+			card = c
+	if card.is_empty() or int(card.get("cost", 0)) <= int(Run.state["f"]["energy"]):
+		Feel.play("card_lay", face if is_instance_valid(face) else null, {"el": _el_of(card)})
 	Run.lay_card(card_uid)
 	Nav.goto_for_state()
 
@@ -706,6 +720,49 @@ const REVEAL_WIDTH := 560.0
 ## Set for the length of the reveal, so a second READ IT (or the shortcut, or a
 ## click) skips to the end rather than resolving the reading twice.
 var _revealing := false
+
+## The hand's faces by card uid, so laying a card can put its burst where the
+## card WAS — the screen is rebuilt the moment it is laid.
+var _faces := {}
+
+
+## What a card cannot say about itself, for Feel's card_states rules: whether it
+## can be paid for now, and the link it would make laid next — the same words
+## Rules.link_of() and the reading ledger use.
+func _feel_ctx(c: Dictionary, f: Dictionary, afford: bool) -> Dictionary:
+	var carried := ""
+	for laid in f.get("cross", []):
+		var e := Rules.el_of(Run.run_ctx(), f, laid)
+		if e != "" and not laid.get("neutral", false):
+			carried = e
+	return {"affordable": afford, "link": Rules.link_of(Run.run_ctx(), f, carried, c), "el": _el_of(c)}
+
+
+func _el_of(c: Dictionary) -> String:
+	if c.is_empty():
+		return ""
+	return Rules.el_of(Run.run_ctx(), Run.state.get("f", {}), c)
+
+
+## What one line of the ledger feels like, in order of how much it matters: a
+## card going through the wall beats one paid as faith beats a link. A ONCE
+## card also smoulders as it is spoken for good.
+func _feel_row(at: float, line: Control, row: Dictionary, f: Dictionary) -> void:
+	var cross: Array = f.get("cross", [])
+	var i := int(row.get("i", -1))
+	var card: Dictionary = cross[i] if i >= 0 and i < cross.size() else {}
+	var ctx := {"el": str(row.get("el", "")) if row.get("el") != null else ""}
+	var event := ""
+	if row.get("pierce", false):
+		event = "card_pierce"
+	elif row.get("bank", false):
+		event = "card_bank"
+	elif str(row.get("link", "")) in ["same", "turn"]:
+		event = "card_link_" + str(row["link"])
+	if event != "":
+		Feel.play_later(at, event, line, ctx)
+	if card.get("exhaust", false):
+		Feel.play_later(at, "card_exhaust", line, ctx)
 
 
 func _unlay() -> void:
@@ -815,6 +872,7 @@ func _reveal() -> void:
 		v.add_child(line)
 		UIKit.animate_in(line, at, 0.22)
 		_beat(at, "card_lay")
+		_feel_row(at, line, row, f)
 		at += REVEAL_LINE
 
 	# The wall, which is the part players get wrong. It is only shown when it
@@ -832,6 +890,7 @@ func _reveal() -> void:
 		v.add_child(wall)
 		UIKit.animate_in(wall, at, 0.22)
 		_beat(at, "card_discard")
+		Feel.play_later(at, "wall_absorb", wall)
 
 	# And what actually reaches them, which is the number that mattered all
 	# along and was never shown arriving.
@@ -848,6 +907,8 @@ func _reveal() -> void:
 	v.add_child(landed)
 	UIKit.animate_in(landed, at, 0.28)
 	_beat(at, "reading_resolve")
+	if applied > 0:
+		Feel.play_later(at, "reading_resolve", landed)
 	v.add_child(UIKit.block(I18n.t("(any key)"), 10, UIKit.DIM))
 
 	UIKit.after(at + REVEAL_HOLD, func():

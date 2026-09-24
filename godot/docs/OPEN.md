@@ -50,6 +50,15 @@ verifies that it sounds right. The crossfades, the relative volumes, whether
 `ui_move` machine-guns on a keyboard player — all of that needs headphones. The
 smoke test runs under a dummy audio driver and could not hear it if it tried.
 
+**Nobody has felt the haptics, and the particles are dots.** The feel system
+(`autoload/Feel.gd`, `data/base/feel.json`, `docs/FEEL_GUIDE.md`) is built
+and tested, and every preset in it is a placeholder: particles with no drawing
+(a procedural soft dot), sizes and timings set by eye, rumble patterns written
+by numbers and never held. `tests/test_feel.gd` proves the motions end where
+they start, that the settings are obeyed, and that nothing named is missing.
+It cannot say whether a thud feels like a thud. SETTINGS → CONTROLS → TRY IT
+is the place to start.
+
 **Nobody has played it.** Every test in here is structural: the screens build,
 the keys reach something, the numbers agree with the specification, nothing
 leaks. `tests/test_balance.gd` checks no reader is a trap and none is a free

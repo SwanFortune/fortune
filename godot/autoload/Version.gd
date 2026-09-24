@@ -130,6 +130,7 @@ func _art_and_sound() -> Array:
 		"· " + I18n.t("Music and sound: unfilled."),
 		"· " + I18n.t("Drawings: %s.") % _delivered(Art.status_summary(), Art.UNDELIVERED),
 		"· " + I18n.t("Sound and music: %s.") % _delivered(Audio.status_summary(), Audio.UNDELIVERED),
+		"· " + I18n.t("Particles: %s.") % _delivered(Feel.status_summary(), Feel.UNDELIVERED),
 	]
 
 

@@ -64,6 +64,9 @@ func _knock(root: Control) -> void:
 	var room := root.find_child("Room", false, false)
 	if room == null:
 		return
+	# Felt, not seen: the pattern is its own two knocks, and it plays whatever
+	# the motion setting — see Feel.gd on why haptics do not follow it.
+	Feel.play("knock")
 	if UIKit.motion_off():
 		# One knock, no rattle: the sound is not the animation, and turning
 		# motion off should not make the door go quiet.
