@@ -223,6 +223,7 @@ func _test_minitel_screen_dials() -> void:
 func _test_the_reference_screens_build() -> void:
 	await _visit_scene("how to play", "res://scenes/HowToPlay.tscn")
 	await _visit_scene("credits", "res://scenes/Credits.tscn")
+	await _visit_scene("studio", "res://scenes/Studio.tscn")
 	done()
 
 

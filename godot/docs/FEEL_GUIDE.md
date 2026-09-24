@@ -1,5 +1,10 @@
 # How the game feels: particles, card motion, haptics
 
+**Start in the studio**: CREDITS → STUDIO, or `godot --path godot -- --studio`.
+Every moment is a button there, played on a real card, with the preset it uses
+printed beside it; files are reloaded the moment they are saved, and SLOW
+MOTION and REPEAT are for tuning. `docs/ATELIER.md` is this guide in French.
+
 This is the handover for whoever gives the game its feel: the sparks when a
 card lands, a card that jolts as it goes through a wall, the rumble in a
 gamepad when the reading lands. The plumbing is done and tested. **Every
@@ -64,6 +69,19 @@ colour `#rrggbb`, or empty for white. The particle texture is tinted by it.
   `spin` (degrees/s either way), `fade` (true by default: alpha to 0 over its
   life), `z`.
 
+For an animator's drawing:
+
+- `frames`: [columns, rows] — the texture is a flipbook. `cycles` plays it that
+  many times over a particle's life (1 by default); `random_frame: true` gives
+  each particle one frame at random instead.
+- `blend`: `"add"` for light — a glow that brightens what is under it.
+- `colors`: stops from birth to death, `#rrggbb` or `#rrggbbaa`, multiplied by
+  the tint. Replaces `fade`.
+- `size_over_life`: [at birth, …, at death], multiplying `scale`.
+
+A drawing that does not divide into its grid, or a flipbook with no drawing,
+is reported at load.
+
 Bursts go on Feel's own layer above every screen, so they outlive the screen
 being rebuilt, which happens on every action. At most 24 are alive at once.
 They speed up with the game-speed setting.
@@ -82,6 +100,22 @@ They speed up with the game-speed setting.
 | `tilt` | degrees it leans before coming back |
 | `flash` | how much brighter it gets (0.35 = 35%) |
 | `breathe` | the same as flash, **looping** for as long as the card is there |
+| `keys` | not used — keyframes instead, below |
+
+**Keyframes**, as an animator writes them:
+
+```json
+"pop": { "kind": "keys", "loop": false, "keys": [
+  { "at": 0.0 },
+  { "at": 0.08, "scale": 1.12, "bright": 1.4, "ease": "out" },
+  { "at": 0.32, "scale": 1.0,  "bright": 1.0, "ease": "back" } ] }
+```
+
+`at` is seconds at 1x. `scale`, `turn` (degrees), `bright` and `alpha` are
+RELATIVE to the card as it was when the motion started, so 1 / 0 / 1 / 1 is
+"as it was". A value a key leaves out holds the previous key's. `ease` is how
+the card arrives at that key: `linear`, `in`, `out`, `in_out`, `back`,
+`elastic`, `bounce`, `snap`. The first key is a pose the card jumps to.
 
 Every motion is a tween on scale, rotation or brightness, never on position:
 the hand is laid out by containers, which would snap a card back. Each ends

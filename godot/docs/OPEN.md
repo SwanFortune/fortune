@@ -57,7 +57,16 @@ and tested, and every preset in it is a placeholder: particles with no drawing
 by numbers and never held. `tests/test_feel.gd` proves the motions end where
 they start, that the settings are obeyed, and that nothing named is missing.
 It cannot say whether a thud feels like a thud. SETTINGS → CONTROLS → TRY IT
-is the place to start.
+is the place to start, and CREDITS → STUDIO is where the rest is tuned.
+
+**A mod cannot ship art.** `docs/MODDING.md` says a mod's art is read from
+bytes like its audio, and `tests/test_art.gd` says "a mod that wants art ships
+its own manifest" — but `Art.gd` reads exactly one manifest,
+`data/base/art_manifest.json`, and no pack's. A drawing in a mod has no entry
+to be found by. Check: `grep -n MANIFEST_PATH godot/autoload/Art.gd`. The fix is
+a `art` registry merged by ModLoader like `sounds`, with the base manifest as
+its base pack's entry; the studio's ART pane would then show a mod's drawings
+too.
 
 **Nobody has played it.** Every test in here is structural: the screens build,
 the keys reach something, the numbers agree with the specification, nothing

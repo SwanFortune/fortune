@@ -9,7 +9,7 @@
     "card_bank":       { "particles": "coins", "color": "#D4B038", "motion": "glint", "haptic": "tick" },
     "card_exhaust":    { "particles": "embers", "color": "element" },
     "wall_absorb":     { "motion": "jolt", "haptic": "thud" },
-    "reading_resolve": { "particles": "bloom", "color": "#8FBF73", "motion": "press", "haptic": "swell" },
+    "reading_resolve": { "particles": "bloom", "color": "#8FBF73", "motion": "pop", "haptic": "swell" },
     "sitter_win":      { "particles": "bloom", "color": "#D4B038", "haptic": "swell" },
     "sitter_lose":     { "motion": "lean", "haptic": "fall" },
     "knock":           { "haptic": "knock" },
@@ -20,8 +20,8 @@
     "sparks":  { "status": "placeholder", "texture": "", "amount": 10, "lifetime": 0.45, "explosiveness": 1.0, "from": "point", "direction": [0, -1], "spread": 60, "speed": [80, 180], "gravity": [0, 220], "scale": [0.1, 0.25] },
     "shards":  { "status": "placeholder", "texture": "", "amount": 16, "lifetime": 0.5, "explosiveness": 1.0, "from": "point", "direction": [1, 0], "spread": 30, "speed": [160, 320], "gravity": [0, 120], "scale": [0.1, 0.3], "spin": 360 },
     "coins":   { "status": "placeholder", "texture": "", "amount": 8, "lifetime": 0.8, "explosiveness": 0.9, "from": "point", "direction": [0, -1], "spread": 40, "speed": [90, 160], "gravity": [0, 380], "scale": [0.2, 0.35] },
-    "embers":  { "status": "placeholder", "texture": "", "amount": 18, "lifetime": 1.0, "explosiveness": 0.6, "from": "area", "direction": [0, -1], "spread": 25, "speed": [20, 50], "gravity": [0, -30], "scale": [0.1, 0.3] },
-    "bloom":   { "status": "placeholder", "texture": "", "amount": 28, "lifetime": 0.9, "explosiveness": 1.0, "from": "point", "direction": [0, -1], "spread": 180, "speed": [60, 200], "damping": 120, "gravity": [0, 0], "scale": [0.2, 0.5] },
+    "embers":  { "status": "placeholder", "texture": "", "amount": 18, "lifetime": 1.0, "explosiveness": 0.6, "from": "area", "direction": [0, -1], "spread": 25, "speed": [20, 50], "gravity": [0, -30], "scale": [0.1, 0.3], "colors": ["#ffffff", "#ffb060", "#80200000"], "size_over_life": [1, 0.4] },
+    "bloom":   { "status": "placeholder", "texture": "", "amount": 28, "lifetime": 0.9, "explosiveness": 1.0, "from": "point", "direction": [0, -1], "spread": 180, "speed": [60, 200], "damping": 120, "gravity": [0, 0], "scale": [0.2, 0.5], "blend": "add", "size_over_life": [0.4, 1, 0] },
     "shimmer": { "status": "placeholder", "texture": "", "amount": 6, "lifetime": 1.2, "explosiveness": 0.0, "from": "edge", "direction": [0, -1], "spread": 180, "speed": [5, 15], "gravity": [0, 0], "scale": [0.08, 0.18] }
   },
   "motions": {
@@ -30,7 +30,11 @@
     "jolt":    { "kind": "shake", "amount": 4.0, "count": 4, "duration": 0.3 },
     "lean":    { "kind": "tilt", "amount": 3.0, "duration": 0.35 },
     "glint":   { "kind": "flash", "amount": 0.35, "duration": 0.3 },
-    "breathe": { "kind": "breathe", "amount": 0.18, "duration": 1.6 }
+    "breathe": { "kind": "breathe", "amount": 0.18, "duration": 1.6 },
+    "pop":     { "kind": "keys", "keys": [
+                 { "at": 0.0 },
+                 { "at": 0.08, "scale": 1.12, "bright": 1.4, "ease": "out" },
+                 { "at": 0.32, "scale": 1.0, "bright": 1.0, "ease": "back" } ] }
   },
   "haptics": {
     "tick":  { "pulses": [[0.25, 0.0, 0.03, 0]] },

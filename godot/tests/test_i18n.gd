@@ -46,17 +46,21 @@ func _test_english_is_passthrough() -> void:
 	done()
 
 
-## The double-quoted literal directly inside an I18n.t( call — the same narrow
-## rule the template's scraper uses, and deliberately the same narrowness: a
+## The double-quoted literal directly inside an I18n.t( call, on the same line
+## or the next — the same narrow rule the template's scraper uses, and deliberately the same narrowness: a
 ## computed argument is a key from data, covered by the content half.
 func _t_literals(text: String) -> Array[String]:
 	var out: Array[String] = []
+	# The opening quote may be on the next line — see the template's scraper,
+	# which missed every such call. Found here by a pattern rather than by the
+	# same loop, so the two still disagree if either is wrong.
+	var opener := RegEx.create_from_string("I18n\\.t\\(\\s*\"")
 	var at := 0
 	while true:
-		var call_at := text.find("I18n.t(\"", at)
-		if call_at < 0:
+		var m := opener.search(text, at)
+		if m == null:
 			break
-		var i := call_at + 8
+		var i := m.get_end()
 		var s := ""
 		while i < text.length():
 			var c := text[i]

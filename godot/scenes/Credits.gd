@@ -46,6 +46,8 @@ func _ready() -> void:
 
 	var actions := UIKit.hbox(10)
 	actions.add_child(UIKit.button(I18n.t("BACK"), _back))
+	# Where the art is credited is where the person making it will look.
+	actions.add_child(UIKit.button(I18n.t("STUDIO"), func(): Nav.goto_studio()))
 	outer.add_child(actions)
 	UIKit.focus_first(self)
 

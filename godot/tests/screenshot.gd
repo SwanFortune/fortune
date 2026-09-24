@@ -68,6 +68,7 @@ func _initialize() -> void:
 		"minitel": "res://scenes/MinitelScreen.tscn",
 		"help": "res://scenes/HowToPlay.tscn",
 		"credits": "res://scenes/Credits.tscn",
+		"studio": "res://scenes/Studio.tscn",
 		"menu_saved": "res://scenes/MainMenu.tscn",
 	}
 	var scene_path: String

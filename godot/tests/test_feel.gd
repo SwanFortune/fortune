@@ -137,7 +137,9 @@ func _test_the_placeholders_are_counted() -> void:
 func _test_every_motion_ends_where_it_started() -> void:
 	var host := _host()
 	for kind in feel.MOTION_KINDS:
-		if kind == "breathe":
+		# breathe never ends, and keys end wherever the animator put them —
+		# each has its own test below.
+		if kind in ["breathe", "keys"]:
 			continue
 		content.motions["probe"] = {"kind": kind, "amount": 0.2, "duration": 0.3, "count": 3}
 		var card := _card(host)
@@ -153,6 +155,69 @@ func _test_every_motion_ends_where_it_started() -> void:
 		check(card.modulate.is_equal_approx(Color(0.9, 0.9, 0.9, 1.0)), "'%s' left the card tinted %s" % [kind, card.modulate])
 		card.free()
 	host.free()
+	content.reload()
+	done()
+
+
+## KEYFRAMES go where each key says, relative to where the card started, in
+## order — measured at the middle key and at the end.
+func _test_keyframes_hit_their_keys() -> void:
+	var host := _host()
+	var card := _card(host)
+	card.scale = Vector2(2, 2)
+	card.rotation_degrees = 10.0
+	content.motions["probe"] = {"kind": "keys", "keys": [
+		{"at": 0.0},
+		{"at": 0.2, "scale": 1.5, "turn": 30, "bright": 2.0, "ease": "out"},
+		{"at": 0.5, "scale": 1.0, "turn": 0, "bright": 1.0, "alpha": 0.5, "ease": "back"},
+	]}
+	var tw: Tween = feel.move(card, "probe")
+	check(tw != null, "a keyed motion should make a tween")
+	if tw != null:
+		tw.custom_step(0.2)
+		check(card.scale.is_equal_approx(Vector2(3, 3)), "at 0.2s the card should be 1.5x its starting 2x, is %s" % card.scale)
+		check(is_equal_approx(card.rotation_degrees, 40.0), "at 0.2s it should be 30° past its starting 10°, is %s" % card.rotation_degrees)
+		tw.custom_step(1.0)
+		check(card.scale.is_equal_approx(Vector2(2, 2)), "at the end it should be back to 2x, is %s" % card.scale)
+		check(is_equal_approx(card.modulate.a, 0.5), "the last key asked for half opacity, got %s" % card.modulate.a)
+	content.motions["probe"] = {"kind": "keys", "keys": [{"at": 0.0}]}
+	check(feel.move(card, "probe") == null, "one key is a pose, not a motion: nothing should play")
+	content.motions["probe"] = {"kind": "keys", "keys": [{"at": 0}, {"at": 0.2, "ease": "wobbly"}]}
+	check(feel.problems().any(func(l): return l.contains("wobbly")), "an easing nobody defined should be reported")
+	host.free()
+	content.reload()
+	done()
+
+
+## A FLIPBOOK, an additive glow, colour and size over life: what an animator
+## hands over becomes the emitter's material and curves, and a drawing that
+## does not divide into its grid is reported rather than played sliced.
+func _test_a_flipbook_particle_is_built_from_its_drawing() -> void:
+	var img := Image.create(64, 32, false, Image.FORMAT_RGBA8)
+	img.fill(Color.WHITE)
+	var path := "user://feel_sheet.png"
+	img.save_png(path)
+	content.particles["probe"] = {"texture": path, "frames": [4, 2], "cycles": 2, "blend": "add",
+		"colors": ["#ffffff", "#ff8800", "#ff000000"], "size_over_life": [0, 1, 0]}
+	feel._textures.clear()
+	var p: CPUParticles2D = feel.burst("probe", Vector2(100, 100))
+	check(p != null, "the flipbook preset should burst")
+	if p != null:
+		var mat := p.material as CanvasItemMaterial
+		check(mat != null and mat.particles_animation, "a flipbook needs particles_animation on")
+		if mat != null:
+			check(mat.particles_anim_h_frames == 4 and mat.particles_anim_v_frames == 2, "a 4x2 grid of frames")
+			check(mat.blend_mode == CanvasItemMaterial.BLEND_MODE_ADD, "blend: add should light what is under it")
+		check(is_equal_approx(p.anim_speed_min, 2.0), "cycles: 2 should play the flipbook twice a life")
+		check(p.color_ramp != null and p.color_ramp.get_point_count() == 3, "three colours, three stops")
+		check(p.scale_amount_curve != null and p.scale_amount_curve.point_count == 3, "three sizes, three points")
+		p.free()
+	check(feel.problems().filter(func(l): return l.contains("'probe'")).is_empty(), "64x32 divides into 4x2: nothing to report")
+	content.particles["probe"]["frames"] = [3, 2]
+	check(feel.problems().any(func(l): return l.contains("does not divide")), "64 wide does not divide into 3 columns — say so")
+	content.particles["probe"].erase("texture")
+	check(feel.problems().any(func(l): return l.contains("no texture to cut")), "a flipbook with no drawing should be reported")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	content.reload()
 	done()
 

@@ -61,6 +61,7 @@ func _initialize() -> void:
 	await _walk("records", "res://scenes/Records.tscn", func(): pass)
 	await _walk("how to play", "res://scenes/HowToPlay.tscn", func(): pass)
 	await _walk("credits", "res://scenes/Credits.tscn", func(): pass)
+	await _walk("studio", "res://scenes/Studio.tscn", func(): pass)
 	await _walk("sign", "res://scenes/SignSelect.tscn", func(): run.state = run.fresh())
 	await _walk("pick (gift)", "res://scenes/PickScreen.tscn", func():
 		run.state = run.fresh()

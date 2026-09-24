@@ -82,6 +82,11 @@ func goto_main_menu() -> void:
 	_goto("res://scenes/MainMenu.tscn")
 
 
+## The studio, for whoever draws and animates for the game. See scenes/Studio.gd.
+func goto_studio() -> void:
+	_goto("res://scenes/Studio.tscn")
+
+
 ## WHAT PLAYS ON EACH SCREEN. One place, because every screen change goes
 ## through _goto() below — the alternative is a line in fourteen _ready()s, and
 ## the fourteenth is the one somebody forgets.
@@ -103,6 +108,9 @@ const MUSIC_FOR := {
 	"res://scenes/Reading.tscn": "the_table",
 	"res://scenes/ResultScreen.tscn": "the_table",
 	"res://scenes/RunOver.tscn": "after",
+	# The table's music, so what is tuned in the studio is judged in the room
+	# it will be seen in.
+	"res://scenes/Studio.tscn": "the_table",
 }
 
 ## The room tone, which is the same room all night. One entry, kept as a map

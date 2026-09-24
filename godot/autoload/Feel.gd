@@ -69,6 +69,20 @@ const MOTION_KINDS := {
 	"tilt": "leans `amount` degrees and comes back",
 	"flash": "brightens by `amount` and fades back",
 	"breathe": "LOOPS: brightens by `amount` and back, for as long as the card is there",
+	"keys": "keyframes, as an animator writes them: `keys` is a list of {at, scale, turn, bright, alpha, ease}",
+}
+
+## The curves a keyframe may ask for on its way IN, by the names an animator
+## uses. Each is [transition, ease].
+const EASES := {
+	"linear": [Tween.TRANS_LINEAR, Tween.EASE_IN_OUT],
+	"in": [Tween.TRANS_QUAD, Tween.EASE_IN],
+	"out": [Tween.TRANS_QUAD, Tween.EASE_OUT],
+	"in_out": [Tween.TRANS_QUAD, Tween.EASE_IN_OUT],
+	"back": [Tween.TRANS_BACK, Tween.EASE_OUT],
+	"elastic": [Tween.TRANS_ELASTIC, Tween.EASE_OUT],
+	"bounce": [Tween.TRANS_BOUNCE, Tween.EASE_OUT],
+	"snap": [Tween.TRANS_EXPO, Tween.EASE_OUT],
 }
 
 ## What a particle preset's `status` may say. The same words the audio uses, so
@@ -252,11 +266,54 @@ func _emitter(preset_name: String, colour: Color, extent: Vector2) -> CPUParticl
 	p.angular_velocity_max = float(pre.get("spin", 0))
 	p.texture = texture_of(preset_name)
 	p.color = colour
-	if bool(pre.get("fade", true)):
+	# COLOUR OVER A PARTICLE'S LIFE. `colors` is a list of stops, evenly spaced
+	# from birth to death, multiplied by the tint — ["#ffffff", "#ffaa33",
+	# "#ff330000"] is a spark cooling to an ember and going out. Without it,
+	# `fade` (on by default) takes it from opaque to nothing.
+	var stops: Array = pre.get("colors", [])
+	if stops.size() >= 2:
+		var ramp := Gradient.new()
+		ramp.offsets = PackedFloat32Array()
+		ramp.colors = PackedColorArray()
+		for i in stops.size():
+			ramp.add_point(float(i) / (stops.size() - 1), Color(str(stops[i])))
+		p.color_ramp = ramp
+	elif bool(pre.get("fade", true)):
 		var ramp := Gradient.new()
 		ramp.set_color(0, Color(1, 1, 1, 1))
 		ramp.set_color(1, Color(1, 1, 1, 0))
 		p.color_ramp = ramp
+	# SIZE OVER LIFE: [at birth, …, at death], multiplying `scale`. [1, 0]
+	# shrinks to nothing; [0, 1, 0] swells and dies.
+	var sizes: Array = pre.get("size_over_life", [])
+	if sizes.size() >= 2:
+		var curve := Curve.new()
+		curve.max_value = maxf(1.0, sizes.map(func(x): return float(x)).max())
+		for i in sizes.size():
+			curve.add_point(Vector2(float(i) / (sizes.size() - 1), float(sizes[i])))
+		p.scale_amount_curve = curve
+	# A FLIPBOOK: the texture is a grid of frames, [columns, rows], played
+	# `cycles` times over each particle's life (1 by default), or one frame per
+	# particle picked at random with `random_frame` — sparks that are not all
+	# the same spark. And `blend: "add"` for light: glows that brighten what is
+	# under them instead of covering it.
+	var grid = pre.get("frames")
+	var additive := str(pre.get("blend", "")) == "add"
+	if (grid is Array and grid.size() == 2) or additive:
+		var mat := CanvasItemMaterial.new()
+		if additive:
+			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		if grid is Array and grid.size() == 2:
+			mat.particles_animation = true
+			mat.particles_anim_h_frames = maxi(1, int(grid[0]))
+			mat.particles_anim_v_frames = maxi(1, int(grid[1]))
+			mat.particles_anim_loop = true
+			if bool(pre.get("random_frame", false)):
+				p.anim_offset_max = 1.0
+			else:
+				p.anim_speed_min = float(pre.get("cycles", 1.0))
+				p.anim_speed_max = float(pre.get("cycles", 1.0))
+		p.material = mat
 	match str(pre.get("from", "point")):
 		"area":
 			p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -362,11 +419,64 @@ func move(target: Control, motion_name: String) -> Tween:
 			tw.tween_property(target, "modulate", from, seconds * 0.5).set_trans(Tween.TRANS_SINE)
 			if kind == "breathe":
 				tw.set_loops()
+		"keys":
+			if not _keyframes(tw, target, pre.get("keys", [])):
+				tw.kill()
+				target.remove_meta("_feel_tween")
+				return null
+			if bool(pre.get("loop", false)):
+				tw.set_loops()
 		_:
 			tw.kill()
 			target.remove_meta("_feel_tween")
 			return null
 	return tw
+
+
+## KEYFRAMES, the way an animator thinks: each key says where the card is `at`
+## that many seconds, and the tween goes there from the key before. Every value
+## is RELATIVE to the card as it was when the motion started — `scale` 1.2 is
+## 20% bigger than it was, `turn` 5 is five degrees further round, `bright` 1.5
+## is half as bright again, `alpha` 0 is gone — so the same motion suits a card
+## that is already lifted or already dimmed. A value a key leaves out holds
+## what the key before had. `ease` is how the card arrives AT that key; see
+## EASES. The first key is where it starts, and should usually be at 0.
+##
+## To end where it began, the last key says so (scale 1, turn 0, bright 1).
+## Nothing forces it: a motion that leaves a card changed is sometimes the
+## point, and the test for the built-in kinds does not apply to these.
+func _keyframes(tw: Tween, target: Control, keys: Array) -> bool:
+	if keys.size() < 2:
+		return false
+	var s0 := target.scale
+	var r0 := target.rotation_degrees
+	var m0 := target.modulate
+	var now := {"at": 0.0, "scale": 1.0, "turn": 0.0, "bright": 1.0, "alpha": 1.0}
+	var first := true
+	tw.set_parallel(false)
+	for k in keys:
+		if not (k is Dictionary):
+			continue
+		var nxt := now.duplicate()
+		for field in ["at", "scale", "turn", "bright", "alpha"]:
+			if k.has(field):
+				nxt[field] = float(k[field])
+		if first:
+			# The first key is a pose, not a move: the card jumps to it.
+			target.scale = s0 * nxt["scale"]
+			target.rotation_degrees = r0 + nxt["turn"]
+			target.modulate = Color(m0.r * nxt["bright"], m0.g * nxt["bright"], m0.b * nxt["bright"], m0.a * nxt["alpha"])
+			first = false
+			now = nxt
+			continue
+		var seconds := _dur(maxf(0.0, nxt["at"] - now["at"]))
+		var curve: Array = EASES.get(str(k.get("ease", "in_out")), EASES["in_out"])
+		var lit := Color(m0.r * nxt["bright"], m0.g * nxt["bright"], m0.b * nxt["bright"], m0.a * nxt["alpha"])
+		tw.tween_property(target, "scale", s0 * nxt["scale"], seconds).set_trans(curve[0]).set_ease(curve[1])
+		tw.parallel().tween_property(target, "rotation_degrees", r0 + nxt["turn"], seconds).set_trans(curve[0]).set_ease(curve[1])
+		tw.parallel().tween_property(target, "modulate", lit, seconds).set_trans(curve[0]).set_ease(curve[1])
+		now = nxt
+	return true
 
 
 ## Stops whatever Feel set moving on `target`. It is left where the motion had
@@ -395,7 +505,7 @@ func card_state(card: Dictionary, ctx: Dictionary = {}) -> Dictionary:
 	for rule in Content.card_states:
 		if bool(rule.get("off", false)):
 			continue
-		if _matches(rule.get("when", {}), card, ctx):
+		if matches(rule.get("when", {}), card, ctx):
 			return rule
 	return {}
 
@@ -406,8 +516,13 @@ func card_state(card: Dictionary, ctx: Dictionary = {}) -> Dictionary:
 func dress_card(face: Control, card: Dictionary, ctx: Dictionary = {}) -> void:
 	if not _alive(face):
 		return
-	var rule := card_state(card, ctx)
-	if rule.is_empty():
+	dress_with(face, card_state(card, ctx), card, ctx)
+
+
+## dress_card() with the rule chosen by the caller. The studio uses it to show a
+## rule that is switched off, so it can be judged before it is switched on.
+func dress_with(face: Control, rule: Dictionary, card: Dictionary, ctx: Dictionary = {}) -> void:
+	if not _alive(face) or rule.is_empty():
 		return
 	var motion := str(rule.get("motion", ""))
 	if motion != "":
@@ -442,7 +557,8 @@ func _move_by_id(id: int, motion_name: String) -> void:
 		move(target, motion_name)
 
 
-func _matches(when: Dictionary, card: Dictionary, ctx: Dictionary) -> bool:
+## Whether a card_states `when` holds for this card — see card_state().
+func matches(when: Dictionary, card: Dictionary, ctx: Dictionary) -> bool:
 	for field in when:
 		var want = when[field]
 		var have = ctx.get(field) if ctx.has(field) else card.get(field)
@@ -540,13 +656,26 @@ func problems() -> Array[String]:
 		var kind := str(Content.motions[m].get("kind", ""))
 		if not MOTION_KINDS.has(kind):
 			out.append("feel.json: motion '%s' is of kind '%s', which is not one of %s" % [m, kind, MOTION_KINDS.keys()])
+		for k in Content.motions[m].get("keys", []):
+			if k is Dictionary and k.has("ease") and not EASES.has(str(k["ease"])):
+				out.append("feel.json: motion '%s' has a key easing '%s', which is not one of %s" % [m, k["ease"], EASES.keys()])
 	for name in Content.particles:
 		var st := str(Content.particles[name].get("status", UNDELIVERED))
 		if not STATUSES.has(st):
 			out.append("feel.json: particles '%s' has status '%s', which is not one of %s" % [name, st, STATUSES.keys()])
 		var path := texture_path(name)
-		if path != "" and _load_texture(path) == null:
+		var drawn: Texture2D = _load_texture(path) if path != "" else null
+		if path != "" and drawn == null:
 			out.append("feel.json: particles '%s' names the texture %s, which does not load" % [name, path])
+		# A flipbook cut from a drawing that does not divide into its grid plays
+		# frames sliced through the middle of each other.
+		var grid = Content.particles[name].get("frames")
+		if grid is Array and grid.size() == 2:
+			if path == "":
+				out.append("feel.json: particles '%s' is a flipbook of %s frames with no texture to cut them from" % [name, grid])
+			elif drawn != null and (drawn.get_width() % maxi(1, int(grid[0])) != 0 or drawn.get_height() % maxi(1, int(grid[1])) != 0):
+				out.append("feel.json: particles '%s' is %dx%d, which does not divide into a %sx%s grid of frames"
+					% [name, drawn.get_width(), drawn.get_height(), grid[0], grid[1]])
 	return out
 
 

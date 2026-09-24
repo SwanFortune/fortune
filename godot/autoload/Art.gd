@@ -114,9 +114,88 @@ func texture(id: String) -> Texture2D:
 	# gets verified against the filesystem, so a status of "final" with no
 	# file present degrades to the placeholder rather than erroring.
 	if entry.get("status", "missing") != "missing":
-		tex = _load_texture(path)
+		tex = animated(entry, path)
+		if tex == null:
+			tex = _load_texture(path)
 	_cache[id] = tex
 	return tex
+
+
+## A DRAWING THAT MOVES. Two ways to deliver one, because animation tools export
+## one or the other and an animator should not have to convert:
+##
+##   a SPRITE SHEET — the ordinary <slug>.png, holding a grid of frames, with
+##     "frames": [columns, rows] in the manifest entry (and "count" if the last
+##     row is not full). Every frame is the size the spec asks for.
+##   a FOLDER OF FRAMES — assets/art/<kind>/<slug>/ holding 0001.png, 0002.png…
+##     in the order their names sort. What Krita, Procreate and Aseprite export
+##     when asked for "frames as images". No manifest field needed.
+##
+## "fps" (default 12) sets the speed, "loop": false plays it once and holds the
+## last frame. What comes back is an AnimatedTexture, which IS a Texture2D, so
+## every card face and portrait slot in the game animates without being told:
+## nothing that displays art knows or cares that this one moves.
+##
+## Null when the entry is not animated, and the caller loads the still.
+func animated(entry: Dictionary, path: String) -> Texture2D:
+	var frames: Array[Texture2D] = []
+	for f in frame_files(path.get_basename()):
+		var t := _load_texture(f)
+		if t != null:
+			frames.append(t)
+	var grid = entry.get("frames")
+	if frames.is_empty() and grid is Array and grid.size() == 2:
+		var sheet := _load_texture(path)
+		if sheet != null:
+			frames = _slice(sheet, int(grid[0]), int(grid[1]), int(entry.get("count", 0)))
+	if frames.size() < 2:
+		return null
+	var anim := AnimatedTexture.new()
+	anim.frames = mini(frames.size(), AnimatedTexture.MAX_FRAMES)
+	var each := 1.0 / maxf(float(entry.get("fps", DEFAULT_FPS)), 0.1)
+	for i in anim.frames:
+		anim.set_frame_texture(i, frames[i])
+		anim.set_frame_duration(i, each)
+	anim.one_shot = not bool(entry.get("loop", true))
+	return anim
+
+
+const DEFAULT_FPS := 12.0
+
+
+## The frames in a folder, in name order. Asked two ways and merged: in an
+## exported build the pack lists `0001.png.import`/`.remap` rather than the PNG
+## (ResourceLoader.list_directory() puts the names back), and a folder dropped
+## in after the last editor import, or in user://mods, has plain PNGs only.
+func frame_files(folder: String) -> Array[String]:
+	var names := {}
+	if DirAccess.dir_exists_absolute(folder):
+		for n in DirAccess.get_files_at(folder):
+			names[n.trim_suffix(".import").trim_suffix(".remap")] = true
+	if folder.begins_with("res://"):
+		for n in ResourceLoader.list_directory(folder):
+			names[n] = true
+	var out: Array[String] = []
+	for n in names:
+		if str(n).to_lower().ends_with(".png"):
+			out.append(folder.path_join(n))
+	out.sort_custom(func(a, b): return a.naturalnocasecmp_to(b) < 0)
+	return out
+
+
+func _slice(sheet: Texture2D, cols: int, rows: int, count: int) -> Array[Texture2D]:
+	var out: Array[Texture2D] = []
+	if cols < 1 or rows < 1:
+		return out
+	var w := sheet.get_width() / cols
+	var h := sheet.get_height() / rows
+	var n := cols * rows if count <= 0 else mini(count, cols * rows)
+	for i in n:
+		var a := AtlasTexture.new()
+		a.atlas = sheet
+		a.region = Rect2(float((i % cols) * w), float((i / cols) * h), float(w), float(h))
+		out.append(a)
+	return out
 
 
 ## Decodes an image from BYTES rather than going through load().

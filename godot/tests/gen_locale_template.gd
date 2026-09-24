@@ -251,10 +251,22 @@ func _scraped_ui_strings() -> Array[String]:
 			var text := _code_only(FileAccess.get_file_as_string(path))
 			var at := 0
 			while true:
-				var call_at := text.find("I18n.t(\"", at)
+				# The literal may be on the NEXT line: `I18n.t(` then a newline
+				# and an indented sentence is how every long string in the game
+				# is written. Looking for `I18n.t("` alone missed all of them, a
+				# hand list below papered over the ones somebody remembered, and
+				# the V-Sync notice was the one nobody did — shown in English to
+				# every French player whose driver refused the setting.
+				var call_at := text.find("I18n.t(", at)
 				if call_at < 0:
 					break
-				var start := call_at + 8
+				var start := call_at + 7
+				while start < text.length() and text[start] in [" ", "\t", "\n", "\r"]:
+					start += 1
+				if start >= text.length() or text[start] != "\"":
+					at = call_at + 7
+					continue
+				start += 1
 				var s := ""
 				var i := start
 				while i < text.length():

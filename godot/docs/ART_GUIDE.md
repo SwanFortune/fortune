@@ -75,6 +75,30 @@ Accents are stripped from filenames on purpose so they stay portable across
 Windows/Mac/Linux and safe inside Steam Workshop archives — the accented name
 still displays correctly in-game, it's only the filename that's plain.
 
+### Animation — a card or a portrait that moves
+
+Any asset can be animated, two ways, whichever the animation tool exports:
+
+- **A folder of frames**: `assets/art/card/pour-the-tea/0001.png`, `0002.png`…
+  — a folder named for the asset instead of the single PNG. Frames play in the
+  order their names sort, the way a person counts (2 before 10). Each frame is
+  the size a still would be.
+- **A sprite sheet**: the usual `pour-the-tea.png` holding a grid of frames,
+  each the still's size, with `"frames": [columns, rows]` in its manifest entry
+  (and `"count"` if the last row is not full).
+
+`"fps"` sets the speed (12 by default); `"loop": false` plays it once and holds
+the last frame. Nothing else changes: the game gets an animated texture where
+it would have got a still, so every card face and portrait slot animates
+without knowing. Keep it short — 8 to 24 frames — since every frame is held
+in memory at full size. `tests/test_art.gd` holds each frame, and each cell of
+a sheet, to the size in the spec.
+
+**The studio** (CREDITS → STUDIO, or `godot --path godot -- --studio`) shows
+every asset as it looks now, copies the file name it wants, reloads the moment
+a file is saved, and writes blank templates at these sizes. `docs/ATELIER.md`
+is the same guide in French, for whoever is drawing.
+
 ### Checking a delivery
 
 From the repository root:

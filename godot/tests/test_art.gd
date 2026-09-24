@@ -117,6 +117,51 @@ func _test_every_manifest_id_is_resolvable() -> void:
 ## until the artist delivers.
 ##
 ## Writes its own file to user:// and cleans up, so it needs no committed art.
+## A DRAWING THAT MOVES, delivered the two ways animation tools export.
+## Written to user:// and cleaned up, so it needs no committed art — and a mod's
+## folder is exactly where an animator's frames would be read from bytes.
+func _test_a_sprite_sheet_animates() -> void:
+	var path := "user://_test_sheet.png"
+	var sheet := Image.create(40, 20, false, Image.FORMAT_RGBA8)
+	sheet.fill(Color(0.2, 0.4, 0.6))
+	sheet.save_png(path)
+	var tex = art.animated({"frames": [4, 2], "count": 7, "fps": 8}, path)
+	check(tex is AnimatedTexture, "a sheet with frames: [4, 2] should come back animated")
+	if tex is AnimatedTexture:
+		check(tex.frames == 7, "count 7 should mean 7 frames of the 8 cells, got %d" % tex.frames)
+		check(tex.get_frame_texture(6).get_width() == 10 and tex.get_frame_texture(6).get_height() == 10,
+			"each frame should be one cell, 10x10")
+		check(is_equal_approx(tex.get_frame_duration(0), 1.0 / 8.0), "fps 8 is an eighth of a second a frame")
+		check(not tex.one_shot, "animation loops unless told otherwise")
+	check(art.animated({}, path) == null, "a still with no frames field is not animated")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+	done()
+
+
+func _test_a_folder_of_frames_animates_in_name_order() -> void:
+	var dir := "user://_test_frames"
+	DirAccess.make_dir_recursive_absolute(dir)
+	# 10 before 2 as text, 2 before 10 as a person counts: the order has to be
+	# the second, or frame ten plays second.
+	var shades := {"frame_1.png": 0.1, "frame_2.png": 0.2, "frame_10.png": 1.0}
+	for n in shades:
+		var img := Image.create(4, 4, false, Image.FORMAT_RGBA8)
+		img.fill(Color(shades[n], 0, 0))
+		img.save_png(dir.path_join(n))
+	var tex = art.animated({"loop": false}, dir + ".png")
+	check(tex is AnimatedTexture, "a folder of three PNGs should come back animated")
+	if tex is AnimatedTexture:
+		check(tex.frames == 3, "three files, three frames: got %d" % tex.frames)
+		var last: Image = tex.get_frame_texture(2).get_image()
+		check(is_equal_approx(last.get_pixel(0, 0).r, 1.0), "frame_10 should be LAST, as a person counts")
+		check(tex.one_shot, "loop: false should play it once")
+	for n in shades:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(dir.path_join(n)))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(dir))
+	check(art.animated({}, dir + ".png") == null, "no folder, no frames field: not animated")
+	done()
+
+
 func _test_unimported_file_loads() -> void:
 	var path := "user://_test_unimported.png"
 	var img := Image.create(8, 8, false, Image.FORMAT_RGBA8)
@@ -322,6 +367,12 @@ func _test_delivered_files_and_the_manifest_agree() -> void:
 	for path in files:
 		# assets/art/card/pour-the-tea.png -> card/pour-the-tea
 		var id := path.trim_prefix("res://assets/art/").get_basename()
+		# A FRAME: assets/art/card/pour-the-tea/0003.png belongs to
+		# card/pour-the-tea, which is animated (see Art.animated()). Each frame
+		# is held to the same size as a still.
+		var is_frame := not wanted.has(id) and wanted.has(id.get_base_dir())
+		if is_frame:
+			id = id.get_base_dir()
 		if not wanted.has(id):
 			check(false, "%s is not a manifest id — the game will never look for it. Check the folder and the slug against data/base/art_manifest.json (ids use hyphens, and the apostrophe in a name is dropped, not kept)." % path)
 			continue
@@ -334,6 +385,10 @@ func _test_delivered_files_and_the_manifest_agree() -> void:
 		if not size_for.has(kind):
 			continue
 		var want: Vector2i = size_for[kind]
+		# A sprite sheet is a grid of frames, each the size a still would be.
+		var grid = wanted[id].get("frames")
+		if not is_frame and grid is Array and grid.size() == 2:
+			want = Vector2i(want.x * int(grid[0]), want.y * int(grid[1]))
 		if img.get_size() != want:
 			check(false, "%s is %dx%d, and the spec asks every %s for %dx%d — it will be scaled into the window and read softer than it was drawn"
 				% [path, img.get_size().x, img.get_size().y, kind, want.x, want.y])

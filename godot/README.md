@@ -70,6 +70,7 @@ godot --headless --path godot -s tests/test_save.gd            # save/resume rou
 godot --headless --path godot -s tests/test_settings.gd        # key rebinding + setting hygiene
 godot --headless --path godot -s tests/test_audio.gd           # sound registry + runtime loader
 godot --headless --path godot -s tests/test_feel.gd            # particles, card motion, haptics
+godot --headless --path godot -s tests/test_studio.gd          # the studio: live reload, templates
 godot --headless --path godot -s tests/test_profile.gd         # cross-run stats + reader unlocks
 godot --headless --path godot -s tests/test_dead_content.gd    # content fields nothing reads
 godot --headless --path godot -s tests/test_minitel.gd         # the 3615 code channel + secret events
@@ -80,7 +81,7 @@ godot --headless --path godot -s tests/test_the_suite.gd       # every test meth
 godot --headless --path godot -s tests/test_against_the_prototype.gd  # the engine against the prototype's own simulate()
 ```
 
-All twenty-four should print `ALL PASS`. Several of them
+All twenty-five should print `ALL PASS`. Several of them
 also print `ERROR` lines on purpose — they feed `get_var()` a corrupt save, make
 `user://` unwritable, hand the mod loader broken JSON, and name content nothing
 answers to, all to check those paths are refused rather than half-honoured. The
@@ -161,6 +162,11 @@ way a mod's own art or audio can work at all.
 ```
 python3 tests/gen_sounds.py                                  # regenerate the placeholders
 ```
+
+**Whoever draws or animates starts in the studio**: CREDITS → STUDIO, or
+`godot --path godot -- --studio`. It reloads the moment a file is saved, shows
+every asset with the file name it wants, and plays every effect on a real
+card. `docs/ATELIER.md` is the guide, in French.
 
 Feel works the same way again: particles, card motion and gamepad rumble for
 each moment are presets in `data/base/feel.json`, and **`docs/FEEL_GUIDE.md` is
@@ -287,5 +293,5 @@ assets/art/   where delivered art goes (see docs/ART_GUIDE.md); empty is fine
 scenes/       the playable UI (incl. SettingsMenu, Library, and the in-run RunHeader)
 mods_example/ a tiny working example mod, proving the pack format end to end
 tests/        headless tests + dev tools (no editor/display required)
-docs/         MODDING.md, STEAM_WORKSHOP.md, STEAM_RELEASE.md, PORTING_NOTES.md, ART_GUIDE.md, SOUND_GUIDE.md, FEEL_GUIDE.md, LOCALIZATION.md, MINITEL.md
+docs/         MODDING.md, STEAM_WORKSHOP.md, STEAM_RELEASE.md, PORTING_NOTES.md, ART_GUIDE.md, SOUND_GUIDE.md, FEEL_GUIDE.md, ATELIER.md, LOCALIZATION.md, MINITEL.md
 ```
